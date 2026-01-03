@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -41,10 +41,14 @@ interface InvoiceItem {
 }
 
 const InvoiceForm = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isEditing = Boolean(id);
+  
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState('');
 
   const [formData, setFormData] = useState({
@@ -62,8 +66,12 @@ const InvoiceForm = () => {
 
   useEffect(() => {
     fetchCustomers();
-    generateInvoiceNumber();
-  }, []);
+    if (isEditing) {
+      fetchInvoice();
+    } else {
+      generateInvoiceNumber();
+    }
+  }, [id]);
 
   const fetchCustomers = async () => {
     try {
@@ -79,13 +87,57 @@ const InvoiceForm = () => {
     }
   };
 
+  const fetchInvoice = async () => {
+    setFetching(true);
+    try {
+      const { data: invoice, error } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+
+      setInvoiceNumber(invoice.invoice_number);
+      setFormData({
+        customer_id: invoice.customer_id || '',
+        invoice_date: invoice.invoice_date,
+        due_date: invoice.due_date || '',
+        notes: invoice.notes || '',
+        discount: Number(invoice.discount) || 0,
+        tax: Number(invoice.tax) || 0,
+      });
+
+      // Fetch items
+      const { data: invoiceItems } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', id);
+
+      if (invoiceItems && invoiceItems.length > 0) {
+        setItems(invoiceItems.map(item => ({
+          id: item.id,
+          description: item.description,
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+          discount: Number(item.discount) || 0,
+          total: Number(item.total),
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching invoice:', error);
+      toast.error('ইনভয়েস লোড করতে সমস্যা হয়েছে');
+    } finally {
+      setFetching(false);
+    }
+  };
+
   const generateInvoiceNumber = async () => {
     try {
       const { data, error } = await supabase.rpc('generate_invoice_number');
       if (error) throw error;
       setInvoiceNumber(data);
     } catch (error) {
-      // Fallback
       const year = new Date().getFullYear();
       setInvoiceNumber(`${year}0001`);
     }
@@ -98,7 +150,6 @@ const InvoiceForm = () => {
 
         const updated = { ...item, [field]: value };
         
-        // Recalculate total
         const qty = Number(updated.quantity) || 0;
         const price = Number(updated.unit_price) || 0;
         const discount = Number(updated.discount) || 0;
@@ -151,12 +202,11 @@ const InvoiceForm = () => {
       const subtotal = calculateSubtotal();
       const total = calculateTotal();
 
-      // Create invoice
-      const { data: invoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert([
-          {
-            invoice_number: invoiceNumber,
+      if (isEditing) {
+        // Update invoice
+        const { error: invoiceError } = await supabase
+          .from('invoices')
+          .update({
             customer_id: formData.customer_id,
             invoice_date: formData.invoice_date,
             due_date: formData.due_date || null,
@@ -165,34 +215,68 @@ const InvoiceForm = () => {
             tax: formData.tax,
             total,
             notes: formData.notes,
-            created_by: user?.id,
-          },
-        ])
-        .select()
-        .single();
+          })
+          .eq('id', id);
 
-      if (invoiceError) throw invoiceError;
+        if (invoiceError) throw invoiceError;
 
-      // Create invoice items
-      const invoiceItems = items.map((item) => ({
-        invoice_id: invoice.id,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        discount: item.discount,
-        total: item.total,
-      }));
+        // Delete existing items and re-insert
+        await supabase.from('invoice_items').delete().eq('invoice_id', id);
 
-      const { error: itemsError } = await supabase
-        .from('invoice_items')
-        .insert(invoiceItems);
+        const invoiceItems = items.map((item) => ({
+          invoice_id: id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount: item.discount,
+          total: item.total,
+        }));
 
-      if (itemsError) throw itemsError;
+        const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItems);
+        if (itemsError) throw itemsError;
 
-      toast.success('ইনভয়েস তৈরি হয়েছে');
-      navigate(`/invoices/${invoice.id}`);
+        toast.success('ইনভয়েস আপডেট হয়েছে');
+        navigate(`/invoices/${id}`);
+      } else {
+        // Create invoice
+        const { data: invoice, error: invoiceError } = await supabase
+          .from('invoices')
+          .insert([
+            {
+              invoice_number: invoiceNumber,
+              customer_id: formData.customer_id,
+              invoice_date: formData.invoice_date,
+              due_date: formData.due_date || null,
+              subtotal,
+              discount: formData.discount,
+              tax: formData.tax,
+              total,
+              notes: formData.notes,
+              created_by: user?.id,
+            },
+          ])
+          .select()
+          .single();
+
+        if (invoiceError) throw invoiceError;
+
+        const invoiceItems = items.map((item) => ({
+          invoice_id: invoice.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount: item.discount,
+          total: item.total,
+        }));
+
+        const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItems);
+        if (itemsError) throw itemsError;
+
+        toast.success('ইনভয়েস তৈরি হয়েছে');
+        navigate(`/invoices/${invoice.id}`);
+      }
     } catch (error: any) {
-      console.error('Error creating invoice:', error);
+      console.error('Error saving invoice:', error);
       toast.error(error.message || 'সমস্যা হয়েছে');
     } finally {
       setLoading(false);
@@ -207,6 +291,15 @@ const InvoiceForm = () => {
     }).format(amount);
   };
 
+  if (fetching) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-10 w-48 bg-muted rounded" />
+        <div className="h-96 bg-muted rounded-xl" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-4">
@@ -214,7 +307,7 @@ const InvoiceForm = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">নতুন ইনভয়েস</h1>
+          <h1 className="text-3xl font-bold">{isEditing ? 'ইনভয়েস সম্পাদনা' : 'নতুন ইনভয়েস'}</h1>
           <p className="text-muted-foreground">ইনভয়েস নং: {invoiceNumber}</p>
         </div>
       </div>
@@ -418,7 +511,7 @@ const InvoiceForm = () => {
                 </div>
                 <Button type="submit" className="w-full gap-2" disabled={loading}>
                   <Save className="h-4 w-4" />
-                  {loading ? 'সংরক্ষণ হচ্ছে...' : 'ইনভয়েস সংরক্ষণ করুন'}
+                  {loading ? 'সংরক্ষণ হচ্ছে...' : isEditing ? 'আপডেট করুন' : 'ইনভয়েস সংরক্ষণ করুন'}
                 </Button>
               </CardContent>
             </Card>

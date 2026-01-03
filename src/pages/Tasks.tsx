@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, CheckCircle2, Circle, Clock, ListTodo, Search } from "lucide-react";
+import { Plus, CheckCircle2, Circle, Clock, ListTodo, Search, Edit2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { bn } from "date-fns/locale";
@@ -79,6 +79,7 @@ const Tasks = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -165,37 +166,56 @@ const Tasks = () => {
     }
 
     try {
-      const { data: newTask, error } = await supabase.from("tasks").insert({
-        title: formData.title,
-        description: formData.description || null,
-        assigned_to: formData.assigned_to || null,
-        assigned_by: user?.id,
-        deadline: formData.deadline || null,
-        priority: formData.priority,
-        status: "todo",
-      }).select().single();
+      if (editingTask) {
+        // Update existing task
+        const { error } = await supabase
+          .from("tasks")
+          .update({
+            title: formData.title,
+            description: formData.description || null,
+            assigned_to: formData.assigned_to || null,
+            deadline: formData.deadline || null,
+            priority: formData.priority,
+          })
+          .eq("id", editingTask.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        toast.success("টাস্ক আপডেট হয়েছে");
+      } else {
+        // Create new task
+        const { data: newTask, error } = await supabase.from("tasks").insert({
+          title: formData.title,
+          description: formData.description || null,
+          assigned_to: formData.assigned_to || null,
+          assigned_by: user?.id,
+          deadline: formData.deadline || null,
+          priority: formData.priority,
+          status: "todo",
+        }).select().single();
 
-      // Notify assigned user
-      if (formData.assigned_to && newTask) {
-        await createNotification(
-          formData.assigned_to,
-          "নতুন টাস্ক অ্যাসাইন",
-          `আপনাকে নতুন টাস্ক অ্যাসাইন করা হয়েছে: ${formData.title}`,
-          "task_assigned",
-          newTask.id,
-          "task"
-        );
+        if (error) throw error;
+
+        // Notify assigned user
+        if (formData.assigned_to && newTask) {
+          await createNotification(
+            formData.assigned_to,
+            "নতুন টাস্ক অ্যাসাইন",
+            `আপনাকে নতুন টাস্ক অ্যাসাইন করা হয়েছে: ${formData.title}`,
+            "task_assigned",
+            newTask.id,
+            "task"
+          );
+        }
+
+        toast.success("টাস্ক তৈরি হয়েছে");
       }
 
-      toast.success("টাস্ক তৈরি হয়েছে");
       setIsDialogOpen(false);
       resetForm();
       fetchData();
     } catch (error) {
-      console.error("Error creating task:", error);
-      toast.error("টাস্ক তৈরি ব্যর্থ হয়েছে");
+      console.error("Error saving task:", error);
+      toast.error("টাস্ক সংরক্ষণ ব্যর্থ হয়েছে");
     }
   };
 
@@ -207,6 +227,33 @@ const Tasks = () => {
       deadline: "",
       priority: "medium",
     });
+    setEditingTask(null);
+  };
+
+  const openEditDialog = (task: Task) => {
+    setEditingTask(task);
+    setFormData({
+      title: task.title,
+      description: task.description || "",
+      assigned_to: task.assigned_to || "",
+      deadline: task.deadline || "",
+      priority: task.priority,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("এই টাস্ক মুছে ফেলতে চান?")) return;
+
+    try {
+      const { error } = await supabase.from("tasks").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("টাস্ক মুছে ফেলা হয়েছে");
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast.error("টাস্ক মুছতে সমস্যা হয়েছে");
+    }
   };
 
   const updateTaskStatus = async (id: string, status: TaskStatus) => {
@@ -273,7 +320,10 @@ const Tasks = () => {
           <p className="text-muted-foreground">টাস্ক অ্যাসাইনমেন্ট ও মনিটরিং</p>
         </div>
         {isAdmin && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -282,7 +332,7 @@ const Tasks = () => {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>নতুন টাস্ক তৈরি</DialogTitle>
+                <DialogTitle>{editingTask ? "টাস্ক সম্পাদনা" : "নতুন টাস্ক তৈরি"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -487,19 +537,40 @@ const Tasks = () => {
                       : "-"}
                   </TableCell>
                   <TableCell className="text-center">
-                    <Select
-                      value={task.status}
-                      onValueChange={(v) => updateTaskStatus(task.id, v as TaskStatus)}
-                    >
-                      <SelectTrigger className="w-[130px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todo">করতে হবে</SelectItem>
-                        <SelectItem value="in_progress">চলমান</SelectItem>
-                        <SelectItem value="completed">সম্পন্ন</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center justify-center gap-2">
+                      <Select
+                        value={task.status}
+                        onValueChange={(v) => updateTaskStatus(task.id, v as TaskStatus)}
+                      >
+                        <SelectTrigger className="w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todo">করতে হবে</SelectItem>
+                          <SelectItem value="in_progress">চলমান</SelectItem>
+                          <SelectItem value="completed">সম্পন্ন</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {isAdmin && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(task)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(task.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

@@ -49,9 +49,11 @@ const App = () => (
               <Route path="/invoices" element={<Invoices />} />
               <Route path="/invoices/new" element={<InvoiceForm />} />
               <Route path="/invoices/:id" element={<InvoiceDetail />} />
+              <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
               <Route path="/quotations" element={<Quotations />} />
               <Route path="/quotations/new" element={<QuotationForm />} />
               <Route path="/quotations/:id" element={<QuotationDetail />} />
+              <Route path="/quotations/:id/edit" element={<QuotationForm />} />
               <Route path="/price-calculation" element={<PriceCalculations />} />
               <Route path="/price-calculation/new" element={<PriceCalculationForm />} />
               <Route path="/price-calculation/:id" element={<PriceCalculationForm />} />
