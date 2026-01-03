@@ -20,6 +20,10 @@ import PriceCalculationForm from "./pages/PriceCalculationForm";
 import Expenses from "./pages/Expenses";
 import Vendors from "./pages/Vendors";
 import VendorDetail from "./pages/VendorDetail";
+import Employees from "./pages/Employees";
+import Attendance from "./pages/Attendance";
+import Salary from "./pages/Salary";
+import Leave from "./pages/Leave";
 import NotFound from "./pages/NotFound";
 
 // Placeholder pages
@@ -58,10 +62,10 @@ const App = () => (
               <Route path="/expenses" element={<Expenses />} />
               <Route path="/vendors" element={<Vendors />} />
               <Route path="/vendors/:id" element={<VendorDetail />} />
-              <Route path="/employees" element={<PlaceholderPage title="কর্মচারী" />} />
-              <Route path="/attendance" element={<PlaceholderPage title="উপস্থিতি" />} />
-              <Route path="/salary" element={<PlaceholderPage title="বেতন" />} />
-              <Route path="/leave" element={<PlaceholderPage title="ছুটি" />} />
+              <Route path="/employees" element={<Employees />} />
+              <Route path="/attendance" element={<Attendance />} />
+              <Route path="/salary" element={<Salary />} />
+              <Route path="/leave" element={<Leave />} />
               <Route path="/performance" element={<PlaceholderPage title="পারফরম্যান্স" />} />
               <Route path="/tasks" element={<PlaceholderPage title="টাস্ক" />} />
             </Route>
