@@ -42,6 +42,9 @@ import {
   XCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { bn } from 'date-fns/locale';
+import PrintTemplate from '@/components/print/PrintTemplate';
+import '@/components/print/printStyles.css';
 
 interface Invoice {
   id: string;
@@ -217,6 +220,12 @@ const InvoiceDetail = () => {
     window.print();
   };
 
+  const handleDownloadPDF = () => {
+    // Open print dialog which can be saved as PDF
+    window.print();
+    toast.success('PDF হিসেবে সংরক্ষণ করতে "Save as PDF" নির্বাচন করুন');
+  };
+
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -240,251 +249,282 @@ const InvoiceDetail = () => {
   const remaining = Number(invoice.total) - Number(invoice.paid_amount);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/invoices')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">ইনভয়েস #{invoice.invoice_number}</h1>
-            <p className="text-muted-foreground">
-              {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
-            </p>
+    <>
+      {/* Print Template - Hidden on screen, visible on print */}
+      <div className="print-content">
+        <PrintTemplate
+          type="invoice"
+          documentNumber={invoice.invoice_number}
+          date={invoice.invoice_date}
+          dueDate={invoice.due_date}
+          customer={invoice.customers}
+          items={items}
+          subtotal={Number(invoice.subtotal)}
+          discount={Number(invoice.discount)}
+          tax={Number(invoice.tax)}
+          total={Number(invoice.total)}
+          paidAmount={Number(invoice.paid_amount)}
+          notes={invoice.notes}
+          status={invoice.status}
+        />
+      </div>
+
+      {/* Screen Content */}
+      <div className="space-y-6 animate-fade-in print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/invoices')}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">ইনভয়েস #{invoice.invoice_number}</h1>
+              <p className="text-muted-foreground">
+                {format(new Date(invoice.invoice_date), 'd MMMM yyyy', { locale: bn })}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              প্রিন্ট
+            </Button>
+            <Button variant="outline" onClick={handleDownloadPDF}>
+              <Download className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+            {invoice.status !== 'paid' && (
+              <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    পেমেন্ট গ্রহণ
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>পেমেন্ট গ্রহণ করুন</DialogTitle>
+                    <DialogDescription>
+                      বাকি: {formatCurrency(remaining)}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>পরিমাণ</Label>
+                      <Input
+                        type="number"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                        placeholder="পরিমাণ লিখুন"
+                        max={remaining}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>পেমেন্ট মেথড</Label>
+                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">ক্যাশ</SelectItem>
+                          <SelectItem value="bank">ব্যাংক ট্রান্সফার</SelectItem>
+                          <SelectItem value="bkash">বিকাশ</SelectItem>
+                          <SelectItem value="nagad">নগদ</SelectItem>
+                          <SelectItem value="check">চেক</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>
+                      বাতিল
+                    </Button>
+                    <Button onClick={handleAddPayment}>পেমেন্ট সংরক্ষণ</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            প্রিন্ট
-          </Button>
-          {invoice.status !== 'paid' && (
-            <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  পেমেন্ট গ্রহণ
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>পেমেন্ট গ্রহণ করুন</DialogTitle>
-                  <DialogDescription>
-                    বাকি: {formatCurrency(remaining)}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>পরিমাণ</Label>
-                    <Input
-                      type="number"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                      placeholder="পরিমাণ লিখুন"
-                      max={remaining}
-                    />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Invoice Header */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                      <span className="text-primary-foreground font-bold text-2xl">C</span>
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-primary">Creation Printers</h2>
+                      <p className="text-muted-foreground">প্রিন্টিং ও প্যাকেজিং সলিউশন</p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>পেমেন্ট মেথড</Label>
-                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash">ক্যাশ</SelectItem>
-                        <SelectItem value="bank">ব্যাংক ট্রান্সফার</SelectItem>
-                        <SelectItem value="bkash">বিকাশ</SelectItem>
-                        <SelectItem value="nagad">নগদ</SelectItem>
-                        <SelectItem value="check">চেক</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="text-right">
+                    {getStatusBadge(invoice.status)}
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>
-                    বাতিল
-                  </Button>
-                  <Button onClick={handleAddPayment}>পেমেন্ট সংরক্ষণ</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-      </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Invoice Header */}
-          <Card className="print:shadow-none print:border-0">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-primary">Creation Printers</h2>
-                  <p className="text-muted-foreground">প্রিন্টিং ও প্যাকেজিং সলিউশন</p>
-                </div>
-                <div className="text-right">
-                  {getStatusBadge(invoice.status)}
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">বিল করা হয়েছে:</p>
-                  <p className="font-semibold">{invoice.customers?.name}</p>
-                  {invoice.customers?.company_name && (
-                    <p className="text-sm">{invoice.customers.company_name}</p>
-                  )}
-                  {invoice.customers?.phone && (
-                    <p className="text-sm">{invoice.customers.phone}</p>
-                  )}
-                  {invoice.customers?.address && (
-                    <p className="text-sm text-muted-foreground">
-                      {invoice.customers.address}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <div className="space-y-1">
-                    <p>
-                      <span className="text-muted-foreground">ইনভয়েস নং:</span>{' '}
-                      <span className="font-medium">{invoice.invoice_number}</span>
-                    </p>
-                    <p>
-                      <span className="text-muted-foreground">তারিখ:</span>{' '}
-                      {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
-                    </p>
-                    {invoice.due_date && (
-                      <p>
-                        <span className="text-muted-foreground">ডিউ তারিখ:</span>{' '}
-                        {format(new Date(invoice.due_date), 'dd/MM/yyyy')}
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-2 font-medium">বিল করা হয়েছে:</p>
+                    <p className="font-semibold text-lg">{invoice.customers?.name}</p>
+                    {invoice.customers?.company_name && (
+                      <p className="text-sm">{invoice.customers.company_name}</p>
+                    )}
+                    {invoice.customers?.phone && (
+                      <p className="text-sm text-muted-foreground">📞 {invoice.customers.phone}</p>
+                    )}
+                    {invoice.customers?.address && (
+                      <p className="text-sm text-muted-foreground">
+                        📍 {invoice.customers.address}
                       </p>
                     )}
                   </div>
+                  <div className="text-right bg-muted/50 p-4 rounded-lg">
+                    <div className="space-y-2">
+                      <p>
+                        <span className="text-muted-foreground">ইনভয়েস নং:</span>{' '}
+                        <span className="font-bold text-primary">{invoice.invoice_number}</span>
+                      </p>
+                      <p>
+                        <span className="text-muted-foreground">তারিখ:</span>{' '}
+                        {format(new Date(invoice.invoice_date), 'd MMMM yyyy', { locale: bn })}
+                      </p>
+                      {invoice.due_date && (
+                        <p>
+                          <span className="text-muted-foreground">ডিউ তারিখ:</span>{' '}
+                          {format(new Date(invoice.due_date), 'd MMMM yyyy', { locale: bn })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Items */}
-          <Card className="print:shadow-none print:border-0">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>বিবরণ</TableHead>
-                    <TableHead className="text-center">পরিমাণ</TableHead>
-                    <TableHead className="text-right">দাম</TableHead>
-                    <TableHead className="text-right">ছাড়</TableHead>
-                    <TableHead className="text-right">মোট</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell className="text-center">{item.quantity}</TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(Number(item.unit_price))}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(Number(item.discount))}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(Number(item.total))}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          {/* Notes */}
-          {invoice.notes && (
-            <Card className="print:shadow-none print:border-0">
-              <CardHeader>
-                <CardTitle className="text-sm">নোট</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{invoice.notes}</p>
               </CardContent>
             </Card>
-          )}
-        </div>
 
-        {/* Summary & Payments */}
-        <div className="space-y-6 print:hidden">
-          <Card>
-            <CardHeader>
-              <CardTitle>সারাংশ</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">সাবটোটাল</span>
-                <span>{formatCurrency(Number(invoice.subtotal))}</span>
-              </div>
-              {Number(invoice.discount) > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">ছাড়</span>
-                  <span className="text-destructive">
-                    -{formatCurrency(Number(invoice.discount))}
-                  </span>
-                </div>
-              )}
-              {Number(invoice.tax) > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">ট্যাক্স/ভ্যাট</span>
-                  <span>{formatCurrency(Number(invoice.tax))}</span>
-                </div>
-              )}
-              <div className="flex justify-between pt-3 border-t font-bold">
-                <span>মোট</span>
-                <span>{formatCurrency(Number(invoice.total))}</span>
-              </div>
-              <div className="flex justify-between text-success">
-                <span>পরিশোধিত</span>
-                <span>{formatCurrency(Number(invoice.paid_amount))}</span>
-              </div>
-              {remaining > 0 && (
-                <div className="flex justify-between text-destructive font-bold">
-                  <span>বাকি</span>
-                  <span>{formatCurrency(remaining)}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            {/* Items */}
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>বিবরণ</TableHead>
+                      <TableHead className="text-center">পরিমাণ</TableHead>
+                      <TableHead className="text-right">দাম</TableHead>
+                      <TableHead className="text-right">ছাড়</TableHead>
+                      <TableHead className="text-right">মোট</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.description}</TableCell>
+                        <TableCell className="text-center">{item.quantity}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(Number(item.unit_price))}
+                        </TableCell>
+                        <TableCell className="text-right text-destructive">
+                          {Number(item.discount) > 0 ? `-${formatCurrency(Number(item.discount))}` : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatCurrency(Number(item.total))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
 
-          {/* Payment History */}
-          {payments.length > 0 && (
+            {/* Notes */}
+            {invoice.notes && (
+              <Card className="border-info/20 bg-info/5">
+                <CardHeader>
+                  <CardTitle className="text-sm text-info">নোট</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Summary & Payments */}
+          <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>পেমেন্ট হিস্ট্রি</CardTitle>
+                <CardTitle>সারাংশ</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {payments.map((payment) => (
-                  <div
-                    key={payment.id}
-                    className="flex justify-between items-center p-3 bg-muted/50 rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {formatCurrency(Number(payment.amount))}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(payment.payment_date), 'dd/MM/yyyy')} •{' '}
-                        {payment.payment_method}
-                      </p>
-                    </div>
-                    <CheckCircle className="h-4 w-4 text-success" />
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">সাবটোটাল</span>
+                  <span>{formatCurrency(Number(invoice.subtotal))}</span>
+                </div>
+                {Number(invoice.discount) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">ছাড়</span>
+                    <span className="text-destructive">
+                      -{formatCurrency(Number(invoice.discount))}
+                    </span>
                   </div>
-                ))}
+                )}
+                {Number(invoice.tax) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">ট্যাক্স/ভ্যাট</span>
+                    <span>{formatCurrency(Number(invoice.tax))}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-3 border-t font-bold text-lg">
+                  <span>মোট</span>
+                  <span className="text-primary">{formatCurrency(Number(invoice.total))}</span>
+                </div>
+                <div className="flex justify-between text-success">
+                  <span>পরিশোধিত</span>
+                  <span>{formatCurrency(Number(invoice.paid_amount))}</span>
+                </div>
+                {remaining > 0 && (
+                  <div className="flex justify-between text-destructive font-bold pt-2 border-t">
+                    <span>বাকি</span>
+                    <span>{formatCurrency(remaining)}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+
+            {/* Payment History */}
+            {payments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>পেমেন্ট হিস্ট্রি</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {payments.map((payment) => (
+                    <div
+                      key={payment.id}
+                      className="flex justify-between items-center p-3 bg-success/5 border border-success/20 rounded-lg"
+                    >
+                      <div>
+                        <p className="font-medium text-success">
+                          {formatCurrency(Number(payment.amount))}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(payment.payment_date), 'd MMM yyyy', { locale: bn })} •{' '}
+                          {payment.payment_method}
+                        </p>
+                      </div>
+                      <CheckCircle className="h-5 w-5 text-success" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

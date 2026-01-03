@@ -33,13 +33,16 @@ import { toast } from 'sonner';
 import {
   ArrowLeft,
   Printer,
-  FileText,
+  Download,
   CheckCircle,
   Clock,
   XCircle,
   ArrowRightCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { bn } from 'date-fns/locale';
+import PrintTemplate from '@/components/print/PrintTemplate';
+import '@/components/print/printStyles.css';
 
 interface Quotation {
   id: string;
@@ -235,6 +238,11 @@ const QuotationDetail = () => {
     window.print();
   };
 
+  const handleDownloadPDF = () => {
+    window.print();
+    toast.success('PDF হিসেবে সংরক্ষণ করতে "Save as PDF" নির্বাচন করুন');
+  };
+
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -256,226 +264,256 @@ const QuotationDetail = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/quotations')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">কোটেশন #{quotation.quotation_number}</h1>
-            <p className="text-muted-foreground">
-              {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}
-            </p>
+    <>
+      {/* Print Template - Hidden on screen, visible on print */}
+      <div className="print-content">
+        <PrintTemplate
+          type="quotation"
+          documentNumber={quotation.quotation_number}
+          date={quotation.quotation_date}
+          validUntil={quotation.valid_until}
+          customer={quotation.customers}
+          items={items}
+          subtotal={Number(quotation.subtotal)}
+          discount={Number(quotation.discount)}
+          tax={Number(quotation.tax)}
+          total={Number(quotation.total)}
+          notes={quotation.notes}
+          status={quotation.status}
+        />
+      </div>
+
+      {/* Screen Content */}
+      <div className="space-y-6 animate-fade-in print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/quotations')}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">কোটেশন #{quotation.quotation_number}</h1>
+              <p className="text-muted-foreground">
+                {format(new Date(quotation.quotation_date), 'd MMMM yyyy', { locale: bn })}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              প্রিন্ট
+            </Button>
+            <Button variant="outline" onClick={handleDownloadPDF}>
+              <Download className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+            {quotation.status === 'pending' && (
+              <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <ArrowRightCircle className="h-4 w-4 mr-2" />
+                    Invoice এ রূপান্তর
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Invoice এ রূপান্তর করুন</DialogTitle>
+                    <DialogDescription>
+                      এই কোটেশন থেকে একটি নতুন ইনভয়েস তৈরি হবে। কোটেশনের স্ট্যাটাস "গৃহীত" হয়ে যাবে।
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
+                      বাতিল
+                    </Button>
+                    <Button onClick={handleConvertToInvoice} disabled={converting}>
+                      {converting ? 'রূপান্তর হচ্ছে...' : 'রূপান্তর করুন'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            প্রিন্ট
-          </Button>
-          {quotation.status === 'pending' && (
-            <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <ArrowRightCircle className="h-4 w-4 mr-2" />
-                  Invoice এ রূপান্তর
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Invoice এ রূপান্তর করুন</DialogTitle>
-                  <DialogDescription>
-                    এই কোটেশন থেকে একটি নতুন ইনভয়েস তৈরি হবে। কোটেশনের স্ট্যাটাস "গৃহীত" হয়ে যাবে।
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
-                    বাতিল
-                  </Button>
-                  <Button onClick={handleConvertToInvoice} disabled={converting}>
-                    {converting ? 'রূপান্তর হচ্ছে...' : 'রূপান্তর করুন'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-      </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Quotation Header */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                      <span className="text-primary-foreground font-bold text-2xl">C</span>
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-primary">Creation Printers</h2>
+                      <p className="text-muted-foreground">প্রিন্টিং ও প্যাকেজিং সলিউশন</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    {getStatusBadge(quotation.status)}
+                  </div>
+                </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Quotation Header */}
-          <Card className="print:shadow-none print:border-0">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-primary">Creation Printers</h2>
-                  <p className="text-muted-foreground">প্রিন্টিং ও প্যাকেজিং সলিউশন</p>
-                </div>
-                <div className="text-right">
-                  {getStatusBadge(quotation.status)}
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">প্রাপক:</p>
-                  <p className="font-semibold">{quotation.customers?.name}</p>
-                  {quotation.customers?.company_name && (
-                    <p className="text-sm">{quotation.customers.company_name}</p>
-                  )}
-                  {quotation.customers?.phone && (
-                    <p className="text-sm">{quotation.customers.phone}</p>
-                  )}
-                  {quotation.customers?.address && (
-                    <p className="text-sm text-muted-foreground">
-                      {quotation.customers.address}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <div className="space-y-1">
-                    <p>
-                      <span className="text-muted-foreground">কোটেশন নং:</span>{' '}
-                      <span className="font-medium">{quotation.quotation_number}</span>
-                    </p>
-                    <p>
-                      <span className="text-muted-foreground">তারিখ:</span>{' '}
-                      {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}
-                    </p>
-                    {quotation.valid_until && (
-                      <p>
-                        <span className="text-muted-foreground">মেয়াদ:</span>{' '}
-                        {format(new Date(quotation.valid_until), 'dd/MM/yyyy')}
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-2 font-medium">প্রাপক:</p>
+                    <p className="font-semibold text-lg">{quotation.customers?.name}</p>
+                    {quotation.customers?.company_name && (
+                      <p className="text-sm">{quotation.customers.company_name}</p>
+                    )}
+                    {quotation.customers?.phone && (
+                      <p className="text-sm text-muted-foreground">📞 {quotation.customers.phone}</p>
+                    )}
+                    {quotation.customers?.address && (
+                      <p className="text-sm text-muted-foreground">
+                        📍 {quotation.customers.address}
                       </p>
                     )}
                   </div>
+                  <div className="text-right bg-muted/50 p-4 rounded-lg">
+                    <div className="space-y-2">
+                      <p>
+                        <span className="text-muted-foreground">কোটেশন নং:</span>{' '}
+                        <span className="font-bold text-primary">{quotation.quotation_number}</span>
+                      </p>
+                      <p>
+                        <span className="text-muted-foreground">তারিখ:</span>{' '}
+                        {format(new Date(quotation.quotation_date), 'd MMMM yyyy', { locale: bn })}
+                      </p>
+                      {quotation.valid_until && (
+                        <p>
+                          <span className="text-muted-foreground">মেয়াদ:</span>{' '}
+                          {format(new Date(quotation.valid_until), 'd MMMM yyyy', { locale: bn })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Items */}
-          <Card className="print:shadow-none print:border-0">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>বিবরণ</TableHead>
-                    <TableHead className="text-center">পরিমাণ</TableHead>
-                    <TableHead className="text-right">দাম</TableHead>
-                    <TableHead className="text-right">ছাড়</TableHead>
-                    <TableHead className="text-right">মোট</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell className="text-center">{item.quantity}</TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(Number(item.unit_price))}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(Number(item.discount))}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(Number(item.total))}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          {/* Notes */}
-          {quotation.notes && (
-            <Card className="print:shadow-none print:border-0">
-              <CardHeader>
-                <CardTitle className="text-sm">নোট / শর্তাবলী</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{quotation.notes}</p>
               </CardContent>
             </Card>
-          )}
-        </div>
 
-        {/* Summary & Status */}
-        <div className="space-y-6 print:hidden">
-          <Card>
-            <CardHeader>
-              <CardTitle>সারাংশ</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">সাবটোটাল</span>
-                <span>{formatCurrency(Number(quotation.subtotal))}</span>
-              </div>
-              {Number(quotation.discount) > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">ছাড়</span>
-                  <span className="text-destructive">
-                    -{formatCurrency(Number(quotation.discount))}
-                  </span>
-                </div>
-              )}
-              {Number(quotation.tax) > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">ট্যাক্স/ভ্যাট</span>
-                  <span>{formatCurrency(Number(quotation.tax))}</span>
-                </div>
-              )}
-              <div className="flex justify-between pt-3 border-t font-bold text-lg">
-                <span>মোট</span>
-                <span className="text-primary">{formatCurrency(Number(quotation.total))}</span>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Items */}
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>বিবরণ</TableHead>
+                      <TableHead className="text-center">পরিমাণ</TableHead>
+                      <TableHead className="text-right">দাম</TableHead>
+                      <TableHead className="text-right">ছাড়</TableHead>
+                      <TableHead className="text-right">মোট</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.description}</TableCell>
+                        <TableCell className="text-center">{item.quantity}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(Number(item.unit_price))}
+                        </TableCell>
+                        <TableCell className="text-right text-destructive">
+                          {Number(item.discount) > 0 ? `-${formatCurrency(Number(item.discount))}` : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatCurrency(Number(item.total))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
 
-          {/* Status Update */}
-          <Card>
-            <CardHeader>
-              <CardTitle>স্ট্যাটাস পরিবর্তন</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select
-                value={quotation.status}
-                onValueChange={handleStatusChange}
-                disabled={updatingStatus}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-warning" />
-                      পেন্ডিং
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="accepted">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-success" />
-                      গৃহীত
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="rejected">
-                    <div className="flex items-center gap-2">
-                      <XCircle className="h-4 w-4 text-destructive" />
-                      বাতিল
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
+            {/* Notes */}
+            {quotation.notes && (
+              <Card className="border-info/20 bg-info/5">
+                <CardHeader>
+                  <CardTitle className="text-sm text-info">নোট / শর্তাবলী</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{quotation.notes}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Summary & Status */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>সারাংশ</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">সাবটোটাল</span>
+                  <span>{formatCurrency(Number(quotation.subtotal))}</span>
+                </div>
+                {Number(quotation.discount) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">ছাড়</span>
+                    <span className="text-destructive">
+                      -{formatCurrency(Number(quotation.discount))}
+                    </span>
+                  </div>
+                )}
+                {Number(quotation.tax) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">ট্যাক্স/ভ্যাট</span>
+                    <span>{formatCurrency(Number(quotation.tax))}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-3 border-t font-bold text-lg">
+                  <span>মোট</span>
+                  <span className="text-primary">{formatCurrency(Number(quotation.total))}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Status Update */}
+            <Card>
+              <CardHeader>
+                <CardTitle>স্ট্যাটাস পরিবর্তন</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Select
+                  value={quotation.status}
+                  onValueChange={handleStatusChange}
+                  disabled={updatingStatus}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-warning" />
+                        পেন্ডিং
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="accepted">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-success" />
+                        গৃহীত
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="rejected">
+                      <div className="flex items-center gap-2">
+                        <XCircle className="h-4 w-4 text-destructive" />
+                        বাতিল
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
