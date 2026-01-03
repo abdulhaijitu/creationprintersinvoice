@@ -34,6 +34,7 @@ import { format } from "date-fns";
 import { bn } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Database } from "@/integrations/supabase/types";
+import { createNotification } from "@/hooks/useNotifications";
 
 type TaskStatus = Database["public"]["Enums"]["task_status"];
 type TaskPriority = Database["public"]["Enums"]["task_priority"];
@@ -164,7 +165,7 @@ const Tasks = () => {
     }
 
     try {
-      const { error } = await supabase.from("tasks").insert({
+      const { data: newTask, error } = await supabase.from("tasks").insert({
         title: formData.title,
         description: formData.description || null,
         assigned_to: formData.assigned_to || null,
@@ -172,9 +173,21 @@ const Tasks = () => {
         deadline: formData.deadline || null,
         priority: formData.priority,
         status: "todo",
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      // Notify assigned user
+      if (formData.assigned_to && newTask) {
+        await createNotification(
+          formData.assigned_to,
+          "নতুন টাস্ক অ্যাসাইন",
+          `আপনাকে নতুন টাস্ক অ্যাসাইন করা হয়েছে: ${formData.title}`,
+          "task_assigned",
+          newTask.id,
+          "task"
+        );
+      }
 
       toast.success("টাস্ক তৈরি হয়েছে");
       setIsDialogOpen(false);
