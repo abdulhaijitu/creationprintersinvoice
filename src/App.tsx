@@ -24,15 +24,9 @@ import Employees from "./pages/Employees";
 import Attendance from "./pages/Attendance";
 import Salary from "./pages/Salary";
 import Leave from "./pages/Leave";
+import Performance from "./pages/Performance";
+import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
-
-// Placeholder pages
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <div className="space-y-4">
-    <h1 className="text-3xl font-bold">{title}</h1>
-    <p className="text-muted-foreground">এই মডিউল শীঘ্রই আসছে...</p>
-  </div>
-);
 
 const queryClient = new QueryClient();
 
@@ -66,8 +60,8 @@ const App = () => (
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/salary" element={<Salary />} />
               <Route path="/leave" element={<Leave />} />
-              <Route path="/performance" element={<PlaceholderPage title="পারফরম্যান্স" />} />
-              <Route path="/tasks" element={<PlaceholderPage title="টাস্ক" />} />
+              <Route path="/performance" element={<Performance />} />
+              <Route path="/tasks" element={<Tasks />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
