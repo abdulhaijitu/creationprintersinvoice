@@ -39,7 +39,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Plus, Search, Wallet, Calendar, Filter, Download, 
   Building2, Eye, Edit2, Phone, Mail, AlertCircle,
-  FileText, CreditCard, Receipt
+  FileText, CreditCard, Receipt, Tag, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -63,6 +63,7 @@ interface Expense {
 interface Category {
   id: string;
   name: string;
+  description?: string | null;
 }
 
 interface Vendor {
@@ -94,8 +95,14 @@ const Expenses = () => {
   const [isVendorDialogOpen, setIsVendorDialogOpen] = useState(false);
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
+  const [categoryFormData, setCategoryFormData] = useState({
+    name: "",
+    description: "",
+  });
   
   const [expenseFormData, setExpenseFormData] = useState({
     date: format(new Date(), "yyyy-MM-dd"),
@@ -376,6 +383,79 @@ const Expenses = () => {
     setSelectedVendorId("");
   };
 
+  const resetCategoryForm = () => {
+    setCategoryFormData({
+      name: "",
+      description: "",
+    });
+    setEditingCategory(null);
+  };
+
+  const handleCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!categoryFormData.name) {
+      toast.error("ক্যাটেগরির নাম দিন");
+      return;
+    }
+
+    try {
+      if (editingCategory) {
+        const { error } = await supabase
+          .from("expense_categories")
+          .update({
+            name: categoryFormData.name,
+            description: categoryFormData.description || null,
+          })
+          .eq("id", editingCategory.id);
+
+        if (error) throw error;
+        toast.success("ক্যাটেগরি আপডেট হয়েছে");
+      } else {
+        const { error } = await supabase.from("expense_categories").insert({
+          name: categoryFormData.name,
+          description: categoryFormData.description || null,
+        });
+        if (error) throw error;
+        toast.success("ক্যাটেগরি যোগ হয়েছে");
+      }
+
+      setIsCategoryDialogOpen(false);
+      resetCategoryForm();
+      fetchData();
+    } catch (error) {
+      console.error("Error saving category:", error);
+      toast.error("ক্যাটেগরি সংরক্ষণ ব্যর্থ হয়েছে");
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm("আপনি কি এই ক্যাটেগরি মুছে ফেলতে চান?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("expense_categories")
+        .delete()
+        .eq("id", categoryId);
+
+      if (error) throw error;
+      toast.success("ক্যাটেগরি মুছে ফেলা হয়েছে");
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      toast.error("ক্যাটেগরি মুছে ফেলা ব্যর্থ হয়েছে");
+    }
+  };
+
+  const openEditCategoryDialog = (category: Category) => {
+    setEditingCategory(category);
+    setCategoryFormData({
+      name: category.name,
+      description: category.description || "",
+    });
+    setIsCategoryDialogOpen(true);
+  };
+
   const openEditVendorDialog = (vendor: Vendor) => {
     setEditingVendor(vendor);
     setVendorFormData({
@@ -551,6 +631,10 @@ const Expenses = () => {
           <TabsTrigger value="expenses" className="gap-2">
             <Wallet className="h-4 w-4" />
             দৈনিক খরচ
+          </TabsTrigger>
+          <TabsTrigger value="categories" className="gap-2">
+            <Tag className="h-4 w-4" />
+            ক্যাটেগরি
           </TabsTrigger>
         </TabsList>
 
@@ -1272,6 +1356,130 @@ const Expenses = () => {
                 )}
               </TableBody>
             </Table>
+          </div>
+        </TabsContent>
+
+        {/* Categories Tab */}
+        <TabsContent value="categories" className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">খরচের ক্যাটেগরি</h2>
+              <p className="text-sm text-muted-foreground">খরচের ধরন অনুযায়ী ক্যাটেগরি তৈরি করুন</p>
+            </div>
+            {isAdmin && (
+              <Dialog open={isCategoryDialogOpen} onOpenChange={(open) => {
+                setIsCategoryDialogOpen(open);
+                if (!open) resetCategoryForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    নতুন ক্যাটেগরি
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingCategory ? "ক্যাটেগরি সম্পাদনা" : "নতুন ক্যাটেগরি যোগ করুন"}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleCategorySubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="category_name">নাম *</Label>
+                      <Input
+                        id="category_name"
+                        placeholder="ক্যাটেগরির নাম"
+                        value={categoryFormData.name}
+                        onChange={(e) =>
+                          setCategoryFormData({ ...categoryFormData, name: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="category_description">বিবরণ</Label>
+                      <Textarea
+                        id="category_description"
+                        placeholder="ক্যাটেগরির বিবরণ"
+                        value={categoryFormData.description}
+                        onChange={(e) =>
+                          setCategoryFormData({ ...categoryFormData, description: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsCategoryDialogOpen(false);
+                          resetCategoryForm();
+                        }}
+                      >
+                        বাতিল
+                      </Button>
+                      <Button type="submit">সংরক্ষণ করুন</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+
+          {/* Categories Grid */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {loading ? (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                লোড হচ্ছে...
+              </div>
+            ) : categories.length === 0 ? (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                কোনো ক্যাটেগরি পাওয়া যায়নি
+              </div>
+            ) : (
+              categories.map((category) => (
+                <Card key={category.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <Tag className="h-5 w-5 text-primary" />
+                        <CardTitle className="text-lg">{category.name}</CardTitle>
+                      </div>
+                      {isAdmin && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditCategoryDialog(category)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteCategory(category.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      {category.description || "কোনো বিবরণ নেই"}
+                    </p>
+                    <div className="mt-3 text-sm">
+                      <Badge variant="outline">
+                        {expenses.filter(e => e.category_id === category.id).length} টি খরচ
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
       </Tabs>
