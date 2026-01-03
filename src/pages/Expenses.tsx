@@ -98,6 +98,7 @@ const Expenses = () => {
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   const [categoryFormData, setCategoryFormData] = useState({
     name: "",
@@ -227,18 +228,35 @@ const Expenses = () => {
     }
 
     try {
-      const { error } = await supabase.from("expenses").insert({
-        date: expenseFormData.date,
-        description: expenseFormData.description,
-        amount: parseFloat(expenseFormData.amount),
-        payment_method: expenseFormData.payment_method,
-        category_id: expenseFormData.category_id || null,
-        vendor_id: expenseFormData.vendor_id || null,
-      });
+      if (editingExpense) {
+        const { error } = await supabase
+          .from("expenses")
+          .update({
+            date: expenseFormData.date,
+            description: expenseFormData.description,
+            amount: parseFloat(expenseFormData.amount),
+            payment_method: expenseFormData.payment_method,
+            category_id: expenseFormData.category_id || null,
+            vendor_id: expenseFormData.vendor_id || null,
+          })
+          .eq("id", editingExpense.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        toast.success("খরচ আপডেট হয়েছে");
+      } else {
+        const { error } = await supabase.from("expenses").insert({
+          date: expenseFormData.date,
+          description: expenseFormData.description,
+          amount: parseFloat(expenseFormData.amount),
+          payment_method: expenseFormData.payment_method,
+          category_id: expenseFormData.category_id || null,
+          vendor_id: expenseFormData.vendor_id || null,
+        });
 
-      toast.success("খরচ সংরক্ষণ হয়েছে");
+        if (error) throw error;
+        toast.success("খরচ সংরক্ষণ হয়েছে");
+      }
+
       setIsExpenseDialogOpen(false);
       resetExpenseForm();
       fetchData();
@@ -246,6 +264,37 @@ const Expenses = () => {
       console.error("Error saving expense:", error);
       toast.error("খরচ সংরক্ষণ ব্যর্থ হয়েছে");
     }
+  };
+
+  const handleDeleteExpense = async (expenseId: string) => {
+    if (!confirm("আপনি কি এই খরচ মুছে ফেলতে চান?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("id", expenseId);
+
+      if (error) throw error;
+      toast.success("খরচ মুছে ফেলা হয়েছে");
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+      toast.error("খরচ মুছে ফেলা ব্যর্থ হয়েছে");
+    }
+  };
+
+  const openEditExpenseDialog = (expense: Expense) => {
+    setEditingExpense(expense);
+    setExpenseFormData({
+      date: expense.date,
+      description: expense.description,
+      amount: expense.amount.toString(),
+      payment_method: expense.payment_method || "cash",
+      category_id: expense.category_id || "",
+      vendor_id: expense.vendor_id || "",
+    });
+    setIsExpenseDialogOpen(true);
   };
 
   const handleVendorSubmit = async (e: React.FormEvent) => {
@@ -347,6 +396,7 @@ const Expenses = () => {
       category_id: "",
       vendor_id: "",
     });
+    setEditingExpense(null);
   };
 
   const resetVendorForm = () => {
@@ -1177,7 +1227,7 @@ const Expenses = () => {
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle>নতুন খরচ যোগ করুন</DialogTitle>
+                    <DialogTitle>{editingExpense ? "খরচ সম্পাদনা" : "নতুন খরচ যোগ করুন"}</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleExpenseSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -1309,18 +1359,19 @@ const Expenses = () => {
                   <TableHead>ক্যাটেগরি</TableHead>
                   <TableHead>পেমেন্ট</TableHead>
                   <TableHead className="text-right">টাকা</TableHead>
+                  {isAdmin && <TableHead className="text-right">অ্যাকশন</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">
                       লোড হচ্ছে...
                     </TableCell>
                   </TableRow>
                 ) : filteredExpenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-muted-foreground">
                       কোনো খরচ পাওয়া যায়নি
                     </TableCell>
                   </TableRow>
@@ -1351,6 +1402,27 @@ const Expenses = () => {
                       <TableCell className="text-right font-medium">
                         {formatCurrency(expense.amount)}
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditExpenseDialog(expense)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteExpense(expense.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
