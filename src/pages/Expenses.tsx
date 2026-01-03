@@ -519,6 +519,28 @@ const Expenses = () => {
     setIsVendorDialogOpen(true);
   };
 
+  const handleDeleteVendor = async (vendorId: string) => {
+    if (!confirm("আপনি কি এই ভেন্ডর মুছে ফেলতে চান? এর সাথে সম্পর্কিত বিল ও পেমেন্টও মুছে যাবে।")) return;
+
+    try {
+      // Delete related bills and payments first
+      await supabase.from("vendor_payments").delete().eq("vendor_id", vendorId);
+      await supabase.from("vendor_bills").delete().eq("vendor_id", vendorId);
+      
+      const { error } = await supabase
+        .from("vendors")
+        .delete()
+        .eq("id", vendorId);
+
+      if (error) throw error;
+      toast.success("ভেন্ডর মুছে ফেলা হয়েছে");
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting vendor:", error);
+      toast.error("ভেন্ডর মুছে ফেলা ব্যর্থ হয়েছে");
+    }
+  };
+
   const openVendorExpenseDialog = (vendorId: string) => {
     setExpenseFormData({
       ...expenseFormData,
@@ -1112,6 +1134,15 @@ const Expenses = () => {
                                 title="সম্পাদনা করুন"
                               >
                                 <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteVendor(vendor.id)}
+                                title="মুছে ফেলুন"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
