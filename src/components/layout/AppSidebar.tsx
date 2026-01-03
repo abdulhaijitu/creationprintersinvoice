@@ -15,6 +15,7 @@ import {
   ChevronDown,
   User,
   BarChart3,
+  Settings,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,6 +47,7 @@ import { cn } from '@/lib/utils';
 const mainNavItems = [
   { title: 'ড্যাশবোর্ড', url: '/', icon: LayoutDashboard },
   { title: 'রিপোর্ট', url: '/reports', icon: BarChart3 },
+  { title: 'সেটিংস', url: '/settings', icon: Settings },
 ];
 
 const invoicingItems = [
