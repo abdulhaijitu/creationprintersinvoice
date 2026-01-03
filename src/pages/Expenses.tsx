@@ -38,7 +38,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Plus, Search, Wallet, Calendar, Filter, Download, 
-  Building2, Eye, Edit2, Phone, Mail, AlertCircle 
+  Building2, Eye, Edit2, Phone, Mail, AlertCircle,
+  FileText, CreditCard, Receipt
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -91,8 +92,10 @@ const Expenses = () => {
   const [filterMonth, setFilterMonth] = useState<string>("");
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
   const [isVendorDialogOpen, setIsVendorDialogOpen] = useState(false);
+  const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
-  const [selectedVendorForExpense, setSelectedVendorForExpense] = useState<string>("");
+  const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   
   const [expenseFormData, setExpenseFormData] = useState({
     date: format(new Date(), "yyyy-MM-dd"),
@@ -109,6 +112,22 @@ const Expenses = () => {
     email: "",
     address: "",
     bank_info: "",
+    notes: "",
+  });
+
+  const [billFormData, setBillFormData] = useState({
+    vendor_id: "",
+    bill_date: format(new Date(), "yyyy-MM-dd"),
+    amount: "",
+    description: "",
+    due_date: "",
+  });
+
+  const [paymentFormData, setPaymentFormData] = useState({
+    vendor_id: "",
+    payment_date: format(new Date(), "yyyy-MM-dd"),
+    amount: "",
+    payment_method: "cash",
     notes: "",
   });
 
@@ -254,6 +273,64 @@ const Expenses = () => {
     }
   };
 
+  const handleBillSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!billFormData.vendor_id || !billFormData.amount) {
+      toast.error("ভেন্ডর এবং টাকার পরিমাণ দিন");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("vendor_bills").insert({
+        vendor_id: billFormData.vendor_id,
+        bill_date: billFormData.bill_date,
+        amount: parseFloat(billFormData.amount),
+        description: billFormData.description || null,
+        due_date: billFormData.due_date || null,
+      });
+
+      if (error) throw error;
+
+      toast.success("বিল সংরক্ষণ হয়েছে");
+      setIsBillDialogOpen(false);
+      resetBillForm();
+      fetchData();
+    } catch (error) {
+      console.error("Error saving bill:", error);
+      toast.error("বিল সংরক্ষণ ব্যর্থ হয়েছে");
+    }
+  };
+
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!paymentFormData.vendor_id || !paymentFormData.amount) {
+      toast.error("ভেন্ডর এবং টাকার পরিমাণ দিন");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("vendor_payments").insert({
+        vendor_id: paymentFormData.vendor_id,
+        payment_date: paymentFormData.payment_date,
+        amount: parseFloat(paymentFormData.amount),
+        payment_method: paymentFormData.payment_method,
+        notes: paymentFormData.notes || null,
+      });
+
+      if (error) throw error;
+
+      toast.success("পেমেন্ট সংরক্ষণ হয়েছে");
+      setIsPaymentDialogOpen(false);
+      resetPaymentForm();
+      fetchData();
+    } catch (error) {
+      console.error("Error saving payment:", error);
+      toast.error("পেমেন্ট সংরক্ষণ ব্যর্থ হয়েছে");
+    }
+  };
+
   const resetExpenseForm = () => {
     setExpenseFormData({
       date: format(new Date(), "yyyy-MM-dd"),
@@ -263,7 +340,6 @@ const Expenses = () => {
       category_id: "",
       vendor_id: "",
     });
-    setSelectedVendorForExpense("");
   };
 
   const resetVendorForm = () => {
@@ -276,6 +352,28 @@ const Expenses = () => {
       notes: "",
     });
     setEditingVendor(null);
+  };
+
+  const resetBillForm = () => {
+    setBillFormData({
+      vendor_id: "",
+      bill_date: format(new Date(), "yyyy-MM-dd"),
+      amount: "",
+      description: "",
+      due_date: "",
+    });
+    setSelectedVendorId("");
+  };
+
+  const resetPaymentForm = () => {
+    setPaymentFormData({
+      vendor_id: "",
+      payment_date: format(new Date(), "yyyy-MM-dd"),
+      amount: "",
+      payment_method: "cash",
+      notes: "",
+    });
+    setSelectedVendorId("");
   };
 
   const openEditVendorDialog = (vendor: Vendor) => {
@@ -292,12 +390,29 @@ const Expenses = () => {
   };
 
   const openVendorExpenseDialog = (vendorId: string) => {
-    setSelectedVendorForExpense(vendorId);
     setExpenseFormData({
       ...expenseFormData,
       vendor_id: vendorId,
     });
     setIsExpenseDialogOpen(true);
+  };
+
+  const openVendorBillDialog = (vendorId: string) => {
+    setSelectedVendorId(vendorId);
+    setBillFormData({
+      ...billFormData,
+      vendor_id: vendorId,
+    });
+    setIsBillDialogOpen(true);
+  };
+
+  const openVendorPaymentDialog = (vendorId: string) => {
+    setSelectedVendorId(vendorId);
+    setPaymentFormData({
+      ...paymentFormData,
+      vendor_id: vendorId,
+    });
+    setIsPaymentDialogOpen(true);
   };
 
   const filteredExpenses = expenses.filter(
@@ -452,113 +567,324 @@ const Expenses = () => {
               />
             </div>
             {isAdmin && (
-              <Dialog open={isVendorDialogOpen} onOpenChange={(open) => {
-                setIsVendorDialogOpen(open);
-                if (!open) resetVendorForm();
-              }}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    নতুন ভেন্ডর
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingVendor ? "ভেন্ডর সম্পাদনা" : "নতুন ভেন্ডর যোগ করুন"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleVendorSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="vendor_name">নাম *</Label>
-                      <Input
-                        id="vendor_name"
-                        placeholder="ভেন্ডরের নাম"
-                        value={vendorFormData.name}
-                        onChange={(e) =>
-                          setVendorFormData({ ...vendorFormData, name: e.target.value })
-                        }
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+              <div className="flex gap-2">
+                {/* Bill Dialog */}
+                <Dialog open={isBillDialogOpen} onOpenChange={(open) => {
+                  setIsBillDialogOpen(open);
+                  if (!open) resetBillForm();
+                }}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <FileText className="h-4 w-4" />
+                      বিল যোগ
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>নতুন ভেন্ডর বিল যোগ করুন</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleBillSubmit} className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="vendor_phone">ফোন</Label>
-                        <Input
-                          id="vendor_phone"
-                          placeholder="01XXXXXXXXX"
-                          value={vendorFormData.phone}
+                        <Label>ভেন্ডর *</Label>
+                        <Select
+                          value={billFormData.vendor_id}
+                          onValueChange={(value) =>
+                            setBillFormData({ ...billFormData, vendor_id: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="ভেন্ডর বাছুন" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vendors.map((vendor) => (
+                              <SelectItem key={vendor.id} value={vendor.id}>
+                                {vendor.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>বিল তারিখ</Label>
+                          <Input
+                            type="date"
+                            value={billFormData.bill_date}
+                            onChange={(e) =>
+                              setBillFormData({ ...billFormData, bill_date: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>টাকা *</Label>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={billFormData.amount}
+                            onChange={(e) =>
+                              setBillFormData({ ...billFormData, amount: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>বিবরণ</Label>
+                        <Textarea
+                          placeholder="বিলের বিবরণ"
+                          value={billFormData.description}
                           onChange={(e) =>
-                            setVendorFormData({ ...vendorFormData, phone: e.target.value })
+                            setBillFormData({ ...billFormData, description: e.target.value })
                           }
                         />
                       </div>
+
                       <div className="space-y-2">
-                        <Label htmlFor="vendor_email">ইমেইল</Label>
+                        <Label>পরিশোধের তারিখ</Label>
                         <Input
-                          id="vendor_email"
-                          type="email"
-                          placeholder="email@example.com"
-                          value={vendorFormData.email}
+                          type="date"
+                          value={billFormData.due_date}
                           onChange={(e) =>
-                            setVendorFormData({ ...vendorFormData, email: e.target.value })
+                            setBillFormData({ ...billFormData, due_date: e.target.value })
                           }
                         />
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="vendor_address">ঠিকানা</Label>
-                      <Textarea
-                        id="vendor_address"
-                        placeholder="ভেন্ডরের ঠিকানা"
-                        value={vendorFormData.address}
-                        onChange={(e) =>
-                          setVendorFormData({ ...vendorFormData, address: e.target.value })
-                        }
-                      />
-                    </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsBillDialogOpen(false);
+                            resetBillForm();
+                          }}
+                        >
+                          বাতিল
+                        </Button>
+                        <Button type="submit">সংরক্ষণ করুন</Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="vendor_bank_info">ব্যাংক তথ্য</Label>
-                      <Textarea
-                        id="vendor_bank_info"
-                        placeholder="ব্যাংক একাউন্ট নম্বর, ব্র্যাঞ্চ ইত্যাদি"
-                        value={vendorFormData.bank_info}
-                        onChange={(e) =>
-                          setVendorFormData({ ...vendorFormData, bank_info: e.target.value })
-                        }
-                      />
-                    </div>
+                {/* Payment Dialog */}
+                <Dialog open={isPaymentDialogOpen} onOpenChange={(open) => {
+                  setIsPaymentDialogOpen(open);
+                  if (!open) resetPaymentForm();
+                }}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      পেমেন্ট
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>ভেন্ডর পেমেন্ট করুন</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handlePaymentSubmit} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>ভেন্ডর *</Label>
+                        <Select
+                          value={paymentFormData.vendor_id}
+                          onValueChange={(value) =>
+                            setPaymentFormData({ ...paymentFormData, vendor_id: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="ভেন্ডর বাছুন" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vendors.map((vendor) => (
+                              <SelectItem key={vendor.id} value={vendor.id}>
+                                {vendor.name} {vendor.due_amount && vendor.due_amount > 0 ? `(বকেয়া: ${formatCurrency(vendor.due_amount)})` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="vendor_notes">নোট</Label>
-                      <Textarea
-                        id="vendor_notes"
-                        placeholder="অতিরিক্ত তথ্য"
-                        value={vendorFormData.notes}
-                        onChange={(e) =>
-                          setVendorFormData({ ...vendorFormData, notes: e.target.value })
-                        }
-                      />
-                    </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>পেমেন্ট তারিখ</Label>
+                          <Input
+                            type="date"
+                            value={paymentFormData.payment_date}
+                            onChange={(e) =>
+                              setPaymentFormData({ ...paymentFormData, payment_date: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>টাকা *</Label>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={paymentFormData.amount}
+                            onChange={(e) =>
+                              setPaymentFormData({ ...paymentFormData, amount: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
 
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsVendorDialogOpen(false);
-                          resetVendorForm();
-                        }}
-                      >
-                        বাতিল
-                      </Button>
-                      <Button type="submit">সংরক্ষণ করুন</Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                      <div className="space-y-2">
+                        <Label>পেমেন্ট মেথড</Label>
+                        <Select
+                          value={paymentFormData.payment_method}
+                          onValueChange={(value) =>
+                            setPaymentFormData({ ...paymentFormData, payment_method: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">নগদ</SelectItem>
+                            <SelectItem value="bank">ব্যাংক</SelectItem>
+                            <SelectItem value="bkash">বিকাশ</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>নোট</Label>
+                        <Textarea
+                          placeholder="পেমেন্টের নোট"
+                          value={paymentFormData.notes}
+                          onChange={(e) =>
+                            setPaymentFormData({ ...paymentFormData, notes: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsPaymentDialogOpen(false);
+                            resetPaymentForm();
+                          }}
+                        >
+                          বাতিল
+                        </Button>
+                        <Button type="submit">সংরক্ষণ করুন</Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Vendor Dialog */}
+                <Dialog open={isVendorDialogOpen} onOpenChange={(open) => {
+                  setIsVendorDialogOpen(open);
+                  if (!open) resetVendorForm();
+                }}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      নতুন ভেন্ডর
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingVendor ? "ভেন্ডর সম্পাদনা" : "নতুন ভেন্ডর যোগ করুন"}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleVendorSubmit} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="vendor_name">নাম *</Label>
+                        <Input
+                          id="vendor_name"
+                          placeholder="ভেন্ডরের নাম"
+                          value={vendorFormData.name}
+                          onChange={(e) =>
+                            setVendorFormData({ ...vendorFormData, name: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="vendor_phone">ফোন</Label>
+                          <Input
+                            id="vendor_phone"
+                            placeholder="01XXXXXXXXX"
+                            value={vendorFormData.phone}
+                            onChange={(e) =>
+                              setVendorFormData({ ...vendorFormData, phone: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="vendor_email">ইমেইল</Label>
+                          <Input
+                            id="vendor_email"
+                            type="email"
+                            placeholder="email@example.com"
+                            value={vendorFormData.email}
+                            onChange={(e) =>
+                              setVendorFormData({ ...vendorFormData, email: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="vendor_address">ঠিকানা</Label>
+                        <Textarea
+                          id="vendor_address"
+                          placeholder="ভেন্ডরের ঠিকানা"
+                          value={vendorFormData.address}
+                          onChange={(e) =>
+                            setVendorFormData({ ...vendorFormData, address: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="vendor_bank_info">ব্যাংক তথ্য</Label>
+                        <Textarea
+                          id="vendor_bank_info"
+                          placeholder="ব্যাংক একাউন্ট নম্বর, ব্র্যাঞ্চ ইত্যাদি"
+                          value={vendorFormData.bank_info}
+                          onChange={(e) =>
+                            setVendorFormData({ ...vendorFormData, bank_info: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="vendor_notes">নোট</Label>
+                        <Textarea
+                          id="vendor_notes"
+                          placeholder="অতিরিক্ত তথ্য"
+                          value={vendorFormData.notes}
+                          onChange={(e) =>
+                            setVendorFormData({ ...vendorFormData, notes: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsVendorDialogOpen(false);
+                            resetVendorForm();
+                          }}
+                        >
+                          বাতিল
+                        </Button>
+                        <Button type="submit">সংরক্ষণ করুন</Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             )}
           </div>
 
@@ -653,15 +979,28 @@ const Expenses = () => {
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openVendorExpenseDialog(vendor.id)}
-                                title="খরচ যোগ করুন"
-                              >
-                                <Plus className="h-4 w-4 mr-1" />
-                                খরচ
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm">
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    যোগ
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openVendorBillDialog(vendor.id)}>
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    বিল যোগ
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openVendorPaymentDialog(vendor.id)}>
+                                    <CreditCard className="h-4 w-4 mr-2" />
+                                    পেমেন্ট করুন
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openVendorExpenseDialog(vendor.id)}>
+                                    <Receipt className="h-4 w-4 mr-2" />
+                                    দৈনিক খরচ
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </>
                           )}
                         </div>
