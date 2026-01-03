@@ -26,6 +26,7 @@ import Salary from "./pages/Salary";
 import Leave from "./pages/Leave";
 import Performance from "./pages/Performance";
 import Tasks from "./pages/Tasks";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/leave" element={<Leave />} />
               <Route path="/performance" element={<Performance />} />
               <Route path="/tasks" element={<Tasks />} />
+              <Route path="/reports" element={<Reports />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
