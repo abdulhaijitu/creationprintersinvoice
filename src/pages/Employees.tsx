@@ -22,7 +22,14 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Users, Phone, Mail, Briefcase, Edit2, Plus, UserPlus, Trash2 } from "lucide-react";
+import { Search, Users, Phone, Mail, Briefcase, Edit2, Plus, UserPlus, Trash2, Shield } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { bn } from "date-fns/locale";
@@ -59,6 +66,7 @@ const Employees = () => {
     basic_salary: "",
     address: "",
     nid: "",
+    role: "employee" as string,
   });
   const [newEmployeeData, setNewEmployeeData] = useState({
     email: "",
@@ -114,7 +122,8 @@ const Employees = () => {
     if (!editingEmployee) return;
 
     try {
-      const { error } = await supabase
+      // Update profile
+      const { error: profileError } = await supabase
         .from("profiles")
         .update({
           full_name: formData.full_name,
@@ -128,7 +137,17 @@ const Employees = () => {
         })
         .eq("id", editingEmployee.id);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // Update role if changed
+      if (formData.role !== editingEmployee.role) {
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .update({ role: formData.role as "admin" | "employee" })
+          .eq("user_id", editingEmployee.id);
+
+        if (roleError) throw roleError;
+      }
 
       toast.success("কর্মচারী তথ্য আপডেট হয়েছে");
       setIsDialogOpen(false);
@@ -150,6 +169,7 @@ const Employees = () => {
       basic_salary: "",
       address: "",
       nid: "",
+      role: "employee",
     });
     setEditingEmployee(null);
   };
@@ -200,6 +220,7 @@ const Employees = () => {
       basic_salary: employee.basic_salary?.toString() || "",
       address: employee.address || "",
       nid: employee.nid || "",
+      role: employee.role || "employee",
     });
     setIsDialogOpen(true);
   };
@@ -493,13 +514,40 @@ const Employees = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="nid">NID নম্বর</Label>
-              <Input
-                id="nid"
-                value={formData.nid}
-                onChange={(e) => setFormData({ ...formData, nid: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nid">NID নম্বর</Label>
+                <Input
+                  id="nid"
+                  value={formData.nid}
+                  onChange={(e) => setFormData({ ...formData, nid: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role">ভূমিকা</Label>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value) => setFormData({ ...formData, role: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="ভূমিকা নির্বাচন করুন" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="employee">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        কর্মচারী
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="admin">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4" />
+                        এডমিন
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
