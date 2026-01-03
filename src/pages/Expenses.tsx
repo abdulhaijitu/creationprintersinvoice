@@ -26,11 +26,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Wallet, Calendar, Filter } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Search, Wallet, Calendar, Filter, Download } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { bn } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 
 interface Expense {
   id: string;
@@ -190,6 +197,38 @@ const Expenses = () => {
     }
   };
 
+  const expenseHeaders = {
+    date: 'তারিখ',
+    description: 'বিবরণ',
+    category: 'ক্যাটেগরি',
+    vendor: 'ভেন্ডর',
+    payment_method: 'পেমেন্ট',
+    amount: 'টাকা',
+  };
+
+  const handleExport = (exportFormat: 'csv' | 'excel') => {
+    if (filteredExpenses.length === 0) {
+      toast.error('এক্সপোর্ট করার মতো ডেটা নেই');
+      return;
+    }
+    
+    const exportData = filteredExpenses.map(exp => ({
+      date: format(new Date(exp.date), 'dd/MM/yyyy'),
+      description: exp.description,
+      category: exp.category?.name || '',
+      vendor: exp.vendor?.name || '',
+      payment_method: exp.payment_method === 'cash' ? 'নগদ' : exp.payment_method === 'bank' ? 'ব্যাংক' : 'বিকাশ',
+      amount: exp.amount,
+    }));
+
+    if (exportFormat === 'csv') {
+      exportToCSV(exportData, 'expenses', expenseHeaders);
+    } else {
+      exportToExcel(exportData, 'expenses', expenseHeaders);
+    }
+    toast.success(`${exportFormat.toUpperCase()} ফাইল ডাউনলোড হচ্ছে`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -197,13 +236,30 @@ const Expenses = () => {
           <h1 className="text-3xl font-bold">দৈনিক খরচ</h1>
           <p className="text-muted-foreground">সব খরচের হিসাব রাখুন</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              নতুন খরচ
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                এক্সপোর্ট
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleExport('csv')}>
+                CSV ডাউনলোড
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('excel')}>
+                Excel ডাউনলোড
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                নতুন খরচ
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>নতুন খরচ যোগ করুন</DialogTitle>
@@ -322,6 +378,7 @@ const Expenses = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Summary Card */}

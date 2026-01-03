@@ -28,9 +28,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Phone, Mail, Building2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Phone, Mail, Building2, Download } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 
 interface Customer {
   id: string;
@@ -155,6 +162,38 @@ const Customers = () => {
       customer.company_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const customerHeaders = {
+    name: 'নাম',
+    phone: 'ফোন',
+    email: 'ইমেইল',
+    company_name: 'কোম্পানি',
+    address: 'ঠিকানা',
+    notes: 'নোট',
+  };
+
+  const handleExport = (format: 'csv' | 'excel') => {
+    if (filteredCustomers.length === 0) {
+      toast.error('এক্সপোর্ট করার মতো ডেটা নেই');
+      return;
+    }
+    
+    const exportData = filteredCustomers.map(c => ({
+      name: c.name,
+      phone: c.phone || '',
+      email: c.email || '',
+      company_name: c.company_name || '',
+      address: c.address || '',
+      notes: c.notes || '',
+    }));
+
+    if (format === 'csv') {
+      exportToCSV(exportData, 'customers', customerHeaders);
+    } else {
+      exportToExcel(exportData, 'customers', customerHeaders);
+    }
+    toast.success(`${format.toUpperCase()} ফাইল ডাউনলোড হচ্ছে`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -162,6 +201,24 @@ const Customers = () => {
           <h1 className="text-3xl font-bold">গ্রাহক তালিকা</h1>
           <p className="text-muted-foreground">সকল গ্রাহকদের তথ্য পরিচালনা করুন</p>
         </div>
+
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                এক্সপোর্ট
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleExport('csv')}>
+                CSV ডাউনলোড
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('excel')}>
+                Excel ডাউনলোড
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
@@ -256,6 +313,7 @@ const Customers = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>
