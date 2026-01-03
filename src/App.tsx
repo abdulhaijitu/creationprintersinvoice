@@ -15,6 +15,8 @@ import InvoiceDetail from "./pages/InvoiceDetail";
 import Quotations from "./pages/Quotations";
 import QuotationForm from "./pages/QuotationForm";
 import QuotationDetail from "./pages/QuotationDetail";
+import PriceCalculations from "./pages/PriceCalculations";
+import PriceCalculationForm from "./pages/PriceCalculationForm";
 import NotFound from "./pages/NotFound";
 
 // Placeholder pages
@@ -47,7 +49,9 @@ const App = () => (
               <Route path="/quotations" element={<Quotations />} />
               <Route path="/quotations/new" element={<QuotationForm />} />
               <Route path="/quotations/:id" element={<QuotationDetail />} />
-              <Route path="/price-calculation" element={<PlaceholderPage title="মূল্য হিসাব" />} />
+              <Route path="/price-calculation" element={<PriceCalculations />} />
+              <Route path="/price-calculation/new" element={<PriceCalculationForm />} />
+              <Route path="/price-calculation/:id" element={<PriceCalculationForm />} />
               <Route path="/expenses" element={<PlaceholderPage title="দৈনিক খরচ" />} />
               <Route path="/vendors" element={<PlaceholderPage title="ভেন্ডর" />} />
               <Route path="/employees" element={<PlaceholderPage title="কর্মচারী" />} />
