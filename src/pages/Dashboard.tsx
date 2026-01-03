@@ -5,6 +5,25 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
+import {
   FileText,
   Wallet,
   Users,
@@ -14,7 +33,7 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { bn } from 'date-fns/locale';
 
 interface DashboardStats {
@@ -29,8 +48,22 @@ interface DashboardStats {
   pendingTasks: number;
 }
 
+interface MonthlyData {
+  month: string;
+  income: number;
+  expense: number;
+}
+
+interface InvoiceStatusData {
+  name: string;
+  value: number;
+  color: string;
+}
+
+const COLORS = ['hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--destructive))'];
+
 const Dashboard = () => {
-  const { user, role, isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     todaySales: 0,
     monthlyIncome: 0,
@@ -43,15 +76,21 @@ const Dashboard = () => {
     pendingTasks: 0,
   });
   const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
+  const [monthlyTrend, setMonthlyTrend] = useState<MonthlyData[]>([]);
+  const [invoiceStatusData, setInvoiceStatusData] = useState<InvoiceStatusData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const today = new Date();
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const monthStart = startOfMonth(today);
         const todayStr = format(today, 'yyyy-MM-dd');
-        const monthStartStr = format(startOfMonth, 'yyyy-MM-dd');
+        const monthStartStr = format(monthStart, 'yyyy-MM-dd');
+
+        // Get last 6 months for trend data
+        const sixMonthsAgo = subMonths(today, 5);
+        const sixMonthsAgoStr = format(startOfMonth(sixMonthsAgo), 'yyyy-MM-dd');
 
         // Fetch stats in parallel
         const [
@@ -63,6 +102,7 @@ const Dashboard = () => {
           vendorBillsRes,
           leaveRequestsRes,
           tasksRes,
+          allExpensesRes,
         ] = await Promise.all([
           supabase.from('invoices').select('total, paid_amount, status, invoice_date'),
           supabase.from('quotations').select('status').eq('status', 'pending'),
@@ -85,6 +125,10 @@ const Dashboard = () => {
             .select('id')
             .eq('assigned_to', user?.id)
             .neq('status', 'completed'),
+          supabase
+            .from('expenses')
+            .select('amount, date')
+            .gte('date', sixMonthsAgoStr),
         ]);
 
         // Calculate stats
@@ -113,6 +157,50 @@ const Dashboard = () => {
           (sum, bill) => sum + Number(bill.amount || 0),
           0
         );
+
+        // Calculate invoice status distribution
+        const paidCount = invoices.filter((inv) => inv.status === 'paid').length;
+        const partialCount = invoices.filter((inv) => inv.status === 'partial').length;
+        const unpaidCount = invoices.filter((inv) => inv.status === 'unpaid').length;
+        setInvoiceStatusData([
+          { name: 'পরিশোধিত', value: paidCount, color: COLORS[0] },
+          { name: 'আংশিক', value: partialCount, color: COLORS[1] },
+          { name: 'বাকি', value: unpaidCount, color: COLORS[2] },
+        ]);
+
+        // Calculate monthly trend for last 6 months
+        const allExpenses = allExpensesRes.data || [];
+        const monthlyData: MonthlyData[] = [];
+        
+        for (let i = 5; i >= 0; i--) {
+          const monthDate = subMonths(today, i);
+          const monthStartDate = startOfMonth(monthDate);
+          const monthEndDate = endOfMonth(monthDate);
+          const monthStartFormatted = format(monthStartDate, 'yyyy-MM-dd');
+          const monthEndFormatted = format(monthEndDate, 'yyyy-MM-dd');
+
+          const monthIncome = invoices
+            .filter(
+              (inv) =>
+                inv.invoice_date >= monthStartFormatted &&
+                inv.invoice_date <= monthEndFormatted
+            )
+            .reduce((sum, inv) => sum + Number(inv.paid_amount || 0), 0);
+
+          const monthExpense = allExpenses
+            .filter(
+              (exp) =>
+                exp.date >= monthStartFormatted && exp.date <= monthEndFormatted
+            )
+            .reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
+
+          monthlyData.push({
+            month: format(monthDate, 'MMM', { locale: bn }),
+            income: monthIncome,
+            expense: monthExpense,
+          });
+        }
+        setMonthlyTrend(monthlyData);
 
         setStats({
           todaySales,
@@ -145,6 +233,15 @@ const Dashboard = () => {
     }).format(amount);
   };
 
+  const formatChartCurrency = (value: number) => {
+    if (value >= 1000000) {
+      return `৳${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `৳${(value / 1000).toFixed(0)}K`;
+    }
+    return `৳${value}`;
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
@@ -173,6 +270,17 @@ const Dashboard = () => {
     }
   };
 
+  const chartConfig = {
+    income: {
+      label: 'আয়',
+      color: 'hsl(var(--success))',
+    },
+    expense: {
+      label: 'ব্যয়',
+      color: 'hsl(var(--destructive))',
+    },
+  };
+
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -180,6 +288,10 @@ const Dashboard = () => {
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-32 bg-muted rounded-xl" />
           ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="h-80 bg-muted rounded-xl" />
+          <div className="h-80 bg-muted rounded-xl" />
         </div>
       </div>
     );
@@ -222,41 +334,137 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Alerts Row */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {/* Charts Row */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Monthly Income vs Expense Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle>মাসিক আয়-ব্যয় ট্রেন্ড</CardTitle>
+            <CardDescription>শেষ ৬ মাসের তুলনামূলক চিত্র</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[280px] w-full">
+              <BarChart data={monthlyTrend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="month" className="text-xs" />
+                <YAxis tickFormatter={formatChartCurrency} className="text-xs" />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                  }
+                />
+                <Bar dataKey="income" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} name="আয়" />
+                <Bar dataKey="expense" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="ব্যয়" />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Income Expense Line Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>আয়-ব্যয় লাইন চার্ট</CardTitle>
+            <CardDescription>মাসভিত্তিক প্রবণতা বিশ্লেষণ</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[280px] w-full">
+              <LineChart data={monthlyTrend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="month" className="text-xs" />
+                <YAxis tickFormatter={formatChartCurrency} className="text-xs" />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                  }
+                />
+                <Line
+                  type="monotone"
+                  dataKey="income"
+                  stroke="hsl(var(--success))"
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(var(--success))', strokeWidth: 2 }}
+                  name="আয়"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="expense"
+                  stroke="hsl(var(--destructive))"
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(var(--destructive))', strokeWidth: 2 }}
+                  name="ব্যয়"
+                />
+              </LineChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Second Charts Row */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Invoice Status Pie Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>ইনভয়েস স্ট্যাটাস</CardTitle>
+            <CardDescription>পেমেন্ট অবস্থা বিশ্লেষণ</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={invoiceStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {invoiceStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Legend
+                    formatter={(value: string) => <span className="text-foreground text-sm">{value}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Alerts */}
         <Card className={stats.pendingInvoices > 0 ? 'border-warning' : ''}>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-full bg-warning/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-warning" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.pendingInvoices}</p>
-              <p className="text-sm text-muted-foreground">পেন্ডিং ইনভয়েস</p>
-            </div>
+              পেন্ডিং ইনভয়েস
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold text-warning">{stats.pendingInvoices}</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              {stats.pendingInvoices > 0 ? 'পেমেন্ট বাকি আছে' : 'সব ইনভয়েস পরিশোধিত'}
+            </p>
           </CardContent>
         </Card>
 
         <Card className={stats.vendorDue > 0 ? 'border-destructive' : ''}>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-full bg-destructive/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{formatCurrency(stats.vendorDue)}</p>
-              <p className="text-sm text-muted-foreground">ভেন্ডর ডিউ</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-full bg-info/10">
-              <Clock className="h-5 w-5 text-info" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.pendingTasks}</p>
-              <p className="text-sm text-muted-foreground">পেন্ডিং টাস্ক</p>
-            </div>
+              ভেন্ডর ডিউ
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-destructive">{formatCurrency(stats.vendorDue)}</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              {stats.vendorDue > 0 ? 'ভেন্ডরদের পেমেন্ট বাকি' : 'সব পেমেন্ট সম্পন্ন'}
+            </p>
           </CardContent>
         </Card>
       </div>
