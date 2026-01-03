@@ -354,9 +354,10 @@ const VendorDetail = () => {
       </div>
 
       {/* Bills & Payments Tabs */}
-      <Tabs defaultValue="bills" className="space-y-4">
+      <Tabs defaultValue="ledger" className="space-y-4">
         <div className="flex justify-between items-center">
           <TabsList>
+            <TabsTrigger value="ledger">লেজার</TabsTrigger>
             <TabsTrigger value="bills">বিল ({bills.length})</TabsTrigger>
             <TabsTrigger value="payments">পেমেন্ট ({payments.length})</TabsTrigger>
           </TabsList>
@@ -525,6 +526,85 @@ const VendorDetail = () => {
             </div>
           )}
         </div>
+
+        {/* Ledger Tab */}
+        <TabsContent value="ledger">
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>তারিখ</TableHead>
+                  <TableHead>বিবরণ</TableHead>
+                  <TableHead className="text-right">বিল</TableHead>
+                  <TableHead className="text-right">পেমেন্ট</TableHead>
+                  <TableHead className="text-right">ব্যালেন্স</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(() => {
+                  // Combine bills and payments for ledger
+                  const ledgerItems: { date: string; description: string; bill: number; payment: number; type: 'bill' | 'payment' }[] = [];
+                  
+                  bills.forEach(bill => {
+                    ledgerItems.push({
+                      date: bill.bill_date,
+                      description: bill.description || 'বিল',
+                      bill: bill.amount,
+                      payment: 0,
+                      type: 'bill'
+                    });
+                  });
+                  
+                  payments.forEach(payment => {
+                    ledgerItems.push({
+                      date: payment.payment_date,
+                      description: payment.notes || `পেমেন্ট (${payment.payment_method === 'cash' ? 'নগদ' : payment.payment_method === 'bank' ? 'ব্যাংক' : 'বিকাশ'})`,
+                      bill: 0,
+                      payment: payment.amount,
+                      type: 'payment'
+                    });
+                  });
+                  
+                  // Sort by date
+                  ledgerItems.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                  
+                  let runningBalance = 0;
+                  
+                  if (ledgerItems.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          কোনো লেনদেন নেই
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                  
+                  return ledgerItems.map((item, index) => {
+                    runningBalance += item.bill - item.payment;
+                    return (
+                      <TableRow key={index}>
+                        <TableCell>
+                          {format(new Date(item.date), "dd MMM yyyy", { locale: bn })}
+                        </TableCell>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell className="text-right">
+                          {item.bill > 0 ? formatCurrency(item.bill) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right text-success">
+                          {item.payment > 0 ? formatCurrency(item.payment) : '-'}
+                        </TableCell>
+                        <TableCell className={`text-right font-medium ${runningBalance > 0 ? 'text-destructive' : 'text-success'}`}>
+                          {formatCurrency(runningBalance)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  });
+                })()}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
 
         <TabsContent value="bills">
           <div className="border rounded-lg">

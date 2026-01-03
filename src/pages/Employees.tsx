@@ -17,10 +17,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Users, Phone, Mail, Briefcase, Edit2 } from "lucide-react";
+import { Search, Users, Phone, Mail, Briefcase, Edit2, Plus, UserPlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { bn } from "date-fns/locale";
@@ -45,7 +47,9 @@ const Employees = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [addLoading, setAddLoading] = useState(false);
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
@@ -55,6 +59,12 @@ const Employees = () => {
     basic_salary: "",
     address: "",
     nid: "",
+  });
+  const [newEmployeeData, setNewEmployeeData] = useState({
+    email: "",
+    password: "",
+    full_name: "",
+    phone: "",
   });
 
   useEffect(() => {
@@ -144,6 +154,41 @@ const Employees = () => {
     setEditingEmployee(null);
   };
 
+  const handleAddEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newEmployeeData.email || !newEmployeeData.password || !newEmployeeData.full_name) {
+      toast.error("সকল প্রয়োজনীয় তথ্য দিন");
+      return;
+    }
+
+    setAddLoading(true);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: newEmployeeData.email,
+        password: newEmployeeData.password,
+        options: {
+          data: {
+            full_name: newEmployeeData.full_name,
+            phone: newEmployeeData.phone || null,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success("নতুন কর্মচারী অ্যাকাউন্ট তৈরি হয়েছে");
+      setIsAddDialogOpen(false);
+      setNewEmployeeData({ email: "", password: "", full_name: "", phone: "" });
+      setTimeout(() => fetchEmployees(), 1000);
+    } catch (error: any) {
+      console.error("Error adding employee:", error);
+      toast.error(error.message || "কর্মচারী যোগ করতে সমস্যা হয়েছে");
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
   const openEditDialog = (employee: Employee) => {
     setEditingEmployee(employee);
     setFormData({
@@ -191,6 +236,74 @@ const Employees = () => {
           <h1 className="text-3xl font-bold">কর্মচারী</h1>
           <p className="text-muted-foreground">সকল কর্মচারীর তালিকা</p>
         </div>
+        {isAdmin && (
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                নতুন কর্মচারী
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>নতুন কর্মচারী যোগ করুন</DialogTitle>
+                <DialogDescription>
+                  নতুন কর্মচারীর জন্য লগইন অ্যাকাউন্ট তৈরি করুন
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddEmployee} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new_full_name">নাম *</Label>
+                  <Input
+                    id="new_full_name"
+                    placeholder="কর্মচারীর নাম"
+                    value={newEmployeeData.full_name}
+                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, full_name: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new_email">ইমেইল *</Label>
+                    <Input
+                      id="new_email"
+                      type="email"
+                      placeholder="email@example.com"
+                      value={newEmployeeData.email}
+                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new_password">পাসওয়ার্ড *</Label>
+                    <Input
+                      id="new_password"
+                      type="password"
+                      placeholder="ন্যূনতম ৬ অক্ষর"
+                      value={newEmployeeData.password}
+                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, password: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new_phone">ফোন</Label>
+                  <Input
+                    id="new_phone"
+                    placeholder="01XXXXXXXXX"
+                    value={newEmployeeData.phone}
+                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, phone: e.target.value })}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    বাতিল
+                  </Button>
+                  <Button type="submit" disabled={addLoading}>
+                    {addLoading ? "তৈরি হচ্ছে..." : "তৈরি করুন"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Summary Card */}

@@ -38,6 +38,7 @@ import {
   Clock,
   XCircle,
   ArrowRightCircle,
+  Edit,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { bn } from 'date-fns/locale';
@@ -299,6 +300,10 @@ const QuotationDetail = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate(`/quotations/${quotation.id}/edit`)}>
+              <Edit className="h-4 w-4 mr-2" />
+              সম্পাদনা
+            </Button>
             <Button variant="outline" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />
               প্রিন্ট

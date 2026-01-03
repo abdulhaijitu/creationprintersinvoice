@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -41,10 +41,14 @@ interface QuotationItem {
 }
 
 const QuotationForm = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isEditing = Boolean(id);
+  
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
   const [quotationNumber, setQuotationNumber] = useState('');
 
   const [formData, setFormData] = useState({
@@ -62,8 +66,12 @@ const QuotationForm = () => {
 
   useEffect(() => {
     fetchCustomers();
-    generateQuotationNumber();
-  }, []);
+    if (isEditing) {
+      fetchQuotation();
+    } else {
+      generateQuotationNumber();
+    }
+  }, [id]);
 
   const fetchCustomers = async () => {
     try {
@@ -76,6 +84,51 @@ const QuotationForm = () => {
       setCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
+    }
+  };
+
+  const fetchQuotation = async () => {
+    setFetching(true);
+    try {
+      const { data: quotation, error } = await supabase
+        .from('quotations')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+
+      setQuotationNumber(quotation.quotation_number);
+      setFormData({
+        customer_id: quotation.customer_id || '',
+        quotation_date: quotation.quotation_date,
+        valid_until: quotation.valid_until || '',
+        notes: quotation.notes || '',
+        discount: Number(quotation.discount) || 0,
+        tax: Number(quotation.tax) || 0,
+      });
+
+      // Fetch items
+      const { data: quotationItems } = await supabase
+        .from('quotation_items')
+        .select('*')
+        .eq('quotation_id', id);
+
+      if (quotationItems && quotationItems.length > 0) {
+        setItems(quotationItems.map(item => ({
+          id: item.id,
+          description: item.description,
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+          discount: Number(item.discount) || 0,
+          total: Number(item.total),
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching quotation:', error);
+      toast.error('কোটেশন লোড করতে সমস্যা হয়েছে');
+    } finally {
+      setFetching(false);
     }
   };
 
@@ -149,11 +202,11 @@ const QuotationForm = () => {
       const subtotal = calculateSubtotal();
       const total = calculateTotal();
 
-      const { data: quotation, error: quotationError } = await supabase
-        .from('quotations')
-        .insert([
-          {
-            quotation_number: quotationNumber,
+      if (isEditing) {
+        // Update quotation
+        const { error: quotationError } = await supabase
+          .from('quotations')
+          .update({
             customer_id: formData.customer_id,
             quotation_date: formData.quotation_date,
             valid_until: formData.valid_until || null,
@@ -162,33 +215,68 @@ const QuotationForm = () => {
             tax: formData.tax,
             total,
             notes: formData.notes,
-            created_by: user?.id,
-          },
-        ])
-        .select()
-        .single();
+          })
+          .eq('id', id);
 
-      if (quotationError) throw quotationError;
+        if (quotationError) throw quotationError;
 
-      const quotationItems = items.map((item) => ({
-        quotation_id: quotation.id,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        discount: item.discount,
-        total: item.total,
-      }));
+        // Delete existing items and re-insert
+        await supabase.from('quotation_items').delete().eq('quotation_id', id);
 
-      const { error: itemsError } = await supabase
-        .from('quotation_items')
-        .insert(quotationItems);
+        const quotationItems = items.map((item) => ({
+          quotation_id: id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount: item.discount,
+          total: item.total,
+        }));
 
-      if (itemsError) throw itemsError;
+        const { error: itemsError } = await supabase.from('quotation_items').insert(quotationItems);
+        if (itemsError) throw itemsError;
 
-      toast.success('কোটেশন তৈরি হয়েছে');
-      navigate(`/quotations/${quotation.id}`);
+        toast.success('কোটেশন আপডেট হয়েছে');
+        navigate(`/quotations/${id}`);
+      } else {
+        // Create quotation
+        const { data: quotation, error: quotationError } = await supabase
+          .from('quotations')
+          .insert([
+            {
+              quotation_number: quotationNumber,
+              customer_id: formData.customer_id,
+              quotation_date: formData.quotation_date,
+              valid_until: formData.valid_until || null,
+              subtotal,
+              discount: formData.discount,
+              tax: formData.tax,
+              total,
+              notes: formData.notes,
+              created_by: user?.id,
+            },
+          ])
+          .select()
+          .single();
+
+        if (quotationError) throw quotationError;
+
+        const quotationItems = items.map((item) => ({
+          quotation_id: quotation.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount: item.discount,
+          total: item.total,
+        }));
+
+        const { error: itemsError } = await supabase.from('quotation_items').insert(quotationItems);
+        if (itemsError) throw itemsError;
+
+        toast.success('কোটেশন তৈরি হয়েছে');
+        navigate(`/quotations/${quotation.id}`);
+      }
     } catch (error: any) {
-      console.error('Error creating quotation:', error);
+      console.error('Error saving quotation:', error);
       toast.error(error.message || 'সমস্যা হয়েছে');
     } finally {
       setLoading(false);
@@ -203,6 +291,15 @@ const QuotationForm = () => {
     }).format(amount);
   };
 
+  if (fetching) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-10 w-48 bg-muted rounded" />
+        <div className="h-96 bg-muted rounded-xl" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-4">
@@ -210,7 +307,7 @@ const QuotationForm = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">নতুন কোটেশন</h1>
+          <h1 className="text-3xl font-bold">{isEditing ? 'কোটেশন সম্পাদনা' : 'নতুন কোটেশন'}</h1>
           <p className="text-muted-foreground">কোটেশন নং: {quotationNumber}</p>
         </div>
       </div>
@@ -410,7 +507,7 @@ const QuotationForm = () => {
                 </div>
                 <Button type="submit" className="w-full gap-2" disabled={loading}>
                   <Save className="h-4 w-4" />
-                  {loading ? 'সংরক্ষণ হচ্ছে...' : 'কোটেশন সংরক্ষণ করুন'}
+                  {loading ? 'সংরক্ষণ হচ্ছে...' : isEditing ? 'আপডেট করুন' : 'কোটেশন সংরক্ষণ করুন'}
                 </Button>
               </CardContent>
             </Card>
