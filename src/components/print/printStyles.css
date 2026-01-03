@@ -1,0 +1,80 @@
+@media print {
+  /* Hide everything except print content */
+  body * {
+    visibility: hidden;
+  }
+
+  .print-content,
+  .print-content * {
+    visibility: visible !important;
+  }
+
+  .print-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  /* Reset background and colors for print */
+  .print-content {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure colors print correctly */
+  .bg-primary,
+  .bg-gradient-to-br {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  /* Hide print button and other non-printable elements */
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Force colors to print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Table styling for print */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th,
+  td {
+    border: 1px solid #e5e7eb;
+  }
+
+  /* Ensure header colors print */
+  thead tr {
+    background-color: hsl(var(--primary)) !important;
+    color: white !important;
+  }
+
+  /* Avoid page breaks in middle of elements */
+  tr,
+  .avoid-break {
+    page-break-inside: avoid;
+  }
+
+  /* Footer at bottom of each page */
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+  }
+}
