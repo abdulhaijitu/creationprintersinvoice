@@ -3,24 +3,61 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { AuthProvider } from "@/contexts/AuthContext";
+import AppLayout from "@/components/layout/AppLayout";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import Customers from "./pages/Customers";
+import Invoices from "./pages/Invoices";
+import InvoiceForm from "./pages/InvoiceForm";
+import InvoiceDetail from "./pages/InvoiceDetail";
 import NotFound from "./pages/NotFound";
+
+// Placeholder pages
+const PlaceholderPage = ({ title }: { title: string }) => (
+  <div className="space-y-4">
+    <h1 className="text-3xl font-bold">{title}</h1>
+    <p className="text-muted-foreground">এই মডিউল শীঘ্রই আসছে...</p>
+  </div>
+);
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/invoices" element={<Invoices />} />
+              <Route path="/invoices/new" element={<InvoiceForm />} />
+              <Route path="/invoices/:id" element={<InvoiceDetail />} />
+              <Route path="/quotations" element={<PlaceholderPage title="কোটেশন" />} />
+              <Route path="/price-calculation" element={<PlaceholderPage title="মূল্য হিসাব" />} />
+              <Route path="/expenses" element={<PlaceholderPage title="দৈনিক খরচ" />} />
+              <Route path="/vendors" element={<PlaceholderPage title="ভেন্ডর" />} />
+              <Route path="/employees" element={<PlaceholderPage title="কর্মচারী" />} />
+              <Route path="/attendance" element={<PlaceholderPage title="উপস্থিতি" />} />
+              <Route path="/salary" element={<PlaceholderPage title="বেতন" />} />
+              <Route path="/leave" element={<PlaceholderPage title="ছুটি" />} />
+              <Route path="/performance" element={<PlaceholderPage title="পারফরম্যান্স" />} />
+              <Route path="/tasks" element={<PlaceholderPage title="টাস্ক" />} />
+            </Route>
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
