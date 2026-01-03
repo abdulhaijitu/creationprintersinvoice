@@ -13,10 +13,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, FileText, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Plus, Search, Eye, FileText, CheckCircle, Clock, XCircle, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link, useNavigate } from 'react-router-dom';
+import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 
 interface Invoice {
   id: string;
@@ -98,6 +105,38 @@ const Invoices = () => {
       invoice.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const invoiceHeaders = {
+    invoice_number: 'ইনভয়েস নং',
+    customer_name: 'গ্রাহক',
+    invoice_date: 'তারিখ',
+    total: 'মোট',
+    paid_amount: 'পরিশোধিত',
+    status: 'স্ট্যাটাস',
+  };
+
+  const handleExport = (exportFormat: 'csv' | 'excel') => {
+    if (filteredInvoices.length === 0) {
+      toast.error('এক্সপোর্ট করার মতো ডেটা নেই');
+      return;
+    }
+    
+    const exportData = filteredInvoices.map(inv => ({
+      invoice_number: inv.invoice_number,
+      customer_name: inv.customers?.name || '',
+      invoice_date: format(new Date(inv.invoice_date), 'dd/MM/yyyy'),
+      total: inv.total,
+      paid_amount: inv.paid_amount,
+      status: inv.status === 'paid' ? 'পরিশোধিত' : inv.status === 'partial' ? 'আংশিক' : 'বাকি',
+    }));
+
+    if (exportFormat === 'csv') {
+      exportToCSV(exportData, 'invoices', invoiceHeaders);
+    } else {
+      exportToExcel(exportData, 'invoices', invoiceHeaders);
+    }
+    toast.success(`${exportFormat.toUpperCase()} ফাইল ডাউনলোড হচ্ছে`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -106,10 +145,29 @@ const Invoices = () => {
           <p className="text-muted-foreground">সকল ইনভয়েস পরিচালনা করুন</p>
         </div>
 
-        <Button className="gap-2" onClick={() => navigate('/invoices/new')}>
-          <Plus className="h-4 w-4" />
-          নতুন ইনভয়েস
-        </Button>
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                এক্সপোর্ট
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleExport('csv')}>
+                CSV ডাউনলোড
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('excel')}>
+                Excel ডাউনলোড
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button className="gap-2" onClick={() => navigate('/invoices/new')}>
+            <Plus className="h-4 w-4" />
+            নতুন ইনভয়েস
+          </Button>
+        </div>
       </div>
 
       <Card>
