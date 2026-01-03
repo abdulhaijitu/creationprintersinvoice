@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +34,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Search, Wallet, Calendar, Filter, Download } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Plus, Search, Wallet, Calendar, Filter, Download, 
+  Building2, Eye, Edit2, Phone, Mail, AlertCircle 
+} from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { bn } from "date-fns/locale";
@@ -60,18 +67,34 @@ interface Category {
 interface Vendor {
   id: string;
   name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  bank_info: string | null;
+  notes: string | null;
+  total_bills?: number;
+  total_paid?: number;
+  due_amount?: number;
 }
 
 const Expenses = () => {
+  const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [vendorSearchTerm, setVendorSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterVendor, setFilterVendor] = useState<string>("all");
   const [filterMonth, setFilterMonth] = useState<string>("");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
+  const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
+  const [isVendorDialogOpen, setIsVendorDialogOpen] = useState(false);
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [selectedVendorForExpense, setSelectedVendorForExpense] = useState<string>("");
+  
+  const [expenseFormData, setExpenseFormData] = useState({
     date: format(new Date(), "yyyy-MM-dd"),
     description: "",
     amount: "",
@@ -80,9 +103,18 @@ const Expenses = () => {
     vendor_id: "",
   });
 
+  const [vendorFormData, setVendorFormData] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+    bank_info: "",
+    notes: "",
+  });
+
   useEffect(() => {
     fetchData();
-  }, [filterCategory, filterMonth]);
+  }, [filterCategory, filterVendor, filterMonth]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -94,12 +126,38 @@ const Expenses = () => {
         .order("name");
       setCategories(categoriesData || []);
 
-      // Fetch vendors
+      // Fetch vendors with dues
       const { data: vendorsData } = await supabase
         .from("vendors")
-        .select("id, name")
+        .select("*")
         .order("name");
-      setVendors(vendorsData || []);
+
+      if (vendorsData) {
+        const vendorsWithDues = await Promise.all(
+          vendorsData.map(async (vendor) => {
+            const { data: bills } = await supabase
+              .from("vendor_bills")
+              .select("amount")
+              .eq("vendor_id", vendor.id);
+
+            const { data: payments } = await supabase
+              .from("vendor_payments")
+              .select("amount")
+              .eq("vendor_id", vendor.id);
+
+            const totalBills = bills?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
+            const totalPaid = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+
+            return {
+              ...vendor,
+              total_bills: totalBills,
+              total_paid: totalPaid,
+              due_amount: totalBills - totalPaid,
+            };
+          })
+        );
+        setVendors(vendorsWithDues);
+      }
 
       // Fetch expenses with filters
       let query = supabase
@@ -113,6 +171,10 @@ const Expenses = () => {
 
       if (filterCategory && filterCategory !== "all") {
         query = query.eq("category_id", filterCategory);
+      }
+
+      if (filterVendor && filterVendor !== "all") {
+        query = query.eq("vendor_id", filterVendor);
       }
 
       if (filterMonth) {
@@ -130,41 +192,112 @@ const Expenses = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.description || !formData.amount) {
+    if (!expenseFormData.description || !expenseFormData.amount) {
       toast.error("বিবরণ এবং টাকার পরিমাণ দিন");
       return;
     }
 
     try {
       const { error } = await supabase.from("expenses").insert({
-        date: formData.date,
-        description: formData.description,
-        amount: parseFloat(formData.amount),
-        payment_method: formData.payment_method,
-        category_id: formData.category_id || null,
-        vendor_id: formData.vendor_id || null,
+        date: expenseFormData.date,
+        description: expenseFormData.description,
+        amount: parseFloat(expenseFormData.amount),
+        payment_method: expenseFormData.payment_method,
+        category_id: expenseFormData.category_id || null,
+        vendor_id: expenseFormData.vendor_id || null,
       });
 
       if (error) throw error;
 
       toast.success("খরচ সংরক্ষণ হয়েছে");
-      setIsDialogOpen(false);
-      setFormData({
-        date: format(new Date(), "yyyy-MM-dd"),
-        description: "",
-        amount: "",
-        payment_method: "cash",
-        category_id: "",
-        vendor_id: "",
-      });
+      setIsExpenseDialogOpen(false);
+      resetExpenseForm();
       fetchData();
     } catch (error) {
       console.error("Error saving expense:", error);
       toast.error("খরচ সংরক্ষণ ব্যর্থ হয়েছে");
     }
+  };
+
+  const handleVendorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!vendorFormData.name) {
+      toast.error("ভেন্ডরের নাম দিন");
+      return;
+    }
+
+    try {
+      if (editingVendor) {
+        const { error } = await supabase
+          .from("vendors")
+          .update(vendorFormData)
+          .eq("id", editingVendor.id);
+
+        if (error) throw error;
+        toast.success("ভেন্ডর আপডেট হয়েছে");
+      } else {
+        const { error } = await supabase.from("vendors").insert(vendorFormData);
+        if (error) throw error;
+        toast.success("ভেন্ডর যোগ হয়েছে");
+      }
+
+      setIsVendorDialogOpen(false);
+      resetVendorForm();
+      fetchData();
+    } catch (error) {
+      console.error("Error saving vendor:", error);
+      toast.error("ভেন্ডর সংরক্ষণ ব্যর্থ হয়েছে");
+    }
+  };
+
+  const resetExpenseForm = () => {
+    setExpenseFormData({
+      date: format(new Date(), "yyyy-MM-dd"),
+      description: "",
+      amount: "",
+      payment_method: "cash",
+      category_id: "",
+      vendor_id: "",
+    });
+    setSelectedVendorForExpense("");
+  };
+
+  const resetVendorForm = () => {
+    setVendorFormData({
+      name: "",
+      phone: "",
+      email: "",
+      address: "",
+      bank_info: "",
+      notes: "",
+    });
+    setEditingVendor(null);
+  };
+
+  const openEditVendorDialog = (vendor: Vendor) => {
+    setEditingVendor(vendor);
+    setVendorFormData({
+      name: vendor.name,
+      phone: vendor.phone || "",
+      email: vendor.email || "",
+      address: vendor.address || "",
+      bank_info: vendor.bank_info || "",
+      notes: vendor.notes || "",
+    });
+    setIsVendorDialogOpen(true);
+  };
+
+  const openVendorExpenseDialog = (vendorId: string) => {
+    setSelectedVendorForExpense(vendorId);
+    setExpenseFormData({
+      ...expenseFormData,
+      vendor_id: vendorId,
+    });
+    setIsExpenseDialogOpen(true);
   };
 
   const filteredExpenses = expenses.filter(
@@ -174,7 +307,15 @@ const Expenses = () => {
       expense.vendor?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredVendors = vendors.filter(
+    (vendor) =>
+      vendor.name.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+      vendor.phone?.includes(vendorSearchTerm) ||
+      vendor.email?.toLowerCase().includes(vendorSearchTerm.toLowerCase())
+  );
+
   const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const totalVendorDue = vendors.reduce((sum, v) => sum + (v.due_amount || 0), 0);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("bn-BD", {
@@ -233,258 +374,568 @@ const Expenses = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">দৈনিক খরচ</h1>
-          <p className="text-muted-foreground">সব খরচের হিসাব রাখুন</p>
+          <h1 className="text-3xl font-bold">খরচ ব্যবস্থাপনা</h1>
+          <p className="text-muted-foreground">ভেন্ডর ও দৈনিক খরচের হিসাব</p>
         </div>
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                এক্সপোর্ট
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handleExport('csv')}>
-                CSV ডাউনলোড
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('excel')}>
-                Excel ডাউনলোড
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                নতুন খরচ
-              </Button>
-            </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>নতুন খরচ যোগ করুন</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="date">তারিখ</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, date: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="amount">টাকা</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    placeholder="0"
-                    value={formData.amount}
-                    onChange={(e) =>
-                      setFormData({ ...formData, amount: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
+      </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="category">ক্যাটেগরি</Label>
-                <Select
-                  value={formData.category_id}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, category_id: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="ক্যাটেগরি বাছুন" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              মোট ভেন্ডর
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{vendors.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              মোট ভেন্ডর বিল
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {formatCurrency(vendors.reduce((sum, v) => sum + (v.total_bills || 0), 0))}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-destructive flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              ভেন্ডর বকেয়া
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-destructive">{formatCurrency(totalVendorDue)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              মোট দৈনিক খরচ
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{formatCurrency(totalExpenses)}</p>
+          </CardContent>
+        </Card>
+      </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">বিবরণ</Label>
-                <Textarea
-                  id="description"
-                  placeholder="খরচের বিবরণ লিখুন"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
+      <Tabs defaultValue="vendors" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="vendors" className="gap-2">
+            <Building2 className="h-4 w-4" />
+            ভেন্ডর
+          </TabsTrigger>
+          <TabsTrigger value="expenses" className="gap-2">
+            <Wallet className="h-4 w-4" />
+            দৈনিক খরচ
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Vendors Tab */}
+        <TabsContent value="vendors" className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="ভেন্ডর খুঁজুন..."
+                value={vendorSearchTerm}
+                onChange={(e) => setVendorSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {isAdmin && (
+              <Dialog open={isVendorDialogOpen} onOpenChange={(open) => {
+                setIsVendorDialogOpen(open);
+                if (!open) resetVendorForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    নতুন ভেন্ডর
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingVendor ? "ভেন্ডর সম্পাদনা" : "নতুন ভেন্ডর যোগ করুন"}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleVendorSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="vendor_name">নাম *</Label>
+                      <Input
+                        id="vendor_name"
+                        placeholder="ভেন্ডরের নাম"
+                        value={vendorFormData.name}
+                        onChange={(e) =>
+                          setVendorFormData({ ...vendorFormData, name: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="vendor_phone">ফোন</Label>
+                        <Input
+                          id="vendor_phone"
+                          placeholder="01XXXXXXXXX"
+                          value={vendorFormData.phone}
+                          onChange={(e) =>
+                            setVendorFormData({ ...vendorFormData, phone: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="vendor_email">ইমেইল</Label>
+                        <Input
+                          id="vendor_email"
+                          type="email"
+                          placeholder="email@example.com"
+                          value={vendorFormData.email}
+                          onChange={(e) =>
+                            setVendorFormData({ ...vendorFormData, email: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="vendor_address">ঠিকানা</Label>
+                      <Textarea
+                        id="vendor_address"
+                        placeholder="ভেন্ডরের ঠিকানা"
+                        value={vendorFormData.address}
+                        onChange={(e) =>
+                          setVendorFormData({ ...vendorFormData, address: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="vendor_bank_info">ব্যাংক তথ্য</Label>
+                      <Textarea
+                        id="vendor_bank_info"
+                        placeholder="ব্যাংক একাউন্ট নম্বর, ব্র্যাঞ্চ ইত্যাদি"
+                        value={vendorFormData.bank_info}
+                        onChange={(e) =>
+                          setVendorFormData({ ...vendorFormData, bank_info: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="vendor_notes">নোট</Label>
+                      <Textarea
+                        id="vendor_notes"
+                        placeholder="অতিরিক্ত তথ্য"
+                        value={vendorFormData.notes}
+                        onChange={(e) =>
+                          setVendorFormData({ ...vendorFormData, notes: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsVendorDialogOpen(false);
+                          resetVendorForm();
+                        }}
+                      >
+                        বাতিল
+                      </Button>
+                      <Button type="submit">সংরক্ষণ করুন</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+
+          {/* Vendors Table */}
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>নাম</TableHead>
+                  <TableHead>যোগাযোগ</TableHead>
+                  <TableHead className="text-right">মোট বিল</TableHead>
+                  <TableHead className="text-right">পরিশোধ</TableHead>
+                  <TableHead className="text-right">বকেয়া</TableHead>
+                  <TableHead className="text-center">অ্যাকশন</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      লোড হচ্ছে...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredVendors.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      কোনো ভেন্ডর পাওয়া যায়নি
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredVendors.map((vendor) => (
+                    <TableRow key={vendor.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">{vendor.name}</p>
+                            {vendor.address && (
+                              <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                {vendor.address}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {vendor.phone && (
+                            <div className="flex items-center gap-1 text-sm">
+                              <Phone className="h-3 w-3" />
+                              {vendor.phone}
+                            </div>
+                          )}
+                          {vendor.email && (
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              {vendor.email}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(vendor.total_bills || 0)}
+                      </TableCell>
+                      <TableCell className="text-right text-green-600">
+                        {formatCurrency(vendor.total_paid || 0)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {(vendor.due_amount || 0) > 0 ? (
+                          <Badge variant="destructive">{formatCurrency(vendor.due_amount || 0)}</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-green-600 border-green-600">পরিশোধিত</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/vendors/${vendor.id}`)}
+                            title="বিস্তারিত দেখুন"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditVendorDialog(vendor)}
+                                title="সম্পাদনা করুন"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openVendorExpenseDialog(vendor.id)}
+                                title="খরচ যোগ করুন"
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                খরচ
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        {/* Daily Expenses Tab */}
+        <TabsContent value="expenses" className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 flex-1">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="খরচ খুঁজুন..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="payment_method">পেমেন্ট মেথড</Label>
-                  <Select
-                    value={formData.payment_method}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, payment_method: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">নগদ</SelectItem>
-                      <SelectItem value="bank">ব্যাংক</SelectItem>
-                      <SelectItem value="bkash">বিকাশ</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="vendor">ভেন্ডর (ঐচ্ছিক)</Label>
-                  <Select
-                    value={formData.vendor_id}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, vendor_id: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="বাছুন" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {vendors.map((vendor) => (
-                        <SelectItem key={vendor.id} value={vendor.id}>
-                          {vendor.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="ক্যাটেগরি" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">সব ক্যাটেগরি</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterVendor} onValueChange={setFilterVendor}>
+                <SelectTrigger className="w-[180px]">
+                  <Building2 className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="ভেন্ডর" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">সব ভেন্ডর</SelectItem>
+                  {vendors.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="month"
+                  value={filterMonth}
+                  onChange={(e) => setFilterMonth(e.target.value)}
+                  className="w-[160px]"
+                />
               </div>
+            </div>
+            <div className="flex gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    এক্সপোর্ট
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleExport('csv')}>
+                    CSV ডাউনলোড
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('excel')}>
+                    Excel ডাউনলোড
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Dialog open={isExpenseDialogOpen} onOpenChange={(open) => {
+                setIsExpenseDialogOpen(open);
+                if (!open) resetExpenseForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    নতুন খরচ
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>নতুন খরচ যোগ করুন</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleExpenseSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="expense_date">তারিখ</Label>
+                        <Input
+                          id="expense_date"
+                          type="date"
+                          value={expenseFormData.date}
+                          onChange={(e) =>
+                            setExpenseFormData({ ...expenseFormData, date: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="expense_amount">টাকা</Label>
+                        <Input
+                          id="expense_amount"
+                          type="number"
+                          placeholder="0"
+                          value={expenseFormData.amount}
+                          onChange={(e) =>
+                            setExpenseFormData({ ...expenseFormData, amount: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
 
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
-                >
-                  বাতিল
-                </Button>
-                <Button type="submit">সংরক্ষণ করুন</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-        </div>
-      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="expense_vendor">ভেন্ডর</Label>
+                      <Select
+                        value={expenseFormData.vendor_id}
+                        onValueChange={(value) =>
+                          setExpenseFormData({ ...expenseFormData, vendor_id: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="ভেন্ডর বাছুন (ঐচ্ছিক)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vendors.map((vendor) => (
+                            <SelectItem key={vendor.id} value={vendor.id}>
+                              {vendor.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-      {/* Summary Card */}
-      <div className="bg-gradient-to-r from-destructive/10 to-destructive/5 rounded-lg p-6 border border-destructive/20">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-destructive/20 rounded-full">
-            <Wallet className="h-6 w-6 text-destructive" />
+                    <div className="space-y-2">
+                      <Label htmlFor="expense_category">ক্যাটেগরি</Label>
+                      <Select
+                        value={expenseFormData.category_id}
+                        onValueChange={(value) =>
+                          setExpenseFormData({ ...expenseFormData, category_id: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="ক্যাটেগরি বাছুন" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="expense_description">বিবরণ</Label>
+                      <Textarea
+                        id="expense_description"
+                        placeholder="খরচের বিবরণ লিখুন"
+                        value={expenseFormData.description}
+                        onChange={(e) =>
+                          setExpenseFormData({ ...expenseFormData, description: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="expense_payment_method">পেমেন্ট মেথড</Label>
+                      <Select
+                        value={expenseFormData.payment_method}
+                        onValueChange={(value) =>
+                          setExpenseFormData({ ...expenseFormData, payment_method: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">নগদ</SelectItem>
+                          <SelectItem value="bank">ব্যাংক</SelectItem>
+                          <SelectItem value="bkash">বিকাশ</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsExpenseDialogOpen(false);
+                          resetExpenseForm();
+                        }}
+                      >
+                        বাতিল
+                      </Button>
+                      <Button type="submit">সংরক্ষণ করুন</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">মোট খরচ (ফিল্টার অনুযায়ী)</p>
-            <p className="text-2xl font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
-          </div>
-        </div>
-      </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="খরচ খুঁজুন..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[180px]">
-            <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="ক্যাটেগরি" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">সব ক্যাটেগরি</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>
-                {cat.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <Input
-            type="month"
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            className="w-[160px]"
-          />
-        </div>
-      </div>
-
-      {/* Expenses Table */}
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>তারিখ</TableHead>
-              <TableHead>বিবরণ</TableHead>
-              <TableHead>ক্যাটেগরি</TableHead>
-              <TableHead>ভেন্ডর</TableHead>
-              <TableHead>পেমেন্ট</TableHead>
-              <TableHead className="text-right">টাকা</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  লোড হচ্ছে...
-                </TableCell>
-              </TableRow>
-            ) : filteredExpenses.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  কোনো খরচ পাওয়া যায়নি
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredExpenses.map((expense) => (
-                <TableRow key={expense.id}>
-                  <TableCell>
-                    {format(new Date(expense.date), "dd MMM yyyy", { locale: bn })}
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate">
-                    {expense.description}
-                  </TableCell>
-                  <TableCell>
-                    {expense.category?.name ? (
-                      <Badge variant="secondary">{expense.category.name}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {expense.vendor?.name || <span className="text-muted-foreground">-</span>}
-                  </TableCell>
-                  <TableCell>{getPaymentMethodBadge(expense.payment_method || "cash")}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(expense.amount)}
-                  </TableCell>
+          {/* Expenses Table */}
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>তারিখ</TableHead>
+                  <TableHead>বিবরণ</TableHead>
+                  <TableHead>ভেন্ডর</TableHead>
+                  <TableHead>ক্যাটেগরি</TableHead>
+                  <TableHead>পেমেন্ট</TableHead>
+                  <TableHead className="text-right">টাকা</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      লোড হচ্ছে...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredExpenses.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      কোনো খরচ পাওয়া যায়নি
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredExpenses.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell>
+                        {format(new Date(expense.date), "dd MMM yyyy", { locale: bn })}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {expense.description}
+                      </TableCell>
+                      <TableCell>
+                        {expense.vendor?.name ? (
+                          <Badge variant="outline">{expense.vendor.name}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {expense.category?.name ? (
+                          <Badge variant="secondary">{expense.category.name}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{getPaymentMethodBadge(expense.payment_method || "cash")}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(expense.amount)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
