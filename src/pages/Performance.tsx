@@ -1,0 +1,380 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, Star, TrendingUp, User } from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { bn } from "date-fns/locale";
+
+interface PerformanceNote {
+  id: string;
+  user_id: string;
+  note: string;
+  rating: number | null;
+  created_at: string;
+  created_by: string | null;
+  profile?: { full_name: string } | null;
+  creator?: { full_name: string } | null;
+}
+
+interface Employee {
+  id: string;
+  full_name: string;
+}
+
+const Performance = () => {
+  const { isAdmin, user } = useAuth();
+  const [notes, setNotes] = useState<PerformanceNote[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    user_id: "",
+    note: "",
+    rating: "3",
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedEmployee, isAdmin]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Fetch employees if admin
+      if (isAdmin) {
+        const { data: employeesData } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .order("full_name");
+        setEmployees(employeesData || []);
+      }
+
+      // Fetch performance notes
+      let query = supabase
+        .from("performance_notes")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!isAdmin) {
+        query = query.eq("user_id", user?.id);
+      } else if (selectedEmployee !== "all") {
+        query = query.eq("user_id", selectedEmployee);
+      }
+
+      const { data: notesData } = await query;
+
+      if (notesData) {
+        // Fetch profile names
+        const notesWithProfiles = await Promise.all(
+          notesData.map(async (note) => {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("full_name")
+              .eq("id", note.user_id)
+              .maybeSingle();
+
+            let creator = null;
+            if (note.created_by) {
+              const { data: creatorData } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", note.created_by)
+                .maybeSingle();
+              creator = creatorData;
+            }
+
+            return { ...note, profile, creator };
+          })
+        );
+        setNotes(notesWithProfiles);
+      }
+    } catch (error) {
+      console.error("Error fetching performance data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.user_id || !formData.note) {
+      toast.error("কর্মচারী এবং নোট দিন");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("performance_notes").insert({
+        user_id: formData.user_id,
+        note: formData.note,
+        rating: parseInt(formData.rating),
+        created_by: user?.id,
+      });
+
+      if (error) throw error;
+
+      toast.success("পারফরম্যান্স নোট সংরক্ষণ হয়েছে");
+      setIsDialogOpen(false);
+      resetForm();
+      fetchData();
+    } catch (error) {
+      console.error("Error saving performance note:", error);
+      toast.error("নোট সংরক্ষণ ব্যর্থ হয়েছে");
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      user_id: "",
+      note: "",
+      rating: "3",
+    });
+  };
+
+  const getRatingStars = (rating: number | null) => {
+    if (!rating) return null;
+    return (
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`h-4 w-4 ${
+              star <= rating
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-muted-foreground"
+            }`}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  // Calculate average rating
+  const avgRating =
+    notes.length > 0
+      ? notes.reduce((sum, n) => sum + (n.rating || 0), 0) / notes.filter(n => n.rating).length
+      : 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">পারফরম্যান্স</h1>
+          <p className="text-muted-foreground">কর্মচারী পারফরম্যান্স ট্র্যাকিং</p>
+        </div>
+        {isAdmin && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                নোট যোগ করুন
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>পারফরম্যান্স নোট</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>কর্মচারী</Label>
+                  <Select
+                    value={formData.user_id}
+                    onValueChange={(v) => setFormData({ ...formData, user_id: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="কর্মচারী বাছুন" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>রেটিং</Label>
+                  <Select
+                    value={formData.rating}
+                    onValueChange={(v) => setFormData({ ...formData, rating: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">⭐ (খারাপ)</SelectItem>
+                      <SelectItem value="2">⭐⭐ (নিম্ন)</SelectItem>
+                      <SelectItem value="3">⭐⭐⭐ (মাঝারি)</SelectItem>
+                      <SelectItem value="4">⭐⭐⭐⭐ (ভালো)</SelectItem>
+                      <SelectItem value="5">⭐⭐⭐⭐⭐ (চমৎকার)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>নোট</Label>
+                  <Textarea
+                    placeholder="পারফরম্যান্স সম্পর্কে মন্তব্য লিখুন..."
+                    value={formData.note}
+                    onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                    rows={4}
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    বাতিল
+                  </Button>
+                  <Button type="submit">সংরক্ষণ</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              মোট নোট
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{notes.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Star className="h-4 w-4" />
+              গড় রেটিং
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <p className="text-2xl font-bold">{avgRating.toFixed(1)}</p>
+              {getRatingStars(Math.round(avgRating))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <User className="h-4 w-4" />
+              কর্মচারী
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {new Set(notes.map((n) => n.user_id)).size}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filter */}
+      {isAdmin && (
+        <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="কর্মচারী বাছুন" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">সবাই</SelectItem>
+            {employees.map((emp) => (
+              <SelectItem key={emp.id} value={emp.id}>
+                {emp.full_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {/* Notes Table */}
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>তারিখ</TableHead>
+              {isAdmin && <TableHead>কর্মচারী</TableHead>}
+              <TableHead>রেটিং</TableHead>
+              <TableHead>নোট</TableHead>
+              {isAdmin && <TableHead>যোগ করেছেন</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={isAdmin ? 5 : 3} className="text-center py-8">
+                  লোড হচ্ছে...
+                </TableCell>
+              </TableRow>
+            ) : notes.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={isAdmin ? 5 : 3} className="text-center py-8 text-muted-foreground">
+                  কোনো নোট নেই
+                </TableCell>
+              </TableRow>
+            ) : (
+              notes.map((note) => (
+                <TableRow key={note.id}>
+                  <TableCell>
+                    {format(new Date(note.created_at), "dd MMM yyyy", { locale: bn })}
+                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="font-medium">
+                      {note.profile?.full_name || "-"}
+                    </TableCell>
+                  )}
+                  <TableCell>{getRatingStars(note.rating)}</TableCell>
+                  <TableCell className="max-w-[300px]">
+                    <p className="line-clamp-2">{note.note}</p>
+                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-muted-foreground">
+                      {note.creator?.full_name || "-"}
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+};
+
+export default Performance;
