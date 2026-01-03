@@ -34,6 +34,7 @@ import { format, differenceInDays } from "date-fns";
 import { bn } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Database } from "@/integrations/supabase/types";
+import { createNotification } from "@/hooks/useNotifications";
 
 type LeaveType = Database["public"]["Enums"]["leave_type"];
 type LeaveStatus = Database["public"]["Enums"]["leave_status"];
@@ -170,6 +171,23 @@ const Leave = () => {
 
       if (error) throw error;
 
+      // Notify admins about new leave request
+      const { data: admins } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+
+      if (admins) {
+        for (const admin of admins) {
+          await createNotification(
+            admin.user_id,
+            "নতুন ছুটির আবেদন",
+            `${leaveTypeLabels[formData.leave_type]} ছুটির জন্য নতুন আবেদন এসেছে`,
+            "leave_request"
+          );
+        }
+      }
+
       toast.success("ছুটির আবেদন জমা হয়েছে");
       setIsDialogOpen(false);
       resetForm();
@@ -230,6 +248,16 @@ const Leave = () => {
           .eq("id", balance.id);
       }
 
+      // Notify the user
+      await createNotification(
+        userId,
+        "ছুটি অনুমোদিত",
+        `আপনার ${leaveTypeLabels[leaveType]} ছুটি অনুমোদিত হয়েছে (${days} দিন)`,
+        "leave_approved",
+        id,
+        "leave_request"
+      );
+
       toast.success("ছুটি অনুমোদিত হয়েছে");
       fetchData();
     } catch (error) {
@@ -238,7 +266,7 @@ const Leave = () => {
     }
   };
 
-  const handleReject = async (id: string) => {
+  const handleReject = async (id: string, userId: string, leaveType: LeaveType) => {
     try {
       const { error } = await supabase
         .from("leave_requests")
@@ -250,6 +278,16 @@ const Leave = () => {
         .eq("id", id);
 
       if (error) throw error;
+
+      // Notify the user
+      await createNotification(
+        userId,
+        "ছুটি প্রত্যাখ্যাত",
+        `আপনার ${leaveTypeLabels[leaveType]} ছুটির আবেদন প্রত্যাখ্যাত হয়েছে`,
+        "leave_rejected",
+        id,
+        "leave_request"
+      );
 
       toast.success("ছুটি প্রত্যাখ্যাত হয়েছে");
       fetchData();
@@ -484,7 +522,7 @@ const Leave = () => {
                             variant="ghost"
                             size="sm"
                             className="text-destructive hover:text-destructive"
-                            onClick={() => handleReject(request.id)}
+                            onClick={() => handleReject(request.id, request.user_id, request.leave_type)}
                           >
                             <X className="h-4 w-4" />
                           </Button>
