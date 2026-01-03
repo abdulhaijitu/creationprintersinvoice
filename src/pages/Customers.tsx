@@ -35,9 +35,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Phone, Mail, Building2, Download } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Phone, Mail, Building2, Download, Upload } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
+import CSVImportDialog from '@/components/import/CSVImportDialog';
+import { ImportResult } from '@/lib/importUtils';
 
 interface Customer {
   id: string;
@@ -57,6 +59,7 @@ const Customers = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -194,6 +197,49 @@ const Customers = () => {
     toast.success(`${format.toUpperCase()} ফাইল ডাউনলোড হচ্ছে`);
   };
 
+  const handleImport = async (data: Record<string, string>[]): Promise<ImportResult> => {
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const row of data) {
+      try {
+        const customerData = {
+          name: row.name || row['নাম'] || '',
+          phone: row.phone || row['ফোন'] || null,
+          email: row.email || row['ইমেইল'] || null,
+          company_name: row.company_name || row['কোম্পানি'] || null,
+          address: row.address || row['ঠিকানা'] || null,
+          notes: row.notes || row['নোট'] || null,
+        };
+
+        if (!customerData.name) {
+          failed++;
+          errors.push(`সারি: নাম প্রদান করা হয়নি`);
+          continue;
+        }
+
+        const { error } = await supabase.from('customers').insert([customerData]);
+        
+        if (error) {
+          failed++;
+          errors.push(`${customerData.name}: ${error.message}`);
+        } else {
+          success++;
+        }
+      } catch (err: any) {
+        failed++;
+        errors.push(err.message || 'অজানা সমস্যা');
+      }
+    }
+
+    if (success > 0) {
+      fetchCustomers();
+    }
+
+    return { success, failed, errors };
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -219,6 +265,11 @@ const Customers = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Button variant="outline" className="gap-2" onClick={() => setIsImportOpen(true)}>
+            <Upload className="h-4 w-4" />
+            ইম্পোর্ট
+          </Button>
 
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
@@ -410,6 +461,17 @@ const Customers = () => {
           )}
         </CardContent>
       </Card>
+
+      <CSVImportDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        title="গ্রাহক ইম্পোর্ট"
+        description="CSV ফাইল থেকে গ্রাহক তালিকা ইম্পোর্ট করুন"
+        requiredFields={['name']}
+        fieldMapping={customerHeaders}
+        onImport={handleImport}
+        templateFilename="customers"
+      />
     </div>
   );
 };
