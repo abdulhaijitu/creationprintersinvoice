@@ -50,6 +50,78 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          address: string | null
+          address_bn: string | null
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_branch: string | null
+          bank_name: string | null
+          bank_routing_number: string | null
+          company_name: string
+          company_name_bn: string | null
+          created_at: string
+          email: string | null
+          id: string
+          invoice_footer: string | null
+          invoice_prefix: string | null
+          invoice_terms: string | null
+          logo_url: string | null
+          mobile_banking: string | null
+          phone: string | null
+          quotation_prefix: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          address_bn?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          bank_routing_number?: string | null
+          company_name?: string
+          company_name_bn?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          invoice_footer?: string | null
+          invoice_prefix?: string | null
+          invoice_terms?: string | null
+          logo_url?: string | null
+          mobile_banking?: string | null
+          phone?: string | null
+          quotation_prefix?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          address_bn?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          bank_routing_number?: string | null
+          company_name?: string
+          company_name_bn?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          invoice_footer?: string | null
+          invoice_prefix?: string | null
+          invoice_terms?: string | null
+          logo_url?: string | null
+          mobile_banking?: string | null
+          phone?: string | null
+          quotation_prefix?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null

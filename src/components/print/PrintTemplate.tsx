@@ -1,5 +1,7 @@
 import { format } from 'date-fns';
 import { bn } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PrintTemplateProps {
   type: 'invoice' | 'quotation';
@@ -46,6 +48,20 @@ export const PrintTemplate = ({
   notes,
   status,
 }: PrintTemplateProps) => {
+  const { data: settings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('*')
+        .limit(1)
+        .single();
+      
+      if (error) return null;
+      return data;
+    },
+  });
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('bn-BD', {
       style: 'currency',
@@ -82,18 +98,34 @@ export const PrintTemplate = ({
 
   const remaining = paidAmount !== undefined ? total - paidAmount : 0;
 
+  const companyName = settings?.company_name || 'My Company';
+  const companyNameBn = settings?.company_name_bn || '';
+  const companyAddress = settings?.address || '';
+  const companyPhone = settings?.phone || '';
+  const companyEmail = settings?.email || '';
+  const logoUrl = settings?.logo_url || null;
+  const bankName = settings?.bank_name || '';
+  const bankAccountNumber = settings?.bank_account_number || '';
+  const mobileBanking = settings?.mobile_banking || '';
+  const invoiceFooter = settings?.invoice_footer || '';
+  const invoiceTerms = settings?.invoice_terms || '';
+
   return (
     <div className="hidden print:block bg-white text-black min-h-screen">
       {/* Header */}
       <div className="border-b-4 border-primary pb-6 mb-6">
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-3xl">C</span>
-            </div>
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo" className="w-16 h-16 object-contain" />
+            ) : (
+              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-3xl">{companyName.charAt(0)}</span>
+              </div>
+            )}
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Creation Printers</h1>
-              <p className="text-gray-600 text-sm">প্রিন্টিং ও প্যাকেজিং সলিউশন</p>
+              <h1 className="text-3xl font-bold text-gray-900">{companyName}</h1>
+              {companyNameBn && <p className="text-gray-600 text-sm">{companyNameBn}</p>}
               <p className="text-gray-500 text-xs mt-1">উচ্চ মানের প্রিন্টিং সার্ভিস</p>
             </div>
           </div>
@@ -113,10 +145,10 @@ export const PrintTemplate = ({
         {/* From */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">প্রেরক</p>
-          <p className="font-bold text-gray-900">Creation Printers</p>
-          <p className="text-sm text-gray-600">ঢাকা, বাংলাদেশ</p>
-          <p className="text-sm text-gray-600">📞 01XXXXXXXXX</p>
-          <p className="text-sm text-gray-600">✉️ info@creationprinters.com</p>
+          <p className="font-bold text-gray-900">{companyName}</p>
+          {companyAddress && <p className="text-sm text-gray-600">{companyAddress}</p>}
+          {companyPhone && <p className="text-sm text-gray-600">📞 {companyPhone}</p>}
+          {companyEmail && <p className="text-sm text-gray-600">✉️ {companyEmail}</p>}
         </div>
 
         {/* To */}
@@ -263,35 +295,44 @@ export const PrintTemplate = ({
       </div>
 
       {/* Notes & Terms */}
-      {notes && (
+      {(notes || invoiceTerms) && (
         <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">
-            {type === 'invoice' ? 'নোট' : 'শর্তাবলী'}
+            {type === 'invoice' ? 'নোট ও শর্তাবলী' : 'শর্তাবলী'}
           </p>
-          <p className="text-sm text-gray-700 whitespace-pre-wrap">{notes}</p>
+          {notes && <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2">{notes}</p>}
+          {invoiceTerms && <p className="text-sm text-gray-700 whitespace-pre-wrap">{invoiceTerms}</p>}
         </div>
       )}
 
       {/* Bank Info */}
-      <div className="mb-8 bg-gray-50 rounded-lg p-4">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-          পেমেন্ট তথ্য
-        </p>
-        <div className="grid grid-cols-3 gap-4 text-sm">
-          <div>
-            <p className="text-gray-600">ব্যাংক:</p>
-            <p className="font-medium">Dutch Bangla Bank Ltd.</p>
-          </div>
-          <div>
-            <p className="text-gray-600">অ্যাকাউন্ট নম্বর:</p>
-            <p className="font-medium">XXXXXXXXXX</p>
-          </div>
-          <div>
-            <p className="text-gray-600">মোবাইল ব্যাংকিং:</p>
-            <p className="font-medium">বিকাশ/নগদ: 01XXXXXXXXX</p>
+      {(bankName || mobileBanking) && (
+        <div className="mb-8 bg-gray-50 rounded-lg p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            পেমেন্ট তথ্য
+          </p>
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            {bankName && (
+              <div>
+                <p className="text-gray-600">ব্যাংক:</p>
+                <p className="font-medium">{bankName}</p>
+              </div>
+            )}
+            {bankAccountNumber && (
+              <div>
+                <p className="text-gray-600">অ্যাকাউন্ট নম্বর:</p>
+                <p className="font-medium">{bankAccountNumber}</p>
+              </div>
+            )}
+            {mobileBanking && (
+              <div>
+                <p className="text-gray-600">মোবাইল ব্যাংকিং:</p>
+                <p className="font-medium">{mobileBanking}</p>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Footer */}
       <div className="border-t-2 border-gray-200 pt-6 mt-8">
@@ -302,14 +343,20 @@ export const PrintTemplate = ({
             </div>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-600">ধন্যবাদ আপনার ব্যবসার জন্য!</p>
-            <p className="text-xs text-gray-500 mt-1">
-              প্রশ্ন থাকলে যোগাযোগ করুন: 01XXXXXXXXX
-            </p>
+            {invoiceFooter ? (
+              <p className="text-sm text-gray-600 whitespace-pre-wrap">{invoiceFooter}</p>
+            ) : (
+              <p className="text-sm text-gray-600">ধন্যবাদ আপনার ব্যবসার জন্য!</p>
+            )}
+            {companyPhone && (
+              <p className="text-xs text-gray-500 mt-1">
+                প্রশ্ন থাকলে যোগাযোগ করুন: {companyPhone}
+              </p>
+            )}
           </div>
           <div className="text-right text-xs text-gray-400">
             <p>তৈরির তারিখ: {format(new Date(), 'd MMMM yyyy', { locale: bn })}</p>
-            <p>Creation Printers © {new Date().getFullYear()}</p>
+            <p>{companyName} © {new Date().getFullYear()}</p>
           </div>
         </div>
       </div>

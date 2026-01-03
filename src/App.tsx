@@ -27,6 +27,7 @@ import Leave from "./pages/Leave";
 import Performance from "./pages/Performance";
 import Tasks from "./pages/Tasks";
 import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="/performance" element={<Performance />} />
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/settings" element={<Settings />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
