@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Plus, Phone, Mail, MapPin, Building2, CreditCard } from "lucide-react";
+import { ArrowLeft, Plus, Phone, Mail, MapPin, Building2, CreditCard, Edit2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { bn } from "date-fns/locale";
@@ -74,6 +74,8 @@ const VendorDetail = () => {
   const [loading, setLoading] = useState(true);
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [editingBill, setEditingBill] = useState<Bill | null>(null);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
 
   const [billForm, setBillForm] = useState({
     bill_date: format(new Date(), "yyyy-MM-dd"),
@@ -143,30 +145,79 @@ const VendorDetail = () => {
     }
 
     try {
-      const { error } = await supabase.from("vendor_bills").insert({
-        vendor_id: id,
-        bill_date: billForm.bill_date,
-        description: billForm.description || null,
-        amount: parseFloat(billForm.amount),
-        due_date: billForm.due_date || null,
-        status: "unpaid",
-      });
+      if (editingBill) {
+        const { error } = await supabase
+          .from("vendor_bills")
+          .update({
+            bill_date: billForm.bill_date,
+            description: billForm.description || null,
+            amount: parseFloat(billForm.amount),
+            due_date: billForm.due_date || null,
+          })
+          .eq("id", editingBill.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        toast.success("বিল আপডেট হয়েছে");
+      } else {
+        const { error } = await supabase.from("vendor_bills").insert({
+          vendor_id: id,
+          bill_date: billForm.bill_date,
+          description: billForm.description || null,
+          amount: parseFloat(billForm.amount),
+          due_date: billForm.due_date || null,
+          status: "unpaid",
+        });
 
-      toast.success("বিল যোগ হয়েছে");
+        if (error) throw error;
+        toast.success("বিল যোগ হয়েছে");
+      }
+
       setIsBillDialogOpen(false);
-      setBillForm({
-        bill_date: format(new Date(), "yyyy-MM-dd"),
-        description: "",
-        amount: "",
-        due_date: "",
-      });
+      resetBillForm();
       fetchVendorData();
     } catch (error) {
-      console.error("Error adding bill:", error);
-      toast.error("বিল যোগ করা ব্যর্থ হয়েছে");
+      console.error("Error saving bill:", error);
+      toast.error("বিল সংরক্ষণ ব্যর্থ হয়েছে");
     }
+  };
+
+  const handleDeleteBill = async (billId: string) => {
+    if (!confirm("আপনি কি এই বিল মুছে ফেলতে চান?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("vendor_bills")
+        .delete()
+        .eq("id", billId);
+
+      if (error) throw error;
+      toast.success("বিল মুছে ফেলা হয়েছে");
+      fetchVendorData();
+    } catch (error) {
+      console.error("Error deleting bill:", error);
+      toast.error("বিল মুছে ফেলা ব্যর্থ হয়েছে");
+    }
+  };
+
+  const openEditBillDialog = (bill: Bill) => {
+    setEditingBill(bill);
+    setBillForm({
+      bill_date: bill.bill_date,
+      description: bill.description || "",
+      amount: bill.amount.toString(),
+      due_date: bill.due_date || "",
+    });
+    setIsBillDialogOpen(true);
+  };
+
+  const resetBillForm = () => {
+    setBillForm({
+      bill_date: format(new Date(), "yyyy-MM-dd"),
+      description: "",
+      amount: "",
+      due_date: "",
+    });
+    setEditingBill(null);
   };
 
   const handleAddPayment = async (e: React.FormEvent) => {
@@ -178,52 +229,104 @@ const VendorDetail = () => {
     }
 
     try {
-      const { error } = await supabase.from("vendor_payments").insert({
-        vendor_id: id,
-        payment_date: paymentForm.payment_date,
-        amount: parseFloat(paymentForm.amount),
-        payment_method: paymentForm.payment_method,
-        notes: paymentForm.notes || null,
-        bill_id: paymentForm.bill_id || null,
-      });
+      if (editingPayment) {
+        const { error } = await supabase
+          .from("vendor_payments")
+          .update({
+            payment_date: paymentForm.payment_date,
+            amount: parseFloat(paymentForm.amount),
+            payment_method: paymentForm.payment_method,
+            notes: paymentForm.notes || null,
+            bill_id: paymentForm.bill_id || null,
+          })
+          .eq("id", editingPayment.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        toast.success("পেমেন্ট আপডেট হয়েছে");
+      } else {
+        const { error } = await supabase.from("vendor_payments").insert({
+          vendor_id: id,
+          payment_date: paymentForm.payment_date,
+          amount: parseFloat(paymentForm.amount),
+          payment_method: paymentForm.payment_method,
+          notes: paymentForm.notes || null,
+          bill_id: paymentForm.bill_id || null,
+        });
 
-      // Update bill status if linked
-      if (paymentForm.bill_id) {
-        const bill = bills.find((b) => b.id === paymentForm.bill_id);
-        if (bill) {
-          const billPayments = payments.filter((p) => p.bill_id === bill.id);
-          const totalPaid = billPayments.reduce((sum, p) => sum + p.amount, 0) + parseFloat(paymentForm.amount);
-          
-          if (totalPaid >= bill.amount) {
-            await supabase
-              .from("vendor_bills")
-              .update({ status: "paid" })
-              .eq("id", bill.id);
-          } else if (totalPaid > 0) {
-            await supabase
-              .from("vendor_bills")
-              .update({ status: "partial" })
-              .eq("id", bill.id);
+        if (error) throw error;
+
+        // Update bill status if linked
+        if (paymentForm.bill_id) {
+          const bill = bills.find((b) => b.id === paymentForm.bill_id);
+          if (bill) {
+            const billPayments = payments.filter((p) => p.bill_id === bill.id);
+            const totalPaid = billPayments.reduce((sum, p) => sum + p.amount, 0) + parseFloat(paymentForm.amount);
+            
+            if (totalPaid >= bill.amount) {
+              await supabase
+                .from("vendor_bills")
+                .update({ status: "paid" })
+                .eq("id", bill.id);
+            } else if (totalPaid > 0) {
+              await supabase
+                .from("vendor_bills")
+                .update({ status: "partial" })
+                .eq("id", bill.id);
+            }
           }
         }
+
+        toast.success("পেমেন্ট যোগ হয়েছে");
       }
 
-      toast.success("পেমেন্ট যোগ হয়েছে");
       setIsPaymentDialogOpen(false);
-      setPaymentForm({
-        payment_date: format(new Date(), "yyyy-MM-dd"),
-        amount: "",
-        payment_method: "cash",
-        notes: "",
-        bill_id: "",
-      });
+      resetPaymentForm();
       fetchVendorData();
     } catch (error) {
-      console.error("Error adding payment:", error);
-      toast.error("পেমেন্ট যোগ করা ব্যর্থ হয়েছে");
+      console.error("Error saving payment:", error);
+      toast.error("পেমেন্ট সংরক্ষণ ব্যর্থ হয়েছে");
     }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!confirm("আপনি কি এই পেমেন্ট মুছে ফেলতে চান?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("vendor_payments")
+        .delete()
+        .eq("id", paymentId);
+
+      if (error) throw error;
+      toast.success("পেমেন্ট মুছে ফেলা হয়েছে");
+      fetchVendorData();
+    } catch (error) {
+      console.error("Error deleting payment:", error);
+      toast.error("পেমেন্ট মুছে ফেলা ব্যর্থ হয়েছে");
+    }
+  };
+
+  const openEditPaymentDialog = (payment: Payment) => {
+    setEditingPayment(payment);
+    setPaymentForm({
+      payment_date: payment.payment_date,
+      amount: payment.amount.toString(),
+      payment_method: payment.payment_method || "cash",
+      notes: payment.notes || "",
+      bill_id: payment.bill_id || "",
+    });
+    setIsPaymentDialogOpen(true);
+  };
+
+  const resetPaymentForm = () => {
+    setPaymentForm({
+      payment_date: format(new Date(), "yyyy-MM-dd"),
+      amount: "",
+      payment_method: "cash",
+      notes: "",
+      bill_id: "",
+    });
+    setEditingPayment(null);
   };
 
   const formatCurrency = (amount: number) => {
@@ -364,7 +467,10 @@ const VendorDetail = () => {
 
           {isAdmin && (
             <div className="flex gap-2">
-              <Dialog open={isBillDialogOpen} onOpenChange={setIsBillDialogOpen}>
+              <Dialog open={isBillDialogOpen} onOpenChange={(open) => {
+                setIsBillDialogOpen(open);
+                if (!open) resetBillForm();
+              }}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Plus className="mr-2 h-4 w-4" />
@@ -373,7 +479,7 @@ const VendorDetail = () => {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>নতুন বিল যোগ করুন</DialogTitle>
+                    <DialogTitle>{editingBill ? "বিল সম্পাদনা" : "নতুন বিল যোগ করুন"}</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleAddBill} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -420,7 +526,10 @@ const VendorDetail = () => {
                       />
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button type="button" variant="outline" onClick={() => setIsBillDialogOpen(false)}>
+                      <Button type="button" variant="outline" onClick={() => {
+                        setIsBillDialogOpen(false);
+                        resetBillForm();
+                      }}>
                         বাতিল
                       </Button>
                       <Button type="submit">সংরক্ষণ</Button>
@@ -429,7 +538,10 @@ const VendorDetail = () => {
                 </DialogContent>
               </Dialog>
 
-              <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+              <Dialog open={isPaymentDialogOpen} onOpenChange={(open) => {
+                setIsPaymentDialogOpen(open);
+                if (!open) resetPaymentForm();
+              }}>
                 <DialogTrigger asChild>
                   <Button size="sm">
                     <Plus className="mr-2 h-4 w-4" />
@@ -438,7 +550,7 @@ const VendorDetail = () => {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>পেমেন্ট যোগ করুন</DialogTitle>
+                    <DialogTitle>{editingPayment ? "পেমেন্ট সম্পাদনা" : "পেমেন্ট যোগ করুন"}</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleAddPayment} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -515,7 +627,10 @@ const VendorDetail = () => {
                       />
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button type="button" variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
+                      <Button type="button" variant="outline" onClick={() => {
+                        setIsPaymentDialogOpen(false);
+                        resetPaymentForm();
+                      }}>
                         বাতিল
                       </Button>
                       <Button type="submit">সংরক্ষণ</Button>
@@ -616,12 +731,13 @@ const VendorDetail = () => {
                   <TableHead>ডিউ ডেট</TableHead>
                   <TableHead className="text-right">টাকা</TableHead>
                   <TableHead>স্ট্যাটাস</TableHead>
+                  {isAdmin && <TableHead className="text-right">অ্যাকশন</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {bills.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8 text-muted-foreground">
                       কোনো বিল নেই
                     </TableCell>
                   </TableRow>
@@ -641,6 +757,27 @@ const VendorDetail = () => {
                         {formatCurrency(bill.amount)}
                       </TableCell>
                       <TableCell>{getStatusBadge(bill.status)}</TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditBillDialog(bill)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteBill(bill.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
@@ -658,12 +795,13 @@ const VendorDetail = () => {
                   <TableHead>পেমেন্ট মেথড</TableHead>
                   <TableHead>নোট</TableHead>
                   <TableHead className="text-right">টাকা</TableHead>
+                  {isAdmin && <TableHead className="text-right">অ্যাকশন</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {payments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={isAdmin ? 5 : 4} className="text-center py-8 text-muted-foreground">
                       কোনো পেমেন্ট নেই
                     </TableCell>
                   </TableRow>
@@ -686,6 +824,27 @@ const VendorDetail = () => {
                       <TableCell className="text-right font-medium text-success">
                         {formatCurrency(payment.amount)}
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditPaymentDialog(payment)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeletePayment(payment.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
