@@ -142,12 +142,21 @@ const CSVImportDialog = ({
               accept=".csv"
               onChange={handleFileSelect}
               className="hidden"
+              id="csv-file-input"
             />
             <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground mb-2">
               Upload CSV file
             </p>
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Button 
+              type="button"
+              variant="outline" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+            >
               Select File
             </Button>
           </div>
