@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { bn } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 
 interface Employee {
@@ -150,13 +149,13 @@ const Employees = () => {
         if (roleError) throw roleError;
       }
 
-      toast.success("কর্মচারী তথ্য আপডেট হয়েছে");
+      toast.success("Employee information updated");
       setIsDialogOpen(false);
       resetForm();
       fetchEmployees();
     } catch (error) {
       console.error("Error updating employee:", error);
-      toast.error("তথ্য আপডেট ব্যর্থ হয়েছে");
+      toast.error("Failed to update information");
     }
   };
 
@@ -179,7 +178,7 @@ const Employees = () => {
     e.preventDefault();
 
     if (!newEmployeeData.email || !newEmployeeData.password || !newEmployeeData.full_name) {
-      toast.error("সকল প্রয়োজনীয় তথ্য দিন");
+      toast.error("Please provide all required information");
       return;
     }
 
@@ -198,13 +197,13 @@ const Employees = () => {
 
       if (error) throw error;
 
-      toast.success("নতুন কর্মচারী অ্যাকাউন্ট তৈরি হয়েছে");
+      toast.success("New employee account created");
       setIsAddDialogOpen(false);
       setNewEmployeeData({ email: "", password: "", full_name: "", phone: "" });
       setTimeout(() => fetchEmployees(), 1000);
     } catch (error: any) {
       console.error("Error adding employee:", error);
-      toast.error(error.message || "কর্মচারী যোগ করতে সমস্যা হয়েছে");
+      toast.error(error.message || "Failed to add employee");
     } finally {
       setAddLoading(false);
     }
@@ -235,7 +234,7 @@ const Employees = () => {
   );
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("bn-BD", {
+    return new Intl.NumberFormat("en-BD", {
       style: "currency",
       currency: "BDT",
       minimumFractionDigits: 0,
@@ -264,9 +263,9 @@ const Employees = () => {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">কর্মচারী</h1>
+          <h1 className="text-3xl font-bold text-foreground">Employees</h1>
           <p className="text-muted-foreground mt-1">
-            সকল কর্মচারীর তালিকা
+            List of all employees
           </p>
         </div>
         
@@ -277,10 +276,10 @@ const Employees = () => {
                 <ShieldAlert className="h-12 w-12 text-destructive" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold text-foreground">অ্যাক্সেস নেই</h2>
+                <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
                 <p className="text-muted-foreground max-w-md">
-                  শুধুমাত্র অ্যাডমিন ব্যবহারকারীরা কর্মচারী তালিকা দেখতে পারেন। 
-                  আপনার অ্যাডমিন অ্যাক্সেস প্রয়োজন হলে আপনার সিস্টেম অ্যাডমিনের সাথে যোগাযোগ করুন।
+                  Only admin users can view the employee list. 
+                  Contact your system administrator if you need admin access.
                 </p>
               </div>
             </div>
@@ -294,37 +293,37 @@ const Employees = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">কর্মচারী</h1>
-          <p className="text-muted-foreground">সকল কর্মচারীর তালিকা</p>
+          <h1 className="text-3xl font-bold">Employees</h1>
+          <p className="text-muted-foreground">List of all employees</p>
         </div>
         {isAdmin && (
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <UserPlus className="mr-2 h-4 w-4" />
-                নতুন কর্মচারী
+                New Employee
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>নতুন কর্মচারী যোগ করুন</DialogTitle>
+                <DialogTitle>Add New Employee</DialogTitle>
                 <DialogDescription>
-                  নতুন কর্মচারীর জন্য লগইন অ্যাকাউন্ট তৈরি করুন
+                  Create a login account for the new employee
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddEmployee} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="new_full_name">নাম *</Label>
+                  <Label htmlFor="new_full_name">Name *</Label>
                   <Input
                     id="new_full_name"
-                    placeholder="কর্মচারীর নাম"
+                    placeholder="Employee name"
                     value={newEmployeeData.full_name}
                     onChange={(e) => setNewEmployeeData({ ...newEmployeeData, full_name: e.target.value })}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="new_email">ইমেইল *</Label>
+                    <Label htmlFor="new_email">Email *</Label>
                     <Input
                       id="new_email"
                       type="email"
@@ -334,18 +333,18 @@ const Employees = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="new_password">পাসওয়ার্ড *</Label>
+                    <Label htmlFor="new_password">Password *</Label>
                     <Input
                       id="new_password"
                       type="password"
-                      placeholder="ন্যূনতম ৬ অক্ষর"
+                      placeholder="Min 6 characters"
                       value={newEmployeeData.password}
                       onChange={(e) => setNewEmployeeData({ ...newEmployeeData, password: e.target.value })}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="new_phone">ফোন</Label>
+                  <Label htmlFor="new_phone">Phone</Label>
                   <Input
                     id="new_phone"
                     placeholder="01XXXXXXXXX"
@@ -355,10 +354,10 @@ const Employees = () => {
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                    বাতিল
+                    Cancel
                   </Button>
                   <Button type="submit" disabled={addLoading}>
-                    {addLoading ? "তৈরি হচ্ছে..." : "তৈরি করুন"}
+                    {addLoading ? "Creating..." : "Create"}
                   </Button>
                 </div>
               </form>
@@ -372,7 +371,7 @@ const Employees = () => {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
             <Users className="h-4 w-4" />
-            মোট কর্মচারী
+            Total Employees
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -384,7 +383,7 @@ const Employees = () => {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
-          placeholder="কর্মচারী খুঁজুন..."
+          placeholder="Search employees..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
@@ -396,27 +395,27 @@ const Employees = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>নাম</TableHead>
-              <TableHead>পদবি</TableHead>
-              <TableHead>বিভাগ</TableHead>
-              <TableHead>ফোন</TableHead>
-              <TableHead>যোগদান</TableHead>
-              <TableHead className="text-right">বেতন</TableHead>
-              <TableHead>ভূমিকা</TableHead>
-              {isAdmin && <TableHead className="text-center">অ্যাকশন</TableHead>}
+              <TableHead>Name</TableHead>
+              <TableHead>Designation</TableHead>
+              <TableHead>Department</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Joining Date</TableHead>
+              <TableHead className="text-right">Salary</TableHead>
+              <TableHead>Role</TableHead>
+              {isAdmin && <TableHead className="text-center">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8">
-                  লোড হচ্ছে...
+                  Loading...
                 </TableCell>
               </TableRow>
             ) : filteredEmployees.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  কোনো কর্মচারী পাওয়া যায়নি
+                  No employees found
                 </TableCell>
               </TableRow>
             ) : (
@@ -460,7 +459,7 @@ const Employees = () => {
                   </TableCell>
                   <TableCell>
                     {employee.joining_date
-                      ? format(new Date(employee.joining_date), "dd MMM yyyy", { locale: bn })
+                      ? format(new Date(employee.joining_date), "dd MMM yyyy")
                       : "-"}
                   </TableCell>
                   <TableCell className="text-right font-medium">
@@ -468,7 +467,7 @@ const Employees = () => {
                   </TableCell>
                   <TableCell>
                     <Badge variant={employee.role === "admin" ? "default" : "secondary"}>
-                      {employee.role === "admin" ? "এডমিন" : "কর্মচারী"}
+                      {employee.role === "admin" ? "Admin" : "Employee"}
                     </Badge>
                   </TableCell>
                   {isAdmin && (
@@ -492,12 +491,12 @@ const Employees = () => {
       }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>কর্মচারী তথ্য সম্পাদনা</DialogTitle>
+            <DialogTitle>Edit Employee Information</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="full_name">নাম *</Label>
+                <Label htmlFor="full_name">Name *</Label>
                 <Input
                   id="full_name"
                   value={formData.full_name}
@@ -505,7 +504,7 @@ const Employees = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">ফোন</Label>
+                <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
                   value={formData.phone}
@@ -516,7 +515,7 @@ const Employees = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="designation">পদবি</Label>
+                <Label htmlFor="designation">Designation</Label>
                 <Input
                   id="designation"
                   value={formData.designation}
@@ -524,7 +523,7 @@ const Employees = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="department">বিভাগ</Label>
+                <Label htmlFor="department">Department</Label>
                 <Input
                   id="department"
                   value={formData.department}
@@ -535,7 +534,7 @@ const Employees = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="joining_date">যোগদান তারিখ</Label>
+                <Label htmlFor="joining_date">Joining Date</Label>
                 <Input
                   id="joining_date"
                   type="date"
@@ -544,7 +543,7 @@ const Employees = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="basic_salary">মূল বেতন</Label>
+                <Label htmlFor="basic_salary">Basic Salary</Label>
                 <Input
                   id="basic_salary"
                   type="number"
@@ -556,7 +555,7 @@ const Employees = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="nid">NID নম্বর</Label>
+                <Label htmlFor="nid">NID Number</Label>
                 <Input
                   id="nid"
                   value={formData.nid}
@@ -564,25 +563,25 @@ const Employees = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role">ভূমিকা</Label>
+                <Label htmlFor="role">Role</Label>
                 <Select
                   value={formData.role}
                   onValueChange={(value) => setFormData({ ...formData, role: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="ভূমিকা নির্বাচন করুন" />
+                    <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="employee">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4" />
-                        কর্মচারী
+                        Employee
                       </div>
                     </SelectItem>
                     <SelectItem value="admin">
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4" />
-                        এডমিন
+                        Admin
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -591,7 +590,7 @@ const Employees = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="address">ঠিকানা</Label>
+              <Label htmlFor="address">Address</Label>
               <Input
                 id="address"
                 value={formData.address}
@@ -601,9 +600,9 @@ const Employees = () => {
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                বাতিল
+                Cancel
               </Button>
-              <Button type="submit">সংরক্ষণ করুন</Button>
+              <Button type="submit">Save</Button>
             </div>
           </form>
         </DialogContent>

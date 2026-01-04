@@ -138,39 +138,39 @@ const Quotations = () => {
               <p className="text-muted-foreground">No quotations found</p>
             </div>
           ) : (
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-lg border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Quotation No</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Valid Until</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
+                    <TableHead className="whitespace-nowrap">Quotation No</TableHead>
+                    <TableHead className="whitespace-nowrap">Customer</TableHead>
+                    <TableHead className="whitespace-nowrap">Date</TableHead>
+                    <TableHead className="whitespace-nowrap">Valid Until</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Total</TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredQuotations.map((quotation) => (
                     <TableRow key={quotation.id}>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium whitespace-nowrap">
                         {quotation.quotation_number}
                       </TableCell>
-                      <TableCell>{quotation.customers?.name || '-'}</TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">{quotation.customers?.name || '-'}</TableCell>
+                      <TableCell className="whitespace-nowrap">
                         {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">
                         {quotation.valid_until
                           ? format(new Date(quotation.valid_until), 'dd/MM/yyyy')
                           : '-'}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right font-medium whitespace-nowrap">
                         {formatCurrency(Number(quotation.total))}
                       </TableCell>
-                      <TableCell>{getStatusBadge(quotation.status)}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="whitespace-nowrap">{getStatusBadge(quotation.status)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
                         <Button
                           variant="ghost"
                           size="icon"

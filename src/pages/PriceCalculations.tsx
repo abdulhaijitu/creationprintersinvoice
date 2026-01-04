@@ -110,39 +110,39 @@ const PriceCalculations = () => {
               <p className="text-muted-foreground">No calculations found</p>
             </div>
           ) : (
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-lg border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Job Description</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead className="text-right">Costing</TableHead>
-                    <TableHead className="text-right">Margin %</TableHead>
-                    <TableHead className="text-right">Final Price</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
+                    <TableHead className="whitespace-nowrap">Job Description</TableHead>
+                    <TableHead className="whitespace-nowrap">Customer</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Costing</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Margin %</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Final Price</TableHead>
+                    <TableHead className="whitespace-nowrap">Date</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredCalculations.map((calc) => (
                     <TableRow key={calc.id}>
-                      <TableCell className="font-medium max-w-[200px] truncate">
+                      <TableCell className="font-medium max-w-[200px] truncate whitespace-nowrap">
                         {calc.job_description}
                       </TableCell>
-                      <TableCell>{calc.customers?.name || '-'}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="whitespace-nowrap">{calc.customers?.name || '-'}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
                         {formatCurrency(Number(calc.costing_total) || 0)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right whitespace-nowrap">
                         {Number(calc.margin_percent) || 0}%
                       </TableCell>
-                      <TableCell className="text-right font-medium text-primary">
+                      <TableCell className="text-right font-medium text-primary whitespace-nowrap">
                         {formatCurrency(Number(calc.final_price) || 0)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">
                         {format(new Date(calc.created_at), 'dd/MM/yyyy')}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right whitespace-nowrap">
                         <Button
                           variant="ghost"
                           size="icon"

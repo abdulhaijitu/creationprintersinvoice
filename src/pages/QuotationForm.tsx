@@ -8,13 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Table,
   TableBody,
   TableCell,
@@ -25,6 +18,7 @@ import {
 import { toast } from 'sonner';
 import { Plus, Trash2, ArrowLeft, Save } from 'lucide-react';
 import { format, addDays } from 'date-fns';
+import { CustomerSelect } from '@/components/shared/CustomerSelect';
 
 interface Customer {
   id: string;
@@ -326,23 +320,14 @@ const QuotationForm = () => {
               <CardContent className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label>Customer *</Label>
-                  <Select
+                  <CustomerSelect
                     value={formData.customer_id}
                     onValueChange={(value) =>
                       setFormData({ ...formData, customer_id: value })
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    customers={customers}
+                    onCustomerAdded={fetchCustomers}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Quotation Date</Label>

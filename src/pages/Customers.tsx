@@ -51,6 +51,9 @@ interface Customer {
   company_name: string | null;
   notes: string | null;
   created_at: string;
+  total_invoiced?: number;
+  total_paid?: number;
+  total_due?: number;
 }
 
 const Customers = () => {
@@ -77,13 +80,33 @@ const Customers = () => {
 
   const fetchCustomers = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: customersData, error } = await supabase
         .from('customers')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setCustomers(data || []);
+
+      // Fetch invoice totals for each customer
+      const { data: invoicesData } = await supabase
+        .from('invoices')
+        .select('customer_id, total, paid_amount');
+
+      const customerWithLedger = (customersData || []).map(customer => {
+        const customerInvoices = invoicesData?.filter(inv => inv.customer_id === customer.id) || [];
+        const total_invoiced = customerInvoices.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+        const total_paid = customerInvoices.reduce((sum, inv) => sum + (Number(inv.paid_amount) || 0), 0);
+        const total_due = total_invoiced - total_paid;
+
+        return {
+          ...customer,
+          total_invoiced,
+          total_paid,
+          total_due,
+        };
+      });
+
+      setCustomers(customerWithLedger);
     } catch (error) {
       console.error('Error fetching customers:', error);
       toast.error('Failed to load customer list');
@@ -166,6 +189,14 @@ const Customers = () => {
       customer.phone?.includes(searchQuery) ||
       customer.company_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-BD', {
+      style: 'currency',
+      currency: 'BDT',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
 
   const customerHeaders = {
     name: 'Name',
@@ -396,14 +427,17 @@ const Customers = () => {
               <p className="text-muted-foreground">No customers found</p>
             </div>
           ) : (
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-lg border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
+                    <TableHead className="whitespace-nowrap">Name</TableHead>
+                    <TableHead className="whitespace-nowrap">Contact</TableHead>
+                    <TableHead className="whitespace-nowrap">Company</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Total Invoiced</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Paid</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Due</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -433,8 +467,19 @@ const Customers = () => {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{customer.company_name || '-'}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="whitespace-nowrap">{customer.company_name || '-'}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        {formatCurrency(customer.total_invoiced || 0)}
+                      </TableCell>
+                      <TableCell className="text-right text-green-600 whitespace-nowrap">
+                        {formatCurrency(customer.total_paid || 0)}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <span className={(customer.total_due || 0) > 0 ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                          {formatCurrency(customer.total_due || 0)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2">
                           <Button
                             variant="ghost"
