@@ -16,6 +16,7 @@ import {
   User,
   BarChart3,
   Settings,
+  UserCog,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -48,6 +49,7 @@ const mainNavItems = [
   { title: 'ড্যাশবোর্ড', url: '/', icon: LayoutDashboard },
   { title: 'রিপোর্ট', url: '/reports', icon: BarChart3 },
   { title: 'সেটিংস', url: '/settings', icon: Settings },
+  { title: 'রোল ম্যানেজমেন্ট', url: '/user-roles', icon: UserCog },
 ];
 
 const invoicingItems = [
