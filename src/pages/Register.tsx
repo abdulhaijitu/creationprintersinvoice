@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Printer, Mail, Lock, User, Phone } from 'lucide-react';
+import { Mail, Lock, User, Phone } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -41,10 +42,11 @@ const Register = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl gradient-primary shadow-glow mb-4">
-            <Printer className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground">Creation Printers</h1>
+          <img 
+            src={logo} 
+            alt="Creation Printers" 
+            className="h-16 w-auto mx-auto mb-4"
+          />
           <p className="text-muted-foreground mt-2">Business Management System</p>
         </div>
 

@@ -18,6 +18,7 @@ import {
   Settings,
   UserCog,
 } from 'lucide-react';
+import logo from '@/assets/logo.png';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasPermission, getRoleDisplayName } from '@/lib/permissions';
@@ -169,19 +170,22 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="p-4">
         <div className={cn(
-          "flex items-center gap-3",
+          "flex items-center gap-2",
           collapsed && "justify-center"
         )}>
-          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow shrink-0">
-            <span className="text-primary-foreground font-bold text-lg">C</span>
-          </div>
+          <img 
+            src={logo} 
+            alt="Creation Printers" 
+            className={cn(
+              "object-contain",
+              collapsed ? "h-10 w-10" : "h-12 w-auto max-w-[180px]"
+            )}
+          />
+          {collapsed && null}
           {!collapsed && (
-            <div className="flex flex-col">
-              <span className="font-semibold text-sidebar-foreground">Creation Printers</span>
-              <span className="text-xs text-sidebar-foreground/60">
-                {role ? getRoleDisplayName(role) : 'Loading...'}
-              </span>
-            </div>
+            <span className="text-xs text-sidebar-foreground/60 ml-auto">
+              {role ? getRoleDisplayName(role) : '...'}
+            </span>
           )}
         </div>
       </SidebarHeader>
