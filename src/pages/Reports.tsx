@@ -36,6 +36,7 @@ import {
   ShoppingCart,
   Calendar,
   Printer,
+  ShieldAlert,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
 import { bn } from 'date-fns/locale';
@@ -468,6 +469,37 @@ const Reports = () => {
       color: 'hsl(var(--destructive))',
     },
   };
+
+  // Show access denied message for non-admin users
+  if (!isAdmin) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">রিপোর্ট</h1>
+          <p className="text-muted-foreground mt-1">
+            আর্থিক বিশ্লেষণ ও রিপোর্ট জেনারেশন
+          </p>
+        </div>
+        
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center text-center py-10 space-y-4">
+              <div className="p-4 rounded-full bg-destructive/10">
+                <ShieldAlert className="h-12 w-12 text-destructive" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold text-foreground">অ্যাক্সেস নেই</h2>
+                <p className="text-muted-foreground max-w-md">
+                  শুধুমাত্র অ্যাডমিন ব্যবহারকারীরা রিপোর্ট দেখতে পারেন। 
+                  আপনার অ্যাডমিন অ্যাক্সেস প্রয়োজন হলে আপনার সিস্টেম অ্যাডমিনের সাথে যোগাযোগ করুন।
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
