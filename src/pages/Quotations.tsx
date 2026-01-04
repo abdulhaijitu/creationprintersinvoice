@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, FileText, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Plus, Search, Eye, FileText, CheckCircle, Clock, XCircle, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
@@ -30,6 +31,7 @@ interface Quotation {
 
 const Quotations = () => {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,6 +54,24 @@ const Quotations = () => {
       toast.error('Failed to load quotations');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this quotation?')) return;
+    
+    try {
+      // Delete quotation items first
+      await supabase.from('quotation_items').delete().eq('quotation_id', id);
+      // Delete quotation
+      const { error } = await supabase.from('quotations').delete().eq('id', id);
+      if (error) throw error;
+      
+      toast.success('Quotation deleted');
+      fetchQuotations();
+    } catch (error) {
+      console.error('Error deleting quotation:', error);
+      toast.error('Failed to delete quotation');
     }
   };
 
@@ -171,13 +191,25 @@ const Quotations = () => {
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{getStatusBadge(quotation.status)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/quotations/${quotation.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate(`/quotations/${quotation.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(quotation.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

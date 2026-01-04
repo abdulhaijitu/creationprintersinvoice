@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, FileText, CheckCircle, Clock, XCircle, Download } from 'lucide-react';
+import { Plus, Search, Eye, FileText, CheckCircle, Clock, XCircle, Download, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link, useNavigate } from 'react-router-dom';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
@@ -38,6 +38,7 @@ interface Invoice {
 
 const Invoices = () => {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,6 +61,26 @@ const Invoices = () => {
       toast.error('Failed to load invoices');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this invoice?')) return;
+    
+    try {
+      // Delete invoice items first
+      await supabase.from('invoice_items').delete().eq('invoice_id', id);
+      // Delete invoice payments
+      await supabase.from('invoice_payments').delete().eq('invoice_id', id);
+      // Delete invoice
+      const { error } = await supabase.from('invoices').delete().eq('id', id);
+      if (error) throw error;
+      
+      toast.success('Invoice deleted');
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      toast.error('Failed to delete invoice');
     }
   };
 
@@ -228,13 +249,25 @@ const Invoices = () => {
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{getStatusBadge(invoice.status)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/invoices/${invoice.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate(`/invoices/${invoice.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(invoice.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Star, TrendingUp, User } from "lucide-react";
+import { Plus, Star, TrendingUp, User, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -141,6 +141,21 @@ const Performance = () => {
       note: "",
       rating: "3",
     });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this performance note?')) return;
+    
+    try {
+      const { error } = await supabase.from('performance_notes').delete().eq('id', id);
+      if (error) throw error;
+      
+      toast.success('Performance note deleted');
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting performance note:', error);
+      toast.error('Failed to delete performance note');
+    }
   };
 
   const getRatingStars = (rating: number | null) => {
@@ -312,18 +327,19 @@ const Performance = () => {
               <TableHead>Rating</TableHead>
               <TableHead>Note</TableHead>
               {isAdmin && <TableHead>Added By</TableHead>}
+              {isAdmin && <TableHead className="text-center">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 3} className="text-center py-8">
+                <TableCell colSpan={isAdmin ? 6 : 3} className="text-center py-8">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : notes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 3} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 6 : 3} className="text-center py-8 text-muted-foreground">
                   No notes
                 </TableCell>
               </TableRow>
@@ -345,6 +361,18 @@ const Performance = () => {
                   {isAdmin && (
                     <TableCell className="text-muted-foreground">
                       {note.creator?.full_name || "-"}
+                    </TableCell>
+                  )}
+                  {isAdmin && (
+                    <TableCell className="text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(note.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   )}
                 </TableRow>

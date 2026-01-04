@@ -22,7 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle } from "lucide-react";
+import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -161,6 +161,26 @@ const Vendors = () => {
       notes: vendor.notes || "",
     });
     setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this vendor? This will also delete all associated bills and payments.')) return;
+    
+    try {
+      // Delete payments first
+      await supabase.from('vendor_payments').delete().eq('vendor_id', id);
+      // Delete bills
+      await supabase.from('vendor_bills').delete().eq('vendor_id', id);
+      // Delete vendor
+      const { error } = await supabase.from('vendors').delete().eq('id', id);
+      if (error) throw error;
+      
+      toast.success('Vendor deleted');
+      fetchVendors();
+    } catch (error) {
+      console.error('Error deleting vendor:', error);
+      toast.error('Failed to delete vendor');
+    }
   };
 
   const filteredVendors = vendors.filter(
@@ -427,13 +447,23 @@ const Vendors = () => {
                         <Eye className="h-4 w-4" />
                       </Button>
                       {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(vendor)}
-                        >
-                          Edit
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(vendor)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleDelete(vendor.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
                       )}
                     </div>
                   </TableCell>
