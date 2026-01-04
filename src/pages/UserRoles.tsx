@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, AppRole } from "@/contexts/AuthContext";
-import { hasPermission, getRoleDisplayName, allRoles } from "@/lib/permissions";
+import { hasPermission, getRoleDisplayName, allRoles, getModulesWithPermissions, getModuleDisplayName } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -18,10 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Search, 
   Users, 
@@ -30,11 +31,16 @@ import {
   Loader2,
   UserCog,
   Save,
-  Shield
+  Shield,
+  Eye,
+  Plus,
+  Edit,
+  Trash2,
+  Check,
+  X
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { bn } from "date-fns/locale";
 
 interface UserWithRole {
   id: string;
@@ -90,7 +96,7 @@ const UserRoles = () => {
       }
     } catch (error) {
       console.error("Error fetching users:", error);
-      toast.error("ইউজার ডেটা লোড করতে সমস্যা হয়েছে");
+      toast.error("Failed to load user data");
     } finally {
       setLoading(false);
     }
@@ -109,7 +115,7 @@ const UserRoles = () => {
 
     // Prevent self-demotion
     if (userId === user?.id) {
-      toast.error("আপনি নিজের রোল পরিবর্তন করতে পারবেন না");
+      toast.error("You cannot change your own role");
       setPendingChanges((prev) => {
         const updated = { ...prev };
         delete updated[userId];
@@ -139,10 +145,10 @@ const UserRoles = () => {
         return updated;
       });
 
-      toast.success("ইউজার রোল আপডেট হয়েছে");
+      toast.success("User role updated");
     } catch (error) {
       console.error("Error updating role:", error);
-      toast.error("রোল আপডেট ব্যর্থ হয়েছে");
+      toast.error("Failed to update role");
     } finally {
       setSaving(null);
     }
@@ -183,6 +189,9 @@ const UserRoles = () => {
     count: users.filter((u) => u.role === r).length,
   })).filter(stat => stat.count > 0);
 
+  // Get modules with permissions for the permissions matrix
+  const modulesWithPermissions = getModulesWithPermissions();
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -196,9 +205,9 @@ const UserRoles = () => {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">রোল ম্যানেজমেন্ট</h1>
+          <h1 className="text-3xl font-bold text-foreground">Role Management</h1>
           <p className="text-muted-foreground mt-1">
-            ইউজার রোল পরিচালনা করুন
+            Manage user roles
           </p>
         </div>
         
@@ -209,9 +218,9 @@ const UserRoles = () => {
                 <ShieldAlert className="h-12 w-12 text-destructive" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold text-foreground">অ্যাক্সেস নেই</h2>
+                <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
                 <p className="text-muted-foreground max-w-md">
-                  শুধুমাত্র সুপার এডমিন/এডমিন ব্যবহারকারীরা রোল ম্যানেজমেন্ট দেখতে পারেন।
+                  Only Super Admin/Admin users can view role management.
                 </p>
               </div>
             </div>
@@ -227,9 +236,9 @@ const UserRoles = () => {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <UserCog className="h-8 w-8" />
-            রোল ম্যানেজমেন্ট
+            Role Management
           </h1>
-          <p className="text-muted-foreground">ইউজারদের রোল পরিচালনা করুন</p>
+          <p className="text-muted-foreground">Manage user roles and permissions</p>
         </div>
       </div>
 
@@ -239,7 +248,7 @@ const UserRoles = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Users className="h-4 w-4" />
-              মোট ইউজার
+              Total Users
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -261,132 +270,248 @@ const UserRoles = () => {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input
-          placeholder="ইউজার খুঁজুন..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      <Tabs defaultValue="users" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="permissions">Permission Matrix</TabsTrigger>
+        </TabsList>
 
-      {/* Users Table */}
-      <div className="border rounded-lg overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ইউজার</TableHead>
-              <TableHead>পদবি</TableHead>
-              <TableHead>বিভাগ</TableHead>
-              <TableHead>ফোন</TableHead>
-              <TableHead>বর্তমান রোল</TableHead>
-              <TableHead>নতুন রোল</TableHead>
-              <TableHead className="text-center">অ্যাকশন</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                </TableCell>
-              </TableRow>
-            ) : filteredUsers.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  কোনো ইউজার পাওয়া যায়নি
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredUsers.map((userItem) => {
-                const isCurrentUser = userItem.id === user?.id;
-                const hasPendingChange = pendingChanges[userItem.id] !== undefined;
-                const displayRole = pendingChanges[userItem.id] || userItem.role;
+        <TabsContent value="users" className="space-y-4">
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
 
-                return (
-                  <TableRow key={userItem.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarFallback className="bg-primary/10 text-primary">
-                            {getInitials(userItem.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">
-                            {userItem.full_name}
-                            {isCurrentUser && (
-                              <span className="text-muted-foreground text-sm ml-2">(আপনি)</span>
-                            )}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            যোগদান: {userItem.joining_date 
-                              ? format(new Date(userItem.joining_date), "dd MMM yyyy", { locale: bn })
-                              : "N/A"}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{userItem.designation || "-"}</TableCell>
-                    <TableCell>{userItem.department || "-"}</TableCell>
-                    <TableCell>{userItem.phone || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleBadgeVariant(userItem.role)}>
-                        {getRoleDisplayName(userItem.role)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={displayRole}
-                        onValueChange={(value) => handleRoleChange(userItem.id, value as AppRole)}
-                        disabled={isCurrentUser}
-                      >
-                        <SelectTrigger className="w-[160px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {allRoles.map((r) => (
-                            <SelectItem key={r} value={r}>
-                              <div className="flex items-center gap-2">
-                                <Shield className="h-4 w-4" />
-                                {getRoleDisplayName(r)}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {hasPendingChange && !isCurrentUser ? (
-                        <Button
-                          size="sm"
-                          onClick={() => saveRoleChange(userItem.id)}
-                          disabled={saving === userItem.id}
-                        >
-                          {saving === userItem.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Save className="h-4 w-4 mr-1" />
-                              সংরক্ষণ
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">
-                          {isCurrentUser ? "পরিবর্তন অক্ষম" : "-"}
-                        </span>
-                      )}
+          {/* Users Table */}
+          <div className="border rounded-lg overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Designation</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Current Role</TableHead>
+                  <TableHead>New Role</TableHead>
+                  <TableHead className="text-center">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                     </TableCell>
                   </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                ) : filteredUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      No users found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredUsers.map((userItem) => {
+                    const isCurrentUser = userItem.id === user?.id;
+                    const hasPendingChange = pendingChanges[userItem.id] !== undefined;
+                    const displayRole = pendingChanges[userItem.id] || userItem.role;
+
+                    return (
+                      <TableRow key={userItem.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarFallback className="bg-primary/10 text-primary">
+                                {getInitials(userItem.full_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">
+                                {userItem.full_name}
+                                {isCurrentUser && (
+                                  <span className="text-muted-foreground text-sm ml-2">(You)</span>
+                                )}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Joined: {userItem.joining_date 
+                                  ? format(new Date(userItem.joining_date), "dd MMM yyyy")
+                                  : "N/A"}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{userItem.designation || "-"}</TableCell>
+                        <TableCell>{userItem.department || "-"}</TableCell>
+                        <TableCell>{userItem.phone || "-"}</TableCell>
+                        <TableCell>
+                          <Badge variant={getRoleBadgeVariant(userItem.role)}>
+                            {getRoleDisplayName(userItem.role)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={displayRole}
+                            onValueChange={(value) => handleRoleChange(userItem.id, value as AppRole)}
+                            disabled={isCurrentUser}
+                          >
+                            <SelectTrigger className="w-[160px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {allRoles.map((r) => (
+                                <SelectItem key={r} value={r}>
+                                  <div className="flex items-center gap-2">
+                                    <Shield className="h-4 w-4" />
+                                    {getRoleDisplayName(r)}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {hasPendingChange && !isCurrentUser ? (
+                            <Button
+                              size="sm"
+                              onClick={() => saveRoleChange(userItem.id)}
+                              disabled={saving === userItem.id}
+                            >
+                              {saving === userItem.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Save className="h-4 w-4 mr-1" />
+                                  Save
+                                </>
+                              )}
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">
+                              {isCurrentUser ? "Disabled" : "-"}
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="permissions" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Permission Matrix</CardTitle>
+              <CardDescription>View/Add/Edit/Delete permissions for each role per module</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="sticky left-0 bg-background z-10">Module</TableHead>
+                      <TableHead className="text-center">Action</TableHead>
+                      {allRoles.map((r) => (
+                        <TableHead key={r} className="text-center min-w-[100px]">
+                          {getRoleDisplayName(r)}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {modulesWithPermissions.map((module) => (
+                      <>
+                        {/* View */}
+                        <TableRow key={`${module.module}-view`}>
+                          <TableCell rowSpan={4} className="font-medium sticky left-0 bg-background border-r">
+                            {module.moduleName}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Eye className="h-3 w-3" />
+                              <span className="text-xs">View</span>
+                            </div>
+                          </TableCell>
+                          {allRoles.map((r) => (
+                            <TableCell key={`${module.module}-view-${r}`} className="text-center">
+                              {module.actions.view.includes(r) ? (
+                                <Check className="h-4 w-4 text-success mx-auto" />
+                              ) : (
+                                <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        {/* Create */}
+                        <TableRow key={`${module.module}-create`}>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Plus className="h-3 w-3" />
+                              <span className="text-xs">Add</span>
+                            </div>
+                          </TableCell>
+                          {allRoles.map((r) => (
+                            <TableCell key={`${module.module}-create-${r}`} className="text-center">
+                              {module.actions.create.includes(r) ? (
+                                <Check className="h-4 w-4 text-success mx-auto" />
+                              ) : (
+                                <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        {/* Edit */}
+                        <TableRow key={`${module.module}-edit`}>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Edit className="h-3 w-3" />
+                              <span className="text-xs">Edit</span>
+                            </div>
+                          </TableCell>
+                          {allRoles.map((r) => (
+                            <TableCell key={`${module.module}-edit-${r}`} className="text-center">
+                              {module.actions.edit.includes(r) ? (
+                                <Check className="h-4 w-4 text-success mx-auto" />
+                              ) : (
+                                <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        {/* Delete */}
+                        <TableRow key={`${module.module}-delete`} className="border-b-2">
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Trash2 className="h-3 w-3" />
+                              <span className="text-xs">Delete</span>
+                            </div>
+                          </TableCell>
+                          {allRoles.map((r) => (
+                            <TableCell key={`${module.module}-delete-${r}`} className="text-center">
+                              {module.actions.delete.includes(r) ? (
+                                <Check className="h-4 w-4 text-success mx-auto" />
+                              ) : (
+                                <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -57,14 +57,14 @@ const Invoices = () => {
       setInvoices(data || []);
     } catch (error) {
       console.error('Error fetching invoices:', error);
-      toast.error('ইনভয়েস লোড করতে সমস্যা হয়েছে');
+      toast.error('Failed to load invoices');
     } finally {
       setLoading(false);
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-BD', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
@@ -77,21 +77,21 @@ const Invoices = () => {
         return (
           <Badge className="bg-success/10 text-success border-0">
             <CheckCircle className="w-3 h-3 mr-1" />
-            পরিশোধিত
+            Paid
           </Badge>
         );
       case 'partial':
         return (
           <Badge className="bg-warning/10 text-warning border-0">
             <Clock className="w-3 h-3 mr-1" />
-            আংশিক
+            Partial
           </Badge>
         );
       case 'unpaid':
         return (
           <Badge className="bg-destructive/10 text-destructive border-0">
             <XCircle className="w-3 h-3 mr-1" />
-            বাকি
+            Unpaid
           </Badge>
         );
       default:
@@ -106,17 +106,17 @@ const Invoices = () => {
   );
 
   const invoiceHeaders = {
-    invoice_number: 'ইনভয়েস নং',
-    customer_name: 'গ্রাহক',
-    invoice_date: 'তারিখ',
-    total: 'মোট',
-    paid_amount: 'পরিশোধিত',
-    status: 'স্ট্যাটাস',
+    invoice_number: 'Invoice No',
+    customer_name: 'Customer',
+    invoice_date: 'Date',
+    total: 'Total',
+    paid_amount: 'Paid',
+    status: 'Status',
   };
 
   const handleExport = (exportFormat: 'csv' | 'excel') => {
     if (filteredInvoices.length === 0) {
-      toast.error('এক্সপোর্ট করার মতো ডেটা নেই');
+      toast.error('No data to export');
       return;
     }
     
@@ -126,7 +126,7 @@ const Invoices = () => {
       invoice_date: format(new Date(inv.invoice_date), 'dd/MM/yyyy'),
       total: inv.total,
       paid_amount: inv.paid_amount,
-      status: inv.status === 'paid' ? 'পরিশোধিত' : inv.status === 'partial' ? 'আংশিক' : 'বাকি',
+      status: inv.status === 'paid' ? 'Paid' : inv.status === 'partial' ? 'Partial' : 'Unpaid',
     }));
 
     if (exportFormat === 'csv') {
@@ -134,15 +134,15 @@ const Invoices = () => {
     } else {
       exportToExcel(exportData, 'invoices', invoiceHeaders);
     }
-    toast.success(`${exportFormat.toUpperCase()} ফাইল ডাউনলোড হচ্ছে`);
+    toast.success(`${exportFormat.toUpperCase()} file downloading`);
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">ইনভয়েস</h1>
-          <p className="text-muted-foreground">সকল ইনভয়েস পরিচালনা করুন</p>
+          <h1 className="text-3xl font-bold">Invoices</h1>
+          <p className="text-muted-foreground">Manage all invoices</p>
         </div>
 
         <div className="flex gap-2">
@@ -150,22 +150,22 @@ const Invoices = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2">
                 <Download className="h-4 w-4" />
-                এক্সপোর্ট
+                Export
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={() => handleExport('csv')}>
-                CSV ডাউনলোড
+                Download CSV
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('excel')}>
-                Excel ডাউনলোড
+                Download Excel
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <Button className="gap-2" onClick={() => navigate('/invoices/new')}>
             <Plus className="h-4 w-4" />
-            নতুন ইনভয়েস
+            New Invoice
           </Button>
         </div>
       </div>
@@ -176,7 +176,7 @@ const Invoices = () => {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="ইনভয়েস নম্বর বা গ্রাহক খুঁজুন..."
+                placeholder="Search invoice number or customer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -194,20 +194,20 @@ const Invoices = () => {
           ) : filteredInvoices.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">কোনো ইনভয়েস পাওয়া যায়নি</p>
+              <p className="text-muted-foreground">No invoices found</p>
             </div>
           ) : (
             <div className="rounded-lg border overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ইনভয়েস নং</TableHead>
-                    <TableHead>গ্রাহক</TableHead>
-                    <TableHead>তারিখ</TableHead>
-                    <TableHead className="text-right">মোট</TableHead>
-                    <TableHead className="text-right">পরিশোধ</TableHead>
-                    <TableHead>স্ট্যাটাস</TableHead>
-                    <TableHead className="text-right">অ্যাকশন</TableHead>
+                    <TableHead>Invoice No</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Paid</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
