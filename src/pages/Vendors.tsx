@@ -245,13 +245,18 @@ const Vendors = () => {
     exportToExcel(exportData, 'vendors', vendorExportHeaders);
   };
 
-  const handleImport = async (data: Record<string, string>[]): Promise<ImportResult> => {
+  const handleImport = async (
+    data: Record<string, string>[],
+    onProgress?: (current: number, total: number) => void
+  ): Promise<ImportResult> => {
     let success = 0;
     let failed = 0;
     const errors: string[] = [];
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
+      onProgress?.(i + 1, data.length);
+      
       try {
         const { error } = await supabase.from('vendors').insert({
           name: row.name,

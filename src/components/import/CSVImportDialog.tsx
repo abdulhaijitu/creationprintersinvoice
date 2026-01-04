@@ -17,8 +17,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Upload, FileText, AlertCircle, CheckCircle, Download } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle, Download, Loader2 } from 'lucide-react';
 import { parseCSV, downloadTemplate, ImportResult } from '@/lib/importUtils';
 
 interface CSVImportDialogProps {
@@ -28,7 +29,7 @@ interface CSVImportDialogProps {
   description: string;
   requiredFields: string[];
   fieldMapping: Record<string, string>;
-  onImport: (data: Record<string, string>[]) => Promise<ImportResult>;
+  onImport: (data: Record<string, string>[], onProgress?: (current: number, total: number) => void) => Promise<ImportResult>;
   templateFilename: string;
 }
 
@@ -48,6 +49,7 @@ const CSVImportDialog = ({
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
 
   const processFile = (file: File) => {
     if (!file.name.endsWith('.csv')) {
@@ -99,8 +101,12 @@ const CSVImportDialog = ({
     }
 
     setImporting(true);
+    setImportProgress({ current: 0, total: parsedData.length });
+    
     try {
-      const result = await onImport(parsedData);
+      const result = await onImport(parsedData, (current, total) => {
+        setImportProgress({ current, total });
+      });
       setImportResult(result);
       
       if (result.success > 0) {
@@ -114,6 +120,7 @@ const CSVImportDialog = ({
       toast.error('Import failed');
     } finally {
       setImporting(false);
+      setImportProgress({ current: 0, total: 0 });
     }
   };
 
@@ -208,6 +215,22 @@ const CSVImportDialog = ({
                   <li key={i}>• {error}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* Import Progress */}
+          {importing && importProgress.total > 0 && (
+            <div className="p-4 border rounded-lg bg-muted/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-sm font-medium">Importing...</span>
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {importProgress.current} / {importProgress.total} ({Math.round((importProgress.current / importProgress.total) * 100)}%)
+                </span>
+              </div>
+              <Progress value={(importProgress.current / importProgress.total) * 100} className="h-2" />
             </div>
           )}
 

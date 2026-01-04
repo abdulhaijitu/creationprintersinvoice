@@ -230,12 +230,18 @@ const Customers = () => {
     toast.success(`${format.toUpperCase()} file downloading`);
   };
 
-  const handleImport = async (data: Record<string, string>[]): Promise<ImportResult> => {
+  const handleImport = async (
+    data: Record<string, string>[],
+    onProgress?: (current: number, total: number) => void
+  ): Promise<ImportResult> => {
     let success = 0;
     let failed = 0;
     const errors: string[] = [];
 
-    for (const row of data) {
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      onProgress?.(i + 1, data.length);
+      
       try {
         const customerData = {
           name: row.name || row['Name'] || '',
@@ -248,7 +254,7 @@ const Customers = () => {
 
         if (!customerData.name) {
           failed++;
-          errors.push(`Row: Name not provided`);
+          errors.push(`Row ${i + 1}: Name not provided`);
           continue;
         }
 
