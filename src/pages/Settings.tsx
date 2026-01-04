@@ -102,15 +102,15 @@ export default function Settings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-settings'] });
       toast({
-        title: 'সেটিংস সংরক্ষিত হয়েছে',
-        description: 'কোম্পানি সেটিংস সফলভাবে আপডেট করা হয়েছে',
+        title: 'Settings saved',
+        description: 'Company settings updated successfully',
       });
     },
     onError: (error) => {
       toast({
         variant: 'destructive',
-        title: 'ত্রুটি',
-        description: 'সেটিংস সংরক্ষণে সমস্যা হয়েছে',
+        title: 'Error',
+        description: 'Failed to save settings',
       });
       console.error(error);
     },
@@ -151,8 +151,8 @@ export default function Settings() {
       console.error('Upload error:', error);
       toast({
         variant: 'destructive',
-        title: 'আপলোড ত্রুটি',
-        description: 'লোগো আপলোড করতে সমস্যা হয়েছে',
+        title: 'Upload Error',
+        description: 'Failed to upload logo',
       });
       return null;
     } finally {
@@ -181,14 +181,13 @@ export default function Settings() {
     );
   }
 
-  // Show access denied message for non-admin users
   if (!isAdmin) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">কোম্পানি সেটিংস</h1>
+          <h1 className="text-3xl font-bold text-foreground">Company Settings</h1>
           <p className="text-muted-foreground mt-1">
-            কোম্পানির তথ্য, ব্যাংক ডিটেইলস এবং ইনভয়েস টেমপ্লেট কাস্টমাইজ করুন
+            Customize company info, bank details, and invoice templates
           </p>
         </div>
         
@@ -199,10 +198,10 @@ export default function Settings() {
                 <ShieldAlert className="h-12 w-12 text-destructive" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold text-foreground">অ্যাক্সেস নেই</h2>
+                <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
                 <p className="text-muted-foreground max-w-md">
-                  শুধুমাত্র অ্যাডমিন ব্যবহারকারীরা কোম্পানি সেটিংস পরিবর্তন করতে পারেন। 
-                  আপনার অ্যাডমিন অ্যাক্সেস প্রয়োজন হলে আপনার সিস্টেম অ্যাডমিনের সাথে যোগাযোগ করুন।
+                  Only admin users can modify company settings. 
+                  Please contact your system administrator for access.
                 </p>
               </div>
             </div>
@@ -215,9 +214,9 @@ export default function Settings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">কোম্পানি সেটিংস</h1>
+        <h1 className="text-3xl font-bold text-foreground">Company Settings</h1>
         <p className="text-muted-foreground mt-1">
-          কোম্পানির তথ্য, ব্যাংক ডিটেইলস এবং ইনভয়েস টেমপ্লেট কাস্টমাইজ করুন
+          Customize company info, bank details, and invoice templates
         </p>
       </div>
 
@@ -227,28 +226,28 @@ export default function Settings() {
             <TabsList className="grid w-full grid-cols-4 mb-6">
               <TabsTrigger value="company" className="flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
-                কোম্পানি
+                Company
               </TabsTrigger>
               <TabsTrigger value="logo" className="flex items-center gap-2">
                 <Image className="h-4 w-4" />
-                লোগো
+                Logo
               </TabsTrigger>
               <TabsTrigger value="bank" className="flex items-center gap-2">
                 <Landmark className="h-4 w-4" />
-                ব্যাংক
+                Bank
               </TabsTrigger>
               <TabsTrigger value="invoice" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                ইনভয়েস
+                Invoice
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="company">
               <Card>
                 <CardHeader>
-                  <CardTitle>কোম্পানি তথ্য</CardTitle>
+                  <CardTitle>Company Information</CardTitle>
                   <CardDescription>
-                    কোম্পানির নাম, ঠিকানা এবং যোগাযোগের তথ্য
+                    Company name, address, and contact information
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -258,7 +257,7 @@ export default function Settings() {
                       name="company_name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>কোম্পানির নাম (ইংরেজি)</FormLabel>
+                          <FormLabel>Company Name (English)</FormLabel>
                           <FormControl>
                             <Input placeholder="Company Name" {...field} />
                           </FormControl>
@@ -271,9 +270,9 @@ export default function Settings() {
                       name="company_name_bn"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>কোম্পানির নাম (বাংলা)</FormLabel>
+                          <FormLabel>Company Name (Bengali)</FormLabel>
                           <FormControl>
-                            <Input placeholder="কোম্পানির নাম" {...field} value={field.value || ''} />
+                            <Input placeholder="Company Name in Bengali" {...field} value={field.value || ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -287,7 +286,7 @@ export default function Settings() {
                       name="address"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>ঠিকানা (ইংরেজি)</FormLabel>
+                          <FormLabel>Address (English)</FormLabel>
                           <FormControl>
                             <Textarea placeholder="Address" {...field} value={field.value || ''} />
                           </FormControl>
@@ -300,9 +299,9 @@ export default function Settings() {
                       name="address_bn"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>ঠিকানা (বাংলা)</FormLabel>
+                          <FormLabel>Address (Bengali)</FormLabel>
                           <FormControl>
-                            <Textarea placeholder="ঠিকানা" {...field} value={field.value || ''} />
+                            <Textarea placeholder="Address in Bengali" {...field} value={field.value || ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -316,7 +315,7 @@ export default function Settings() {
                       name="phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>ফোন</FormLabel>
+                          <FormLabel>Phone</FormLabel>
                           <FormControl>
                             <Input placeholder="+880..." {...field} value={field.value || ''} />
                           </FormControl>
@@ -329,7 +328,7 @@ export default function Settings() {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>ইমেইল</FormLabel>
+                          <FormLabel>Email</FormLabel>
                           <FormControl>
                             <Input type="email" placeholder="email@company.com" {...field} value={field.value || ''} />
                           </FormControl>
@@ -342,7 +341,7 @@ export default function Settings() {
                       name="website"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>ওয়েবসাইট</FormLabel>
+                          <FormLabel>Website</FormLabel>
                           <FormControl>
                             <Input placeholder="www.company.com" {...field} value={field.value || ''} />
                           </FormControl>
@@ -358,9 +357,9 @@ export default function Settings() {
             <TabsContent value="logo">
               <Card>
                 <CardHeader>
-                  <CardTitle>কোম্পানি লোগো</CardTitle>
+                  <CardTitle>Company Logo</CardTitle>
                   <CardDescription>
-                    ইনভয়েস এবং কোটেশনে প্রদর্শিত হবে এমন লোগো আপলোড করুন
+                    Upload a logo to display on invoices and quotations
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -384,7 +383,7 @@ export default function Settings() {
                         className="w-auto"
                       />
                       <p className="text-sm text-muted-foreground">
-                        PNG, JPG বা SVG (সর্বোচ্চ 2MB)
+                        PNG, JPG or SVG (max 2MB)
                       </p>
                     </div>
                   </div>
@@ -395,9 +394,9 @@ export default function Settings() {
             <TabsContent value="bank">
               <Card>
                 <CardHeader>
-                  <CardTitle>ব্যাংক তথ্য</CardTitle>
+                  <CardTitle>Bank Information</CardTitle>
                   <CardDescription>
-                    পেমেন্ট গ্রহণের জন্য ব্যাংক অ্যাকাউন্ট তথ্য
+                    Bank account details for receiving payments
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -407,9 +406,9 @@ export default function Settings() {
                       name="bank_name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>ব্যাংকের নাম</FormLabel>
+                          <FormLabel>Bank Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="ব্যাংকের নাম" {...field} value={field.value || ''} />
+                            <Input placeholder="Bank Name" {...field} value={field.value || ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -420,9 +419,9 @@ export default function Settings() {
                       name="bank_account_name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>অ্যাকাউন্ট নাম</FormLabel>
+                          <FormLabel>Account Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="অ্যাকাউন্ট হোল্ডারের নাম" {...field} value={field.value || ''} />
+                            <Input placeholder="Account Holder Name" {...field} value={field.value || ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -436,9 +435,9 @@ export default function Settings() {
                       name="bank_account_number"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>অ্যাকাউন্ট নম্বর</FormLabel>
+                          <FormLabel>Account Number</FormLabel>
                           <FormControl>
-                            <Input placeholder="অ্যাকাউন্ট নম্বর" {...field} value={field.value || ''} />
+                            <Input placeholder="Account Number" {...field} value={field.value || ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -449,9 +448,9 @@ export default function Settings() {
                       name="bank_branch"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>শাখা</FormLabel>
+                          <FormLabel>Branch</FormLabel>
                           <FormControl>
-                            <Input placeholder="ব্যাংক শাখা" {...field} value={field.value || ''} />
+                            <Input placeholder="Bank Branch" {...field} value={field.value || ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -465,9 +464,9 @@ export default function Settings() {
                       name="bank_routing_number"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>রাউটিং নম্বর</FormLabel>
+                          <FormLabel>Routing Number</FormLabel>
                           <FormControl>
-                            <Input placeholder="রাউটিং নম্বর" {...field} value={field.value || ''} />
+                            <Input placeholder="Routing Number" {...field} value={field.value || ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -478,9 +477,9 @@ export default function Settings() {
                       name="mobile_banking"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>মোবাইল ব্যাংকিং</FormLabel>
+                          <FormLabel>Mobile Banking</FormLabel>
                           <FormControl>
-                            <Input placeholder="বিকাশ/নগদ নম্বর" {...field} value={field.value || ''} />
+                            <Input placeholder="bKash/Nagad Number" {...field} value={field.value || ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -494,9 +493,9 @@ export default function Settings() {
             <TabsContent value="invoice">
               <Card>
                 <CardHeader>
-                  <CardTitle>ইনভয়েস সেটিংস</CardTitle>
+                  <CardTitle>Invoice Settings</CardTitle>
                   <CardDescription>
-                    ইনভয়েস এবং কোটেশনের প্রিফিক্স, ফুটার এবং শর্তাবলী
+                    Invoice and quotation prefix, footer, and terms
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -506,7 +505,7 @@ export default function Settings() {
                       name="invoice_prefix"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>ইনভয়েস প্রিফিক্স</FormLabel>
+                          <FormLabel>Invoice Prefix</FormLabel>
                           <FormControl>
                             <Input placeholder="INV" {...field} value={field.value || ''} />
                           </FormControl>
@@ -519,7 +518,7 @@ export default function Settings() {
                       name="quotation_prefix"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>কোটেশন প্রিফিক্স</FormLabel>
+                          <FormLabel>Quotation Prefix</FormLabel>
                           <FormControl>
                             <Input placeholder="QUO" {...field} value={field.value || ''} />
                           </FormControl>
@@ -534,10 +533,10 @@ export default function Settings() {
                     name="invoice_footer"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>ইনভয়েস ফুটার</FormLabel>
+                        <FormLabel>Invoice Footer</FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="ইনভয়েসের নিচে প্রদর্শিত হবে..." 
+                            placeholder="Displayed at the bottom of invoices..." 
                             rows={3}
                             {...field} 
                             value={field.value || ''} 
@@ -553,10 +552,10 @@ export default function Settings() {
                     name="invoice_terms"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>শর্তাবলী</FormLabel>
+                        <FormLabel>Terms & Conditions</FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="পেমেন্ট এবং ডেলিভারি সংক্রান্ত শর্তাবলী..." 
+                            placeholder="Payment and delivery terms..." 
                             rows={4}
                             {...field} 
                             value={field.value || ''} 
@@ -580,7 +579,7 @@ export default function Settings() {
               {(updateMutation.isPending || uploading) && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              সংরক্ষণ করুন
+              Save
             </Button>
           </div>
         </form>

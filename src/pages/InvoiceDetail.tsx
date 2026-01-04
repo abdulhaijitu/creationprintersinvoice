@@ -125,7 +125,7 @@ const InvoiceDetail = () => {
       setPayments(paymentsRes.data || []);
     } catch (error) {
       console.error('Error fetching invoice:', error);
-      toast.error('ইনভয়েস লোড করতে সমস্যা হয়েছে');
+      toast.error('Failed to load invoice');
     } finally {
       setLoading(false);
     }
@@ -138,7 +138,7 @@ const InvoiceDetail = () => {
     const remaining = Number(invoice.total) - Number(invoice.paid_amount);
 
     if (amount <= 0 || amount > remaining) {
-      toast.error('সঠিক পরিমাণ দিন');
+      toast.error('Please enter valid amount');
       return;
     }
 
@@ -171,18 +171,18 @@ const InvoiceDetail = () => {
 
       if (updateError) throw updateError;
 
-      toast.success('পেমেন্ট যোগ হয়েছে');
+      toast.success('Payment added');
       setPaymentDialogOpen(false);
       setPaymentAmount('');
       fetchInvoice();
     } catch (error: any) {
       console.error('Error adding payment:', error);
-      toast.error(error.message || 'সমস্যা হয়েছে');
+      toast.error(error.message || 'An error occurred');
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
@@ -195,21 +195,21 @@ const InvoiceDetail = () => {
         return (
           <Badge className="bg-success/10 text-success border-0 text-base py-1 px-3">
             <CheckCircle className="w-4 h-4 mr-1" />
-            পরিশোধিত
+            Paid
           </Badge>
         );
       case 'partial':
         return (
           <Badge className="bg-warning/10 text-warning border-0 text-base py-1 px-3">
             <Clock className="w-4 h-4 mr-1" />
-            আংশিক
+            Partial
           </Badge>
         );
       case 'unpaid':
         return (
           <Badge className="bg-destructive/10 text-destructive border-0 text-base py-1 px-3">
             <XCircle className="w-4 h-4 mr-1" />
-            বাকি
+            Unpaid
           </Badge>
         );
       default:
@@ -224,7 +224,7 @@ const InvoiceDetail = () => {
   const handleDownloadPDF = () => {
     // Open print dialog which can be saved as PDF
     window.print();
-    toast.success('PDF হিসেবে সংরক্ষণ করতে "Save as PDF" নির্বাচন করুন');
+    toast.success('Select "Save as PDF" to save as PDF');
   };
 
   if (loading) {

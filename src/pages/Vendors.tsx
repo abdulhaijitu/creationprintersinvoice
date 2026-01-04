@@ -63,7 +63,6 @@ const Vendors = () => {
   const fetchVendors = async () => {
     setLoading(true);
     try {
-      // Fetch vendors
       const { data: vendorsData } = await supabase
         .from("vendors")
         .select("*")
@@ -74,7 +73,6 @@ const Vendors = () => {
         return;
       }
 
-      // Fetch bills and payments for each vendor
       const vendorsWithDues = await Promise.all(
         vendorsData.map(async (vendor) => {
           const { data: bills } = await supabase
@@ -111,7 +109,7 @@ const Vendors = () => {
     e.preventDefault();
 
     if (!formData.name) {
-      toast.error("ভেন্ডরের নাম দিন");
+      toast.error("Please enter vendor name");
       return;
     }
 
@@ -123,12 +121,12 @@ const Vendors = () => {
           .eq("id", editingVendor.id);
 
         if (error) throw error;
-        toast.success("ভেন্ডর আপডেট হয়েছে");
+        toast.success("Vendor updated");
       } else {
         const { error } = await supabase.from("vendors").insert(formData);
 
         if (error) throw error;
-        toast.success("ভেন্ডর যোগ হয়েছে");
+        toast.success("Vendor added");
       }
 
       setIsDialogOpen(false);
@@ -136,7 +134,7 @@ const Vendors = () => {
       fetchVendors();
     } catch (error) {
       console.error("Error saving vendor:", error);
-      toast.error("ভেন্ডর সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.error("Failed to save vendor");
     }
   };
 
@@ -175,7 +173,7 @@ const Vendors = () => {
   const totalDue = vendors.reduce((sum, v) => sum + (v.due_amount || 0), 0);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("bn-BD", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "BDT",
       minimumFractionDigits: 0,
@@ -186,8 +184,8 @@ const Vendors = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">ভেন্ডর</h1>
-          <p className="text-muted-foreground">সকল ভেন্ডরের তালিকা ও বকেয়া হিসাব</p>
+          <h1 className="text-3xl font-bold">Vendors</h1>
+          <p className="text-muted-foreground">All vendors and due balance</p>
         </div>
         {isAdmin && (
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -197,21 +195,21 @@ const Vendors = () => {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                নতুন ভেন্ডর
+                New Vendor
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>
-                  {editingVendor ? "ভেন্ডর সম্পাদনা" : "নতুন ভেন্ডর যোগ করুন"}
+                  {editingVendor ? "Edit Vendor" : "Add New Vendor"}
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">নাম *</Label>
+                  <Label htmlFor="name">Name *</Label>
                   <Input
                     id="name"
-                    placeholder="ভেন্ডরের নাম"
+                    placeholder="Vendor name"
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
@@ -221,7 +219,7 @@ const Vendors = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phone">ফোন</Label>
+                    <Label htmlFor="phone">Phone</Label>
                     <Input
                       id="phone"
                       placeholder="01XXXXXXXXX"
@@ -232,7 +230,7 @@ const Vendors = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">ইমেইল</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
                       type="email"
@@ -246,10 +244,10 @@ const Vendors = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="address">ঠিকানা</Label>
+                  <Label htmlFor="address">Address</Label>
                   <Textarea
                     id="address"
-                    placeholder="ভেন্ডরের ঠিকানা"
+                    placeholder="Vendor address"
                     value={formData.address}
                     onChange={(e) =>
                       setFormData({ ...formData, address: e.target.value })
@@ -258,10 +256,10 @@ const Vendors = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="bank_info">ব্যাংক তথ্য</Label>
+                  <Label htmlFor="bank_info">Bank Info</Label>
                   <Textarea
                     id="bank_info"
-                    placeholder="ব্যাংক একাউন্ট নম্বর, ব্র্যাঞ্চ ইত্যাদি"
+                    placeholder="Bank account number, branch, etc."
                     value={formData.bank_info}
                     onChange={(e) =>
                       setFormData({ ...formData, bank_info: e.target.value })
@@ -270,10 +268,10 @@ const Vendors = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="notes">নোট</Label>
+                  <Label htmlFor="notes">Notes</Label>
                   <Textarea
                     id="notes"
-                    placeholder="অতিরিক্ত তথ্য"
+                    placeholder="Additional information"
                     value={formData.notes}
                     onChange={(e) =>
                       setFormData({ ...formData, notes: e.target.value })
@@ -290,9 +288,9 @@ const Vendors = () => {
                       resetForm();
                     }}
                   >
-                    বাতিল
+                    Cancel
                   </Button>
-                  <Button type="submit">সংরক্ষণ করুন</Button>
+                  <Button type="submit">Save</Button>
                 </div>
               </form>
             </DialogContent>
@@ -305,7 +303,7 @@ const Vendors = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              মোট ভেন্ডর
+              Total Vendors
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -315,7 +313,7 @@ const Vendors = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              মোট বিল
+              Total Bills
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -328,7 +326,7 @@ const Vendors = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-destructive flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
-              মোট বকেয়া
+              Total Due
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -341,7 +339,7 @@ const Vendors = () => {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
-          placeholder="ভেন্ডর খুঁজুন..."
+          placeholder="Search vendors..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10 max-w-md"
@@ -353,25 +351,25 @@ const Vendors = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>নাম</TableHead>
-              <TableHead>যোগাযোগ</TableHead>
-              <TableHead className="text-right">মোট বিল</TableHead>
-              <TableHead className="text-right">পরিশোধ</TableHead>
-              <TableHead className="text-right">বকেয়া</TableHead>
-              <TableHead className="text-center">অ্যাকশন</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead className="text-right">Total Bills</TableHead>
+              <TableHead className="text-right">Paid</TableHead>
+              <TableHead className="text-right">Due</TableHead>
+              <TableHead className="text-center">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8">
-                  লোড হচ্ছে...
+                  Loading...
                 </TableCell>
               </TableRow>
             ) : filteredVendors.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  কোনো ভেন্ডর পাওয়া যায়নি
+                  No vendors found
                 </TableCell>
               </TableRow>
             ) : (
@@ -416,7 +414,7 @@ const Vendors = () => {
                     {(vendor.due_amount || 0) > 0 ? (
                       <Badge variant="destructive">{formatCurrency(vendor.due_amount || 0)}</Badge>
                     ) : (
-                      <Badge variant="outline" className="text-success border-success">পরিশোধিত</Badge>
+                      <Badge variant="outline" className="text-success border-success">Paid</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-center">
@@ -434,7 +432,7 @@ const Vendors = () => {
                           size="sm"
                           onClick={() => openEditDialog(vendor)}
                         >
-                          সম্পাদনা
+                          Edit
                         </Button>
                       )}
                     </div>

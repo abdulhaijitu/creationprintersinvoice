@@ -84,7 +84,7 @@ const Customers = () => {
       setCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
-      toast.error('গ্রাহক তালিকা লোড করতে সমস্যা হয়েছে');
+      toast.error('Failed to load customer list');
     } finally {
       setLoading(false);
     }
@@ -101,12 +101,12 @@ const Customers = () => {
           .eq('id', editingCustomer.id);
 
         if (error) throw error;
-        toast.success('গ্রাহকের তথ্য আপডেট হয়েছে');
+        toast.success('Customer updated successfully');
       } else {
         const { error } = await supabase.from('customers').insert([formData]);
 
         if (error) throw error;
-        toast.success('নতুন গ্রাহক যোগ হয়েছে');
+        toast.success('New customer added');
       }
 
       setIsDialogOpen(false);
@@ -114,7 +114,7 @@ const Customers = () => {
       fetchCustomers();
     } catch (error: any) {
       console.error('Error saving customer:', error);
-      toast.error(error.message || 'সমস্যা হয়েছে');
+      toast.error(error.message || 'An error occurred');
     }
   };
 
@@ -132,17 +132,17 @@ const Customers = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('আপনি কি নিশ্চিত এই গ্রাহক মুছে ফেলতে চান?')) return;
+    if (!confirm('Are you sure you want to delete this customer?')) return;
 
     try {
       const { error } = await supabase.from('customers').delete().eq('id', id);
 
       if (error) throw error;
-      toast.success('গ্রাহক মুছে ফেলা হয়েছে');
+      toast.success('Customer deleted');
       fetchCustomers();
     } catch (error: any) {
       console.error('Error deleting customer:', error);
-      toast.error(error.message || 'মুছে ফেলতে সমস্যা হয়েছে');
+      toast.error(error.message || 'Failed to delete');
     }
   };
 
@@ -166,17 +166,17 @@ const Customers = () => {
   );
 
   const customerHeaders = {
-    name: 'নাম',
-    phone: 'ফোন',
-    email: 'ইমেইল',
-    company_name: 'কোম্পানি',
-    address: 'ঠিকানা',
-    notes: 'নোট',
+    name: 'Name',
+    phone: 'Phone',
+    email: 'Email',
+    company_name: 'Company',
+    address: 'Address',
+    notes: 'Notes',
   };
 
   const handleExport = (format: 'csv' | 'excel') => {
     if (filteredCustomers.length === 0) {
-      toast.error('এক্সপোর্ট করার মতো ডেটা নেই');
+      toast.error('No data to export');
       return;
     }
     
@@ -194,7 +194,7 @@ const Customers = () => {
     } else {
       exportToExcel(exportData, 'customers', customerHeaders);
     }
-    toast.success(`${format.toUpperCase()} ফাইল ডাউনলোড হচ্ছে`);
+    toast.success(`${format.toUpperCase()} file downloading`);
   };
 
   const handleImport = async (data: Record<string, string>[]): Promise<ImportResult> => {
@@ -205,17 +205,17 @@ const Customers = () => {
     for (const row of data) {
       try {
         const customerData = {
-          name: row.name || row['নাম'] || '',
-          phone: row.phone || row['ফোন'] || null,
-          email: row.email || row['ইমেইল'] || null,
-          company_name: row.company_name || row['কোম্পানি'] || null,
-          address: row.address || row['ঠিকানা'] || null,
-          notes: row.notes || row['নোট'] || null,
+          name: row.name || row['Name'] || '',
+          phone: row.phone || row['Phone'] || null,
+          email: row.email || row['Email'] || null,
+          company_name: row.company_name || row['Company'] || null,
+          address: row.address || row['Address'] || null,
+          notes: row.notes || row['Notes'] || null,
         };
 
         if (!customerData.name) {
           failed++;
-          errors.push(`সারি: নাম প্রদান করা হয়নি`);
+          errors.push(`Row: Name not provided`);
           continue;
         }
 
@@ -229,7 +229,7 @@ const Customers = () => {
         }
       } catch (err: any) {
         failed++;
-        errors.push(err.message || 'অজানা সমস্যা');
+        errors.push(err.message || 'Unknown error');
       }
     }
 
@@ -244,8 +244,8 @@ const Customers = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">গ্রাহক তালিকা</h1>
-          <p className="text-muted-foreground">সকল গ্রাহকদের তথ্য পরিচালনা করুন</p>
+          <h1 className="text-3xl font-bold">Customer List</h1>
+          <p className="text-muted-foreground">Manage all customer information</p>
         </div>
 
         <div className="flex gap-2">
@@ -253,22 +253,22 @@ const Customers = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2">
                 <Download className="h-4 w-4" />
-                এক্সপোর্ট
+                Export
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={() => handleExport('csv')}>
-                CSV ডাউনলোড
+                Download CSV
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('excel')}>
-                Excel ডাউনলোড
+                Download Excel
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <Button variant="outline" className="gap-2" onClick={() => setIsImportOpen(true)}>
             <Upload className="h-4 w-4" />
-            ইম্পোর্ট
+            Import
           </Button>
 
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -278,33 +278,33 @@ const Customers = () => {
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
-              নতুন গ্রাহক
+              New Customer
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>
-                {editingCustomer ? 'গ্রাহকের তথ্য সম্পাদনা' : 'নতুন গ্রাহক যোগ করুন'}
+                {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
               </DialogTitle>
               <DialogDescription>
-                গ্রাহকের সকল তথ্য সঠিকভাবে পূরণ করুন
+                Fill in all customer information correctly
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit}>
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">নাম *</Label>
+                  <Label htmlFor="name">Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="গ্রাহকের নাম"
+                    placeholder="Customer name"
                     required
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phone">ফোন</Label>
+                    <Label htmlFor="phone">Phone</Label>
                     <Input
                       id="phone"
                       value={formData.phone}
@@ -313,7 +313,7 @@ const Customers = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">ইমেইল</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
                       type="email"
@@ -324,41 +324,41 @@ const Customers = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="company_name">কোম্পানির নাম</Label>
+                  <Label htmlFor="company_name">Company Name</Label>
                   <Input
                     id="company_name"
                     value={formData.company_name}
                     onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                    placeholder="কোম্পানির নাম"
+                    placeholder="Company name"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="address">ঠিকানা</Label>
+                  <Label htmlFor="address">Address</Label>
                   <Textarea
                     id="address"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="সম্পূর্ণ ঠিকানা"
+                    placeholder="Full address"
                     rows={2}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notes">নোট</Label>
+                  <Label htmlFor="notes">Notes</Label>
                   <Textarea
                     id="notes"
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="অতিরিক্ত তথ্য"
+                    placeholder="Additional information"
                     rows={2}
                   />
                 </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  বাতিল
+                  Cancel
                 </Button>
                 <Button type="submit">
-                  {editingCustomer ? 'আপডেট করুন' : 'সংরক্ষণ করুন'}
+                  {editingCustomer ? 'Update' : 'Save'}
                 </Button>
               </DialogFooter>
             </form>
@@ -373,7 +373,7 @@ const Customers = () => {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="নাম, ফোন বা কোম্পানি খুঁজুন..."
+                placeholder="Search by name, phone or company..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -391,17 +391,17 @@ const Customers = () => {
           ) : filteredCustomers.length === 0 ? (
             <div className="text-center py-12">
               <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">কোনো গ্রাহক পাওয়া যায়নি</p>
+              <p className="text-muted-foreground">No customers found</p>
             </div>
           ) : (
             <div className="rounded-lg border overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>নাম</TableHead>
-                    <TableHead>যোগাযোগ</TableHead>
-                    <TableHead>কোম্পানি</TableHead>
-                    <TableHead className="text-right">অ্যাকশন</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -465,8 +465,8 @@ const Customers = () => {
       <CSVImportDialog
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
-        title="গ্রাহক ইম্পোর্ট"
-        description="CSV ফাইল থেকে গ্রাহক তালিকা ইম্পোর্ট করুন"
+        title="Import Customers"
+        description="Import customer list from CSV file"
         requiredFields={['name']}
         fieldMapping={customerHeaders}
         onImport={handleImport}

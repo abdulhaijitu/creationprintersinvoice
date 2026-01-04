@@ -108,7 +108,7 @@ const QuotationDetail = () => {
       setItems(itemsRes.data || []);
     } catch (error) {
       console.error('Error fetching quotation:', error);
-      toast.error('কোটেশন লোড করতে সমস্যা হয়েছে');
+      toast.error('Failed to load quotation');
     } finally {
       setLoading(false);
     }
@@ -127,10 +127,10 @@ const QuotationDetail = () => {
       if (error) throw error;
 
       setQuotation({ ...quotation, status: newStatus });
-      toast.success('স্ট্যাটাস আপডেট হয়েছে');
+      toast.success('Status updated');
     } catch (error: any) {
       console.error('Error updating status:', error);
-      toast.error(error.message || 'সমস্যা হয়েছে');
+      toast.error(error.message || 'An error occurred');
     } finally {
       setUpdatingStatus(false);
     }
@@ -188,19 +188,19 @@ const QuotationDetail = () => {
         .update({ status: 'accepted' })
         .eq('id', quotation.id);
 
-      toast.success('ইনভয়েস তৈরি হয়েছে');
+      toast.success('Invoice created');
       setConvertDialogOpen(false);
       navigate(`/invoices/${invoice.id}`);
     } catch (error: any) {
       console.error('Error converting to invoice:', error);
-      toast.error(error.message || 'সমস্যা হয়েছে');
+      toast.error(error.message || 'An error occurred');
     } finally {
       setConverting(false);
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
@@ -213,21 +213,21 @@ const QuotationDetail = () => {
         return (
           <Badge className="bg-success/10 text-success border-0 text-base py-1 px-3">
             <CheckCircle className="w-4 h-4 mr-1" />
-            গৃহীত
+            Accepted
           </Badge>
         );
       case 'pending':
         return (
           <Badge className="bg-warning/10 text-warning border-0 text-base py-1 px-3">
             <Clock className="w-4 h-4 mr-1" />
-            পেন্ডিং
+            Pending
           </Badge>
         );
       case 'rejected':
         return (
           <Badge className="bg-destructive/10 text-destructive border-0 text-base py-1 px-3">
             <XCircle className="w-4 h-4 mr-1" />
-            বাতিল
+            Rejected
           </Badge>
         );
       default:
@@ -241,7 +241,7 @@ const QuotationDetail = () => {
 
   const handleDownloadPDF = () => {
     window.print();
-    toast.success('PDF হিসেবে সংরক্ষণ করতে "Save as PDF" নির্বাচন করুন');
+    toast.success('Select "Save as PDF" to save as PDF');
   };
 
   if (loading) {
