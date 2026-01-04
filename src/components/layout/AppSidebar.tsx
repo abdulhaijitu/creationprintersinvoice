@@ -136,9 +136,6 @@ export function AppSidebar() {
   // Build navigation items based on permissions
   const mainNavItems = [
     { title: 'Dashboard', url: '/', icon: LayoutDashboard },
-    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'Reports', url: '/reports', icon: BarChart3 }] : []),
-    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'Settings', url: '/settings', icon: Settings }] : []),
-    ...(hasPermission(role, 'user_roles', 'view') ? [{ title: 'Role Management', url: '/user-roles', icon: UserCog }] : []),
   ];
 
   const invoicingItems = [
@@ -160,6 +157,12 @@ export function AppSidebar() {
     ...(hasPermission(role, 'leave', 'view') ? [{ title: 'Leave', url: '/leave', icon: ClipboardList }] : []),
     ...(hasPermission(role, 'performance', 'view') ? [{ title: 'Performance', url: '/performance', icon: Award }] : []),
     ...(hasPermission(role, 'tasks', 'view') ? [{ title: 'Tasks', url: '/tasks', icon: ListTodo }] : []),
+  ];
+
+  const settingsItems = [
+    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'Reports', url: '/reports', icon: BarChart3 }] : []),
+    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'Settings', url: '/settings', icon: Settings }] : []),
+    ...(hasPermission(role, 'user_roles', 'view') ? [{ title: 'Role Management', url: '/user-roles', icon: UserCog }] : []),
   ];
 
   return (
@@ -201,6 +204,7 @@ export function AppSidebar() {
         {invoicingItems.length > 0 && <NavGroup label="Invoicing" items={invoicingItems} defaultOpen />}
         {expenseItems.length > 0 && <NavGroup label="Expenses" items={expenseItems} />}
         {hrItems.length > 0 && <NavGroup label="HR" items={hrItems} />}
+        {settingsItems.length > 0 && <NavGroup label="Settings" items={settingsItems} />}
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
