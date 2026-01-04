@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Wallet, Calendar } from "lucide-react";
+import { Plus, Wallet, Calendar, ShieldAlert, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { bn } from "date-fns/locale";
@@ -64,7 +64,7 @@ const months = [
 ];
 
 const Salary = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, user, loading: authLoading } = useAuth();
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -242,6 +242,45 @@ const Salary = () => {
     .reduce((sum, r) => sum + r.net_payable, 0);
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show access denied message for non-admin users
+  if (!isAdmin) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">বেতন</h1>
+          <p className="text-muted-foreground mt-1">
+            কর্মচারী বেতন ব্যবস্থাপনা
+          </p>
+        </div>
+        
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center text-center py-10 space-y-4">
+              <div className="p-4 rounded-full bg-destructive/10">
+                <ShieldAlert className="h-12 w-12 text-destructive" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold text-foreground">অ্যাক্সেস নেই</h2>
+                <p className="text-muted-foreground max-w-md">
+                  শুধুমাত্র অ্যাডমিন ব্যবহারকারীরা বেতন ব্যবস্থাপনা দেখতে পারেন। 
+                  আপনার অ্যাডমিন অ্যাক্সেস প্রয়োজন হলে আপনার সিস্টেম অ্যাডমিনের সাথে যোগাযোগ করুন।
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

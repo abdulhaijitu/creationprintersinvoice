@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Users, Phone, Mail, Briefcase, Edit2, Plus, UserPlus, Trash2, Shield } from "lucide-react";
+import { Search, Users, Phone, Mail, Briefcase, Edit2, Plus, UserPlus, Trash2, Shield, ShieldAlert, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -49,7 +49,7 @@ interface Employee {
 }
 
 const Employees = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, user, loading: authLoading } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -249,6 +249,45 @@ const Employees = () => {
       .toUpperCase()
       .slice(0, 2);
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show access denied message for non-admin users
+  if (!isAdmin) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">কর্মচারী</h1>
+          <p className="text-muted-foreground mt-1">
+            সকল কর্মচারীর তালিকা
+          </p>
+        </div>
+        
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center text-center py-10 space-y-4">
+              <div className="p-4 rounded-full bg-destructive/10">
+                <ShieldAlert className="h-12 w-12 text-destructive" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold text-foreground">অ্যাক্সেস নেই</h2>
+                <p className="text-muted-foreground max-w-md">
+                  শুধুমাত্র অ্যাডমিন ব্যবহারকারীরা কর্মচারী তালিকা দেখতে পারেন। 
+                  আপনার অ্যাডমিন অ্যাক্সেস প্রয়োজন হলে আপনার সিস্টেম অ্যাডমিনের সাথে যোগাযোগ করুন।
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
