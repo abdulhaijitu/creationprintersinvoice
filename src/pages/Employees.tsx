@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { hasPermission, getRoleDisplayName, allRoles } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,7 +50,7 @@ interface Employee {
 }
 
 const Employees = () => {
-  const { isAdmin, user, loading: authLoading } = useAuth();
+  const { isAdmin, user, role, loading: authLoading } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -258,8 +259,8 @@ const Employees = () => {
     );
   }
 
-  // Show access denied message for non-admin users
-  if (!isAdmin) {
+  // Show access denied message for users without permission
+  if (!hasPermission(role, 'employees', 'view')) {
     return (
       <div className="space-y-6">
         <div>

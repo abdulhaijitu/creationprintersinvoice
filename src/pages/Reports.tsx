@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/lib/permissions';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ import {
   Calendar,
   Printer,
   ShieldAlert,
+  Loader2,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
 import { bn } from 'date-fns/locale';
@@ -68,7 +70,7 @@ const COLORS = [
 ];
 
 const Reports = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, role, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [reportType, setReportType] = useState<'monthly' | 'yearly'>('monthly');
@@ -107,8 +109,29 @@ const Reports = () => {
   }
 
   useEffect(() => {
-    fetchReportData();
-  }, [reportType, selectedMonth, selectedYear]);
+    if (hasPermission(role, 'reports', 'view')) {
+      fetchReportData();
+    }
+  }, [reportType, selectedMonth, selectedYear, role]);
+
+  // Access control check
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!hasPermission(role, 'reports', 'view')) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center">
+        <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold mb-2">অ্যাক্সেস নেই</h2>
+        <p className="text-muted-foreground">এই পেজ দেখার অনুমতি আপনার নেই।</p>
+      </div>
+    );
+  }
 
   const fetchReportData = async () => {
     setLoading(true);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,7 +65,7 @@ const months = [
 ];
 
 const Salary = () => {
-  const { isAdmin, user, loading: authLoading } = useAuth();
+  const { isAdmin, user, role, loading: authLoading } = useAuth();
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,8 +252,8 @@ const Salary = () => {
     );
   }
 
-  // Show access denied message for non-admin users
-  if (!isAdmin) {
+  // Show access denied message for users without permission
+  if (!hasPermission(role, 'salary', 'view')) {
     return (
       <div className="space-y-6">
         <div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, AppRole } from "@/contexts/AuthContext";
+import { hasPermission, getRoleDisplayName, allRoles } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -28,7 +29,8 @@ import {
   ShieldAlert, 
   Loader2,
   UserCog,
-  Save
+  Save,
+  Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -41,23 +43,23 @@ interface UserWithRole {
   designation: string | null;
   department: string | null;
   joining_date: string | null;
-  role: "admin" | "employee";
+  role: AppRole;
   created_at: string;
 }
 
 const UserRoles = () => {
-  const { isAdmin, user, loading: authLoading } = useAuth();
+  const { isAdmin, user, role, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [pendingChanges, setPendingChanges] = useState<Record<string, "admin" | "employee">>({});
+  const [pendingChanges, setPendingChanges] = useState<Record<string, AppRole>>({});
   const [saving, setSaving] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (hasPermission(role, 'user_roles', 'view')) {
       fetchUsers();
     }
-  }, [isAdmin]);
+  }, [role]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -80,7 +82,7 @@ const UserRoles = () => {
 
             return {
               ...profile,
-              role: (roleData?.role || "employee") as "admin" | "employee",
+              role: (roleData?.role || "employee") as AppRole,
             };
           })
         );
@@ -94,7 +96,7 @@ const UserRoles = () => {
     }
   };
 
-  const handleRoleChange = (userId: string, newRole: "admin" | "employee") => {
+  const handleRoleChange = (userId: string, newRole: AppRole) => {
     setPendingChanges((prev) => ({
       ...prev,
       [userId]: newRole,
@@ -106,8 +108,8 @@ const UserRoles = () => {
     if (!newRole) return;
 
     // Prevent self-demotion
-    if (userId === user?.id && newRole === "employee") {
-      toast.error("আপনি নিজের এডমিন রোল সরাতে পারবেন না");
+    if (userId === user?.id) {
+      toast.error("আপনি নিজের রোল পরিবর্তন করতে পারবেন না");
       setPendingChanges((prev) => {
         const updated = { ...prev };
         delete updated[userId];
@@ -163,8 +165,23 @@ const UserRoles = () => {
       u.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const adminCount = users.filter((u) => u.role === "admin").length;
-  const employeeCount = users.filter((u) => u.role === "employee").length;
+  const getRoleBadgeVariant = (userRole: AppRole): "default" | "secondary" | "outline" => {
+    switch (userRole) {
+      case 'super_admin':
+      case 'admin':
+        return 'default';
+      case 'manager':
+        return 'secondary';
+      default:
+        return 'outline';
+    }
+  };
+
+  // Calculate role stats
+  const roleStats = allRoles.map((r) => ({
+    role: r,
+    count: users.filter((u) => u.role === r).length,
+  })).filter(stat => stat.count > 0);
 
   if (authLoading) {
     return (
@@ -174,8 +191,8 @@ const UserRoles = () => {
     );
   }
 
-  // Show access denied message for non-admin users
-  if (!isAdmin) {
+  // Show access denied message for users without permission
+  if (!hasPermission(role, 'user_roles', 'view')) {
     return (
       <div className="space-y-6">
         <div>
@@ -194,8 +211,7 @@ const UserRoles = () => {
               <div className="space-y-2">
                 <h2 className="text-xl font-semibold text-foreground">অ্যাক্সেস নেই</h2>
                 <p className="text-muted-foreground max-w-md">
-                  শুধুমাত্র অ্যাডমিন ব্যবহারকারীরা রোল ম্যানেজমেন্ট দেখতে পারেন। 
-                  আপনার অ্যাডমিন অ্যাক্সেস প্রয়োজন হলে আপনার সিস্টেম অ্যাডমিনের সাথে যোগাযোগ করুন।
+                  শুধুমাত্র সুপার এডমিন/এডমিন ব্যবহারকারীরা রোল ম্যানেজমেন্ট দেখতে পারেন।
                 </p>
               </div>
             </div>
@@ -218,7 +234,7 @@ const UserRoles = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -230,28 +246,19 @@ const UserRoles = () => {
             <p className="text-3xl font-bold">{users.length}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-primary flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4" />
-              এডমিন
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-primary">{adminCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              কর্মচারী
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{employeeCount}</p>
-          </CardContent>
-        </Card>
+        {roleStats.map((stat) => (
+          <Card key={stat.role}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                {getRoleDisplayName(stat.role)}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">{stat.count}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Search */}
@@ -266,7 +273,7 @@ const UserRoles = () => {
       </div>
 
       {/* Users Table */}
-      <div className="border rounded-lg">
+      <div className="border rounded-lg overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -326,32 +333,28 @@ const UserRoles = () => {
                     <TableCell>{userItem.department || "-"}</TableCell>
                     <TableCell>{userItem.phone || "-"}</TableCell>
                     <TableCell>
-                      <Badge variant={userItem.role === "admin" ? "default" : "secondary"}>
-                        {userItem.role === "admin" ? "এডমিন" : "কর্মচারী"}
+                      <Badge variant={getRoleBadgeVariant(userItem.role)}>
+                        {getRoleDisplayName(userItem.role)}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Select
                         value={displayRole}
-                        onValueChange={(value) => handleRoleChange(userItem.id, value as "admin" | "employee")}
+                        onValueChange={(value) => handleRoleChange(userItem.id, value as AppRole)}
                         disabled={isCurrentUser}
                       >
-                        <SelectTrigger className="w-[130px]">
+                        <SelectTrigger className="w-[160px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="admin">
-                            <div className="flex items-center gap-2">
-                              <ShieldCheck className="h-4 w-4 text-primary" />
-                              এডমিন
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="employee">
-                            <div className="flex items-center gap-2">
-                              <Users className="h-4 w-4" />
-                              কর্মচারী
-                            </div>
-                          </SelectItem>
+                          {allRoles.map((r) => (
+                            <SelectItem key={r} value={r}>
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-4 w-4" />
+                                {getRoleDisplayName(r)}
+                              </div>
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </TableCell>
