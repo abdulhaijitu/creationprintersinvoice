@@ -43,7 +43,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { bn } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 
@@ -223,7 +222,7 @@ const Expenses = () => {
     e.preventDefault();
 
     if (!expenseFormData.description || !expenseFormData.amount) {
-      toast.error("বিবরণ এবং টাকার পরিমাণ দিন");
+      toast.error("Please enter description and amount");
       return;
     }
 
@@ -242,7 +241,7 @@ const Expenses = () => {
           .eq("id", editingExpense.id);
 
         if (error) throw error;
-        toast.success("খরচ আপডেট হয়েছে");
+        toast.success("Expense updated successfully");
       } else {
         const { error } = await supabase.from("expenses").insert({
           date: expenseFormData.date,
@@ -254,7 +253,7 @@ const Expenses = () => {
         });
 
         if (error) throw error;
-        toast.success("খরচ সংরক্ষণ হয়েছে");
+        toast.success("Expense saved successfully");
       }
 
       setIsExpenseDialogOpen(false);
@@ -262,12 +261,12 @@ const Expenses = () => {
       fetchData();
     } catch (error) {
       console.error("Error saving expense:", error);
-      toast.error("খরচ সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.error("Failed to save expense");
     }
   };
 
   const handleDeleteExpense = async (expenseId: string) => {
-    if (!confirm("আপনি কি এই খরচ মুছে ফেলতে চান?")) return;
+    if (!confirm("Are you sure you want to delete this expense?")) return;
 
     try {
       const { error } = await supabase
@@ -276,11 +275,11 @@ const Expenses = () => {
         .eq("id", expenseId);
 
       if (error) throw error;
-      toast.success("খরচ মুছে ফেলা হয়েছে");
+      toast.success("Expense deleted successfully");
       fetchData();
     } catch (error) {
       console.error("Error deleting expense:", error);
-      toast.error("খরচ মুছে ফেলা ব্যর্থ হয়েছে");
+      toast.error("Failed to delete expense");
     }
   };
 
@@ -301,7 +300,7 @@ const Expenses = () => {
     e.preventDefault();
 
     if (!vendorFormData.name) {
-      toast.error("ভেন্ডরের নাম দিন");
+      toast.error("Please enter vendor name");
       return;
     }
 
@@ -313,11 +312,11 @@ const Expenses = () => {
           .eq("id", editingVendor.id);
 
         if (error) throw error;
-        toast.success("ভেন্ডর আপডেট হয়েছে");
+        toast.success("Vendor updated successfully");
       } else {
         const { error } = await supabase.from("vendors").insert(vendorFormData);
         if (error) throw error;
-        toast.success("ভেন্ডর যোগ হয়েছে");
+        toast.success("Vendor added successfully");
       }
 
       setIsVendorDialogOpen(false);
@@ -325,7 +324,7 @@ const Expenses = () => {
       fetchData();
     } catch (error) {
       console.error("Error saving vendor:", error);
-      toast.error("ভেন্ডর সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.error("Failed to save vendor");
     }
   };
 
@@ -333,7 +332,7 @@ const Expenses = () => {
     e.preventDefault();
 
     if (!billFormData.vendor_id || !billFormData.amount) {
-      toast.error("ভেন্ডর এবং টাকার পরিমাণ দিন");
+      toast.error("Please select vendor and enter amount");
       return;
     }
 
@@ -348,13 +347,13 @@ const Expenses = () => {
 
       if (error) throw error;
 
-      toast.success("বিল সংরক্ষণ হয়েছে");
+      toast.success("Bill saved successfully");
       setIsBillDialogOpen(false);
       resetBillForm();
       fetchData();
     } catch (error) {
       console.error("Error saving bill:", error);
-      toast.error("বিল সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.error("Failed to save bill");
     }
   };
 
@@ -362,7 +361,7 @@ const Expenses = () => {
     e.preventDefault();
 
     if (!paymentFormData.vendor_id || !paymentFormData.amount) {
-      toast.error("ভেন্ডর এবং টাকার পরিমাণ দিন");
+      toast.error("Please select vendor and enter amount");
       return;
     }
 
@@ -377,13 +376,13 @@ const Expenses = () => {
 
       if (error) throw error;
 
-      toast.success("পেমেন্ট সংরক্ষণ হয়েছে");
+      toast.success("Payment saved successfully");
       setIsPaymentDialogOpen(false);
       resetPaymentForm();
       fetchData();
     } catch (error) {
       console.error("Error saving payment:", error);
-      toast.error("পেমেন্ট সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.error("Failed to save payment");
     }
   };
 
@@ -445,7 +444,7 @@ const Expenses = () => {
     e.preventDefault();
 
     if (!categoryFormData.name) {
-      toast.error("ক্যাটেগরির নাম দিন");
+      toast.error("Please enter category name");
       return;
     }
 
@@ -460,14 +459,14 @@ const Expenses = () => {
           .eq("id", editingCategory.id);
 
         if (error) throw error;
-        toast.success("ক্যাটেগরি আপডেট হয়েছে");
+        toast.success("Category updated successfully");
       } else {
         const { error } = await supabase.from("expense_categories").insert({
           name: categoryFormData.name,
           description: categoryFormData.description || null,
         });
         if (error) throw error;
-        toast.success("ক্যাটেগরি যোগ হয়েছে");
+        toast.success("Category added successfully");
       }
 
       setIsCategoryDialogOpen(false);
@@ -475,12 +474,12 @@ const Expenses = () => {
       fetchData();
     } catch (error) {
       console.error("Error saving category:", error);
-      toast.error("ক্যাটেগরি সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.error("Failed to save category");
     }
   };
 
   const handleDeleteCategory = async (categoryId: string) => {
-    if (!confirm("আপনি কি এই ক্যাটেগরি মুছে ফেলতে চান?")) return;
+    if (!confirm("Are you sure you want to delete this category?")) return;
 
     try {
       const { error } = await supabase
@@ -489,11 +488,11 @@ const Expenses = () => {
         .eq("id", categoryId);
 
       if (error) throw error;
-      toast.success("ক্যাটেগরি মুছে ফেলা হয়েছে");
+      toast.success("Category deleted successfully");
       fetchData();
     } catch (error) {
       console.error("Error deleting category:", error);
-      toast.error("ক্যাটেগরি মুছে ফেলা ব্যর্থ হয়েছে");
+      toast.error("Failed to delete category");
     }
   };
 
@@ -520,7 +519,7 @@ const Expenses = () => {
   };
 
   const handleDeleteVendor = async (vendorId: string) => {
-    if (!confirm("আপনি কি এই ভেন্ডর মুছে ফেলতে চান? এর সাথে সম্পর্কিত বিল ও পেমেন্টও মুছে যাবে।")) return;
+    if (!confirm("Are you sure you want to delete this vendor? Related bills and payments will also be deleted.")) return;
 
     try {
       // Delete related bills and payments first
@@ -533,11 +532,11 @@ const Expenses = () => {
         .eq("id", vendorId);
 
       if (error) throw error;
-      toast.success("ভেন্ডর মুছে ফেলা হয়েছে");
+      toast.success("Vendor deleted successfully");
       fetchData();
     } catch (error) {
       console.error("Error deleting vendor:", error);
-      toast.error("ভেন্ডর মুছে ফেলা ব্যর্থ হয়েছে");
+      toast.error("Failed to delete vendor");
     }
   };
 
@@ -585,7 +584,7 @@ const Expenses = () => {
   const totalVendorDue = vendors.reduce((sum, v) => sum + (v.due_amount || 0), 0);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("bn-BD", {
+    return new Intl.NumberFormat("en-BD", {
       style: "currency",
       currency: "BDT",
       minimumFractionDigits: 0,
@@ -595,28 +594,28 @@ const Expenses = () => {
   const getPaymentMethodBadge = (method: string) => {
     switch (method) {
       case "cash":
-        return <Badge variant="outline">নগদ</Badge>;
+        return <Badge variant="outline">Cash</Badge>;
       case "bank":
-        return <Badge variant="secondary">ব্যাংক</Badge>;
+        return <Badge variant="secondary">Bank</Badge>;
       case "bkash":
-        return <Badge className="bg-pink-500">বিকাশ</Badge>;
+        return <Badge className="bg-pink-500">bKash</Badge>;
       default:
         return <Badge variant="outline">{method}</Badge>;
     }
   };
 
   const expenseHeaders = {
-    date: 'তারিখ',
-    description: 'বিবরণ',
-    category: 'ক্যাটেগরি',
-    vendor: 'ভেন্ডর',
-    payment_method: 'পেমেন্ট',
-    amount: 'টাকা',
+    date: 'Date',
+    description: 'Description',
+    category: 'Category',
+    vendor: 'Vendor',
+    payment_method: 'Payment',
+    amount: 'Amount',
   };
 
   const handleExport = (exportFormat: 'csv' | 'excel') => {
     if (filteredExpenses.length === 0) {
-      toast.error('এক্সপোর্ট করার মতো ডেটা নেই');
+      toast.error('No data to export');
       return;
     }
     
@@ -625,7 +624,7 @@ const Expenses = () => {
       description: exp.description,
       category: exp.category?.name || '',
       vendor: exp.vendor?.name || '',
-      payment_method: exp.payment_method === 'cash' ? 'নগদ' : exp.payment_method === 'bank' ? 'ব্যাংক' : 'বিকাশ',
+      payment_method: exp.payment_method === 'cash' ? 'Cash' : exp.payment_method === 'bank' ? 'Bank' : 'bKash',
       amount: exp.amount,
     }));
 
@@ -634,15 +633,15 @@ const Expenses = () => {
     } else {
       exportToExcel(exportData, 'expenses', expenseHeaders);
     }
-    toast.success(`${exportFormat.toUpperCase()} ফাইল ডাউনলোড হচ্ছে`);
+    toast.success(`Downloading ${exportFormat.toUpperCase()} file`);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">খরচ ব্যবস্থাপনা</h1>
-          <p className="text-muted-foreground">ভেন্ডর ও দৈনিক খরচের হিসাব</p>
+          <h1 className="text-3xl font-bold">Expense Management</h1>
+          <p className="text-muted-foreground">Manage vendors and daily expenses</p>
         </div>
       </div>
 
@@ -651,7 +650,7 @@ const Expenses = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              মোট ভেন্ডর
+              Total Vendors
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -661,7 +660,7 @@ const Expenses = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              মোট ভেন্ডর বিল
+              Total Vendor Bills
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -674,7 +673,7 @@ const Expenses = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-destructive flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
-              ভেন্ডর বকেয়া
+              Vendor Due
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -685,7 +684,7 @@ const Expenses = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Wallet className="h-4 w-4" />
-              মোট দৈনিক খরচ
+              Total Daily Expenses
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -698,15 +697,15 @@ const Expenses = () => {
         <TabsList>
           <TabsTrigger value="vendors" className="gap-2">
             <Building2 className="h-4 w-4" />
-            ভেন্ডর
+            Vendors
           </TabsTrigger>
           <TabsTrigger value="expenses" className="gap-2">
             <Wallet className="h-4 w-4" />
-            দৈনিক খরচ
+            Expenses
           </TabsTrigger>
           <TabsTrigger value="categories" className="gap-2">
             <Tag className="h-4 w-4" />
-            ক্যাটেগরি
+            Categories
           </TabsTrigger>
         </TabsList>
 
@@ -716,7 +715,7 @@ const Expenses = () => {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="ভেন্ডর খুঁজুন..."
+                placeholder="Search vendors..."
                 value={vendorSearchTerm}
                 onChange={(e) => setVendorSearchTerm(e.target.value)}
                 className="pl-10"
@@ -732,16 +731,16 @@ const Expenses = () => {
                   <DialogTrigger asChild>
                     <Button variant="outline" className="gap-2">
                       <FileText className="h-4 w-4" />
-                      বিল যোগ
+                      Add Bill
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-md">
                     <DialogHeader>
-                      <DialogTitle>নতুন ভেন্ডর বিল যোগ করুন</DialogTitle>
+                      <DialogTitle>Add New Vendor Bill</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleBillSubmit} className="space-y-4">
                       <div className="space-y-2">
-                        <Label>ভেন্ডর *</Label>
+                        <Label>Vendor *</Label>
                         <Select
                           value={billFormData.vendor_id}
                           onValueChange={(value) =>
@@ -749,7 +748,7 @@ const Expenses = () => {
                           }
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="ভেন্ডর বাছুন" />
+                            <SelectValue placeholder="Select vendor" />
                           </SelectTrigger>
                           <SelectContent>
                             {vendors.map((vendor) => (
@@ -763,7 +762,7 @@ const Expenses = () => {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>বিল তারিখ</Label>
+                          <Label>Bill Date</Label>
                           <Input
                             type="date"
                             value={billFormData.bill_date}
@@ -773,7 +772,7 @@ const Expenses = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>টাকা *</Label>
+                          <Label>Amount *</Label>
                           <Input
                             type="number"
                             placeholder="0"
@@ -786,9 +785,9 @@ const Expenses = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>বিবরণ</Label>
+                        <Label>Description</Label>
                         <Textarea
-                          placeholder="বিলের বিবরণ"
+                          placeholder="Bill description"
                           value={billFormData.description}
                           onChange={(e) =>
                             setBillFormData({ ...billFormData, description: e.target.value })
@@ -797,7 +796,7 @@ const Expenses = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>পরিশোধের তারিখ</Label>
+                        <Label>Due Date</Label>
                         <Input
                           type="date"
                           value={billFormData.due_date}
@@ -816,9 +815,9 @@ const Expenses = () => {
                             resetBillForm();
                           }}
                         >
-                          বাতিল
+                          Cancel
                         </Button>
-                        <Button type="submit">সংরক্ষণ করুন</Button>
+                        <Button type="submit">Save</Button>
                       </div>
                     </form>
                   </DialogContent>
@@ -832,16 +831,16 @@ const Expenses = () => {
                   <DialogTrigger asChild>
                     <Button variant="outline" className="gap-2">
                       <CreditCard className="h-4 w-4" />
-                      পেমেন্ট
+                      Payment
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-md">
                     <DialogHeader>
-                      <DialogTitle>ভেন্ডর পেমেন্ট করুন</DialogTitle>
+                      <DialogTitle>Make Vendor Payment</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handlePaymentSubmit} className="space-y-4">
                       <div className="space-y-2">
-                        <Label>ভেন্ডর *</Label>
+                        <Label>Vendor *</Label>
                         <Select
                           value={paymentFormData.vendor_id}
                           onValueChange={(value) =>
@@ -849,12 +848,12 @@ const Expenses = () => {
                           }
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="ভেন্ডর বাছুন" />
+                            <SelectValue placeholder="Select vendor" />
                           </SelectTrigger>
                           <SelectContent>
                             {vendors.map((vendor) => (
                               <SelectItem key={vendor.id} value={vendor.id}>
-                                {vendor.name} {vendor.due_amount && vendor.due_amount > 0 ? `(বকেয়া: ${formatCurrency(vendor.due_amount)})` : ''}
+                                {vendor.name} {vendor.due_amount && vendor.due_amount > 0 ? `(Due: ${formatCurrency(vendor.due_amount)})` : ''}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -863,7 +862,7 @@ const Expenses = () => {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>পেমেন্ট তারিখ</Label>
+                          <Label>Payment Date</Label>
                           <Input
                             type="date"
                             value={paymentFormData.payment_date}
@@ -873,7 +872,7 @@ const Expenses = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>টাকা *</Label>
+                          <Label>Amount *</Label>
                           <Input
                             type="number"
                             placeholder="0"
@@ -886,7 +885,7 @@ const Expenses = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>পেমেন্ট মেথড</Label>
+                        <Label>Payment Method</Label>
                         <Select
                           value={paymentFormData.payment_method}
                           onValueChange={(value) =>
@@ -897,17 +896,17 @@ const Expenses = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="cash">নগদ</SelectItem>
-                            <SelectItem value="bank">ব্যাংক</SelectItem>
-                            <SelectItem value="bkash">বিকাশ</SelectItem>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="bank">Bank</SelectItem>
+                            <SelectItem value="bkash">bKash</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div className="space-y-2">
-                        <Label>নোট</Label>
+                        <Label>Notes</Label>
                         <Textarea
-                          placeholder="পেমেন্টের নোট"
+                          placeholder="Payment notes"
                           value={paymentFormData.notes}
                           onChange={(e) =>
                             setPaymentFormData({ ...paymentFormData, notes: e.target.value })
@@ -924,9 +923,9 @@ const Expenses = () => {
                             resetPaymentForm();
                           }}
                         >
-                          বাতিল
+                          Cancel
                         </Button>
-                        <Button type="submit">সংরক্ষণ করুন</Button>
+                        <Button type="submit">Save</Button>
                       </div>
                     </form>
                   </DialogContent>
@@ -938,23 +937,23 @@ const Expenses = () => {
                   if (!open) resetVendorForm();
                 }}>
                   <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="mr-2 h-4 w-4" />
-                      নতুন ভেন্ডর
+                    <Button className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add Vendor
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-md">
                     <DialogHeader>
                       <DialogTitle>
-                        {editingVendor ? "ভেন্ডর সম্পাদনা" : "নতুন ভেন্ডর যোগ করুন"}
+                        {editingVendor ? "Edit Vendor" : "Add New Vendor"}
                       </DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleVendorSubmit} className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="vendor_name">নাম *</Label>
+                        <Label htmlFor="vendor_name">Name *</Label>
                         <Input
                           id="vendor_name"
-                          placeholder="ভেন্ডরের নাম"
+                          placeholder="Vendor name"
                           value={vendorFormData.name}
                           onChange={(e) =>
                             setVendorFormData({ ...vendorFormData, name: e.target.value })
@@ -964,10 +963,10 @@ const Expenses = () => {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="vendor_phone">ফোন</Label>
+                          <Label htmlFor="vendor_phone">Phone</Label>
                           <Input
                             id="vendor_phone"
-                            placeholder="01XXXXXXXXX"
+                            placeholder="Phone number"
                             value={vendorFormData.phone}
                             onChange={(e) =>
                               setVendorFormData({ ...vendorFormData, phone: e.target.value })
@@ -975,11 +974,11 @@ const Expenses = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="vendor_email">ইমেইল</Label>
+                          <Label htmlFor="vendor_email">Email</Label>
                           <Input
                             id="vendor_email"
                             type="email"
-                            placeholder="email@example.com"
+                            placeholder="Email"
                             value={vendorFormData.email}
                             onChange={(e) =>
                               setVendorFormData({ ...vendorFormData, email: e.target.value })
@@ -989,10 +988,10 @@ const Expenses = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="vendor_address">ঠিকানা</Label>
+                        <Label htmlFor="vendor_address">Address</Label>
                         <Textarea
                           id="vendor_address"
-                          placeholder="ভেন্ডরের ঠিকানা"
+                          placeholder="Address"
                           value={vendorFormData.address}
                           onChange={(e) =>
                             setVendorFormData({ ...vendorFormData, address: e.target.value })
@@ -1001,10 +1000,10 @@ const Expenses = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="vendor_bank_info">ব্যাংক তথ্য</Label>
+                        <Label htmlFor="vendor_bank_info">Bank Info</Label>
                         <Textarea
                           id="vendor_bank_info"
-                          placeholder="ব্যাংক একাউন্ট নম্বর, ব্র্যাঞ্চ ইত্যাদি"
+                          placeholder="Bank account number, branch, etc."
                           value={vendorFormData.bank_info}
                           onChange={(e) =>
                             setVendorFormData({ ...vendorFormData, bank_info: e.target.value })
@@ -1013,10 +1012,10 @@ const Expenses = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="vendor_notes">নোট</Label>
+                        <Label htmlFor="vendor_notes">Notes</Label>
                         <Textarea
                           id="vendor_notes"
-                          placeholder="অতিরিক্ত তথ্য"
+                          placeholder="Additional information"
                           value={vendorFormData.notes}
                           onChange={(e) =>
                             setVendorFormData({ ...vendorFormData, notes: e.target.value })
@@ -1033,9 +1032,9 @@ const Expenses = () => {
                             resetVendorForm();
                           }}
                         >
-                          বাতিল
+                          Cancel
                         </Button>
-                        <Button type="submit">সংরক্ষণ করুন</Button>
+                        <Button type="submit">Save</Button>
                       </div>
                     </form>
                   </DialogContent>
@@ -1049,25 +1048,25 @@ const Expenses = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>নাম</TableHead>
-                  <TableHead>যোগাযোগ</TableHead>
-                  <TableHead className="text-right">মোট বিল</TableHead>
-                  <TableHead className="text-right">পরিশোধ</TableHead>
-                  <TableHead className="text-right">বকেয়া</TableHead>
-                  <TableHead className="text-center">অ্যাকশন</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead className="text-right">Total Bills</TableHead>
+                  <TableHead className="text-right">Paid</TableHead>
+                  <TableHead className="text-right">Due</TableHead>
+                  <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8">
-                      লোড হচ্ছে...
+                      Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredVendors.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      কোনো ভেন্ডর পাওয়া যায়নি
+                      No vendors found
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -1112,7 +1111,7 @@ const Expenses = () => {
                         {(vendor.due_amount || 0) > 0 ? (
                           <Badge variant="destructive">{formatCurrency(vendor.due_amount || 0)}</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-green-600 border-green-600">পরিশোধিত</Badge>
+                          <Badge variant="outline" className="text-green-600 border-green-600">Paid</Badge>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1121,7 +1120,7 @@ const Expenses = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => navigate(`/vendors/${vendor.id}`)}
-                            title="বিস্তারিত দেখুন"
+                            title="View details"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -1131,7 +1130,7 @@ const Expenses = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => openEditVendorDialog(vendor)}
-                                title="সম্পাদনা করুন"
+                                title="Edit"
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
@@ -1139,7 +1138,7 @@ const Expenses = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDeleteVendor(vendor.id)}
-                                title="মুছে ফেলুন"
+                                title="Delete"
                                 className="text-destructive hover:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1148,21 +1147,21 @@ const Expenses = () => {
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="outline" size="sm">
                                     <Plus className="h-4 w-4 mr-1" />
-                                    যোগ
+                                    Add
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => openVendorBillDialog(vendor.id)}>
                                     <FileText className="h-4 w-4 mr-2" />
-                                    বিল যোগ
+                                    Add Bill
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => openVendorPaymentDialog(vendor.id)}>
                                     <CreditCard className="h-4 w-4 mr-2" />
-                                    পেমেন্ট করুন
+                                    Make Payment
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => openVendorExpenseDialog(vendor.id)}>
                                     <Receipt className="h-4 w-4 mr-2" />
-                                    দৈনিক খরচ
+                                    Daily Expense
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -1185,7 +1184,7 @@ const Expenses = () => {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder="খরচ খুঁজুন..."
+                  placeholder="Search expenses..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -1194,10 +1193,10 @@ const Expenses = () => {
               <Select value={filterCategory} onValueChange={setFilterCategory}>
                 <SelectTrigger className="w-[180px]">
                   <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="ক্যাটেগরি" />
+                  <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">সব ক্যাটেগরি</SelectItem>
+                  <SelectItem value="all">All Categories</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.name}
@@ -1208,10 +1207,10 @@ const Expenses = () => {
               <Select value={filterVendor} onValueChange={setFilterVendor}>
                 <SelectTrigger className="w-[180px]">
                   <Building2 className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="ভেন্ডর" />
+                  <SelectValue placeholder="Vendor" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">সব ভেন্ডর</SelectItem>
+                  <SelectItem value="all">All Vendors</SelectItem>
                   {vendors.map((v) => (
                     <SelectItem key={v.id} value={v.id}>
                       {v.name}
@@ -1234,15 +1233,15 @@ const Expenses = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="gap-2">
                     <Download className="h-4 w-4" />
-                    এক্সপোর্ট
+                    Export
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem onClick={() => handleExport('csv')}>
-                    CSV ডাউনলোড
+                    Download CSV
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleExport('excel')}>
-                    Excel ডাউনলোড
+                    Download Excel
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1253,17 +1252,17 @@ const Expenses = () => {
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
-                    নতুন খরচ
+                    New Expense
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle>{editingExpense ? "খরচ সম্পাদনা" : "নতুন খরচ যোগ করুন"}</DialogTitle>
+                    <DialogTitle>{editingExpense ? "Edit Expense" : "Add New Expense"}</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleExpenseSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="expense_date">তারিখ</Label>
+                        <Label htmlFor="expense_date">Date</Label>
                         <Input
                           id="expense_date"
                           type="date"
@@ -1274,7 +1273,7 @@ const Expenses = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="expense_amount">টাকা</Label>
+                        <Label htmlFor="expense_amount">Amount</Label>
                         <Input
                           id="expense_amount"
                           type="number"
@@ -1288,7 +1287,7 @@ const Expenses = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="expense_vendor">ভেন্ডর</Label>
+                      <Label htmlFor="expense_vendor">Vendor</Label>
                       <Select
                         value={expenseFormData.vendor_id}
                         onValueChange={(value) =>
@@ -1296,7 +1295,7 @@ const Expenses = () => {
                         }
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="ভেন্ডর বাছুন (ঐচ্ছিক)" />
+                          <SelectValue placeholder="Select vendor (optional)" />
                         </SelectTrigger>
                         <SelectContent>
                           {vendors.map((vendor) => (
@@ -1309,7 +1308,7 @@ const Expenses = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="expense_category">ক্যাটেগরি</Label>
+                      <Label htmlFor="expense_category">Category</Label>
                       <Select
                         value={expenseFormData.category_id}
                         onValueChange={(value) =>
@@ -1317,7 +1316,7 @@ const Expenses = () => {
                         }
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="ক্যাটেগরি বাছুন" />
+                          <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
                           {categories.map((cat) => (
@@ -1330,10 +1329,10 @@ const Expenses = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="expense_description">বিবরণ</Label>
+                      <Label htmlFor="expense_description">Description</Label>
                       <Textarea
                         id="expense_description"
-                        placeholder="খরচের বিবরণ লিখুন"
+                        placeholder="Enter expense description"
                         value={expenseFormData.description}
                         onChange={(e) =>
                           setExpenseFormData({ ...expenseFormData, description: e.target.value })
@@ -1342,7 +1341,7 @@ const Expenses = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="expense_payment_method">পেমেন্ট মেথড</Label>
+                      <Label htmlFor="expense_payment_method">Payment Method</Label>
                       <Select
                         value={expenseFormData.payment_method}
                         onValueChange={(value) =>
@@ -1353,9 +1352,9 @@ const Expenses = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="cash">নগদ</SelectItem>
-                          <SelectItem value="bank">ব্যাংক</SelectItem>
-                          <SelectItem value="bkash">বিকাশ</SelectItem>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="bank">Bank</SelectItem>
+                          <SelectItem value="bkash">bKash</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1369,9 +1368,9 @@ const Expenses = () => {
                           resetExpenseForm();
                         }}
                       >
-                        বাতিল
+                        Cancel
                       </Button>
-                      <Button type="submit">সংরক্ষণ করুন</Button>
+                      <Button type="submit">Save</Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -1384,33 +1383,33 @@ const Expenses = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>তারিখ</TableHead>
-                  <TableHead>বিবরণ</TableHead>
-                  <TableHead>ভেন্ডর</TableHead>
-                  <TableHead>ক্যাটেগরি</TableHead>
-                  <TableHead>পেমেন্ট</TableHead>
-                  <TableHead className="text-right">টাকা</TableHead>
-                  {isAdmin && <TableHead className="text-right">অ্যাকশন</TableHead>}
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
                     <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">
-                      লোড হচ্ছে...
+                      Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredExpenses.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-muted-foreground">
-                      কোনো খরচ পাওয়া যায়নি
+                      No expenses found
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredExpenses.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell>
-                        {format(new Date(expense.date), "dd MMM yyyy", { locale: bn })}
+                        {format(new Date(expense.date), "dd MMM yyyy")}
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate">
                         {expense.description}
@@ -1466,8 +1465,8 @@ const Expenses = () => {
         <TabsContent value="categories" className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h2 className="text-lg font-semibold">খরচের ক্যাটেগরি</h2>
-              <p className="text-sm text-muted-foreground">খরচের ধরন অনুযায়ী ক্যাটেগরি তৈরি করুন</p>
+              <h2 className="text-lg font-semibold">Expense Categories</h2>
+              <p className="text-sm text-muted-foreground">Create categories by expense type</p>
             </div>
             {isAdmin && (
               <Dialog open={isCategoryDialogOpen} onOpenChange={(open) => {
@@ -1477,21 +1476,21 @@ const Expenses = () => {
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
-                    নতুন ক্যাটেগরি
+                    New Category
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>
-                      {editingCategory ? "ক্যাটেগরি সম্পাদনা" : "নতুন ক্যাটেগরি যোগ করুন"}
+                      {editingCategory ? "Edit Category" : "Add New Category"}
                     </DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleCategorySubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="category_name">নাম *</Label>
+                      <Label htmlFor="category_name">Name *</Label>
                       <Input
                         id="category_name"
-                        placeholder="ক্যাটেগরির নাম"
+                        placeholder="Category name"
                         value={categoryFormData.name}
                         onChange={(e) =>
                           setCategoryFormData({ ...categoryFormData, name: e.target.value })
@@ -1500,10 +1499,10 @@ const Expenses = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="category_description">বিবরণ</Label>
+                      <Label htmlFor="category_description">Description</Label>
                       <Textarea
                         id="category_description"
-                        placeholder="ক্যাটেগরির বিবরণ"
+                        placeholder="Category description"
                         value={categoryFormData.description}
                         onChange={(e) =>
                           setCategoryFormData({ ...categoryFormData, description: e.target.value })
@@ -1520,9 +1519,9 @@ const Expenses = () => {
                           resetCategoryForm();
                         }}
                       >
-                        বাতিল
+                        Cancel
                       </Button>
-                      <Button type="submit">সংরক্ষণ করুন</Button>
+                      <Button type="submit">Save</Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -1534,11 +1533,11 @@ const Expenses = () => {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {loading ? (
               <div className="col-span-full text-center py-8 text-muted-foreground">
-                লোড হচ্ছে...
+                Loading...
               </div>
             ) : categories.length === 0 ? (
               <div className="col-span-full text-center py-8 text-muted-foreground">
-                কোনো ক্যাটেগরি পাওয়া যায়নি
+                No categories found
               </div>
             ) : (
               categories.map((category) => (
@@ -1572,11 +1571,11 @@ const Expenses = () => {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      {category.description || "কোনো বিবরণ নেই"}
+                      {category.description || "No description"}
                     </p>
                     <div className="mt-3 text-sm">
                       <Badge variant="outline">
-                        {expenses.filter(e => e.category_id === category.id).length} টি খরচ
+                        {expenses.filter(e => e.category_id === category.id).length} expenses
                       </Badge>
                     </div>
                   </CardContent>
