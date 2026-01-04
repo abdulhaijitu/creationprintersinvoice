@@ -47,14 +47,14 @@ const PriceCalculations = () => {
       setCalculations(data || []);
     } catch (error) {
       console.error('Error fetching calculations:', error);
-      toast.error('ডেটা লোড করতে সমস্যা হয়েছে');
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-BD', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
@@ -71,14 +71,16 @@ const PriceCalculations = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">মূল্য হিসাব</h1>
-          <p className="text-muted-foreground">প্রিন্টিং জবের কস্টিং ক্যালকুলেশন</p>
+          <h1 className="text-3xl font-bold">Price Calculation</h1>
+          <p className="text-muted-foreground">Printing job costing calculation</p>
         </div>
 
-        <Button className="gap-2" onClick={() => navigate('/price-calculation/new')}>
-          <Plus className="h-4 w-4" />
-          নতুন হিসাব
-        </Button>
+        <div className="flex gap-2">
+          <Button className="gap-2" onClick={() => navigate('/price-calculation/new')}>
+            <Plus className="h-4 w-4" />
+            Add Job
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -87,7 +89,7 @@ const PriceCalculations = () => {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="জব বা গ্রাহক খুঁজুন..."
+                placeholder="Search job or customer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -105,20 +107,20 @@ const PriceCalculations = () => {
           ) : filteredCalculations.length === 0 ? (
             <div className="text-center py-12">
               <Calculator className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">কোনো হিসাব পাওয়া যায়নি</p>
+              <p className="text-muted-foreground">No calculations found</p>
             </div>
           ) : (
             <div className="rounded-lg border overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>জবের বিবরণ</TableHead>
-                    <TableHead>গ্রাহক</TableHead>
-                    <TableHead className="text-right">কস্টিং</TableHead>
-                    <TableHead className="text-right">মার্জিন %</TableHead>
-                    <TableHead className="text-right">ফাইনাল প্রাইস</TableHead>
-                    <TableHead>তারিখ</TableHead>
-                    <TableHead className="text-right">অ্যাকশন</TableHead>
+                    <TableHead>Job Description</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="text-right">Costing</TableHead>
+                    <TableHead className="text-right">Margin %</TableHead>
+                    <TableHead className="text-right">Final Price</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

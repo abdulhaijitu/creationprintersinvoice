@@ -34,7 +34,6 @@ import {
   XCircle,
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
-import { bn } from 'date-fns/locale';
 
 interface DashboardStats {
   todaySales: number;
@@ -171,9 +170,9 @@ const Dashboard = () => {
         const partialCount = invoices.filter((inv) => inv.status === 'partial').length;
         const unpaidCount = invoices.filter((inv) => inv.status === 'unpaid').length;
         setInvoiceStatusData([
-          { name: 'পরিশোধিত', value: paidCount, color: COLORS[0] },
-          { name: 'আংশিক', value: partialCount, color: COLORS[1] },
-          { name: 'বাকি', value: unpaidCount, color: COLORS[2] },
+          { name: 'Paid', value: paidCount, color: COLORS[0] },
+          { name: 'Partial', value: partialCount, color: COLORS[1] },
+          { name: 'Unpaid', value: unpaidCount, color: COLORS[2] },
         ]);
 
         // Calculate monthly trend for last 6 months
@@ -203,7 +202,7 @@ const Dashboard = () => {
             .reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
 
           monthlyData.push({
-            month: format(monthDate, 'MMM', { locale: bn }),
+            month: format(monthDate, 'MMM'),
             income: monthIncome,
             expense: monthExpense,
           });
@@ -234,7 +233,7 @@ const Dashboard = () => {
   }, [user, isAdmin]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-BD', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
@@ -256,21 +255,21 @@ const Dashboard = () => {
         return (
           <Badge className="bg-success/10 text-success border-0">
             <CheckCircle className="w-3 h-3 mr-1" />
-            পরিশোধিত
+            Paid
           </Badge>
         );
       case 'partial':
         return (
           <Badge className="bg-warning/10 text-warning border-0">
             <Clock className="w-3 h-3 mr-1" />
-            আংশিক
+            Partial
           </Badge>
         );
       case 'unpaid':
         return (
           <Badge className="bg-destructive/10 text-destructive border-0">
             <XCircle className="w-3 h-3 mr-1" />
-            বাকি
+            Unpaid
           </Badge>
         );
       default:
@@ -280,11 +279,11 @@ const Dashboard = () => {
 
   const chartConfig = {
     income: {
-      label: 'আয়',
+      label: 'Income',
       color: 'hsl(var(--success))',
     },
     expense: {
-      label: 'ব্যয়',
+      label: 'Expense',
       color: 'hsl(var(--destructive))',
     },
   };
@@ -308,46 +307,46 @@ const Dashboard = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold">ড্যাশবোর্ড</h1>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">
-          {format(new Date(), "EEEE, d MMMM yyyy", { locale: bn })}
+          {format(new Date(), "EEEE, d MMMM yyyy")}
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard
-          title="আজকের বিক্রয়"
+          title="Today's Sales"
           value={formatCurrency(stats.todaySales)}
           icon={TrendingUp}
           iconClassName="bg-success/10 text-success"
         />
         <StatCard
-          title="মাসিক রেভিনিউ"
+          title="Monthly Revenue"
           value={formatCurrency(stats.monthlyRevenue)}
           icon={Wallet}
           iconClassName="bg-primary/10 text-primary"
         />
         <StatCard
-          title="মাসিক খরচ"
+          title="Monthly Expense"
           value={formatCurrency(stats.monthlyExpense)}
           icon={Wallet}
           iconClassName="bg-warning/10 text-warning"
         />
         <StatCard
-          title="নিট প্রফিট"
+          title="Net Profit"
           value={formatCurrency(stats.netProfit)}
           icon={TrendingUp}
           iconClassName={stats.netProfit >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}
         />
         <StatCard
-          title="গ্রাহক ডিউ"
+          title="Customer Due"
           value={formatCurrency(stats.customerDue)}
           icon={Users}
           iconClassName="bg-warning/10 text-warning"
         />
         <StatCard
-          title="ভেন্ডর পেয়াবল"
+          title="Vendor Payable"
           value={formatCurrency(stats.vendorPayable)}
           icon={AlertCircle}
           iconClassName="bg-destructive/10 text-destructive"
@@ -359,8 +358,8 @@ const Dashboard = () => {
         {/* Monthly Income vs Expense Trend */}
         <Card>
           <CardHeader>
-            <CardTitle>মাসিক আয়-ব্যয় ট্রেন্ড</CardTitle>
-            <CardDescription>শেষ ৬ মাসের তুলনামূলক চিত্র</CardDescription>
+            <CardTitle>Monthly Income-Expense Trend</CardTitle>
+            <CardDescription>Last 6 months comparison</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[280px] w-full">
@@ -375,8 +374,8 @@ const Dashboard = () => {
                     />
                   }
                 />
-                <Bar dataKey="income" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} name="আয়" />
-                <Bar dataKey="expense" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="ব্যয়" />
+                <Bar dataKey="income" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} name="Income" />
+                <Bar dataKey="expense" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Expense" />
               </BarChart>
             </ChartContainer>
           </CardContent>
@@ -385,8 +384,8 @@ const Dashboard = () => {
         {/* Income Expense Line Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>আয়-ব্যয় লাইন চার্ট</CardTitle>
-            <CardDescription>মাসভিত্তিক প্রবণতা বিশ্লেষণ</CardDescription>
+            <CardTitle>Income-Expense Line Chart</CardTitle>
+            <CardDescription>Monthly trend analysis</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[280px] w-full">
@@ -407,7 +406,7 @@ const Dashboard = () => {
                   stroke="hsl(var(--success))"
                   strokeWidth={2}
                   dot={{ fill: 'hsl(var(--success))', strokeWidth: 2 }}
-                  name="আয়"
+                  name="Income"
                 />
                 <Line
                   type="monotone"
@@ -415,7 +414,7 @@ const Dashboard = () => {
                   stroke="hsl(var(--destructive))"
                   strokeWidth={2}
                   dot={{ fill: 'hsl(var(--destructive))', strokeWidth: 2 }}
-                  name="ব্যয়"
+                  name="Expense"
                 />
               </LineChart>
             </ChartContainer>
@@ -428,8 +427,8 @@ const Dashboard = () => {
         {/* Invoice Status Pie Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>ইনভয়েস স্ট্যাটাস</CardTitle>
-            <CardDescription>পেমেন্ট অবস্থা বিশ্লেষণ</CardDescription>
+            <CardTitle>Invoice Status</CardTitle>
+            <CardDescription>Payment status analysis</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[200px] w-full">
@@ -462,13 +461,13 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-warning" />
-              পেন্ডিং ইনভয়েস
+              Pending Invoices
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold text-warning">{stats.pendingInvoices}</p>
             <p className="text-sm text-muted-foreground mt-2">
-              {stats.pendingInvoices > 0 ? 'পেমেন্ট বাকি আছে' : 'সব ইনভয়েস পরিশোধিত'}
+              {stats.pendingInvoices > 0 ? 'Payments pending' : 'All invoices paid'}
             </p>
           </CardContent>
         </Card>
@@ -477,13 +476,13 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              ভেন্ডর পেয়াবল
+              Vendor Payable
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-destructive">{formatCurrency(stats.vendorPayable)}</p>
             <p className="text-sm text-muted-foreground mt-2">
-              {stats.vendorPayable > 0 ? 'ভেন্ডরদের পেমেন্ট বাকি' : 'সব পেমেন্ট সম্পন্ন'}
+              {stats.vendorPayable > 0 ? 'Vendor payments pending' : 'All payments complete'}
             </p>
           </CardContent>
         </Card>
@@ -492,14 +491,14 @@ const Dashboard = () => {
       {/* Recent Invoices */}
       <Card>
         <CardHeader>
-          <CardTitle>সাম্প্রতিক ইনভয়েস</CardTitle>
-          <CardDescription>শেষ ৫টি ইনভয়েস</CardDescription>
+          <CardTitle>Recent Invoices</CardTitle>
+          <CardDescription>Last 5 invoices</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {recentInvoices.length === 0 ? (
               <p className="text-muted-foreground text-center py-4">
-                কোনো ইনভয়েস নেই
+                No invoices found
               </p>
             ) : (
               recentInvoices.map((invoice) => (
@@ -514,7 +513,7 @@ const Dashboard = () => {
                     <div>
                       <p className="font-medium">{invoice.invoice_number}</p>
                       <p className="text-sm text-muted-foreground">
-                        {invoice.customers?.name || 'অজানা গ্রাহক'}
+                        {invoice.customers?.name || 'Unknown customer'}
                       </p>
                     </div>
                   </div>

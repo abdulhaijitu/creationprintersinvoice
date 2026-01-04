@@ -35,6 +35,7 @@ interface InvoiceItem {
   id: string;
   description: string;
   quantity: number;
+  unit: string;
   unit_price: number;
   discount: number;
   total: number;
@@ -61,7 +62,7 @@ const InvoiceForm = () => {
   });
 
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: crypto.randomUUID(), description: '', quantity: 1, unit_price: 0, discount: 0, total: 0 },
+    { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, discount: 0, total: 0 },
   ]);
 
   useEffect(() => {
@@ -119,6 +120,7 @@ const InvoiceForm = () => {
           id: item.id,
           description: item.description,
           quantity: Number(item.quantity),
+          unit: item.unit || '',
           unit_price: Number(item.unit_price),
           discount: Number(item.discount) || 0,
           total: Number(item.total),
@@ -126,7 +128,7 @@ const InvoiceForm = () => {
       }
     } catch (error) {
       console.error('Error fetching invoice:', error);
-      toast.error('ইনভয়েস লোড করতে সমস্যা হয়েছে');
+      toast.error('Failed to load invoice');
     } finally {
       setFetching(false);
     }
@@ -163,7 +165,7 @@ const InvoiceForm = () => {
   const addItem = () => {
     setItems((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), description: '', quantity: 1, unit_price: 0, discount: 0, total: 0 },
+      { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, discount: 0, total: 0 },
     ]);
   };
 
@@ -187,12 +189,12 @@ const InvoiceForm = () => {
     e.preventDefault();
 
     if (!formData.customer_id) {
-      toast.error('গ্রাহক নির্বাচন করুন');
+      toast.error('Please select a customer');
       return;
     }
 
     if (items.some((item) => !item.description)) {
-      toast.error('সকল আইটেমের বিবরণ দিন');
+      toast.error('Please provide description for all items');
       return;
     }
 
@@ -227,6 +229,7 @@ const InvoiceForm = () => {
           invoice_id: id,
           description: item.description,
           quantity: item.quantity,
+          unit: item.unit || null,
           unit_price: item.unit_price,
           discount: item.discount,
           total: item.total,
@@ -235,7 +238,7 @@ const InvoiceForm = () => {
         const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItems);
         if (itemsError) throw itemsError;
 
-        toast.success('ইনভয়েস আপডেট হয়েছে');
+        toast.success('Invoice updated');
         navigate(`/invoices/${id}`);
       } else {
         // Create invoice
@@ -264,6 +267,7 @@ const InvoiceForm = () => {
           invoice_id: invoice.id,
           description: item.description,
           quantity: item.quantity,
+          unit: item.unit || null,
           unit_price: item.unit_price,
           discount: item.discount,
           total: item.total,
@@ -272,19 +276,19 @@ const InvoiceForm = () => {
         const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItems);
         if (itemsError) throw itemsError;
 
-        toast.success('ইনভয়েস তৈরি হয়েছে');
+        toast.success('Invoice created');
         navigate(`/invoices/${invoice.id}`);
       }
     } catch (error: any) {
       console.error('Error saving invoice:', error);
-      toast.error(error.message || 'সমস্যা হয়েছে');
+      toast.error(error.message || 'Error occurred');
     } finally {
       setLoading(false);
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-BD', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
@@ -307,8 +311,8 @@ const InvoiceForm = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">{isEditing ? 'ইনভয়েস সম্পাদনা' : 'নতুন ইনভয়েস'}</h1>
-          <p className="text-muted-foreground">ইনভয়েস নং: {invoiceNumber}</p>
+          <h1 className="text-3xl font-bold">{isEditing ? 'Edit Invoice' : 'New Invoice'}</h1>
+          <p className="text-muted-foreground">Invoice No: {invoiceNumber}</p>
         </div>
       </div>
 
@@ -318,11 +322,11 @@ const InvoiceForm = () => {
             {/* Customer & Date */}
             <Card>
               <CardHeader>
-                <CardTitle>মৌলিক তথ্য</CardTitle>
+                <CardTitle>Basic Information</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
-                  <Label>গ্রাহক *</Label>
+                  <Label>Customer *</Label>
                   <Select
                     value={formData.customer_id}
                     onValueChange={(value) =>
@@ -330,7 +334,7 @@ const InvoiceForm = () => {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="গ্রাহক নির্বাচন করুন" />
+                      <SelectValue placeholder="Select customer" />
                     </SelectTrigger>
                     <SelectContent>
                       {customers.map((customer) => (
@@ -342,7 +346,7 @@ const InvoiceForm = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>ইনভয়েস তারিখ</Label>
+                  <Label>Invoice Date</Label>
                   <Input
                     type="date"
                     value={formData.invoice_date}
@@ -352,7 +356,7 @@ const InvoiceForm = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>ডিউ তারিখ</Label>
+                  <Label>Due Date</Label>
                   <Input
                     type="date"
                     value={formData.due_date}
@@ -367,10 +371,10 @@ const InvoiceForm = () => {
             {/* Items */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>আইটেম</CardTitle>
+                <CardTitle>Items</CardTitle>
                 <Button type="button" variant="outline" size="sm" onClick={addItem}>
                   <Plus className="h-4 w-4 mr-2" />
-                  আইটেম যোগ করুন
+                  Add Item
                 </Button>
               </CardHeader>
               <CardContent>
@@ -378,11 +382,12 @@ const InvoiceForm = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[40%]">বিবরণ</TableHead>
-                        <TableHead className="text-center">পরিমাণ</TableHead>
-                        <TableHead className="text-right">দাম</TableHead>
-                        <TableHead className="text-right">ছাড়</TableHead>
-                        <TableHead className="text-right">মোট</TableHead>
+                        <TableHead className="w-[35%]">Description</TableHead>
+                        <TableHead className="text-center">Qty</TableHead>
+                        <TableHead className="text-center">Unit</TableHead>
+                        <TableHead className="text-right">Price</TableHead>
+                        <TableHead className="text-right">Discount</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -395,7 +400,7 @@ const InvoiceForm = () => {
                               onChange={(e) =>
                                 updateItem(item.id, 'description', e.target.value)
                               }
-                              placeholder="আইটেমের বিবরণ"
+                              placeholder="Item description"
                             />
                           </TableCell>
                           <TableCell>
@@ -407,6 +412,16 @@ const InvoiceForm = () => {
                               }
                               className="text-center w-20"
                               min={1}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={item.unit}
+                              onChange={(e) =>
+                                updateItem(item.id, 'unit', e.target.value)
+                              }
+                              placeholder="pcs"
+                              className="text-center w-20"
                             />
                           </TableCell>
                           <TableCell>
@@ -457,13 +472,13 @@ const InvoiceForm = () => {
             {/* Notes */}
             <Card>
               <CardHeader>
-                <CardTitle>নোট</CardTitle>
+                <CardTitle>Notes</CardTitle>
               </CardHeader>
               <CardContent>
                 <Textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="অতিরিক্ত তথ্য বা শর্তাবলী..."
+                  placeholder="Additional information or terms..."
                   rows={3}
                 />
               </CardContent>
@@ -474,15 +489,15 @@ const InvoiceForm = () => {
           <div className="space-y-6">
             <Card className="sticky top-20">
               <CardHeader>
-                <CardTitle>সারাংশ</CardTitle>
+                <CardTitle>Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">সাবটোটাল</span>
+                  <span className="text-muted-foreground">Subtotal</span>
                   <span className="font-medium">{formatCurrency(calculateSubtotal())}</span>
                 </div>
                 <div className="space-y-2">
-                  <Label>ছাড়</Label>
+                  <Label>Discount</Label>
                   <Input
                     type="number"
                     value={formData.discount}
@@ -493,7 +508,7 @@ const InvoiceForm = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>ট্যাক্স/ভ্যাট</Label>
+                  <Label>Tax/VAT</Label>
                   <Input
                     type="number"
                     value={formData.tax}
@@ -504,14 +519,14 @@ const InvoiceForm = () => {
                   />
                 </div>
                 <div className="pt-4 border-t">
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>মোট</span>
+                  <div className="flex justify-between text-xl font-bold">
+                    <span>Total</span>
                     <span className="text-primary">{formatCurrency(calculateTotal())}</span>
                   </div>
                 </div>
                 <Button type="submit" className="w-full gap-2" disabled={loading}>
                   <Save className="h-4 w-4" />
-                  {loading ? 'সংরক্ষণ হচ্ছে...' : isEditing ? 'আপডেট করুন' : 'ইনভয়েস সংরক্ষণ করুন'}
+                  {loading ? 'Saving...' : (isEditing ? 'Update Invoice' : 'Create Invoice')}
                 </Button>
               </CardContent>
             </Card>

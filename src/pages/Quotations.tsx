@@ -49,14 +49,14 @@ const Quotations = () => {
       setQuotations(data || []);
     } catch (error) {
       console.error('Error fetching quotations:', error);
-      toast.error('কোটেশন লোড করতে সমস্যা হয়েছে');
+      toast.error('Failed to load quotations');
     } finally {
       setLoading(false);
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-BD', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
@@ -69,21 +69,21 @@ const Quotations = () => {
         return (
           <Badge className="bg-success/10 text-success border-0">
             <CheckCircle className="w-3 h-3 mr-1" />
-            গৃহীত
+            Accepted
           </Badge>
         );
       case 'pending':
         return (
           <Badge className="bg-warning/10 text-warning border-0">
             <Clock className="w-3 h-3 mr-1" />
-            পেন্ডিং
+            Pending
           </Badge>
         );
       case 'rejected':
         return (
           <Badge className="bg-destructive/10 text-destructive border-0">
             <XCircle className="w-3 h-3 mr-1" />
-            বাতিল
+            Rejected
           </Badge>
         );
       default:
@@ -101,13 +101,13 @@ const Quotations = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">কোটেশন</h1>
-          <p className="text-muted-foreground">সকল কোটেশন পরিচালনা করুন</p>
+          <h1 className="text-3xl font-bold">Quotations</h1>
+          <p className="text-muted-foreground">Manage all quotations</p>
         </div>
 
         <Button className="gap-2" onClick={() => navigate('/quotations/new')}>
           <Plus className="h-4 w-4" />
-          নতুন কোটেশন
+          New Quotation
         </Button>
       </div>
 
@@ -117,7 +117,7 @@ const Quotations = () => {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="কোটেশন নম্বর বা গ্রাহক খুঁজুন..."
+                placeholder="Search quotation number or customer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -135,20 +135,20 @@ const Quotations = () => {
           ) : filteredQuotations.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">কোনো কোটেশন পাওয়া যায়নি</p>
+              <p className="text-muted-foreground">No quotations found</p>
             </div>
           ) : (
             <div className="rounded-lg border overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>কোটেশন নং</TableHead>
-                    <TableHead>গ্রাহক</TableHead>
-                    <TableHead>তারিখ</TableHead>
-                    <TableHead>মেয়াদ</TableHead>
-                    <TableHead className="text-right">মোট</TableHead>
-                    <TableHead>স্ট্যাটাস</TableHead>
-                    <TableHead className="text-right">অ্যাকশন</TableHead>
+                    <TableHead>Quotation No</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Valid Until</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

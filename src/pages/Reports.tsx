@@ -4,10 +4,20 @@ import { hasPermission } from '@/lib/permissions';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   ChartContainer,
   ChartTooltip,
@@ -19,8 +29,6 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -33,15 +41,13 @@ import {
   TrendingUp,
   TrendingDown,
   Wallet,
-  Users,
-  ShoppingCart,
-  Calendar,
   Printer,
   ShieldAlert,
   Loader2,
+  Search,
+  Filter,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
-import { bn } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 
 interface ReportData {
@@ -56,6 +62,7 @@ interface ReportData {
   monthlyData: { month: string; income: number; expense: number }[];
   categoryExpenses: { name: string; value: number; color: string }[];
   topCustomers: { name: string; total: number }[];
+  invoices: any[];
 }
 
 const COLORS = [
@@ -76,6 +83,8 @@ const Reports = () => {
   const [reportType, setReportType] = useState<'monthly' | 'yearly'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [selectedYear, setSelectedYear] = useState(format(new Date(), 'yyyy'));
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all');
   const [reportData, setReportData] = useState<ReportData>({
     totalIncome: 0,
     totalExpense: 0,
@@ -88,6 +97,7 @@ const Reports = () => {
     monthlyData: [],
     categoryExpenses: [],
     topCustomers: [],
+    invoices: [],
   });
 
   const months = [];
@@ -95,7 +105,7 @@ const Reports = () => {
     const date = subMonths(new Date(), i);
     months.push({
       value: format(date, 'yyyy-MM'),
-      label: format(date, 'MMMM yyyy', { locale: bn }),
+      label: format(date, 'MMMM yyyy'),
     });
   }
 
@@ -127,8 +137,8 @@ const Reports = () => {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
         <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
-        <h2 className="text-2xl font-bold mb-2">অ্যাক্সেস নেই</h2>
-        <p className="text-muted-foreground">এই পেজ দেখার অনুমতি আপনার নেই।</p>
+        <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+        <p className="text-muted-foreground">You don't have permission to view this page.</p>
       </div>
     );
   }
@@ -162,7 +172,8 @@ const Reports = () => {
           .from('invoices')
           .select('*, customers(name)')
           .gte('invoice_date', startDateStr)
-          .lte('invoice_date', endDateStr),
+          .lte('invoice_date', endDateStr)
+          .order('invoice_date', { ascending: false }),
         supabase
           .from('expenses')
           .select('*, expense_categories(name)')
@@ -205,7 +216,7 @@ const Reports = () => {
             .reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
 
           monthlyData.push({
-            month: format(monthDate, 'MMM', { locale: bn }),
+            month: format(monthDate, 'MMM'),
             income: monthIncome,
             expense: monthExpense,
           });
@@ -215,7 +226,7 @@ const Reports = () => {
       // Category-wise expenses
       const categoryMap = new Map<string, number>();
       expenses.forEach((exp) => {
-        const categoryName = (exp.expense_categories as any)?.name || 'অন্যান্য';
+        const categoryName = (exp.expense_categories as any)?.name || 'Others';
         categoryMap.set(categoryName, (categoryMap.get(categoryName) || 0) + Number(exp.amount || 0));
       });
 
@@ -230,7 +241,7 @@ const Reports = () => {
       // Top customers
       const customerMap = new Map<string, number>();
       invoices.forEach((inv) => {
-        const customerName = (inv.customers as any)?.name || 'অজানা';
+        const customerName = (inv.customers as any)?.name || 'Unknown';
         customerMap.set(customerName, (customerMap.get(customerName) || 0) + Number(inv.total || 0));
       });
 
@@ -251,12 +262,13 @@ const Reports = () => {
         monthlyData,
         categoryExpenses,
         topCustomers,
+        invoices,
       });
     } catch (error) {
       console.error('Error fetching report data:', error);
       toast({
-        title: 'ত্রুটি',
-        description: 'রিপোর্ট ডেটা লোড করতে সমস্যা হয়েছে',
+        title: 'Error',
+        description: 'Failed to load report data',
         variant: 'destructive',
       });
     } finally {
@@ -265,7 +277,7 @@ const Reports = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-BD', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
@@ -286,23 +298,22 @@ const Reports = () => {
   };
 
   const handleExportPDF = () => {
-    // Generate printable content
     const printContent = document.getElementById('report-content');
     if (!printContent) return;
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       toast({
-        title: 'ত্রুটি',
-        description: 'PDF তৈরি করতে সমস্যা হয়েছে। Pop-up blocker বন্ধ করুন।',
+        title: 'Error',
+        description: 'Failed to create PDF. Please disable pop-up blocker.',
         variant: 'destructive',
       });
       return;
     }
 
     const title = reportType === 'monthly' 
-      ? `মাসিক রিপোর্ট - ${format(new Date(selectedMonth + '-01'), 'MMMM yyyy', { locale: bn })}`
-      : `বার্ষিক রিপোর্ট - ${selectedYear}`;
+      ? `Monthly Report - ${format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}`
+      : `Annual Report - ${selectedYear}`;
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -310,172 +321,30 @@ const Reports = () => {
       <head>
         <title>${title}</title>
         <style>
-          body {
-            font-family: 'Noto Sans Bengali', Arial, sans-serif;
-            padding: 40px;
-            max-width: 1200px;
-            margin: 0 auto;
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 20px;
-          }
-          .header h1 {
-            margin: 0;
-            color: #333;
-          }
-          .header p {
-            color: #666;
-            margin-top: 10px;
-          }
-          .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin-bottom: 30px;
-          }
-          .summary-card {
-            background: #f5f5f5;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-          }
-          .summary-card h3 {
-            margin: 0;
-            font-size: 14px;
-            color: #666;
-          }
-          .summary-card p {
-            margin: 10px 0 0;
-            font-size: 24px;
-            font-weight: bold;
-          }
-          .section {
-            margin-bottom: 30px;
-          }
-          .section h2 {
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 10px;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-          }
-          th {
-            background: #f5f5f5;
-          }
+          body { font-family: Arial, sans-serif; padding: 40px; max-width: 1200px; margin: 0 auto; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+          .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+          .summary-card { background: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center; }
           .profit { color: green; }
           .loss { color: red; }
-          .footer {
-            margin-top: 40px;
-            text-align: center;
-            color: #666;
-            font-size: 12px;
-          }
-          @media print {
-            body { padding: 20px; }
-            .no-print { display: none; }
-          }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+          th { background: #f5f5f5; }
+          @media print { body { padding: 20px; } }
         </style>
       </head>
       <body>
         <div class="header">
           <h1>${title}</h1>
-          <p>তৈরির তারিখ: ${format(new Date(), 'd MMMM yyyy', { locale: bn })}</p>
+          <p>Generated on: ${format(new Date(), 'd MMMM yyyy')}</p>
         </div>
-        
         <div class="summary-grid">
-          <div class="summary-card">
-            <h3>মোট আয়</h3>
-            <p class="profit">${formatCurrency(reportData.totalIncome)}</p>
-          </div>
-          <div class="summary-card">
-            <h3>মোট ব্যয়</h3>
-            <p class="loss">${formatCurrency(reportData.totalExpense)}</p>
-          </div>
-          <div class="summary-card">
-            <h3>নিট লাভ/ক্ষতি</h3>
-            <p class="${reportData.netProfit >= 0 ? 'profit' : 'loss'}">${formatCurrency(reportData.netProfit)}</p>
-          </div>
-          <div class="summary-card">
-            <h3>ইনভয়েস সংখ্যা</h3>
-            <p>${reportData.invoiceCount}</p>
-          </div>
+          <div class="summary-card"><h3>Total Income</h3><p class="profit">${formatCurrency(reportData.totalIncome)}</p></div>
+          <div class="summary-card"><h3>Total Expense</h3><p class="loss">${formatCurrency(reportData.totalExpense)}</p></div>
+          <div class="summary-card"><h3>Net Profit/Loss</h3><p class="${reportData.netProfit >= 0 ? 'profit' : 'loss'}">${formatCurrency(reportData.netProfit)}</p></div>
+          <div class="summary-card"><h3>Total Invoices</h3><p>${reportData.invoiceCount}</p></div>
         </div>
-
-        <div class="section">
-          <h2>ইনভয়েস সারাংশ</h2>
-          <table>
-            <tr>
-              <th>বিবরণ</th>
-              <th>সংখ্যা</th>
-            </tr>
-            <tr>
-              <td>মোট ইনভয়েস</td>
-              <td>${reportData.invoiceCount}</td>
-            </tr>
-            <tr>
-              <td>পরিশোধিত</td>
-              <td>${reportData.paidInvoices}</td>
-            </tr>
-            <tr>
-              <td>বাকি/আংশিক</td>
-              <td>${reportData.unpaidInvoices}</td>
-            </tr>
-          </table>
-        </div>
-
-        <div class="section">
-          <h2>ক্যাটেগরি অনুযায়ী খরচ</h2>
-          <table>
-            <tr>
-              <th>ক্যাটেগরি</th>
-              <th>পরিমাণ</th>
-            </tr>
-            ${reportData.categoryExpenses.map(cat => `
-              <tr>
-                <td>${cat.name}</td>
-                <td>${formatCurrency(cat.value)}</td>
-              </tr>
-            `).join('')}
-          </table>
-        </div>
-
-        <div class="section">
-          <h2>শীর্ষ গ্রাহক</h2>
-          <table>
-            <tr>
-              <th>গ্রাহক</th>
-              <th>মোট অর্ডার</th>
-            </tr>
-            ${reportData.topCustomers.map(cust => `
-              <tr>
-                <td>${cust.name}</td>
-                <td>${formatCurrency(cust.total)}</td>
-              </tr>
-            `).join('')}
-          </table>
-        </div>
-
-        <div class="footer">
-          <p>এই রিপোর্টটি স্বয়ংক্রিয়ভাবে তৈরি করা হয়েছে</p>
-        </div>
-
-        <script>
-          window.onload = function() {
-            window.print();
-            window.onafterprint = function() {
-              window.close();
-            }
-          }
-        </script>
+        <script>window.onload = function() { window.print(); window.onafterprint = function() { window.close(); } }</script>
       </body>
       </html>
     `);
@@ -483,14 +352,28 @@ const Reports = () => {
   };
 
   const chartConfig = {
-    income: {
-      label: 'আয়',
-      color: 'hsl(var(--success))',
-    },
-    expense: {
-      label: 'ব্যয়',
-      color: 'hsl(var(--destructive))',
-    },
+    income: { label: 'Income', color: 'hsl(var(--success))' },
+    expense: { label: 'Expense', color: 'hsl(var(--destructive))' },
+  };
+
+  // Filter invoices
+  const filteredInvoices = reportData.invoices.filter((inv) => {
+    const matchesSearch = invoiceSearch === '' || 
+      inv.invoice_number?.toLowerCase().includes(invoiceSearch.toLowerCase()) ||
+      (inv.customers as any)?.name?.toLowerCase().includes(invoiceSearch.toLowerCase());
+    const matchesStatus = invoiceStatusFilter === 'all' || inv.status === invoiceStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return <Badge className="bg-success">Paid</Badge>;
+      case 'partial':
+        return <Badge variant="secondary">Partial</Badge>;
+      default:
+        return <Badge variant="destructive">Unpaid</Badge>;
+    }
   };
 
   // Show access denied message for non-admin users
@@ -498,12 +381,9 @@ const Reports = () => {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">রিপোর্ট</h1>
-          <p className="text-muted-foreground mt-1">
-            আর্থিক বিশ্লেষণ ও রিপোর্ট জেনারেশন
-          </p>
+          <h1 className="text-3xl font-bold text-foreground">Reports</h1>
+          <p className="text-muted-foreground mt-1">Financial analysis and report generation</p>
         </div>
-        
         <Card className="border-destructive/50 bg-destructive/5">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center justify-center text-center py-10 space-y-4">
@@ -511,10 +391,9 @@ const Reports = () => {
                 <ShieldAlert className="h-12 w-12 text-destructive" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold text-foreground">অ্যাক্সেস নেই</h2>
+                <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
                 <p className="text-muted-foreground max-w-md">
-                  শুধুমাত্র অ্যাডমিন ব্যবহারকারীরা রিপোর্ট দেখতে পারেন। 
-                  আপনার অ্যাডমিন অ্যাক্সেস প্রয়োজন হলে আপনার সিস্টেম অ্যাডমিনের সাথে যোগাযোগ করুন।
+                  Only admin users can view reports. Contact your system administrator if you need access.
                 </p>
               </div>
             </div>
@@ -545,17 +424,17 @@ const Reports = () => {
     <div className="space-y-6 animate-fade-in" id="report-content">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">রিপোর্ট</h1>
-          <p className="text-muted-foreground">আর্থিক বিশ্লেষণ ও রিপোর্ট জেনারেশন</p>
+          <h1 className="text-3xl font-bold">Reports</h1>
+          <p className="text-muted-foreground">Financial analysis and report generation</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handlePrint} className="print:hidden">
             <Printer className="w-4 h-4 mr-2" />
-            প্রিন্ট
+            Print
           </Button>
           <Button onClick={handleExportPDF} className="print:hidden">
             <Download className="w-4 h-4 mr-2" />
-            PDF ডাউনলোড
+            Download PDF
           </Button>
         </div>
       </div>
@@ -565,21 +444,21 @@ const Reports = () => {
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-4 items-center">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">রিপোর্ট টাইপ:</label>
+              <label className="text-sm font-medium">Report Type:</label>
               <Select value={reportType} onValueChange={(v: 'monthly' | 'yearly') => setReportType(v)}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="monthly">মাসিক</SelectItem>
-                  <SelectItem value="yearly">বার্ষিক</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {reportType === 'monthly' ? (
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">মাস:</label>
+                <label className="text-sm font-medium">Month:</label>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                   <SelectTrigger className="w-48">
                     <SelectValue />
@@ -595,7 +474,7 @@ const Reports = () => {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">বছর:</label>
+                <label className="text-sm font-medium">Year:</label>
                 <Select value={selectedYear} onValueChange={setSelectedYear}>
                   <SelectTrigger className="w-32">
                     <SelectValue />
@@ -623,7 +502,7 @@ const Reports = () => {
                 <TrendingUp className="h-6 w-6 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">মোট আয়</p>
+                <p className="text-sm text-muted-foreground">Total Income</p>
                 <p className="text-2xl font-bold text-success">{formatCurrency(reportData.totalIncome)}</p>
               </div>
             </div>
@@ -637,7 +516,7 @@ const Reports = () => {
                 <TrendingDown className="h-6 w-6 text-destructive" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">মোট ব্যয়</p>
+                <p className="text-sm text-muted-foreground">Total Expense</p>
                 <p className="text-2xl font-bold text-destructive">{formatCurrency(reportData.totalExpense)}</p>
               </div>
             </div>
@@ -651,7 +530,7 @@ const Reports = () => {
                 <Wallet className={`h-6 w-6 ${reportData.netProfit >= 0 ? 'text-success' : 'text-destructive'}`} />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">নিট লাভ/ক্ষতি</p>
+                <p className="text-sm text-muted-foreground">Net Profit/Loss</p>
                 <p className={`text-2xl font-bold ${reportData.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
                   {formatCurrency(reportData.netProfit)}
                 </p>
@@ -667,7 +546,7 @@ const Reports = () => {
                 <FileText className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">মোট ইনভয়েস</p>
+                <p className="text-sm text-muted-foreground">Total Invoices</p>
                 <p className="text-2xl font-bold">{reportData.invoiceCount}</p>
               </div>
             </div>
@@ -676,33 +555,108 @@ const Reports = () => {
       </div>
 
       {/* Charts and Analysis */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs defaultValue="invoices" className="space-y-4">
         <TabsList className="print:hidden">
-          <TabsTrigger value="overview">সারসংক্ষেপ</TabsTrigger>
-          <TabsTrigger value="expenses">খরচ বিশ্লেষণ</TabsTrigger>
-          <TabsTrigger value="customers">গ্রাহক বিশ্লেষণ</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="expenses">Expense Analysis</TabsTrigger>
+          <TabsTrigger value="customers">Customer Analysis</TabsTrigger>
         </TabsList>
+
+        {/* Invoices Tab with Filtering */}
+        <TabsContent value="invoices" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Invoice Report</CardTitle>
+              <CardDescription>Filter and view invoices for the selected period</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Search by invoice number or customer..."
+                    value={invoiceSearch}
+                    onChange={(e) => setInvoiceSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
+                  <SelectTrigger className="w-[150px]">
+                    <Filter className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="partial">Partial</SelectItem>
+                    <SelectItem value="unpaid">Unpaid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice No</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Paid</TableHead>
+                      <TableHead className="text-right">Due</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInvoices.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          No invoices found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredInvoices.map((inv) => (
+                        <TableRow key={inv.id}>
+                          <TableCell className="font-medium">{inv.invoice_number}</TableCell>
+                          <TableCell>{(inv.customers as any)?.name || '-'}</TableCell>
+                          <TableCell>{format(new Date(inv.invoice_date), 'dd MMM yyyy')}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(inv.total || 0)}</TableCell>
+                          <TableCell className="text-right text-success">{formatCurrency(inv.paid_amount || 0)}</TableCell>
+                          <TableCell className="text-right text-destructive">
+                            {formatCurrency((inv.total || 0) - (inv.paid_amount || 0))}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(inv.status)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {/* Invoice Status */}
             <Card>
               <CardHeader>
-                <CardTitle>ইনভয়েস স্ট্যাটাস</CardTitle>
-                <CardDescription>পেমেন্ট অবস্থা</CardDescription>
+                <CardTitle>Invoice Status</CardTitle>
+                <CardDescription>Payment status overview</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center p-3 rounded-lg bg-success/10">
-                    <span className="font-medium">পরিশোধিত</span>
+                    <span className="font-medium">Paid</span>
                     <Badge className="bg-success text-success-foreground">{reportData.paidInvoices}</Badge>
                   </div>
                   <div className="flex justify-between items-center p-3 rounded-lg bg-destructive/10">
-                    <span className="font-medium">বাকি/আংশিক</span>
+                    <span className="font-medium">Unpaid/Partial</span>
                     <Badge className="bg-destructive text-destructive-foreground">{reportData.unpaidInvoices}</Badge>
                   </div>
                   <div className="flex justify-between items-center p-3 rounded-lg bg-warning/10">
-                    <span className="font-medium">ভেন্ডর ডিউ</span>
+                    <span className="font-medium">Vendor Due</span>
                     <span className="font-bold text-warning">{formatCurrency(reportData.vendorDue)}</span>
                   </div>
                 </div>
@@ -712,14 +666,14 @@ const Reports = () => {
             {/* Profit Margin */}
             <Card>
               <CardHeader>
-                <CardTitle>লাভের মার্জিন</CardTitle>
-                <CardDescription>আয় ও ব্যয়ের অনুপাত</CardDescription>
+                <CardTitle>Profit Margin</CardTitle>
+                <CardDescription>Income vs Expense ratio</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="relative pt-1">
                     <div className="flex mb-2 items-center justify-between">
-                      <span className="text-sm font-semibold">আয়</span>
+                      <span className="text-sm font-semibold">Income</span>
                       <span className="text-sm font-semibold text-success">
                         {reportData.totalIncome + reportData.totalExpense > 0
                           ? Math.round((reportData.totalIncome / (reportData.totalIncome + reportData.totalExpense)) * 100)
@@ -741,7 +695,7 @@ const Reports = () => {
                   </div>
                   <div className="relative pt-1">
                     <div className="flex mb-2 items-center justify-between">
-                      <span className="text-sm font-semibold">ব্যয়</span>
+                      <span className="text-sm font-semibold">Expense</span>
                       <span className="text-sm font-semibold text-destructive">
                         {reportData.totalIncome + reportData.totalExpense > 0
                           ? Math.round((reportData.totalExpense / (reportData.totalIncome + reportData.totalExpense)) * 100)
@@ -770,8 +724,8 @@ const Reports = () => {
           {reportType === 'yearly' && reportData.monthlyData.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>মাসভিত্তিক আয়-ব্যয় ট্রেন্ড</CardTitle>
-                <CardDescription>{selectedYear} সালের মাসিক বিশ্লেষণ</CardDescription>
+                <CardTitle>Monthly Income-Expense Trend</CardTitle>
+                <CardDescription>Monthly analysis for {selectedYear}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -786,8 +740,8 @@ const Reports = () => {
                         />
                       }
                     />
-                    <Bar dataKey="income" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} name="আয়" />
-                    <Bar dataKey="expense" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="ব্যয়" />
+                    <Bar dataKey="income" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} name="Income" />
+                    <Bar dataKey="expense" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Expense" />
                   </BarChart>
                 </ChartContainer>
               </CardContent>
@@ -800,8 +754,8 @@ const Reports = () => {
             {/* Category Pie Chart */}
             <Card>
               <CardHeader>
-                <CardTitle>ক্যাটেগরি অনুযায়ী খরচ</CardTitle>
-                <CardDescription>খরচের বিভাজন</CardDescription>
+                <CardTitle>Category-wise Expenses</CardTitle>
+                <CardDescription>Expense breakdown</CardDescription>
               </CardHeader>
               <CardContent>
                 {reportData.categoryExpenses.length > 0 ? (
@@ -830,7 +784,7 @@ const Reports = () => {
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <p className="text-center text-muted-foreground py-8">কোনো খরচের ডেটা নেই</p>
+                  <p className="text-center text-muted-foreground py-8">No expense data</p>
                 )}
               </CardContent>
             </Card>
@@ -838,8 +792,8 @@ const Reports = () => {
             {/* Category List */}
             <Card>
               <CardHeader>
-                <CardTitle>খরচের তালিকা</CardTitle>
-                <CardDescription>ক্যাটেগরি অনুযায়ী বিস্তারিত</CardDescription>
+                <CardTitle>Expense List</CardTitle>
+                <CardDescription>Category-wise details</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -860,7 +814,7 @@ const Reports = () => {
                       </div>
                     ))
                   ) : (
-                    <p className="text-center text-muted-foreground py-4">কোনো খরচ নেই</p>
+                    <p className="text-center text-muted-foreground py-4">No expenses</p>
                   )}
                 </div>
               </CardContent>
@@ -871,8 +825,8 @@ const Reports = () => {
         <TabsContent value="customers" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>শীর্ষ গ্রাহক</CardTitle>
-              <CardDescription>সর্বাধিক অর্ডারকারী গ্রাহক</CardDescription>
+              <CardTitle>Top Customers</CardTitle>
+              <CardDescription>Customers with highest orders</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -880,25 +834,19 @@ const Reports = () => {
                   reportData.topCustomers.map((customer, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
+                      className="flex justify-between items-center p-4 rounded-lg bg-muted/50"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="font-bold text-primary">{index + 1}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
+                          {index + 1}
                         </div>
-                        <div>
-                          <p className="font-medium">{customer.name}</p>
-                          <p className="text-sm text-muted-foreground">গ্রাহক</p>
-                        </div>
+                        <span className="font-medium">{customer.name}</span>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-lg">{formatCurrency(customer.total)}</p>
-                        <p className="text-sm text-muted-foreground">মোট অর্ডার</p>
-                      </div>
+                      <span className="font-bold text-lg">{formatCurrency(customer.total)}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-center text-muted-foreground py-8">কোনো গ্রাহক ডেটা নেই</p>
+                  <p className="text-center text-muted-foreground py-8">No customer data</p>
                 )}
               </div>
             </CardContent>
