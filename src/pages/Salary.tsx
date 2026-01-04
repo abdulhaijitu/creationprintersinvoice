@@ -36,7 +36,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface SalaryRecord {
   id: string;
-  user_id: string;
+  employee_id: string;
   month: number;
   year: number;
   basic_salary: number;
@@ -49,7 +49,7 @@ interface SalaryRecord {
   status: string;
   paid_date: string | null;
   notes: string | null;
-  profile?: { full_name: string } | null;
+  employee?: { full_name: string } | null;
 }
 
 interface Employee {
@@ -64,7 +64,7 @@ const months = [
 ];
 
 const Salary = () => {
-  const { isAdmin, user, role, loading: authLoading } = useAuth();
+  const { isAdmin, role, loading: authLoading } = useAuth();
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +72,7 @@ const Salary = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
-    user_id: "",
+    employee_id: "",
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
     basic_salary: "",
@@ -87,50 +87,35 @@ const Salary = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch employees if admin
-      if (isAdmin) {
-        const { data: employeesData } = await supabase
-          .from("profiles")
-          .select("id, full_name, basic_salary")
-          .order("full_name");
-        setEmployees(employeesData || []);
-      }
+      // Fetch employees
+      const { data: employeesData } = await supabase
+        .from("employees")
+        .select("id, full_name, basic_salary")
+        .eq("is_active", true)
+        .order("full_name");
+      setEmployees(employeesData || []);
 
       // Fetch salary records
-      let query = supabase
-        .from("salary_records")
+      const { data: salaryData } = await supabase
+        .from("employee_salary_records")
         .select("*")
         .eq("year", selectedYear)
         .eq("month", selectedMonth)
         .order("created_at", { ascending: false });
 
-      if (!isAdmin) {
-        query = query.eq("user_id", user?.id);
-      }
-
-      const { data: salaryData } = await query;
-
-      if (salaryData) {
-        // Fetch profile names
-        const recordsWithProfiles = await Promise.all(
-          salaryData.map(async (record) => {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("full_name")
-              .eq("id", record.user_id)
-              .single();
-
-            return { ...record, profile };
-          })
-        );
-        setSalaryRecords(recordsWithProfiles);
+      if (salaryData && employeesData) {
+        const recordsWithEmployee = salaryData.map((record) => {
+          const employee = employeesData.find((e) => e.id === record.employee_id);
+          return { ...record, employee: employee ? { full_name: employee.full_name } : null };
+        });
+        setSalaryRecords(recordsWithEmployee);
       }
     } catch (error) {
       console.error("Error fetching salary data:", error);
     } finally {
       setLoading(false);
     }
-  }, [selectedYear, selectedMonth, isAdmin, user?.id]);
+  }, [selectedYear, selectedMonth]);
 
   useEffect(() => {
     fetchData();
@@ -150,7 +135,7 @@ const Salary = () => {
     const employee = employees.find((e) => e.id === employeeId);
     setFormData({
       ...formData,
-      user_id: employeeId,
+      employee_id: employeeId,
       basic_salary: employee?.basic_salary?.toString() || "0",
     });
   };
@@ -158,7 +143,7 @@ const Salary = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.user_id) {
+    if (!formData.employee_id) {
       toast.error("Please select an employee");
       return;
     }
@@ -166,8 +151,8 @@ const Salary = () => {
     try {
       const netPayable = calculateNetPayable();
 
-      const { error } = await supabase.from("salary_records").insert({
-        user_id: formData.user_id,
+      const { error } = await supabase.from("employee_salary_records").insert({
+        employee_id: formData.employee_id,
         month: formData.month,
         year: formData.year,
         basic_salary: parseFloat(formData.basic_salary) || 0,
@@ -186,17 +171,20 @@ const Salary = () => {
       toast.success("Salary record saved");
       setIsDialogOpen(false);
       resetForm();
-      // Immediately refresh data
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving salary record:", error);
-      toast.error("Failed to save salary record");
+      if (error.message?.includes("duplicate")) {
+        toast.error("Salary record already exists for this employee this month");
+      } else {
+        toast.error("Failed to save salary record");
+      }
     }
   };
 
   const resetForm = () => {
     setFormData({
-      user_id: "",
+      employee_id: "",
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
       basic_salary: "",
@@ -212,7 +200,7 @@ const Salary = () => {
   const markAsPaid = async (id: string) => {
     try {
       const { error } = await supabase
-        .from("salary_records")
+        .from("employee_salary_records")
         .update({
           status: "paid",
           paid_date: format(new Date(), "yyyy-MM-dd"),
@@ -222,7 +210,6 @@ const Salary = () => {
       if (error) throw error;
 
       toast.success("Marked as paid");
-      // Immediately refresh data
       fetchData();
     } catch (error) {
       console.error("Error marking as paid:", error);
@@ -306,7 +293,7 @@ const Salary = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label>Employee</Label>
-                  <Select value={formData.user_id} onValueChange={handleEmployeeSelect}>
+                  <Select value={formData.employee_id} onValueChange={handleEmployeeSelect}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select employee" />
                     </SelectTrigger>
@@ -501,57 +488,74 @@ const Salary = () => {
       </div>
 
       {/* Salary Table */}
-      <div className="border rounded-lg">
+      <div className="border rounded-lg overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead className="text-right">Basic Salary</TableHead>
-              <TableHead className="text-right">Overtime</TableHead>
-              <TableHead className="text-right">Bonus</TableHead>
-              <TableHead className="text-right">Deductions</TableHead>
-              <TableHead className="text-right">Net Payable</TableHead>
-              <TableHead>Status</TableHead>
-              {isAdmin && <TableHead className="text-center">Action</TableHead>}
+              <TableHead className="whitespace-nowrap">Employee</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Basic</TableHead>
+              <TableHead className="text-right whitespace-nowrap">OT</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Bonus</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Deductions</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Advance</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Net Payable</TableHead>
+              <TableHead className="whitespace-nowrap">Status</TableHead>
+              {isAdmin && <TableHead className="whitespace-nowrap">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8">
+                <TableCell colSpan={9} className="text-center py-8">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : salaryRecords.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8 text-muted-foreground">
-                  No records found
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  No salary records found for {months[selectedMonth - 1]} {selectedYear}
                 </TableCell>
               </TableRow>
             ) : (
               salaryRecords.map((record) => (
                 <TableRow key={record.id}>
-                  <TableCell className="font-medium">{record.profile?.full_name || "-"}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(record.basic_salary)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(record.overtime_amount)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(record.bonus)}</TableCell>
-                  <TableCell className="text-right text-destructive">
-                    -{formatCurrency(record.deductions + record.advance)}
+                  <TableCell className="font-medium whitespace-nowrap">
+                    {record.employee?.full_name || "-"}
                   </TableCell>
-                  <TableCell className="text-right font-bold">{formatCurrency(record.net_payable)}</TableCell>
-                  <TableCell>
-                    {record.status === "paid" ? (
-                      <Badge className="bg-success">Paid</Badge>
-                    ) : (
-                      <Badge variant="secondary">Pending</Badge>
-                    )}
+                  <TableCell className="text-right whitespace-nowrap">
+                    {formatCurrency(record.basic_salary)}
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
+                    {formatCurrency(record.overtime_amount)}
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
+                    {formatCurrency(record.bonus)}
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
+                    {formatCurrency(record.deductions)}
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
+                    {formatCurrency(record.advance)}
+                  </TableCell>
+                  <TableCell className="text-right font-bold whitespace-nowrap">
+                    {formatCurrency(record.net_payable)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <Badge variant={record.status === "paid" ? "default" : "secondary"}>
+                      {record.status === "paid" ? "Paid" : "Pending"}
+                    </Badge>
                   </TableCell>
                   {isAdmin && (
-                    <TableCell className="text-center">
+                    <TableCell className="whitespace-nowrap">
                       {record.status !== "paid" && (
-                        <Button variant="outline" size="sm" onClick={() => markAsPaid(record.id)}>
+                        <Button size="sm" onClick={() => markAsPaid(record.id)}>
                           Mark Paid
                         </Button>
+                      )}
+                      {record.status === "paid" && record.paid_date && (
+                        <span className="text-sm text-muted-foreground">
+                          {format(new Date(record.paid_date), "dd MMM")}
+                        </span>
                       )}
                     </TableCell>
                   )}

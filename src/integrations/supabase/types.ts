@@ -202,6 +202,71 @@ export type Database = {
           },
         ]
       }
+      employee_salary_records: {
+        Row: {
+          advance: number | null
+          basic_salary: number
+          bonus: number | null
+          created_at: string | null
+          deductions: number | null
+          employee_id: string
+          id: string
+          month: number
+          net_payable: number
+          notes: string | null
+          overtime_amount: number | null
+          overtime_hours: number | null
+          paid_date: string | null
+          status: string | null
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          advance?: number | null
+          basic_salary: number
+          bonus?: number | null
+          created_at?: string | null
+          deductions?: number | null
+          employee_id: string
+          id?: string
+          month: number
+          net_payable: number
+          notes?: string | null
+          overtime_amount?: number | null
+          overtime_hours?: number | null
+          paid_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          advance?: number | null
+          basic_salary?: number
+          bonus?: number | null
+          created_at?: string | null
+          deductions?: number | null
+          employee_id?: string
+          id?: string
+          month?: number
+          net_payable?: number
+          notes?: string | null
+          overtime_amount?: number | null
+          overtime_hours?: number | null
+          paid_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_salary_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           address: string | null
@@ -1024,6 +1089,7 @@ export type Database = {
           bonus: number | null
           created_at: string
           deductions: number | null
+          employee_id: string | null
           id: string
           month: number
           net_payable: number
@@ -1042,6 +1108,7 @@ export type Database = {
           bonus?: number | null
           created_at?: string
           deductions?: number | null
+          employee_id?: string | null
           id?: string
           month: number
           net_payable: number
@@ -1060,6 +1127,7 @@ export type Database = {
           bonus?: number | null
           created_at?: string
           deductions?: number | null
+          employee_id?: string | null
           id?: string
           month?: number
           net_payable?: number
@@ -1072,7 +1140,15 @@ export type Database = {
           user_id?: string
           year?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "salary_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
