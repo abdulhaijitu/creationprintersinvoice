@@ -533,20 +533,33 @@ export type Database = {
       price_calculations: {
         Row: {
           binding_cost: number | null
+          binding_price: number | null
+          binding_qty: number | null
           costing_total: number | null
           created_at: string
           created_by: string | null
           customer_id: string | null
           design_cost: number | null
+          design_price: number | null
+          design_qty: number | null
           die_cutting_cost: number | null
+          die_cutting_price: number | null
+          die_cutting_qty: number | null
           final_price: number | null
+          foil_printing_price: number | null
+          foil_printing_qty: number | null
+          foil_printing_total: number | null
           id: string
           invoice_id: string | null
           job_description: string
           lamination_cost: number | null
+          lamination_price: number | null
+          lamination_qty: number | null
           margin_amount: number | null
           margin_percent: number | null
           others_cost: number | null
+          others_price: number | null
+          others_qty: number | null
           paper1_price: number | null
           paper1_qty: number | null
           paper1_total: number | null
@@ -559,28 +572,55 @@ export type Database = {
           plate_price: number | null
           plate_qty: number | null
           plate_total: number | null
+          plate2_price: number | null
+          plate2_qty: number | null
+          plate2_total: number | null
+          plate3_price: number | null
+          plate3_qty: number | null
+          plate3_total: number | null
+          price_per_pcs: number | null
           print_price: number | null
           print_qty: number | null
           print_total: number | null
+          print2_price: number | null
+          print2_qty: number | null
+          print2_total: number | null
+          print3_price: number | null
+          print3_qty: number | null
+          print3_total: number | null
+          quantity: number | null
           quotation_id: string | null
           updated_at: string
         }
         Insert: {
           binding_cost?: number | null
+          binding_price?: number | null
+          binding_qty?: number | null
           costing_total?: number | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
           design_cost?: number | null
+          design_price?: number | null
+          design_qty?: number | null
           die_cutting_cost?: number | null
+          die_cutting_price?: number | null
+          die_cutting_qty?: number | null
           final_price?: number | null
+          foil_printing_price?: number | null
+          foil_printing_qty?: number | null
+          foil_printing_total?: number | null
           id?: string
           invoice_id?: string | null
           job_description: string
           lamination_cost?: number | null
+          lamination_price?: number | null
+          lamination_qty?: number | null
           margin_amount?: number | null
           margin_percent?: number | null
           others_cost?: number | null
+          others_price?: number | null
+          others_qty?: number | null
           paper1_price?: number | null
           paper1_qty?: number | null
           paper1_total?: number | null
@@ -593,28 +633,55 @@ export type Database = {
           plate_price?: number | null
           plate_qty?: number | null
           plate_total?: number | null
+          plate2_price?: number | null
+          plate2_qty?: number | null
+          plate2_total?: number | null
+          plate3_price?: number | null
+          plate3_qty?: number | null
+          plate3_total?: number | null
+          price_per_pcs?: number | null
           print_price?: number | null
           print_qty?: number | null
           print_total?: number | null
+          print2_price?: number | null
+          print2_qty?: number | null
+          print2_total?: number | null
+          print3_price?: number | null
+          print3_qty?: number | null
+          print3_total?: number | null
+          quantity?: number | null
           quotation_id?: string | null
           updated_at?: string
         }
         Update: {
           binding_cost?: number | null
+          binding_price?: number | null
+          binding_qty?: number | null
           costing_total?: number | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
           design_cost?: number | null
+          design_price?: number | null
+          design_qty?: number | null
           die_cutting_cost?: number | null
+          die_cutting_price?: number | null
+          die_cutting_qty?: number | null
           final_price?: number | null
+          foil_printing_price?: number | null
+          foil_printing_qty?: number | null
+          foil_printing_total?: number | null
           id?: string
           invoice_id?: string | null
           job_description?: string
           lamination_cost?: number | null
+          lamination_price?: number | null
+          lamination_qty?: number | null
           margin_amount?: number | null
           margin_percent?: number | null
           others_cost?: number | null
+          others_price?: number | null
+          others_qty?: number | null
           paper1_price?: number | null
           paper1_qty?: number | null
           paper1_total?: number | null
@@ -627,9 +694,23 @@ export type Database = {
           plate_price?: number | null
           plate_qty?: number | null
           plate_total?: number | null
+          plate2_price?: number | null
+          plate2_qty?: number | null
+          plate2_total?: number | null
+          plate3_price?: number | null
+          plate3_qty?: number | null
+          plate3_total?: number | null
+          price_per_pcs?: number | null
           print_price?: number | null
           print_qty?: number | null
           print_total?: number | null
+          print2_price?: number | null
+          print2_qty?: number | null
+          print2_total?: number | null
+          print3_price?: number | null
+          print3_qty?: number | null
+          print3_total?: number | null
+          quantity?: number | null
           quotation_id?: string | null
           updated_at?: string
         }
@@ -1094,6 +1175,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      has_privileged_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1101,6 +1183,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin_or_manager: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role:

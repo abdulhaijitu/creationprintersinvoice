@@ -38,14 +38,14 @@ import { bn } from 'date-fns/locale';
 
 interface DashboardStats {
   todaySales: number;
-  monthlyIncome: number;
+  monthlyRevenue: number;
   monthlyExpense: number;
+  netProfit: number;
+  customerDue: number;
+  vendorPayable: number;
   pendingInvoices: number;
   pendingQuotations: number;
   totalCustomers: number;
-  vendorDue: number;
-  pendingLeaveRequests: number;
-  pendingTasks: number;
 }
 
 interface MonthlyData {
@@ -66,14 +66,14 @@ const Dashboard = () => {
   const { user, isAdmin } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     todaySales: 0,
-    monthlyIncome: 0,
+    monthlyRevenue: 0,
     monthlyExpense: 0,
+    netProfit: 0,
+    customerDue: 0,
+    vendorPayable: 0,
     pendingInvoices: 0,
     pendingQuotations: 0,
     totalCustomers: 0,
-    vendorDue: 0,
-    pendingLeaveRequests: 0,
-    pendingTasks: 0,
   });
   const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
   const [monthlyTrend, setMonthlyTrend] = useState<MonthlyData[]>([]);
@@ -142,7 +142,7 @@ const Dashboard = () => {
           (sum, inv) => sum + Number(inv.paid_amount || 0),
           0
         );
-        const monthlyIncome = monthlyInvoices.reduce(
+        const monthlyRevenue = monthlyInvoices.reduce(
           (sum, inv) => sum + Number(inv.paid_amount || 0),
           0
         );
@@ -150,10 +150,18 @@ const Dashboard = () => {
           (sum, exp) => sum + Number(exp.amount || 0),
           0
         );
+        const netProfit = monthlyRevenue - monthlyExpense;
         const pendingInvoices = invoices.filter(
           (inv) => inv.status === 'unpaid' || inv.status === 'partial'
         ).length;
-        const vendorDue = (vendorBillsRes.data || []).reduce(
+        
+        // Calculate customer due (total - paid from all invoices)
+        const customerDue = invoices.reduce(
+          (sum, inv) => sum + (Number(inv.total || 0) - Number(inv.paid_amount || 0)),
+          0
+        );
+        
+        const vendorPayable = (vendorBillsRes.data || []).reduce(
           (sum, bill) => sum + Number(bill.amount || 0),
           0
         );
@@ -204,14 +212,14 @@ const Dashboard = () => {
 
         setStats({
           todaySales,
-          monthlyIncome,
+          monthlyRevenue,
           monthlyExpense,
+          netProfit,
+          customerDue,
+          vendorPayable,
           pendingInvoices,
           pendingQuotations: quotationsRes.data?.length || 0,
           totalCustomers: customersRes.count || 0,
-          vendorDue,
-          pendingLeaveRequests: (leaveRequestsRes as any).data?.length || 0,
-          pendingTasks: tasksRes.data?.length || 0,
         });
 
         setRecentInvoices(recentInvoicesRes.data || []);
@@ -307,7 +315,7 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard
           title="আজকের বিক্রয়"
           value={formatCurrency(stats.todaySales)}
@@ -315,8 +323,8 @@ const Dashboard = () => {
           iconClassName="bg-success/10 text-success"
         />
         <StatCard
-          title="মাসিক আয়"
-          value={formatCurrency(stats.monthlyIncome)}
+          title="মাসিক রেভিনিউ"
+          value={formatCurrency(stats.monthlyRevenue)}
           icon={Wallet}
           iconClassName="bg-primary/10 text-primary"
         />
@@ -327,10 +335,22 @@ const Dashboard = () => {
           iconClassName="bg-warning/10 text-warning"
         />
         <StatCard
-          title="মোট গ্রাহক"
-          value={stats.totalCustomers}
+          title="নিট প্রফিট"
+          value={formatCurrency(stats.netProfit)}
+          icon={TrendingUp}
+          iconClassName={stats.netProfit >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}
+        />
+        <StatCard
+          title="গ্রাহক ডিউ"
+          value={formatCurrency(stats.customerDue)}
           icon={Users}
-          iconClassName="bg-info/10 text-info"
+          iconClassName="bg-warning/10 text-warning"
+        />
+        <StatCard
+          title="ভেন্ডর পেয়াবল"
+          value={formatCurrency(stats.vendorPayable)}
+          icon={AlertCircle}
+          iconClassName="bg-destructive/10 text-destructive"
         />
       </div>
 
@@ -453,17 +473,17 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className={stats.vendorDue > 0 ? 'border-destructive' : ''}>
+        <Card className={stats.vendorPayable > 0 ? 'border-destructive' : ''}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              ভেন্ডর ডিউ
+              ভেন্ডর পেয়াবল
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-destructive">{formatCurrency(stats.vendorDue)}</p>
+            <p className="text-3xl font-bold text-destructive">{formatCurrency(stats.vendorPayable)}</p>
             <p className="text-sm text-muted-foreground mt-2">
-              {stats.vendorDue > 0 ? 'ভেন্ডরদের পেমেন্ট বাকি' : 'সব পেমেন্ট সম্পন্ন'}
+              {stats.vendorPayable > 0 ? 'ভেন্ডরদের পেমেন্ট বাকি' : 'সব পেমেন্ট সম্পন্ন'}
             </p>
           </CardContent>
         </Card>

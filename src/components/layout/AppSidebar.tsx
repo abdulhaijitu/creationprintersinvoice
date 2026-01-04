@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission, getRoleDisplayName } from '@/lib/permissions';
 import {
   Sidebar,
   SidebarContent,
@@ -31,9 +32,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
   useSidebar,
 } from '@/components/ui/sidebar';
 import {
@@ -44,34 +42,6 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-
-const mainNavItems = [
-  { title: 'ড্যাশবোর্ড', url: '/', icon: LayoutDashboard },
-  { title: 'রিপোর্ট', url: '/reports', icon: BarChart3 },
-  { title: 'সেটিংস', url: '/settings', icon: Settings },
-  { title: 'রোল ম্যানেজমেন্ট', url: '/user-roles', icon: UserCog },
-];
-
-const invoicingItems = [
-  { title: 'গ্রাহক তালিকা', url: '/customers', icon: Users },
-  { title: 'ইনভয়েস', url: '/invoices', icon: FileText },
-  { title: 'কোটেশন', url: '/quotations', icon: FileCheck },
-  { title: 'মূল্য হিসাব', url: '/price-calculation', icon: Calculator },
-];
-
-const expenseItems = [
-  { title: 'দৈনিক খরচ', url: '/expenses', icon: Wallet },
-  { title: 'ভেন্ডর', url: '/vendors', icon: Building2 },
-];
-
-const hrItems = [
-  { title: 'কর্মচারী', url: '/employees', icon: Users },
-  { title: 'উপস্থিতি', url: '/attendance', icon: CalendarCheck },
-  { title: 'বেতন', url: '/salary', icon: Receipt },
-  { title: 'ছুটি', url: '/leave', icon: ClipboardList },
-  { title: 'পারফরম্যান্স', url: '/performance', icon: Award },
-  { title: 'টাস্ক', url: '/tasks', icon: ListTodo },
-];
 
 interface NavItemProps {
   item: { title: string; url: string; icon: React.ElementType };
@@ -105,6 +75,8 @@ const NavGroup = ({ label, items, defaultOpen = false }: NavGroupProps) => {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const isGroupActive = items.some((item) => location.pathname === item.url);
+
+  if (items.length === 0) return null;
 
   if (collapsed) {
     return (
@@ -161,6 +133,35 @@ export function AppSidebar() {
     return email.substring(0, 2).toUpperCase();
   };
 
+  // Build navigation items based on permissions
+  const mainNavItems = [
+    { title: 'ড্যাশবোর্ড', url: '/', icon: LayoutDashboard },
+    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'রিপোর্ট', url: '/reports', icon: BarChart3 }] : []),
+    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'সেটিংস', url: '/settings', icon: Settings }] : []),
+    ...(hasPermission(role, 'user_roles', 'view') ? [{ title: 'রোল ম্যানেজমেন্ট', url: '/user-roles', icon: UserCog }] : []),
+  ];
+
+  const invoicingItems = [
+    ...(hasPermission(role, 'customers', 'view') ? [{ title: 'গ্রাহক তালিকা', url: '/customers', icon: Users }] : []),
+    ...(hasPermission(role, 'invoices', 'view') ? [{ title: 'ইনভয়েস', url: '/invoices', icon: FileText }] : []),
+    ...(hasPermission(role, 'quotations', 'view') ? [{ title: 'কোটেশন', url: '/quotations', icon: FileCheck }] : []),
+    ...(hasPermission(role, 'price_calculations', 'view') ? [{ title: 'মূল্য হিসাব', url: '/price-calculation', icon: Calculator }] : []),
+  ];
+
+  const expenseItems = [
+    ...(hasPermission(role, 'expenses', 'view') ? [{ title: 'দৈনিক খরচ', url: '/expenses', icon: Wallet }] : []),
+    ...(hasPermission(role, 'vendors', 'view') ? [{ title: 'ভেন্ডর', url: '/vendors', icon: Building2 }] : []),
+  ];
+
+  const hrItems = [
+    ...(hasPermission(role, 'employees', 'view') ? [{ title: 'কর্মচারী', url: '/employees', icon: Users }] : []),
+    ...(hasPermission(role, 'attendance', 'view') ? [{ title: 'উপস্থিতি', url: '/attendance', icon: CalendarCheck }] : []),
+    ...(hasPermission(role, 'salary', 'view') ? [{ title: 'বেতন', url: '/salary', icon: Receipt }] : []),
+    ...(hasPermission(role, 'leave', 'view') ? [{ title: 'ছুটি', url: '/leave', icon: ClipboardList }] : []),
+    ...(hasPermission(role, 'performance', 'view') ? [{ title: 'পারফরম্যান্স', url: '/performance', icon: Award }] : []),
+    ...(hasPermission(role, 'tasks', 'view') ? [{ title: 'টাস্ক', url: '/tasks', icon: ListTodo }] : []),
+  ];
+
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="p-4">
@@ -175,7 +176,7 @@ export function AppSidebar() {
             <div className="flex flex-col">
               <span className="font-semibold text-sidebar-foreground">Creation Printers</span>
               <span className="text-xs text-sidebar-foreground/60">
-                {role === 'admin' ? 'অ্যাডমিন' : 'কর্মচারী'}
+                {role ? getRoleDisplayName(role) : 'লোড হচ্ছে...'}
               </span>
             </div>
           )}
@@ -197,9 +198,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <NavGroup label="ইনভয়েসিং" items={invoicingItems} defaultOpen />
-        <NavGroup label="খরচ" items={expenseItems} />
-        <NavGroup label="এইচআর" items={hrItems} />
+        {invoicingItems.length > 0 && <NavGroup label="ইনভয়েসিং" items={invoicingItems} defaultOpen />}
+        {expenseItems.length > 0 && <NavGroup label="খরচ" items={expenseItems} />}
+        {hrItems.length > 0 && <NavGroup label="এইচআর" items={hrItems} />}
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
