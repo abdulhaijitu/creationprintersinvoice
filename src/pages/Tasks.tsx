@@ -94,13 +94,13 @@ const Tasks = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      if (isAdmin) {
-        const { data: employeesData } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .order("full_name");
-        setEmployees(employeesData || []);
-      }
+      // Fetch employees from employees table
+      const { data: employeesData } = await supabase
+        .from("employees")
+        .select("id, full_name")
+        .eq("is_active", true)
+        .order("full_name");
+      setEmployees(employeesData || []);
 
       let query = supabase
         .from("tasks")
@@ -117,34 +117,17 @@ const Tasks = () => {
 
       const { data: tasksData } = await query;
 
-      if (tasksData) {
-        const tasksWithProfiles = await Promise.all(
-          tasksData.map(async (task) => {
-            let assignee = null;
-            let assigner = null;
-
-            if (task.assigned_to) {
-              const { data } = await supabase
-                .from("profiles")
-                .select("full_name")
-                .eq("id", task.assigned_to)
-                .maybeSingle();
-              assignee = data;
-            }
-
-            if (task.assigned_by) {
-              const { data } = await supabase
-                .from("profiles")
-                .select("full_name")
-                .eq("id", task.assigned_by)
-                .maybeSingle();
-              assigner = data;
-            }
-
-            return { ...task, assignee, assigner };
-          })
-        );
-        setTasks(tasksWithProfiles);
+      if (tasksData && employeesData) {
+        const tasksWithEmployees = tasksData.map((task) => {
+          const assignee = employeesData.find((e) => e.id === task.assigned_to);
+          const assigner = employeesData.find((e) => e.id === task.assigned_by);
+          return {
+            ...task,
+            assignee: assignee ? { full_name: assignee.full_name } : null,
+            assigner: assigner ? { full_name: assigner.full_name } : null,
+          };
+        });
+        setTasks(tasksWithEmployees);
       }
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -396,7 +379,7 @@ const Tasks = () => {
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit">Create</Button>
+                  <Button type="submit">{editingTask ? "Update" : "Create"}</Button>
                 </div>
               </form>
             </DialogContent>
@@ -505,7 +488,19 @@ const Tasks = () => {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {getStatusIcon(task.status)}
-                      <span className="text-sm">{statusLabels[task.status]}</span>
+                      <Select
+                        value={task.status}
+                        onValueChange={(v) => updateTaskStatus(task.id, v as TaskStatus)}
+                      >
+                        <SelectTrigger className="h-8 w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todo">To Do</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -525,21 +520,8 @@ const Tasks = () => {
                       ? format(new Date(task.deadline), "dd MMM yyyy")
                       : "-"}
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell>
                     <div className="flex items-center justify-center gap-2">
-                      <Select
-                        value={task.status}
-                        onValueChange={(v) => updateTaskStatus(task.id, v as TaskStatus)}
-                      >
-                        <SelectTrigger className="w-[130px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todo">To Do</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                        </SelectContent>
-                      </Select>
                       {isAdmin && (
                         <>
                           <Button
@@ -552,8 +534,8 @@ const Tasks = () => {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="text-destructive"
                             onClick={() => handleDelete(task.id)}
-                            className="text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
