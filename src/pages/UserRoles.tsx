@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, AppRole } from "@/contexts/AuthContext";
-import { hasPermission, getRoleDisplayName, allRoles, getModulesWithPermissions, getModuleDisplayName } from "@/lib/permissions";
+import { hasPermission, getRoleDisplayName, allRoles } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -26,21 +26,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Search, 
   Users, 
-  ShieldCheck, 
   ShieldAlert, 
   Loader2,
   UserCog,
   Save,
-  Shield,
-  Eye,
-  Plus,
-  Edit,
-  Trash2,
-  Check,
-  X
+  Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import PermissionMatrix from "@/components/permissions/PermissionMatrix";
 
 interface UserWithRole {
   id: string;
@@ -188,9 +182,6 @@ const UserRoles = () => {
     role: r,
     count: users.filter((u) => u.role === r).length,
   })).filter(stat => stat.count > 0);
-
-  // Get modules with permissions for the permissions matrix
-  const modulesWithPermissions = getModulesWithPermissions();
 
   if (authLoading) {
     return (
@@ -406,110 +397,7 @@ const UserRoles = () => {
         </TabsContent>
 
         <TabsContent value="permissions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Permission Matrix</CardTitle>
-              <CardDescription>View/Add/Edit/Delete permissions for each role per module</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="border rounded-lg overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="sticky left-0 bg-background z-10">Module</TableHead>
-                      <TableHead className="text-center">Action</TableHead>
-                      {allRoles.map((r) => (
-                        <TableHead key={r} className="text-center min-w-[100px]">
-                          {getRoleDisplayName(r)}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {modulesWithPermissions.map((module) => (
-                      <>
-                        {/* View */}
-                        <TableRow key={`${module.module}-view`}>
-                          <TableCell rowSpan={4} className="font-medium sticky left-0 bg-background border-r">
-                            {module.moduleName}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <Eye className="h-3 w-3" />
-                              <span className="text-xs">View</span>
-                            </div>
-                          </TableCell>
-                          {allRoles.map((r) => (
-                            <TableCell key={`${module.module}-view-${r}`} className="text-center">
-                              {module.actions.view.includes(r) ? (
-                                <Check className="h-4 w-4 text-success mx-auto" />
-                              ) : (
-                                <X className="h-4 w-4 text-muted-foreground mx-auto" />
-                              )}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                        {/* Create */}
-                        <TableRow key={`${module.module}-create`}>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <Plus className="h-3 w-3" />
-                              <span className="text-xs">Add</span>
-                            </div>
-                          </TableCell>
-                          {allRoles.map((r) => (
-                            <TableCell key={`${module.module}-create-${r}`} className="text-center">
-                              {module.actions.create.includes(r) ? (
-                                <Check className="h-4 w-4 text-success mx-auto" />
-                              ) : (
-                                <X className="h-4 w-4 text-muted-foreground mx-auto" />
-                              )}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                        {/* Edit */}
-                        <TableRow key={`${module.module}-edit`}>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <Edit className="h-3 w-3" />
-                              <span className="text-xs">Edit</span>
-                            </div>
-                          </TableCell>
-                          {allRoles.map((r) => (
-                            <TableCell key={`${module.module}-edit-${r}`} className="text-center">
-                              {module.actions.edit.includes(r) ? (
-                                <Check className="h-4 w-4 text-success mx-auto" />
-                              ) : (
-                                <X className="h-4 w-4 text-muted-foreground mx-auto" />
-                              )}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                        {/* Delete */}
-                        <TableRow key={`${module.module}-delete`} className="border-b-2">
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <Trash2 className="h-3 w-3" />
-                              <span className="text-xs">Delete</span>
-                            </div>
-                          </TableCell>
-                          {allRoles.map((r) => (
-                            <TableCell key={`${module.module}-delete-${r}`} className="text-center">
-                              {module.actions.delete.includes(r) ? (
-                                <Check className="h-4 w-4 text-success mx-auto" />
-                              ) : (
-                                <X className="h-4 w-4 text-muted-foreground mx-auto" />
-                              )}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      </>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          <PermissionMatrix />
         </TabsContent>
       </Tabs>
     </div>
