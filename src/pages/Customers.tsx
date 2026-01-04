@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Phone, Mail, Building2, Download, Upload } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Phone, Mail, Building2, Download, Upload, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 import CSVImportDialog from '@/components/import/CSVImportDialog';
@@ -53,6 +54,7 @@ interface Customer {
 }
 
 const Customers = () => {
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -434,6 +436,13 @@ const Customers = () => {
                       <TableCell>{customer.company_name || '-'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate(`/customers/${customer.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
