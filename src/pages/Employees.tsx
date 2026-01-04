@@ -39,13 +39,14 @@ interface Employee {
   id: string;
   full_name: string;
   phone: string | null;
+  email: string | null;
   designation: string | null;
   department: string | null;
   joining_date: string | null;
   basic_salary: number;
   address: string | null;
   nid: string | null;
-  role?: string;
+  is_active: boolean;
 }
 
 const Employees = () => {
@@ -60,19 +61,21 @@ const Employees = () => {
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
+    email: "",
     designation: "",
     department: "",
     joining_date: "",
     basic_salary: "",
     address: "",
     nid: "",
-    role: "employee" as string,
   });
   const [newEmployeeData, setNewEmployeeData] = useState({
-    email: "",
-    password: "",
     full_name: "",
     phone: "",
+    email: "",
+    designation: "",
+    department: "",
+    basic_salary: "",
   });
 
   useEffect(() => {
@@ -82,33 +85,14 @@ const Employees = () => {
   const fetchEmployees = async () => {
     setLoading(true);
     try {
-      let query = supabase.from("profiles").select("*");
-      
-      if (!isAdmin) {
-        // Non-admins can only see their own profile
-        query = query.eq("id", user?.id);
-      }
+      const { data, error } = await supabase
+        .from("employees")
+        .select("*")
+        .eq("is_active", true)
+        .order("full_name");
 
-      const { data: profilesData } = await query.order("full_name");
-
-      if (profilesData) {
-        // Fetch roles for each employee
-        const employeesWithRoles = await Promise.all(
-          profilesData.map(async (profile) => {
-            const { data: roleData } = await supabase
-              .from("user_roles")
-              .select("role")
-              .eq("user_id", profile.id)
-              .single();
-
-            return {
-              ...profile,
-              role: roleData?.role || "employee",
-            };
-          })
-        );
-        setEmployees(employeesWithRoles);
-      }
+      if (error) throw error;
+      setEmployees(data || []);
     } catch (error) {
       console.error("Error fetching employees:", error);
     } finally {
@@ -122,12 +106,12 @@ const Employees = () => {
     if (!editingEmployee) return;
 
     try {
-      // Update profile
-      const { error: profileError } = await supabase
-        .from("profiles")
+      const { error } = await supabase
+        .from("employees")
         .update({
           full_name: formData.full_name,
           phone: formData.phone || null,
+          email: formData.email || null,
           designation: formData.designation || null,
           department: formData.department || null,
           joining_date: formData.joining_date || null,
@@ -137,17 +121,7 @@ const Employees = () => {
         })
         .eq("id", editingEmployee.id);
 
-      if (profileError) throw profileError;
-
-      // Update role if changed
-      if (formData.role !== editingEmployee.role) {
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .update({ role: formData.role as "admin" | "employee" })
-          .eq("user_id", editingEmployee.id);
-
-        if (roleError) throw roleError;
-      }
+      if (error) throw error;
 
       toast.success("Employee information updated");
       setIsDialogOpen(false);
@@ -163,13 +137,13 @@ const Employees = () => {
     setFormData({
       full_name: "",
       phone: "",
+      email: "",
       designation: "",
       department: "",
       joining_date: "",
       basic_salary: "",
       address: "",
       nid: "",
-      role: "employee",
     });
     setEditingEmployee(null);
   };
@@ -177,30 +151,28 @@ const Employees = () => {
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!newEmployeeData.email || !newEmployeeData.password || !newEmployeeData.full_name) {
-      toast.error("Please provide all required information");
+    if (!newEmployeeData.full_name) {
+      toast.error("Please enter employee name");
       return;
     }
 
     setAddLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
-        email: newEmployeeData.email,
-        password: newEmployeeData.password,
-        options: {
-          data: {
-            full_name: newEmployeeData.full_name,
-            phone: newEmployeeData.phone || null,
-          },
-        },
+      const { error } = await supabase.from("employees").insert({
+        full_name: newEmployeeData.full_name,
+        phone: newEmployeeData.phone || null,
+        email: newEmployeeData.email || null,
+        designation: newEmployeeData.designation || null,
+        department: newEmployeeData.department || null,
+        basic_salary: newEmployeeData.basic_salary ? parseFloat(newEmployeeData.basic_salary) : 0,
       });
 
       if (error) throw error;
 
-      toast.success("New employee account created");
+      toast.success("New employee added");
       setIsAddDialogOpen(false);
-      setNewEmployeeData({ email: "", password: "", full_name: "", phone: "" });
-      setTimeout(() => fetchEmployees(), 1000);
+      setNewEmployeeData({ full_name: "", phone: "", email: "", designation: "", department: "", basic_salary: "" });
+      fetchEmployees();
     } catch (error: any) {
       console.error("Error adding employee:", error);
       toast.error(error.message || "Failed to add employee");
@@ -209,18 +181,37 @@ const Employees = () => {
     }
   };
 
+  const handleDeleteEmployee = async (id: string) => {
+    if (!window.confirm("Are you sure you want to remove this employee?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({ is_active: false })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast.success("Employee removed");
+      fetchEmployees();
+    } catch (error) {
+      console.error("Error removing employee:", error);
+      toast.error("Failed to remove employee");
+    }
+  };
+
   const openEditDialog = (employee: Employee) => {
     setEditingEmployee(employee);
     setFormData({
       full_name: employee.full_name,
       phone: employee.phone || "",
+      email: employee.email || "",
       designation: employee.designation || "",
       department: employee.department || "",
       joining_date: employee.joining_date || "",
       basic_salary: employee.basic_salary?.toString() || "",
       address: employee.address || "",
       nid: employee.nid || "",
-      role: employee.role || "employee",
     });
     setIsDialogOpen(true);
   };
@@ -308,7 +299,7 @@ const Employees = () => {
               <DialogHeader>
                 <DialogTitle>Add New Employee</DialogTitle>
                 <DialogDescription>
-                  Create a login account for the new employee
+                  Add a new employee (no login account required)
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddEmployee} className="space-y-4">
@@ -323,7 +314,16 @@ const Employees = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="new_email">Email *</Label>
+                    <Label htmlFor="new_phone">Phone</Label>
+                    <Input
+                      id="new_phone"
+                      placeholder="01XXXXXXXXX"
+                      value={newEmployeeData.phone}
+                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new_email">Email</Label>
                     <Input
                       id="new_email"
                       type="email"
@@ -332,24 +332,35 @@ const Employees = () => {
                       onChange={(e) => setNewEmployeeData({ ...newEmployeeData, email: e.target.value })}
                     />
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="new_password">Password *</Label>
+                    <Label htmlFor="new_designation">Designation</Label>
                     <Input
-                      id="new_password"
-                      type="password"
-                      placeholder="Min 6 characters"
-                      value={newEmployeeData.password}
-                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, password: e.target.value })}
+                      id="new_designation"
+                      placeholder="e.g. Designer"
+                      value={newEmployeeData.designation}
+                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, designation: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new_department">Department</Label>
+                    <Input
+                      id="new_department"
+                      placeholder="e.g. Production"
+                      value={newEmployeeData.department}
+                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, department: e.target.value })}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="new_phone">Phone</Label>
+                  <Label htmlFor="new_basic_salary">Basic Salary</Label>
                   <Input
-                    id="new_phone"
-                    placeholder="01XXXXXXXXX"
-                    value={newEmployeeData.phone}
-                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, phone: e.target.value })}
+                    id="new_basic_salary"
+                    type="number"
+                    placeholder="0"
+                    value={newEmployeeData.basic_salary}
+                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, basic_salary: e.target.value })}
                   />
                 </div>
                 <div className="flex justify-end gap-2">
@@ -357,7 +368,7 @@ const Employees = () => {
                     Cancel
                   </Button>
                   <Button type="submit" disabled={addLoading}>
-                    {addLoading ? "Creating..." : "Create"}
+                    {addLoading ? "Adding..." : "Add Employee"}
                   </Button>
                 </div>
               </form>
@@ -391,37 +402,36 @@ const Employees = () => {
       </div>
 
       {/* Employees Table */}
-      <div className="border rounded-lg">
+      <div className="border rounded-lg overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Designation</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Joining Date</TableHead>
-              <TableHead className="text-right">Salary</TableHead>
-              <TableHead>Role</TableHead>
-              {isAdmin && <TableHead className="text-center">Action</TableHead>}
+              <TableHead className="whitespace-nowrap">Name</TableHead>
+              <TableHead className="whitespace-nowrap">Designation</TableHead>
+              <TableHead className="whitespace-nowrap">Department</TableHead>
+              <TableHead className="whitespace-nowrap">Phone</TableHead>
+              <TableHead className="whitespace-nowrap">Joining Date</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Salary</TableHead>
+              {isAdmin && <TableHead className="text-center whitespace-nowrap">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={7} className="text-center py-8">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : filteredEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No employees found
                 </TableCell>
               </TableRow>
             ) : (
               filteredEmployees.map((employee) => (
                 <TableRow key={employee.id}>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <Avatar>
                         <AvatarFallback className="bg-primary/10 text-primary">
@@ -436,7 +446,7 @@ const Employees = () => {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {employee.designation ? (
                       <div className="flex items-center gap-1">
                         <Briefcase className="h-3 w-3 text-muted-foreground" />
@@ -446,8 +456,8 @@ const Employees = () => {
                       <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
-                  <TableCell>{employee.department || "-"}</TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">{employee.department || "-"}</TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {employee.phone ? (
                       <div className="flex items-center gap-1">
                         <Phone className="h-3 w-3 text-muted-foreground" />
@@ -457,24 +467,24 @@ const Employees = () => {
                       "-"
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {employee.joining_date
                       ? format(new Date(employee.joining_date), "dd MMM yyyy")
                       : "-"}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
+                  <TableCell className="text-right font-medium whitespace-nowrap">
                     {formatCurrency(employee.basic_salary || 0)}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant={employee.role === "admin" ? "default" : "secondary"}>
-                      {employee.role === "admin" ? "Admin" : "Employee"}
-                    </Badge>
-                  </TableCell>
                   {isAdmin && (
-                    <TableCell className="text-center">
-                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(employee)}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
+                    <TableCell className="text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(employee)}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteEmployee(employee.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>
@@ -509,6 +519,26 @@ const Employees = () => {
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="nid">NID</Label>
+                <Input
+                  id="nid"
+                  value={formData.nid}
+                  onChange={(e) => setFormData({ ...formData, nid: e.target.value })}
                 />
               </div>
             </div>
@@ -553,42 +583,6 @@ const Employees = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nid">NID Number</Label>
-                <Input
-                  id="nid"
-                  value={formData.nid}
-                  onChange={(e) => setFormData({ ...formData, nid: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value) => setFormData({ ...formData, role: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="employee">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        Employee
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="admin">
-                      <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4" />
-                        Admin
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="address">Address</Label>
               <Input
@@ -602,7 +596,7 @@ const Employees = () => {
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Save</Button>
+              <Button type="submit">Save Changes</Button>
             </div>
           </form>
         </DialogContent>
