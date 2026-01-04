@@ -7,13 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { CustomerSelect } from '@/components/shared/CustomerSelect';
 import {
   Dialog,
   DialogContent,
@@ -514,21 +508,12 @@ const PriceCalculationForm = () => {
                 </div>
                 <div className="space-y-2 sm:col-span-3">
                   <Label>Customer</Label>
-                  <Select
+                  <CustomerSelect
                     value={formData.customer_id}
                     onValueChange={(value) => handleChange('customer_id', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    customers={customers}
+                    onCustomerAdded={fetchCustomers}
+                  />
                 </div>
               </CardContent>
             </Card>
