@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Calendar, Check, X } from "lucide-react";
+import { Plus, Calendar, Check, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -287,6 +287,21 @@ const Leave = () => {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this leave request?')) return;
+    
+    try {
+      const { error } = await supabase.from('leave_requests').delete().eq('id', id);
+      if (error) throw error;
+      
+      toast.success('Leave request deleted');
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting leave request:', error);
+      toast.error('Failed to delete leave request');
+    }
+  };
+
   const getStatusBadge = (status: LeaveStatus) => {
     switch (status) {
       case "approved":
@@ -488,34 +503,44 @@ const Leave = () => {
                   <TableCell>{getStatusBadge(request.status)}</TableCell>
                   {isAdmin && (
                     <TableCell className="text-center">
-                      {request.status === "pending" && (
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-success hover:text-success"
-                            onClick={() =>
-                              handleApprove(
-                                request.id,
-                                request.user_id,
-                                request.leave_type,
-                                request.start_date,
-                                request.end_date
-                              )
-                            }
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleReject(request.id, request.user_id, request.leave_type)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-center gap-2">
+                        {request.status === "pending" && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-success hover:text-success"
+                              onClick={() =>
+                                handleApprove(
+                                  request.id,
+                                  request.user_id,
+                                  request.leave_type,
+                                  request.start_date,
+                                  request.end_date
+                                )
+                              }
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleReject(request.id, request.user_id, request.leave_type)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(request.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>
