@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,6 +42,10 @@ import {
   Clock,
   XCircle,
   Edit,
+  Phone,
+  Mail,
+  MapPin,
+  Building2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { bn } from 'date-fns/locale';
@@ -96,6 +101,20 @@ const InvoiceDetail = () => {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
+
+  // Fetch company settings
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('*')
+        .limit(1)
+        .single();
+      if (error) return null;
+      return data;
+    },
+  });
 
   useEffect(() => {
     if (id) {
@@ -239,9 +258,9 @@ const InvoiceDetail = () => {
   if (!invoice) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">ইনভয়েস পাওয়া যায়নি</p>
+        <p className="text-muted-foreground">Invoice not found</p>
         <Button variant="link" onClick={() => navigate('/invoices')}>
-          ইনভয়েস তালিকায় ফিরে যান
+          Back to Invoices
         </Button>
       </div>
     );
@@ -278,73 +297,73 @@ const InvoiceDetail = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">ইনভয়েস #{invoice.invoice_number}</h1>
+              <h1 className="text-3xl font-bold">Invoice #{invoice.invoice_number}</h1>
               <p className="text-muted-foreground">
-                {format(new Date(invoice.invoice_date), 'd MMMM yyyy', { locale: bn })}
+                {format(new Date(invoice.invoice_date), 'dd MMMM yyyy')}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate(`/invoices/${invoice.id}/edit`)}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => navigate(`/invoices/${invoice.id}/edit`)}>
               <Edit className="h-4 w-4 mr-2" />
-              সম্পাদনা
+              Edit
             </Button>
-            <Button variant="outline" onClick={handlePrint}>
+            <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />
-              প্রিন্ট
+              Print
             </Button>
-            <Button variant="outline" onClick={handleDownloadPDF}>
+            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
               <Download className="h-4 w-4 mr-2" />
               PDF
             </Button>
             {invoice.status !== 'paid' && (
               <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button size="sm">
                     <CreditCard className="h-4 w-4 mr-2" />
-                    পেমেন্ট গ্রহণ
+                    Add Payment
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>পেমেন্ট গ্রহণ করুন</DialogTitle>
+                    <DialogTitle>Record Payment</DialogTitle>
                     <DialogDescription>
-                      বাকি: {formatCurrency(remaining)}
+                      Amount Due: {formatCurrency(remaining)}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label>পরিমাণ</Label>
+                      <Label>Amount</Label>
                       <Input
                         type="number"
                         value={paymentAmount}
                         onChange={(e) => setPaymentAmount(e.target.value)}
-                        placeholder="পরিমাণ লিখুন"
+                        placeholder="Enter amount"
                         max={remaining}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>পেমেন্ট মেথড</Label>
+                      <Label>Payment Method</Label>
                       <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="cash">ক্যাশ</SelectItem>
-                          <SelectItem value="bank">ব্যাংক ট্রান্সফার</SelectItem>
-                          <SelectItem value="bkash">বিকাশ</SelectItem>
-                          <SelectItem value="nagad">নগদ</SelectItem>
-                          <SelectItem value="check">চেক</SelectItem>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="bank">Bank Transfer</SelectItem>
+                          <SelectItem value="bkash">bKash</SelectItem>
+                          <SelectItem value="nagad">Nagad</SelectItem>
+                          <SelectItem value="check">Check</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>
-                      বাতিল
+                      Cancel
                     </Button>
-                    <Button onClick={handleAddPayment}>পেমেন্ট সংরক্ষণ</Button>
+                    <Button onClick={handleAddPayment}>Save Payment</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -355,16 +374,43 @@ const InvoiceDetail = () => {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             {/* Invoice Header */}
-            <Card>
+            <Card className="overflow-hidden">
+              <div className="h-2 bg-gradient-to-r from-primary to-primary/60" />
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                      <span className="text-primary-foreground font-bold text-2xl">C</span>
-                    </div>
+                    {companySettings?.logo_url ? (
+                      <img 
+                        src={companySettings.logo_url} 
+                        alt="Company Logo" 
+                        className="w-16 h-16 object-contain rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                        <span className="text-primary-foreground font-bold text-2xl">
+                          {(companySettings?.company_name || 'C').charAt(0)}
+                        </span>
+                      </div>
+                    )}
                     <div>
-                      <h2 className="text-2xl font-bold text-primary">Creation Printers</h2>
-                      <p className="text-muted-foreground">প্রিন্টিং ও প্যাকেজিং সলিউশন</p>
+                      <h2 className="text-2xl font-bold text-primary">
+                        {companySettings?.company_name || 'Company Name'}
+                      </h2>
+                      {companySettings?.company_name_bn && (
+                        <p className="text-muted-foreground text-sm">{companySettings.company_name_bn}</p>
+                      )}
+                      <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
+                        {companySettings?.phone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" /> {companySettings.phone}
+                          </span>
+                        )}
+                        {companySettings?.email && (
+                          <span className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" /> {companySettings.email}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -373,35 +419,39 @@ const InvoiceDetail = () => {
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-6">
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-2 font-medium">বিল করা হয়েছে:</p>
+                  <div className="bg-muted/50 p-4 rounded-lg border-l-4 border-primary">
+                    <p className="text-xs text-muted-foreground mb-2 font-semibold uppercase tracking-wide">Bill To</p>
                     <p className="font-semibold text-lg">{invoice.customers?.name}</p>
                     {invoice.customers?.company_name && (
-                      <p className="text-sm">{invoice.customers.company_name}</p>
+                      <p className="text-sm flex items-center gap-1">
+                        <Building2 className="h-3 w-3" /> {invoice.customers.company_name}
+                      </p>
                     )}
                     {invoice.customers?.phone && (
-                      <p className="text-sm text-muted-foreground">📞 {invoice.customers.phone}</p>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Phone className="h-3 w-3" /> {invoice.customers.phone}
+                      </p>
                     )}
                     {invoice.customers?.address && (
-                      <p className="text-sm text-muted-foreground">
-                        📍 {invoice.customers.address}
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3 w-3" /> {invoice.customers.address}
                       </p>
                     )}
                   </div>
-                  <div className="text-right bg-muted/50 p-4 rounded-lg">
+                  <div className="text-right bg-muted/50 p-4 rounded-lg border-r-4 border-success">
                     <div className="space-y-2">
                       <p>
-                        <span className="text-muted-foreground">ইনভয়েস নং:</span>{' '}
-                        <span className="font-bold text-primary">{invoice.invoice_number}</span>
+                        <span className="text-muted-foreground text-sm">Invoice No:</span>{' '}
+                        <span className="font-bold text-primary text-lg">{invoice.invoice_number}</span>
                       </p>
-                      <p>
-                        <span className="text-muted-foreground">তারিখ:</span>{' '}
-                        {format(new Date(invoice.invoice_date), 'd MMMM yyyy', { locale: bn })}
+                      <p className="text-sm">
+                        <span className="text-muted-foreground">Date:</span>{' '}
+                        {format(new Date(invoice.invoice_date), 'dd MMM yyyy')}
                       </p>
                       {invoice.due_date && (
-                        <p>
-                          <span className="text-muted-foreground">ডিউ তারিখ:</span>{' '}
-                          {format(new Date(invoice.due_date), 'd MMMM yyyy', { locale: bn })}
+                        <p className="text-sm">
+                          <span className="text-muted-foreground">Due:</span>{' '}
+                          {format(new Date(invoice.due_date), 'dd MMM yyyy')}
                         </p>
                       )}
                     </div>
@@ -411,21 +461,21 @@ const InvoiceDetail = () => {
             </Card>
 
             {/* Items */}
-            <Card>
+            <Card className="overflow-hidden">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>বিবরণ</TableHead>
-                      <TableHead className="text-center">পরিমাণ</TableHead>
-                      <TableHead className="text-right">দাম</TableHead>
-                      <TableHead className="text-right">ছাড়</TableHead>
-                      <TableHead className="text-right">মোট</TableHead>
+                    <TableRow className="bg-primary/10">
+                      <TableHead className="font-semibold">Description</TableHead>
+                      <TableHead className="text-center font-semibold">Qty</TableHead>
+                      <TableHead className="text-right font-semibold">Unit Price</TableHead>
+                      <TableHead className="text-right font-semibold">Discount</TableHead>
+                      <TableHead className="text-right font-semibold">Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.map((item) => (
-                      <TableRow key={item.id}>
+                      <TableRow key={item.id} className="hover:bg-muted/30">
                         <TableCell className="font-medium">{item.description}</TableCell>
                         <TableCell className="text-center">{item.quantity}</TableCell>
                         <TableCell className="text-right">
@@ -447,8 +497,11 @@ const InvoiceDetail = () => {
             {/* Notes */}
             {invoice.notes && (
               <Card className="border-info/20 bg-info/5">
-                <CardHeader>
-                  <CardTitle className="text-sm text-info">নোট</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-info flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-info" />
+                    Notes
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p>
@@ -459,41 +512,42 @@ const InvoiceDetail = () => {
 
           {/* Summary & Payments */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>সারাংশ</CardTitle>
+            <Card className="overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-primary to-success" />
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">সাবটোটাল</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
                   <span>{formatCurrency(Number(invoice.subtotal))}</span>
                 </div>
                 {Number(invoice.discount) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">ছাড়</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Discount</span>
                     <span className="text-destructive">
                       -{formatCurrency(Number(invoice.discount))}
                     </span>
                   </div>
                 )}
                 {Number(invoice.tax) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">ট্যাক্স/ভ্যাট</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Tax/VAT</span>
                     <span>{formatCurrency(Number(invoice.tax))}</span>
                   </div>
                 )}
-                <div className="flex justify-between pt-3 border-t font-bold text-lg">
-                  <span>মোট</span>
+                <div className="flex justify-between pt-3 border-t-2 border-primary/20 font-bold text-lg">
+                  <span>Total</span>
                   <span className="text-primary">{formatCurrency(Number(invoice.total))}</span>
                 </div>
-                <div className="flex justify-between text-success">
-                  <span>পরিশোধিত</span>
-                  <span>{formatCurrency(Number(invoice.paid_amount))}</span>
+                <div className="flex justify-between text-sm text-success bg-success/5 p-2 rounded">
+                  <span>Paid Amount</span>
+                  <span className="font-medium">{formatCurrency(Number(invoice.paid_amount))}</span>
                 </div>
                 {remaining > 0 && (
-                  <div className="flex justify-between text-destructive font-bold pt-2 border-t">
-                    <span>বাকি</span>
-                    <span>{formatCurrency(remaining)}</span>
+                  <div className="flex justify-between font-bold pt-2 border-t bg-destructive/5 p-2 rounded">
+                    <span className="text-destructive">Amount Due</span>
+                    <span className="text-destructive">{formatCurrency(remaining)}</span>
                   </div>
                 )}
               </CardContent>
@@ -502,8 +556,8 @@ const InvoiceDetail = () => {
             {/* Payment History */}
             {payments.length > 0 && (
               <Card>
-                <CardHeader>
-                  <CardTitle>পেমেন্ট হিস্ট্রি</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Payment History</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {payments.map((payment) => (
@@ -516,7 +570,7 @@ const InvoiceDetail = () => {
                           {formatCurrency(Number(payment.amount))}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(payment.payment_date), 'd MMM yyyy', { locale: bn })} •{' '}
+                          {format(new Date(payment.payment_date), 'dd MMM yyyy')} •{' '}
                           {payment.payment_method}
                         </p>
                       </div>
