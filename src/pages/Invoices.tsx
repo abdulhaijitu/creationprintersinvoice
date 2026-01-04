@@ -20,11 +20,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, FileText, CheckCircle, Clock, XCircle, Download, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, FileText, CheckCircle, Clock, XCircle, Download, Trash2, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link, useNavigate } from 'react-router-dom';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
-
+import CSVImportDialog from '@/components/import/CSVImportDialog';
+import { ImportResult } from '@/lib/importUtils';
 interface Invoice {
   id: string;
   invoice_number: string;
@@ -42,7 +43,7 @@ const Invoices = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-
+  const [importOpen, setImportOpen] = useState(false);
   useEffect(() => {
     fetchInvoices();
   }, []);
@@ -158,6 +159,109 @@ const Invoices = () => {
     toast.success(`${exportFormat.toUpperCase()} file downloading`);
   };
 
+  const invoiceImportFields = ['invoice_number', 'customer_name', 'invoice_date', 'total', 'status'];
+  const invoiceFieldMapping: Record<string, string> = {
+    invoice_number: 'Invoice Number',
+    customer_name: 'Customer Name',
+    invoice_date: 'Invoice Date (DD/MM/YYYY)',
+    total: 'Total Amount',
+    status: 'Status (unpaid/partial/paid)',
+  };
+
+  const handleImport = async (
+    data: Record<string, string>[],
+    onProgress?: (current: number, total: number) => void
+  ): Promise<ImportResult> => {
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      onProgress?.(i + 1, data.length);
+
+      try {
+        const invoiceNumber = row.invoice_number || row['Invoice Number'] || '';
+        const customerName = row.customer_name || row['Customer Name'] || '';
+        const invoiceDateStr = row.invoice_date || row['Invoice Date'] || '';
+        const totalStr = row.total || row['Total Amount'] || '0';
+        const statusStr = (row.status || row['Status'] || 'unpaid').toLowerCase();
+
+        if (!invoiceNumber) {
+          failed++;
+          errors.push(`Row ${i + 1}: Invoice number not provided`);
+          continue;
+        }
+
+        // Parse date (DD/MM/YYYY format)
+        let invoiceDate = new Date().toISOString().split('T')[0];
+        if (invoiceDateStr) {
+          const parts = invoiceDateStr.split('/');
+          if (parts.length === 3) {
+            invoiceDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+
+        // Find or create customer
+        let customerId: string | null = null;
+        if (customerName) {
+          const { data: existingCustomer } = await supabase
+            .from('customers')
+            .select('id')
+            .ilike('name', customerName)
+            .limit(1)
+            .single();
+
+          if (existingCustomer) {
+            customerId = existingCustomer.id;
+          } else {
+            const { data: newCustomer, error: customerError } = await supabase
+              .from('customers')
+              .insert({ name: customerName })
+              .select('id')
+              .single();
+
+            if (!customerError && newCustomer) {
+              customerId = newCustomer.id;
+            }
+          }
+        }
+
+        const total = parseFloat(totalStr) || 0;
+        const status = ['unpaid', 'partial', 'paid'].includes(statusStr) 
+          ? statusStr as 'unpaid' | 'partial' | 'paid' 
+          : 'unpaid';
+        const paidAmount = status === 'paid' ? total : status === 'partial' ? total / 2 : 0;
+
+        const { error } = await supabase.from('invoices').insert({
+          invoice_number: invoiceNumber,
+          customer_id: customerId,
+          invoice_date: invoiceDate,
+          total: total,
+          subtotal: total,
+          paid_amount: paidAmount,
+          status: status,
+        });
+
+        if (error) {
+          failed++;
+          errors.push(`Row ${i + 1}: ${error.message}`);
+        } else {
+          success++;
+        }
+      } catch (err) {
+        failed++;
+        errors.push(`Row ${i + 1}: Unexpected error`);
+      }
+    }
+
+    if (success > 0) {
+      fetchInvoices();
+    }
+
+    return { success, failed, errors };
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -167,6 +271,11 @@ const Invoices = () => {
         </div>
 
         <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -277,6 +386,17 @@ const Invoices = () => {
           )}
         </CardContent>
       </Card>
+
+      <CSVImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="Import Invoices"
+        description="Upload a CSV file to import invoices. The system will automatically find or create customers."
+        requiredFields={invoiceImportFields}
+        fieldMapping={invoiceFieldMapping}
+        onImport={handleImport}
+        templateFilename="invoices"
+      />
     </div>
   );
 };
