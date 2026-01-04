@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +40,10 @@ import {
   XCircle,
   ArrowRightCircle,
   Edit,
+  Phone,
+  Mail,
+  MapPin,
+  Building2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { bn } from 'date-fns/locale';
@@ -85,6 +90,20 @@ const QuotationDetail = () => {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [converting, setConverting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  // Fetch company settings
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('*')
+        .limit(1)
+        .single();
+      if (error) return null;
+      return data;
+    },
+  });
 
   useEffect(() => {
     if (id) {
@@ -256,9 +275,9 @@ const QuotationDetail = () => {
   if (!quotation) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">কোটেশন পাওয়া যায়নি</p>
+        <p className="text-muted-foreground">Quotation not found</p>
         <Button variant="link" onClick={() => navigate('/quotations')}>
-          কোটেশন তালিকায় ফিরে যান
+          Back to Quotations
         </Button>
       </div>
     );
@@ -292,47 +311,47 @@ const QuotationDetail = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">কোটেশন #{quotation.quotation_number}</h1>
+              <h1 className="text-3xl font-bold">Quotation #{quotation.quotation_number}</h1>
               <p className="text-muted-foreground">
-                {format(new Date(quotation.quotation_date), 'd MMMM yyyy', { locale: bn })}
+                {format(new Date(quotation.quotation_date), 'dd MMMM yyyy')}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate(`/quotations/${quotation.id}/edit`)}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => navigate(`/quotations/${quotation.id}/edit`)}>
               <Edit className="h-4 w-4 mr-2" />
-              সম্পাদনা
+              Edit
             </Button>
-            <Button variant="outline" onClick={handlePrint}>
+            <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />
-              প্রিন্ট
+              Print
             </Button>
-            <Button variant="outline" onClick={handleDownloadPDF}>
+            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
               <Download className="h-4 w-4 mr-2" />
               PDF
             </Button>
             {quotation.status === 'pending' && (
               <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button size="sm">
                     <ArrowRightCircle className="h-4 w-4 mr-2" />
-                    Invoice এ রূপান্তর
+                    Convert to Invoice
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Invoice এ রূপান্তর করুন</DialogTitle>
+                    <DialogTitle>Convert to Invoice</DialogTitle>
                     <DialogDescription>
-                      এই কোটেশন থেকে একটি নতুন ইনভয়েস তৈরি হবে। কোটেশনের স্ট্যাটাস "গৃহীত" হয়ে যাবে।
+                      This will create a new invoice from this quotation. The quotation status will be changed to "Accepted".
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
-                      বাতিল
+                      Cancel
                     </Button>
                     <Button onClick={handleConvertToInvoice} disabled={converting}>
-                      {converting ? 'রূপান্তর হচ্ছে...' : 'রূপান্তর করুন'}
+                      {converting ? 'Converting...' : 'Convert'}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -344,16 +363,43 @@ const QuotationDetail = () => {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             {/* Quotation Header */}
-            <Card>
+            <Card className="overflow-hidden">
+              <div className="h-2 bg-gradient-to-r from-primary to-primary/60" />
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                      <span className="text-primary-foreground font-bold text-2xl">C</span>
-                    </div>
+                    {companySettings?.logo_url ? (
+                      <img 
+                        src={companySettings.logo_url} 
+                        alt="Company Logo" 
+                        className="w-16 h-16 object-contain rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                        <span className="text-primary-foreground font-bold text-2xl">
+                          {(companySettings?.company_name || 'C').charAt(0)}
+                        </span>
+                      </div>
+                    )}
                     <div>
-                      <h2 className="text-2xl font-bold text-primary">Creation Printers</h2>
-                      <p className="text-muted-foreground">প্রিন্টিং ও প্যাকেজিং সলিউশন</p>
+                      <h2 className="text-2xl font-bold text-primary">
+                        {companySettings?.company_name || 'Company Name'}
+                      </h2>
+                      {companySettings?.company_name_bn && (
+                        <p className="text-muted-foreground text-sm">{companySettings.company_name_bn}</p>
+                      )}
+                      <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
+                        {companySettings?.phone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" /> {companySettings.phone}
+                          </span>
+                        )}
+                        {companySettings?.email && (
+                          <span className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" /> {companySettings.email}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -362,35 +408,39 @@ const QuotationDetail = () => {
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-6">
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-2 font-medium">প্রাপক:</p>
+                  <div className="bg-muted/50 p-4 rounded-lg border-l-4 border-primary">
+                    <p className="text-xs text-muted-foreground mb-2 font-semibold uppercase tracking-wide">Quotation For</p>
                     <p className="font-semibold text-lg">{quotation.customers?.name}</p>
                     {quotation.customers?.company_name && (
-                      <p className="text-sm">{quotation.customers.company_name}</p>
+                      <p className="text-sm flex items-center gap-1">
+                        <Building2 className="h-3 w-3" /> {quotation.customers.company_name}
+                      </p>
                     )}
                     {quotation.customers?.phone && (
-                      <p className="text-sm text-muted-foreground">📞 {quotation.customers.phone}</p>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Phone className="h-3 w-3" /> {quotation.customers.phone}
+                      </p>
                     )}
                     {quotation.customers?.address && (
-                      <p className="text-sm text-muted-foreground">
-                        📍 {quotation.customers.address}
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3 w-3" /> {quotation.customers.address}
                       </p>
                     )}
                   </div>
-                  <div className="text-right bg-muted/50 p-4 rounded-lg">
+                  <div className="text-right bg-muted/50 p-4 rounded-lg border-r-4 border-warning">
                     <div className="space-y-2">
                       <p>
-                        <span className="text-muted-foreground">কোটেশন নং:</span>{' '}
-                        <span className="font-bold text-primary">{quotation.quotation_number}</span>
+                        <span className="text-muted-foreground text-sm">Quotation No:</span>{' '}
+                        <span className="font-bold text-primary text-lg">{quotation.quotation_number}</span>
                       </p>
-                      <p>
-                        <span className="text-muted-foreground">তারিখ:</span>{' '}
-                        {format(new Date(quotation.quotation_date), 'd MMMM yyyy', { locale: bn })}
+                      <p className="text-sm">
+                        <span className="text-muted-foreground">Date:</span>{' '}
+                        {format(new Date(quotation.quotation_date), 'dd MMM yyyy')}
                       </p>
                       {quotation.valid_until && (
-                        <p>
-                          <span className="text-muted-foreground">মেয়াদ:</span>{' '}
-                          {format(new Date(quotation.valid_until), 'd MMMM yyyy', { locale: bn })}
+                        <p className="text-sm">
+                          <span className="text-muted-foreground">Valid Until:</span>{' '}
+                          {format(new Date(quotation.valid_until), 'dd MMM yyyy')}
                         </p>
                       )}
                     </div>
@@ -400,21 +450,21 @@ const QuotationDetail = () => {
             </Card>
 
             {/* Items */}
-            <Card>
+            <Card className="overflow-hidden">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>বিবরণ</TableHead>
-                      <TableHead className="text-center">পরিমাণ</TableHead>
-                      <TableHead className="text-right">দাম</TableHead>
-                      <TableHead className="text-right">ছাড়</TableHead>
-                      <TableHead className="text-right">মোট</TableHead>
+                    <TableRow className="bg-primary/10">
+                      <TableHead className="font-semibold">Description</TableHead>
+                      <TableHead className="text-center font-semibold">Qty</TableHead>
+                      <TableHead className="text-right font-semibold">Unit Price</TableHead>
+                      <TableHead className="text-right font-semibold">Discount</TableHead>
+                      <TableHead className="text-right font-semibold">Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.map((item) => (
-                      <TableRow key={item.id}>
+                      <TableRow key={item.id} className="hover:bg-muted/30">
                         <TableCell className="font-medium">{item.description}</TableCell>
                         <TableCell className="text-center">{item.quantity}</TableCell>
                         <TableCell className="text-right">
@@ -436,8 +486,11 @@ const QuotationDetail = () => {
             {/* Notes */}
             {quotation.notes && (
               <Card className="border-info/20 bg-info/5">
-                <CardHeader>
-                  <CardTitle className="text-sm text-info">নোট / শর্তাবলী</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-info flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-info" />
+                    Notes & Terms
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">{quotation.notes}</p>
@@ -448,31 +501,32 @@ const QuotationDetail = () => {
 
           {/* Summary & Status */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>সারাংশ</CardTitle>
+            <Card className="overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-primary to-warning" />
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">সাবটোটাল</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
                   <span>{formatCurrency(Number(quotation.subtotal))}</span>
                 </div>
                 {Number(quotation.discount) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">ছাড়</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Discount</span>
                     <span className="text-destructive">
                       -{formatCurrency(Number(quotation.discount))}
                     </span>
                   </div>
                 )}
                 {Number(quotation.tax) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">ট্যাক্স/ভ্যাট</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Tax/VAT</span>
                     <span>{formatCurrency(Number(quotation.tax))}</span>
                   </div>
                 )}
-                <div className="flex justify-between pt-3 border-t font-bold text-lg">
-                  <span>মোট</span>
+                <div className="flex justify-between pt-3 border-t-2 border-primary/20 font-bold text-lg">
+                  <span>Total</span>
                   <span className="text-primary">{formatCurrency(Number(quotation.total))}</span>
                 </div>
               </CardContent>
@@ -480,8 +534,8 @@ const QuotationDetail = () => {
 
             {/* Status Update */}
             <Card>
-              <CardHeader>
-                <CardTitle>স্ট্যাটাস পরিবর্তন</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Update Status</CardTitle>
               </CardHeader>
               <CardContent>
                 <Select
@@ -496,19 +550,19 @@ const QuotationDetail = () => {
                     <SelectItem value="pending">
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-warning" />
-                        পেন্ডিং
+                        Pending
                       </div>
                     </SelectItem>
                     <SelectItem value="accepted">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="h-4 w-4 text-success" />
-                        গৃহীত
+                        Accepted
                       </div>
                     </SelectItem>
                     <SelectItem value="rejected">
                       <div className="flex items-center gap-2">
                         <XCircle className="h-4 w-4 text-destructive" />
-                        বাতিল
+                        Rejected
                       </div>
                     </SelectItem>
                   </SelectContent>
