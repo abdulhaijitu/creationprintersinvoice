@@ -31,7 +31,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Calendar, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
-import { bn } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Database } from "@/integrations/supabase/types";
 import { createNotification } from "@/hooks/useNotifications";
@@ -62,10 +61,10 @@ interface LeaveBalance {
 }
 
 const leaveTypeLabels: Record<LeaveType, string> = {
-  casual: "ক্যাজুয়াল",
-  sick: "অসুস্থতা",
-  annual: "বার্ষিক",
-  other: "অন্যান্য",
+  casual: "Casual",
+  sick: "Sick",
+  annual: "Annual",
+  other: "Other",
 };
 
 const Leave = () => {
@@ -88,7 +87,6 @@ const Leave = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch leave requests
       let query = supabase
         .from("leave_requests")
         .select("*")
@@ -101,7 +99,6 @@ const Leave = () => {
       const { data: requestsData } = await query;
 
       if (requestsData) {
-        // Fetch profile names
         const requestsWithProfiles = await Promise.all(
           requestsData.map(async (request) => {
             const { data: profile } = await supabase
@@ -116,7 +113,6 @@ const Leave = () => {
         setLeaveRequests(requestsWithProfiles);
       }
 
-      // Fetch leave balance for current user
       if (user?.id) {
         const currentYear = new Date().getFullYear();
         const { data: balanceData } = await supabase
@@ -129,7 +125,6 @@ const Leave = () => {
         if (balanceData) {
           setLeaveBalance(balanceData);
         } else {
-          // Create default balance if not exists
           const { data: newBalance } = await supabase
             .from("leave_balances")
             .insert({
@@ -155,7 +150,7 @@ const Leave = () => {
     e.preventDefault();
 
     if (!formData.start_date || !formData.end_date) {
-      toast.error("তারিখ দিন");
+      toast.error("Please enter dates");
       return;
     }
 
@@ -171,7 +166,6 @@ const Leave = () => {
 
       if (error) throw error;
 
-      // Notify admins about new leave request
       const { data: admins } = await supabase
         .from("user_roles")
         .select("user_id")
@@ -181,20 +175,20 @@ const Leave = () => {
         for (const admin of admins) {
           await createNotification(
             admin.user_id,
-            "নতুন ছুটির আবেদন",
-            `${leaveTypeLabels[formData.leave_type]} ছুটির জন্য নতুন আবেদন এসেছে`,
+            "New Leave Request",
+            `New ${leaveTypeLabels[formData.leave_type]} leave request received`,
             "leave_request"
           );
         }
       }
 
-      toast.success("ছুটির আবেদন জমা হয়েছে");
+      toast.success("Leave request submitted");
       setIsDialogOpen(false);
       resetForm();
       fetchData();
     } catch (error) {
       console.error("Error submitting leave request:", error);
-      toast.error("আবেদন জমা ব্যর্থ হয়েছে");
+      toast.error("Failed to submit request");
     }
   };
 
@@ -211,7 +205,6 @@ const Leave = () => {
     try {
       const days = differenceInDays(new Date(endDate), new Date(startDate)) + 1;
 
-      // Update leave request
       const { error: requestError } = await supabase
         .from("leave_requests")
         .update({
@@ -223,7 +216,6 @@ const Leave = () => {
 
       if (requestError) throw requestError;
 
-      // Update leave balance
       const currentYear = new Date().getFullYear();
       const { data: balance } = await supabase
         .from("leave_balances")
@@ -248,21 +240,20 @@ const Leave = () => {
           .eq("id", balance.id);
       }
 
-      // Notify the user
       await createNotification(
         userId,
-        "ছুটি অনুমোদিত",
-        `আপনার ${leaveTypeLabels[leaveType]} ছুটি অনুমোদিত হয়েছে (${days} দিন)`,
+        "Leave Approved",
+        `Your ${leaveTypeLabels[leaveType]} leave has been approved (${days} days)`,
         "leave_approved",
         id,
         "leave_request"
       );
 
-      toast.success("ছুটি অনুমোদিত হয়েছে");
+      toast.success("Leave approved");
       fetchData();
     } catch (error) {
       console.error("Error approving leave:", error);
-      toast.error("অনুমোদন ব্যর্থ হয়েছে");
+      toast.error("Failed to approve");
     }
   };
 
@@ -279,32 +270,31 @@ const Leave = () => {
 
       if (error) throw error;
 
-      // Notify the user
       await createNotification(
         userId,
-        "ছুটি প্রত্যাখ্যাত",
-        `আপনার ${leaveTypeLabels[leaveType]} ছুটির আবেদন প্রত্যাখ্যাত হয়েছে`,
+        "Leave Rejected",
+        `Your ${leaveTypeLabels[leaveType]} leave request has been rejected`,
         "leave_rejected",
         id,
         "leave_request"
       );
 
-      toast.success("ছুটি প্রত্যাখ্যাত হয়েছে");
+      toast.success("Leave rejected");
       fetchData();
     } catch (error) {
       console.error("Error rejecting leave:", error);
-      toast.error("প্রত্যাখ্যান ব্যর্থ হয়েছে");
+      toast.error("Failed to reject");
     }
   };
 
   const getStatusBadge = (status: LeaveStatus) => {
     switch (status) {
       case "approved":
-        return <Badge className="bg-success">অনুমোদিত</Badge>;
+        return <Badge className="bg-success">Approved</Badge>;
       case "rejected":
-        return <Badge variant="destructive">প্রত্যাখ্যাত</Badge>;
+        return <Badge variant="destructive">Rejected</Badge>;
       default:
-        return <Badge variant="secondary">অপেক্ষমাণ</Badge>;
+        return <Badge variant="secondary">Pending</Badge>;
     }
   };
 
@@ -316,23 +306,23 @@ const Leave = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">ছুটি</h1>
-          <p className="text-muted-foreground">ছুটির আবেদন ও ব্যালেন্স</p>
+          <h1 className="text-3xl font-bold">Leave</h1>
+          <p className="text-muted-foreground">Leave requests and balance</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              ছুটির আবেদন
+              Request Leave
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>ছুটির আবেদন করুন</DialogTitle>
+              <DialogTitle>Submit Leave Request</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label>ছুটির ধরন</Label>
+                <Label>Leave Type</Label>
                 <Select
                   value={formData.leave_type}
                   onValueChange={(v) => setFormData({ ...formData, leave_type: v as LeaveType })}
@@ -341,17 +331,17 @@ const Leave = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="casual">ক্যাজুয়াল</SelectItem>
-                    <SelectItem value="sick">অসুস্থতা</SelectItem>
-                    <SelectItem value="annual">বার্ষিক</SelectItem>
-                    <SelectItem value="other">অন্যান্য</SelectItem>
+                    <SelectItem value="casual">Casual</SelectItem>
+                    <SelectItem value="sick">Sick</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>শুরু তারিখ</Label>
+                  <Label>Start Date</Label>
                   <Input
                     type="date"
                     value={formData.start_date}
@@ -359,7 +349,7 @@ const Leave = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>শেষ তারিখ</Label>
+                  <Label>End Date</Label>
                   <Input
                     type="date"
                     value={formData.end_date}
@@ -369,9 +359,9 @@ const Leave = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>কারণ</Label>
+                <Label>Reason</Label>
                 <Textarea
-                  placeholder="ছুটির কারণ লিখুন"
+                  placeholder="Reason for leave"
                   value={formData.reason}
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                 />
@@ -379,22 +369,21 @@ const Leave = () => {
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  বাতিল
+                  Cancel
                 </Button>
-                <Button type="submit">জমা দিন</Button>
+                <Button type="submit">Submit</Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Leave Balance Cards */}
       {leaveBalance && (
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                ক্যাজুয়াল ছুটি
+                Casual Leave
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -405,14 +394,14 @@ const Leave = () => {
                 </span>
               </p>
               <p className="text-sm text-muted-foreground">
-                ব্যবহৃত: {leaveBalance.casual_used}
+                Used: {leaveBalance.casual_used}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                অসুস্থতা ছুটি
+                Sick Leave
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -423,14 +412,14 @@ const Leave = () => {
                 </span>
               </p>
               <p className="text-sm text-muted-foreground">
-                ব্যবহৃত: {leaveBalance.sick_used}
+                Used: {leaveBalance.sick_used}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                বার্ষিক ছুটি
+                Annual Leave
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -441,38 +430,37 @@ const Leave = () => {
                 </span>
               </p>
               <p className="text-sm text-muted-foreground">
-                ব্যবহৃত: {leaveBalance.annual_used}
+                Used: {leaveBalance.annual_used}
               </p>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Leave Requests Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              {isAdmin && <TableHead>কর্মচারী</TableHead>}
-              <TableHead>ধরন</TableHead>
-              <TableHead>তারিখ</TableHead>
-              <TableHead>দিন</TableHead>
-              <TableHead>কারণ</TableHead>
-              <TableHead>স্ট্যাটাস</TableHead>
-              {isAdmin && <TableHead className="text-center">অ্যাকশন</TableHead>}
+              {isAdmin && <TableHead>Employee</TableHead>}
+              <TableHead>Type</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Days</TableHead>
+              <TableHead>Reason</TableHead>
+              <TableHead>Status</TableHead>
+              {isAdmin && <TableHead className="text-center">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 7 : 5} className="text-center py-8">
-                  লোড হচ্ছে...
+                  Loading...
                 </TableCell>
               </TableRow>
             ) : leaveRequests.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 7 : 5} className="text-center py-8 text-muted-foreground">
-                  কোনো আবেদন নেই
+                  No requests
                 </TableCell>
               </TableRow>
             ) : (
@@ -487,13 +475,13 @@ const Leave = () => {
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3 text-muted-foreground" />
-                      {format(new Date(request.start_date), "dd MMM", { locale: bn })}
+                      {format(new Date(request.start_date), "dd MMM")}
                       {request.start_date !== request.end_date && (
-                        <> - {format(new Date(request.end_date), "dd MMM", { locale: bn })}</>
+                        <> - {format(new Date(request.end_date), "dd MMM")}</>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>{getDays(request.start_date, request.end_date)} দিন</TableCell>
+                  <TableCell>{getDays(request.start_date, request.end_date)} days</TableCell>
                   <TableCell className="max-w-[200px] truncate">
                     {request.reason || "-"}
                   </TableCell>

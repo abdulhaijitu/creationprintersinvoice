@@ -1,5 +1,4 @@
 import { format } from 'date-fns';
-import { bn } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -63,7 +62,7 @@ export const PrintTemplate = ({
   });
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
@@ -74,22 +73,22 @@ export const PrintTemplate = ({
     if (type === 'invoice') {
       switch (status) {
         case 'paid':
-          return 'পরিশোধিত';
+          return 'Paid';
         case 'partial':
-          return 'আংশিক পরিশোধিত';
+          return 'Partially Paid';
         case 'unpaid':
-          return 'বাকি';
+          return 'Unpaid';
         default:
           return status;
       }
     } else {
       switch (status) {
         case 'accepted':
-          return 'গৃহীত';
+          return 'Accepted';
         case 'pending':
-          return 'পেন্ডিং';
+          return 'Pending';
         case 'rejected':
-          return 'বাতিল';
+          return 'Rejected';
         default:
           return status;
       }
@@ -126,13 +125,13 @@ export const PrintTemplate = ({
             <div>
               <h1 className="text-3xl font-bold text-gray-900">{companyName}</h1>
               {companyNameBn && <p className="text-gray-600 text-sm">{companyNameBn}</p>}
-              <p className="text-gray-500 text-xs mt-1">উচ্চ মানের প্রিন্টিং সার্ভিস</p>
+              <p className="text-gray-500 text-xs mt-1">Quality Printing Services</p>
             </div>
           </div>
           <div className="text-right">
             <div className="inline-block px-4 py-2 rounded-lg bg-gray-100 border">
               <p className="text-2xl font-bold text-primary">
-                {type === 'invoice' ? 'ইনভয়েস' : 'কোটেশন'}
+                {type === 'invoice' ? 'INVOICE' : 'QUOTATION'}
               </p>
               <p className="text-lg font-semibold text-gray-700">#{documentNumber}</p>
             </div>
@@ -144,7 +143,7 @@ export const PrintTemplate = ({
       <div className="grid grid-cols-3 gap-6 mb-8">
         {/* From */}
         <div className="bg-gray-50 p-4 rounded-lg">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">প্রেরক</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">From</p>
           <p className="font-bold text-gray-900">{companyName}</p>
           {companyAddress && <p className="text-sm text-gray-600">{companyAddress}</p>}
           {companyPhone && <p className="text-sm text-gray-600">📞 {companyPhone}</p>}
@@ -154,7 +153,7 @@ export const PrintTemplate = ({
         {/* To */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            {type === 'invoice' ? 'বিল করা হয়েছে' : 'প্রাপক'}
+            {type === 'invoice' ? 'Bill To' : 'To'}
           </p>
           {customer ? (
             <>
@@ -169,38 +168,38 @@ export const PrintTemplate = ({
               )}
             </>
           ) : (
-            <p className="text-sm text-gray-500">গ্রাহক তথ্য নেই</p>
+            <p className="text-sm text-gray-500">No customer info</p>
           )}
         </div>
 
         {/* Document Details */}
         <div className="bg-gray-50 p-4 rounded-lg">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">বিবরণ</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Details</p>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">
-                {type === 'invoice' ? 'ইনভয়েস নং:' : 'কোটেশন নং:'}
+                {type === 'invoice' ? 'Invoice No:' : 'Quotation No:'}
               </span>
               <span className="font-semibold">{documentNumber}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">তারিখ:</span>
+              <span className="text-gray-600">Date:</span>
               <span>{format(new Date(date), 'dd/MM/yyyy')}</span>
             </div>
             {type === 'invoice' && dueDate && (
               <div className="flex justify-between">
-                <span className="text-gray-600">ডিউ তারিখ:</span>
+                <span className="text-gray-600">Due Date:</span>
                 <span>{format(new Date(dueDate), 'dd/MM/yyyy')}</span>
               </div>
             )}
             {type === 'quotation' && validUntil && (
               <div className="flex justify-between">
-                <span className="text-gray-600">মেয়াদ:</span>
+                <span className="text-gray-600">Valid Until:</span>
                 <span>{format(new Date(validUntil), 'dd/MM/yyyy')}</span>
               </div>
             )}
             <div className="flex justify-between pt-2 border-t">
-              <span className="text-gray-600">স্ট্যাটাস:</span>
+              <span className="text-gray-600">Status:</span>
               <span
                 className={`font-semibold px-2 py-0.5 rounded text-xs ${
                   status === 'paid' || status === 'accepted'
@@ -223,11 +222,11 @@ export const PrintTemplate = ({
           <thead>
             <tr className="bg-primary text-white">
               <th className="py-3 px-4 text-left font-semibold">#</th>
-              <th className="py-3 px-4 text-left font-semibold">বিবরণ</th>
-              <th className="py-3 px-4 text-center font-semibold">পরিমাণ</th>
-              <th className="py-3 px-4 text-right font-semibold">একক দাম</th>
-              <th className="py-3 px-4 text-right font-semibold">ছাড়</th>
-              <th className="py-3 px-4 text-right font-semibold">মোট</th>
+              <th className="py-3 px-4 text-left font-semibold">Description</th>
+              <th className="py-3 px-4 text-center font-semibold">Qty</th>
+              <th className="py-3 px-4 text-right font-semibold">Unit Price</th>
+              <th className="py-3 px-4 text-right font-semibold">Discount</th>
+              <th className="py-3 px-4 text-right font-semibold">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -257,34 +256,34 @@ export const PrintTemplate = ({
         <div className="w-80">
           <div className="bg-gray-50 rounded-lg p-4 space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">সাবটোটাল:</span>
+              <span className="text-gray-600">Subtotal:</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
             {discount > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">ছাড়:</span>
+                <span className="text-gray-600">Discount:</span>
                 <span className="text-red-600">-{formatCurrency(discount)}</span>
               </div>
             )}
             {tax > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">ট্যাক্স/ভ্যাট:</span>
+                <span className="text-gray-600">Tax/VAT:</span>
                 <span>{formatCurrency(tax)}</span>
               </div>
             )}
             <div className="flex justify-between pt-3 border-t-2 border-gray-300">
-              <span className="font-bold text-lg">মোট:</span>
+              <span className="font-bold text-lg">Total:</span>
               <span className="font-bold text-lg text-primary">{formatCurrency(total)}</span>
             </div>
             {type === 'invoice' && paidAmount !== undefined && (
               <>
                 <div className="flex justify-between text-sm text-green-600">
-                  <span>পরিশোধিত:</span>
+                  <span>Paid:</span>
                   <span>{formatCurrency(paidAmount)}</span>
                 </div>
                 {remaining > 0 && (
                   <div className="flex justify-between pt-2 border-t">
-                    <span className="font-bold text-red-600">বাকি:</span>
+                    <span className="font-bold text-red-600">Due:</span>
                     <span className="font-bold text-red-600">{formatCurrency(remaining)}</span>
                   </div>
                 )}
@@ -298,7 +297,7 @@ export const PrintTemplate = ({
       {(notes || invoiceTerms) && (
         <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">
-            {type === 'invoice' ? 'নোট ও শর্তাবলী' : 'শর্তাবলী'}
+            {type === 'invoice' ? 'Notes & Terms' : 'Terms & Conditions'}
           </p>
           {notes && <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2">{notes}</p>}
           {invoiceTerms && <p className="text-sm text-gray-700 whitespace-pre-wrap">{invoiceTerms}</p>}
@@ -309,24 +308,24 @@ export const PrintTemplate = ({
       {(bankName || mobileBanking) && (
         <div className="mb-8 bg-gray-50 rounded-lg p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            পেমেন্ট তথ্য
+            Payment Information
           </p>
           <div className="grid grid-cols-3 gap-4 text-sm">
             {bankName && (
               <div>
-                <p className="text-gray-600">ব্যাংক:</p>
+                <p className="text-gray-600">Bank:</p>
                 <p className="font-medium">{bankName}</p>
               </div>
             )}
             {bankAccountNumber && (
               <div>
-                <p className="text-gray-600">অ্যাকাউন্ট নম্বর:</p>
+                <p className="text-gray-600">Account Number:</p>
                 <p className="font-medium">{bankAccountNumber}</p>
               </div>
             )}
             {mobileBanking && (
               <div>
-                <p className="text-gray-600">মোবাইল ব্যাংকিং:</p>
+                <p className="text-gray-600">Mobile Banking:</p>
                 <p className="font-medium">{mobileBanking}</p>
               </div>
             )}
@@ -339,23 +338,23 @@ export const PrintTemplate = ({
         <div className="flex justify-between items-end">
           <div>
             <div className="border-t-2 border-gray-400 pt-2 w-48">
-              <p className="text-sm text-gray-600">অনুমোদিত স্বাক্ষর</p>
+              <p className="text-sm text-gray-600">Authorized Signature</p>
             </div>
           </div>
           <div className="text-center">
             {invoiceFooter ? (
               <p className="text-sm text-gray-600 whitespace-pre-wrap">{invoiceFooter}</p>
             ) : (
-              <p className="text-sm text-gray-600">ধন্যবাদ আপনার ব্যবসার জন্য!</p>
+              <p className="text-sm text-gray-600">Thank you for your business!</p>
             )}
             {companyPhone && (
               <p className="text-xs text-gray-500 mt-1">
-                প্রশ্ন থাকলে যোগাযোগ করুন: {companyPhone}
+                For inquiries contact: {companyPhone}
               </p>
             )}
           </div>
           <div className="text-right text-xs text-gray-400">
-            <p>তৈরির তারিখ: {format(new Date(), 'd MMMM yyyy', { locale: bn })}</p>
+            <p>Generated: {format(new Date(), 'd MMM yyyy')}</p>
             <p>{companyName} © {new Date().getFullYear()}</p>
           </div>
         </div>
@@ -364,7 +363,7 @@ export const PrintTemplate = ({
       {/* Watermark for unpaid invoices */}
       {type === 'invoice' && status === 'unpaid' && (
         <div className="fixed inset-0 flex items-center justify-center pointer-events-none opacity-10 rotate-[-30deg]">
-          <span className="text-9xl font-bold text-red-500">বাকি</span>
+          <span className="text-9xl font-bold text-red-500">UNPAID</span>
         </div>
       )}
     </div>

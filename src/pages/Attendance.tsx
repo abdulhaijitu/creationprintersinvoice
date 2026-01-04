@@ -23,7 +23,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Clock, UserCheck, UserX, Users } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { bn } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Database } from "@/integrations/supabase/types";
 
@@ -60,7 +59,6 @@ const Attendance = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch employees if admin
       if (isAdmin) {
         const { data: employeesData } = await supabase
           .from("profiles")
@@ -69,7 +67,6 @@ const Attendance = () => {
         setEmployees(employeesData || []);
       }
 
-      // Fetch attendance
       let query = supabase
         .from("attendance")
         .select("*")
@@ -85,7 +82,6 @@ const Attendance = () => {
       const { data: attendanceData } = await query;
 
       if (attendanceData) {
-        // Fetch profile names
         const attendanceWithProfiles = await Promise.all(
           attendanceData.map(async (record) => {
             const { data: profile } = await supabase
@@ -111,7 +107,6 @@ const Attendance = () => {
 
   const handleCheckIn = async () => {
     try {
-      // Check if already checked in today
       const { data: existing } = await supabase
         .from("attendance")
         .select("id")
@@ -120,7 +115,7 @@ const Attendance = () => {
         .single();
 
       if (existing) {
-        toast.error("আজ আপনি ইতোমধ্যে চেক-ইন করেছেন");
+        toast.error("You have already checked in today");
         return;
       }
 
@@ -133,11 +128,11 @@ const Attendance = () => {
 
       if (error) throw error;
 
-      toast.success("চেক-ইন সফল হয়েছে");
+      toast.success("Check-in successful");
       fetchData();
     } catch (error) {
       console.error("Error checking in:", error);
-      toast.error("চেক-ইন ব্যর্থ হয়েছে");
+      toast.error("Check-in failed");
     }
   };
 
@@ -151,12 +146,12 @@ const Attendance = () => {
         .single();
 
       if (!todayRecord) {
-        toast.error("প্রথমে চেক-ইন করুন");
+        toast.error("Please check in first");
         return;
       }
 
       if (todayRecord.check_out) {
-        toast.error("আজ আপনি ইতোমধ্যে চেক-আউট করেছেন");
+        toast.error("You have already checked out today");
         return;
       }
 
@@ -167,11 +162,11 @@ const Attendance = () => {
 
       if (error) throw error;
 
-      toast.success("চেক-আউট সফল হয়েছে");
+      toast.success("Check-out successful");
       fetchData();
     } catch (error) {
       console.error("Error checking out:", error);
-      toast.error("চেক-আউট ব্যর্থ হয়েছে");
+      toast.error("Check-out failed");
     }
   };
 
@@ -184,24 +179,24 @@ const Attendance = () => {
 
       if (error) throw error;
 
-      toast.success("স্ট্যাটাস আপডেট হয়েছে");
+      toast.success("Status updated");
       fetchData();
     } catch (error) {
       console.error("Error updating status:", error);
-      toast.error("স্ট্যাটাস আপডেট ব্যর্থ হয়েছে");
+      toast.error("Failed to update status");
     }
   };
 
   const getStatusBadge = (status: AttendanceStatus) => {
     switch (status) {
       case "present":
-        return <Badge className="bg-success">উপস্থিত</Badge>;
+        return <Badge className="bg-success">Present</Badge>;
       case "absent":
-        return <Badge variant="destructive">অনুপস্থিত</Badge>;
+        return <Badge variant="destructive">Absent</Badge>;
       case "late":
-        return <Badge variant="secondary">দেরি</Badge>;
+        return <Badge variant="secondary">Late</Badge>;
       case "half_day":
-        return <Badge variant="outline">অর্ধদিন</Badge>;
+        return <Badge variant="outline">Half Day</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -209,10 +204,9 @@ const Attendance = () => {
 
   const formatTime = (dateString: string | null) => {
     if (!dateString) return "-";
-    return format(new Date(dateString), "hh:mm a", { locale: bn });
+    return format(new Date(dateString), "hh:mm a");
   };
 
-  // Stats
   const presentCount = attendance.filter((a) => a.status === "present").length;
   const absentCount = attendance.filter((a) => a.status === "absent").length;
   const lateCount = attendance.filter((a) => a.status === "late").length;
@@ -221,29 +215,28 @@ const Attendance = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">উপস্থিতি</h1>
-          <p className="text-muted-foreground">দৈনিক উপস্থিতি ট্র্যাকিং</p>
+          <h1 className="text-3xl font-bold">Attendance</h1>
+          <p className="text-muted-foreground">Daily attendance tracking</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={handleCheckIn} variant="outline">
             <Clock className="mr-2 h-4 w-4" />
-            চেক-ইন
+            Check In
           </Button>
           <Button onClick={handleCheckOut}>
             <Clock className="mr-2 h-4 w-4" />
-            চেক-আউট
+            Check Out
           </Button>
         </div>
       </div>
 
-      {/* Summary Cards */}
       {isAdmin && (
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                মোট
+                Total
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -254,7 +247,7 @@ const Attendance = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-success flex items-center gap-2">
                 <UserCheck className="h-4 w-4" />
-                উপস্থিত
+                Present
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -265,7 +258,7 @@ const Attendance = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-destructive flex items-center gap-2">
                 <UserX className="h-4 w-4" />
-                অনুপস্থিত
+                Absent
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -276,7 +269,7 @@ const Attendance = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                দেরি
+                Late
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -286,7 +279,6 @@ const Attendance = () => {
         </div>
       )}
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -300,10 +292,10 @@ const Attendance = () => {
         {isAdmin && (
           <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="কর্মচারী বাছুন" />
+              <SelectValue placeholder="Select Employee" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">সবাই</SelectItem>
+              <SelectItem value="all">All</SelectItem>
               {employees.map((emp) => (
                 <SelectItem key={emp.id} value={emp.id}>
                   {emp.full_name}
@@ -314,37 +306,36 @@ const Attendance = () => {
         )}
       </div>
 
-      {/* Attendance Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>তারিখ</TableHead>
-              {isAdmin && <TableHead>কর্মচারী</TableHead>}
-              <TableHead>চেক-ইন</TableHead>
-              <TableHead>চেক-আউট</TableHead>
-              <TableHead>স্ট্যাটাস</TableHead>
-              {isAdmin && <TableHead>অ্যাকশন</TableHead>}
+              <TableHead>Date</TableHead>
+              {isAdmin && <TableHead>Employee</TableHead>}
+              <TableHead>Check In</TableHead>
+              <TableHead>Check Out</TableHead>
+              <TableHead>Status</TableHead>
+              {isAdmin && <TableHead>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 6 : 4} className="text-center py-8">
-                  লোড হচ্ছে...
+                  Loading...
                 </TableCell>
               </TableRow>
             ) : attendance.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 6 : 4} className="text-center py-8 text-muted-foreground">
-                  কোনো রেকর্ড পাওয়া যায়নি
+                  No records found
                 </TableCell>
               </TableRow>
             ) : (
               attendance.map((record) => (
                 <TableRow key={record.id}>
                   <TableCell>
-                    {format(new Date(record.date), "dd MMM yyyy", { locale: bn })}
+                    {format(new Date(record.date), "dd MMM yyyy")}
                   </TableCell>
                   {isAdmin && (
                     <TableCell className="font-medium">
@@ -364,10 +355,10 @@ const Attendance = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="present">উপস্থিত</SelectItem>
-                          <SelectItem value="absent">অনুপস্থিত</SelectItem>
-                          <SelectItem value="late">দেরি</SelectItem>
-                          <SelectItem value="half_day">অর্ধদিন</SelectItem>
+                          <SelectItem value="present">Present</SelectItem>
+                          <SelectItem value="absent">Absent</SelectItem>
+                          <SelectItem value="late">Late</SelectItem>
+                          <SelectItem value="half_day">Half Day</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>

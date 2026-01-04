@@ -30,7 +30,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Star, TrendingUp, User } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { bn } from "date-fns/locale";
 
 interface PerformanceNote {
   id: string;
@@ -68,7 +67,6 @@ const Performance = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch employees if admin
       if (isAdmin) {
         const { data: employeesData } = await supabase
           .from("profiles")
@@ -77,7 +75,6 @@ const Performance = () => {
         setEmployees(employeesData || []);
       }
 
-      // Fetch performance notes
       let query = supabase
         .from("performance_notes")
         .select("*")
@@ -92,7 +89,6 @@ const Performance = () => {
       const { data: notesData } = await query;
 
       if (notesData) {
-        // Fetch profile names
         const notesWithProfiles = await Promise.all(
           notesData.map(async (note) => {
             const { data: profile } = await supabase
@@ -127,7 +123,7 @@ const Performance = () => {
     e.preventDefault();
 
     if (!formData.user_id || !formData.note) {
-      toast.error("কর্মচারী এবং নোট দিন");
+      toast.error("Please select employee and enter note");
       return;
     }
 
@@ -141,13 +137,13 @@ const Performance = () => {
 
       if (error) throw error;
 
-      toast.success("পারফরম্যান্স নোট সংরক্ষণ হয়েছে");
+      toast.success("Performance note saved");
       setIsDialogOpen(false);
       resetForm();
       fetchData();
     } catch (error) {
       console.error("Error saving performance note:", error);
-      toast.error("নোট সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.error("Failed to save note");
     }
   };
 
@@ -177,7 +173,6 @@ const Performance = () => {
     );
   };
 
-  // Calculate average rating
   const avgRating =
     notes.length > 0
       ? notes.reduce((sum, n) => sum + (n.rating || 0), 0) / notes.filter(n => n.rating).length
@@ -187,30 +182,30 @@ const Performance = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">পারফরম্যান্স</h1>
-          <p className="text-muted-foreground">কর্মচারী পারফরম্যান্স ট্র্যাকিং</p>
+          <h1 className="text-3xl font-bold">Performance</h1>
+          <p className="text-muted-foreground">Employee performance tracking</p>
         </div>
         {isAdmin && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                নোট যোগ করুন
+                Add Note
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>পারফরম্যান্স নোট</DialogTitle>
+                <DialogTitle>Performance Note</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>কর্মচারী</Label>
+                  <Label>Employee</Label>
                   <Select
                     value={formData.user_id}
                     onValueChange={(v) => setFormData({ ...formData, user_id: v })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="কর্মচারী বাছুন" />
+                      <SelectValue placeholder="Select Employee" />
                     </SelectTrigger>
                     <SelectContent>
                       {employees.map((emp) => (
@@ -223,7 +218,7 @@ const Performance = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>রেটিং</Label>
+                  <Label>Rating</Label>
                   <Select
                     value={formData.rating}
                     onValueChange={(v) => setFormData({ ...formData, rating: v })}
@@ -232,19 +227,19 @@ const Performance = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">⭐ (খারাপ)</SelectItem>
-                      <SelectItem value="2">⭐⭐ (নিম্ন)</SelectItem>
-                      <SelectItem value="3">⭐⭐⭐ (মাঝারি)</SelectItem>
-                      <SelectItem value="4">⭐⭐⭐⭐ (ভালো)</SelectItem>
-                      <SelectItem value="5">⭐⭐⭐⭐⭐ (চমৎকার)</SelectItem>
+                      <SelectItem value="1">⭐ (Poor)</SelectItem>
+                      <SelectItem value="2">⭐⭐ (Below Average)</SelectItem>
+                      <SelectItem value="3">⭐⭐⭐ (Average)</SelectItem>
+                      <SelectItem value="4">⭐⭐⭐⭐ (Good)</SelectItem>
+                      <SelectItem value="5">⭐⭐⭐⭐⭐ (Excellent)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>নোট</Label>
+                  <Label>Note</Label>
                   <Textarea
-                    placeholder="পারফরম্যান্স সম্পর্কে মন্তব্য লিখুন..."
+                    placeholder="Write performance comments..."
                     value={formData.note}
                     onChange={(e) => setFormData({ ...formData, note: e.target.value })}
                     rows={4}
@@ -253,9 +248,9 @@ const Performance = () => {
 
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    বাতিল
+                    Cancel
                   </Button>
-                  <Button type="submit">সংরক্ষণ</Button>
+                  <Button type="submit">Save</Button>
                 </div>
               </form>
             </DialogContent>
@@ -263,13 +258,12 @@ const Performance = () => {
         )}
       </div>
 
-      {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              মোট নোট
+              Total Notes
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -280,7 +274,7 @@ const Performance = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Star className="h-4 w-4" />
-              গড় রেটিং
+              Average Rating
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -294,7 +288,7 @@ const Performance = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <User className="h-4 w-4" />
-              কর্মচারী
+              Employees
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -305,14 +299,13 @@ const Performance = () => {
         </Card>
       </div>
 
-      {/* Filter */}
       {isAdmin && (
         <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="কর্মচারী বাছুন" />
+            <SelectValue placeholder="Select Employee" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">সবাই</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             {employees.map((emp) => (
               <SelectItem key={emp.id} value={emp.id}>
                 {emp.full_name}
@@ -322,36 +315,35 @@ const Performance = () => {
         </Select>
       )}
 
-      {/* Notes Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>তারিখ</TableHead>
-              {isAdmin && <TableHead>কর্মচারী</TableHead>}
-              <TableHead>রেটিং</TableHead>
-              <TableHead>নোট</TableHead>
-              {isAdmin && <TableHead>যোগ করেছেন</TableHead>}
+              <TableHead>Date</TableHead>
+              {isAdmin && <TableHead>Employee</TableHead>}
+              <TableHead>Rating</TableHead>
+              <TableHead>Note</TableHead>
+              {isAdmin && <TableHead>Added By</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 5 : 3} className="text-center py-8">
-                  লোড হচ্ছে...
+                  Loading...
                 </TableCell>
               </TableRow>
             ) : notes.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 5 : 3} className="text-center py-8 text-muted-foreground">
-                  কোনো নোট নেই
+                  No notes
                 </TableCell>
               </TableRow>
             ) : (
               notes.map((note) => (
                 <TableRow key={note.id}>
                   <TableCell>
-                    {format(new Date(note.created_at), "dd MMM yyyy", { locale: bn })}
+                    {format(new Date(note.created_at), "dd MMM yyyy")}
                   </TableCell>
                   {isAdmin && (
                     <TableCell className="font-medium">

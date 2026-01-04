@@ -53,7 +53,7 @@ const CSVImportDialog = ({
     if (!file) return;
 
     if (!file.name.endsWith('.csv')) {
-      toast.error('শুধুমাত্র CSV ফাইল গ্রহণযোগ্য');
+      toast.error('Only CSV files are accepted');
       return;
     }
 
@@ -70,7 +70,7 @@ const CSVImportDialog = ({
 
   const handleImport = async () => {
     if (parsedData.length === 0) {
-      toast.error('ইম্পোর্ট করার মতো ডেটা নেই');
+      toast.error('No data to import');
       return;
     }
 
@@ -80,14 +80,14 @@ const CSVImportDialog = ({
       setImportResult(result);
       
       if (result.success > 0) {
-        toast.success(`${result.success}টি সফলভাবে ইম্পোর্ট হয়েছে`);
+        toast.success(`${result.success} imported successfully`);
       }
       if (result.failed > 0) {
-        toast.error(`${result.failed}টি ইম্পোর্ট ব্যর্থ হয়েছে`);
+        toast.error(`${result.failed} failed to import`);
       }
     } catch (error) {
       console.error('Import error:', error);
-      toast.error('ইম্পোর্ট করতে সমস্যা হয়েছে');
+      toast.error('Import failed');
     } finally {
       setImporting(false);
     }
@@ -105,7 +105,7 @@ const CSVImportDialog = ({
 
   const handleDownloadTemplate = () => {
     downloadTemplate(templateFilename, fieldMapping);
-    toast.success('টেমপ্লেট ডাউনলোড হচ্ছে');
+    toast.success('Template downloading');
   };
 
   return (
@@ -122,15 +122,15 @@ const CSVImportDialog = ({
             <div className="flex items-center gap-3">
               <FileText className="h-5 w-5 text-muted-foreground" />
               <div>
-                <p className="font-medium text-sm">CSV টেমপ্লেট</p>
+                <p className="font-medium text-sm">CSV Template</p>
                 <p className="text-xs text-muted-foreground">
-                  প্রথমে টেমপ্লেট ডাউনলোড করে ডেটা পূরণ করুন
+                  Download template first and fill in the data
                 </p>
               </div>
             </div>
             <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
               <Download className="h-4 w-4 mr-2" />
-              টেমপ্লেট
+              Template
             </Button>
           </div>
 
@@ -145,10 +145,10 @@ const CSVImportDialog = ({
             />
             <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground mb-2">
-              CSV ফাইল আপলোড করুন
+              Upload CSV file
             </p>
             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-              ফাইল নির্বাচন করুন
+              Select File
             </Button>
           </div>
 
@@ -157,7 +157,7 @@ const CSVImportDialog = ({
             <div className="p-4 border border-destructive/50 rounded-lg bg-destructive/10">
               <div className="flex items-center gap-2 text-destructive mb-2">
                 <AlertCircle className="h-4 w-4" />
-                <span className="font-medium">সমস্যা পাওয়া গেছে:</span>
+                <span className="font-medium">Issues found:</span>
               </div>
               <ul className="text-sm text-destructive space-y-1">
                 {parseErrors.map((error, i) => (
@@ -174,13 +174,13 @@ const CSVImportDialog = ({
                 {importResult.success > 0 && (
                   <div className="flex items-center gap-2 text-green-600">
                     <CheckCircle className="h-4 w-4" />
-                    <span>{importResult.success}টি সফল</span>
+                    <span>{importResult.success} successful</span>
                   </div>
                 )}
                 {importResult.failed > 0 && (
                   <div className="flex items-center gap-2 text-destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <span>{importResult.failed}টি ব্যর্থ</span>
+                    <span>{importResult.failed} failed</span>
                   </div>
                 )}
               </div>
@@ -190,7 +190,7 @@ const CSVImportDialog = ({
                     <li key={i}>• {error}</li>
                   ))}
                   {importResult.errors.length > 5 && (
-                    <li>...এবং আরো {importResult.errors.length - 5}টি সমস্যা</li>
+                    <li>...and {importResult.errors.length - 5} more issues</li>
                   )}
                 </ul>
               )}
@@ -201,7 +201,7 @@ const CSVImportDialog = ({
           {parsedData.length > 0 && !importResult && (
             <div className="space-y-2">
               <p className="text-sm font-medium">
-                প্রিভিউ ({parsedData.length}টি রেকর্ড)
+                Preview ({parsedData.length} records)
               </p>
               <ScrollArea className="h-[200px] border rounded-lg">
                 <Table>
@@ -227,7 +227,7 @@ const CSVImportDialog = ({
               </ScrollArea>
               {parsedData.length > 10 && (
                 <p className="text-xs text-muted-foreground text-center">
-                  ...এবং আরো {parsedData.length - 10}টি রেকর্ড
+                  ...and {parsedData.length - 10} more records
                 </p>
               )}
             </div>
@@ -236,11 +236,11 @@ const CSVImportDialog = ({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            বন্ধ করুন
+            Close
           </Button>
           {parsedData.length > 0 && !importResult && (
             <Button onClick={handleImport} disabled={importing}>
-              {importing ? 'ইম্পোর্ট হচ্ছে...' : `${parsedData.length}টি ইম্পোর্ট করুন`}
+              {importing ? 'Importing...' : `Import ${parsedData.length}`}
             </Button>
           )}
         </DialogFooter>

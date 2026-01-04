@@ -31,7 +31,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, CheckCircle2, Circle, Clock, ListTodo, Search, Edit2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { bn } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Database } from "@/integrations/supabase/types";
 import { createNotification } from "@/hooks/useNotifications";
@@ -60,15 +59,15 @@ interface Employee {
 }
 
 const priorityLabels: Record<TaskPriority, string> = {
-  low: "নিম্ন",
-  medium: "মাঝারি",
-  high: "উচ্চ",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
 };
 
 const statusLabels: Record<TaskStatus, string> = {
-  todo: "করতে হবে",
-  in_progress: "চলমান",
-  completed: "সম্পন্ন",
+  todo: "To Do",
+  in_progress: "In Progress",
+  completed: "Completed",
 };
 
 const Tasks = () => {
@@ -95,7 +94,6 @@ const Tasks = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch employees if admin
       if (isAdmin) {
         const { data: employeesData } = await supabase
           .from("profiles")
@@ -104,7 +102,6 @@ const Tasks = () => {
         setEmployees(employeesData || []);
       }
 
-      // Fetch tasks
       let query = supabase
         .from("tasks")
         .select("*")
@@ -121,7 +118,6 @@ const Tasks = () => {
       const { data: tasksData } = await query;
 
       if (tasksData) {
-        // Fetch profile names
         const tasksWithProfiles = await Promise.all(
           tasksData.map(async (task) => {
             let assignee = null;
@@ -161,13 +157,12 @@ const Tasks = () => {
     e.preventDefault();
 
     if (!formData.title) {
-      toast.error("টাস্কের শিরোনাম দিন");
+      toast.error("Please enter task title");
       return;
     }
 
     try {
       if (editingTask) {
-        // Update existing task
         const { error } = await supabase
           .from("tasks")
           .update({
@@ -180,9 +175,8 @@ const Tasks = () => {
           .eq("id", editingTask.id);
 
         if (error) throw error;
-        toast.success("টাস্ক আপডেট হয়েছে");
+        toast.success("Task updated");
       } else {
-        // Create new task
         const { data: newTask, error } = await supabase.from("tasks").insert({
           title: formData.title,
           description: formData.description || null,
@@ -195,19 +189,18 @@ const Tasks = () => {
 
         if (error) throw error;
 
-        // Notify assigned user
         if (formData.assigned_to && newTask) {
           await createNotification(
             formData.assigned_to,
-            "নতুন টাস্ক অ্যাসাইন",
-            `আপনাকে নতুন টাস্ক অ্যাসাইন করা হয়েছে: ${formData.title}`,
+            "New Task Assigned",
+            `You have been assigned a new task: ${formData.title}`,
             "task_assigned",
             newTask.id,
             "task"
           );
         }
 
-        toast.success("টাস্ক তৈরি হয়েছে");
+        toast.success("Task created");
       }
 
       setIsDialogOpen(false);
@@ -215,7 +208,7 @@ const Tasks = () => {
       fetchData();
     } catch (error) {
       console.error("Error saving task:", error);
-      toast.error("টাস্ক সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.error("Failed to save task");
     }
   };
 
@@ -243,16 +236,16 @@ const Tasks = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("এই টাস্ক মুছে ফেলতে চান?")) return;
+    if (!confirm("Delete this task?")) return;
 
     try {
       const { error } = await supabase.from("tasks").delete().eq("id", id);
       if (error) throw error;
-      toast.success("টাস্ক মুছে ফেলা হয়েছে");
+      toast.success("Task deleted");
       fetchData();
     } catch (error) {
       console.error("Error deleting task:", error);
-      toast.error("টাস্ক মুছতে সমস্যা হয়েছে");
+      toast.error("Failed to delete task");
     }
   };
 
@@ -270,11 +263,11 @@ const Tasks = () => {
 
       if (error) throw error;
 
-      toast.success("টাস্ক আপডেট হয়েছে");
+      toast.success("Task updated");
       fetchData();
     } catch (error) {
       console.error("Error updating task:", error);
-      toast.error("আপডেট ব্যর্থ হয়েছে");
+      toast.error("Failed to update");
     }
   };
 
@@ -307,7 +300,6 @@ const Tasks = () => {
       task.assignee?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Stats
   const todoCount = tasks.filter((t) => t.status === "todo").length;
   const inProgressCount = tasks.filter((t) => t.status === "in_progress").length;
   const completedCount = tasks.filter((t) => t.status === "completed").length;
@@ -316,8 +308,8 @@ const Tasks = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">টাস্ক</h1>
-          <p className="text-muted-foreground">টাস্ক অ্যাসাইনমেন্ট ও মনিটরিং</p>
+          <h1 className="text-3xl font-bold">Tasks</h1>
+          <p className="text-muted-foreground">Task assignment and monitoring</p>
         </div>
         {isAdmin && (
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -327,27 +319,27 @@ const Tasks = () => {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                নতুন টাস্ক
+                New Task
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{editingTask ? "টাস্ক সম্পাদনা" : "নতুন টাস্ক তৈরি"}</DialogTitle>
+                <DialogTitle>{editingTask ? "Edit Task" : "Create New Task"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>শিরোনাম *</Label>
+                  <Label>Title *</Label>
                   <Input
-                    placeholder="টাস্কের শিরোনাম"
+                    placeholder="Task title"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>বিবরণ</Label>
+                  <Label>Description</Label>
                   <Textarea
-                    placeholder="টাস্কের বিবরণ..."
+                    placeholder="Task description..."
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
@@ -356,13 +348,13 @@ const Tasks = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>অ্যাসাইন করুন</Label>
+                    <Label>Assign To</Label>
                     <Select
                       value={formData.assigned_to}
                       onValueChange={(v) => setFormData({ ...formData, assigned_to: v })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="কর্মচারী বাছুন" />
+                        <SelectValue placeholder="Select Employee" />
                       </SelectTrigger>
                       <SelectContent>
                         {employees.map((emp) => (
@@ -374,7 +366,7 @@ const Tasks = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>ডেডলাইন</Label>
+                    <Label>Deadline</Label>
                     <Input
                       type="date"
                       value={formData.deadline}
@@ -384,7 +376,7 @@ const Tasks = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>প্রায়োরিটি</Label>
+                  <Label>Priority</Label>
                   <Select
                     value={formData.priority}
                     onValueChange={(v) => setFormData({ ...formData, priority: v as TaskPriority })}
@@ -393,18 +385,18 @@ const Tasks = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="low">নিম্ন</SelectItem>
-                      <SelectItem value="medium">মাঝারি</SelectItem>
-                      <SelectItem value="high">উচ্চ</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    বাতিল
+                    Cancel
                   </Button>
-                  <Button type="submit">তৈরি করুন</Button>
+                  <Button type="submit">Create</Button>
                 </div>
               </form>
             </DialogContent>
@@ -412,13 +404,12 @@ const Tasks = () => {
         )}
       </div>
 
-      {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <ListTodo className="h-4 w-4" />
-              মোট টাস্ক
+              Total Tasks
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -429,7 +420,7 @@ const Tasks = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Circle className="h-4 w-4" />
-              করতে হবে
+              To Do
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -440,7 +431,7 @@ const Tasks = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-warning flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              চলমান
+              In Progress
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -451,7 +442,7 @@ const Tasks = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-success flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
-              সম্পন্ন
+              Completed
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -460,12 +451,11 @@ const Tasks = () => {
         </Card>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="টাস্ক খুঁজুন..."
+            placeholder="Search tasks..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -473,41 +463,40 @@ const Tasks = () => {
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="স্ট্যাটাস" />
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">সব</SelectItem>
-            <SelectItem value="todo">করতে হবে</SelectItem>
-            <SelectItem value="in_progress">চলমান</SelectItem>
-            <SelectItem value="completed">সম্পন্ন</SelectItem>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="todo">To Do</SelectItem>
+            <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Tasks Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>স্ট্যাটাস</TableHead>
-              <TableHead>শিরোনাম</TableHead>
-              <TableHead>অ্যাসাইনী</TableHead>
-              <TableHead>প্রায়োরিটি</TableHead>
-              <TableHead>ডেডলাইন</TableHead>
-              <TableHead className="text-center">অ্যাকশন</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead>Assignee</TableHead>
+              <TableHead>Priority</TableHead>
+              <TableHead>Deadline</TableHead>
+              <TableHead className="text-center">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8">
-                  লোড হচ্ছে...
+                  Loading...
                 </TableCell>
               </TableRow>
             ) : filteredTasks.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  কোনো টাস্ক নেই
+                  No tasks
                 </TableCell>
               </TableRow>
             ) : (
@@ -533,7 +522,7 @@ const Tasks = () => {
                   <TableCell>{getPriorityBadge(task.priority)}</TableCell>
                   <TableCell>
                     {task.deadline
-                      ? format(new Date(task.deadline), "dd MMM yyyy", { locale: bn })
+                      ? format(new Date(task.deadline), "dd MMM yyyy")
                       : "-"}
                   </TableCell>
                   <TableCell className="text-center">
@@ -546,9 +535,9 @@ const Tasks = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="todo">করতে হবে</SelectItem>
-                          <SelectItem value="in_progress">চলমান</SelectItem>
-                          <SelectItem value="completed">সম্পন্ন</SelectItem>
+                          <SelectItem value="todo">To Do</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
                       </Select>
                       {isAdmin && (
