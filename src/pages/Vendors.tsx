@@ -22,7 +22,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2 } from "lucide-react";
+import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload } from "lucide-react";
+import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
+import { parseCSV, downloadTemplate, ImportResult } from "@/lib/importUtils";
+import CSVImportDialog from "@/components/import/CSVImportDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -55,6 +64,7 @@ const Vendors = () => {
     bank_info: "",
     notes: "",
   });
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchVendors();
@@ -200,6 +210,77 @@ const Vendors = () => {
     }).format(amount);
   };
 
+  const vendorExportHeaders = {
+    name: 'Name',
+    phone: 'Phone',
+    email: 'Email',
+    address: 'Address',
+    bank_info: 'Bank Info',
+    notes: 'Notes',
+  };
+
+  const vendorImportFields = ['name'];
+
+  const handleExportCSV = () => {
+    const exportData = vendors.map(v => ({
+      name: v.name,
+      phone: v.phone || '',
+      email: v.email || '',
+      address: v.address || '',
+      bank_info: v.bank_info || '',
+      notes: v.notes || '',
+    }));
+    exportToCSV(exportData, 'vendors', vendorExportHeaders);
+  };
+
+  const handleExportExcel = () => {
+    const exportData = vendors.map(v => ({
+      name: v.name,
+      phone: v.phone || '',
+      email: v.email || '',
+      address: v.address || '',
+      bank_info: v.bank_info || '',
+      notes: v.notes || '',
+    }));
+    exportToExcel(exportData, 'vendors', vendorExportHeaders);
+  };
+
+  const handleImport = async (data: Record<string, string>[]): Promise<ImportResult> => {
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      try {
+        const { error } = await supabase.from('vendors').insert({
+          name: row.name,
+          phone: row.phone || null,
+          email: row.email || null,
+          address: row.address || null,
+          bank_info: row.bank_info || null,
+          notes: row.notes || null,
+        });
+
+        if (error) {
+          failed++;
+          errors.push(`Row ${i + 1}: ${error.message}`);
+        } else {
+          success++;
+        }
+      } catch (err) {
+        failed++;
+        errors.push(`Row ${i + 1}: Unknown error`);
+      }
+    }
+
+    if (success > 0) {
+      fetchVendors();
+    }
+
+    return { success, failed, errors };
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -207,17 +288,40 @@ const Vendors = () => {
           <h1 className="text-3xl font-bold">Vendors</h1>
           <p className="text-muted-foreground">All vendors and due balance</p>
         </div>
-        {isAdmin && (
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New Vendor
+        <div className="flex gap-2">
+          {isAdmin && (
+            <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import
+            </Button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Export
               </Button>
-            </DialogTrigger>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={handleExportCSV}>
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel}>
+                Export as Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {isAdmin && (
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Vendor
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>
@@ -315,7 +419,8 @@ const Vendors = () => {
               </form>
             </DialogContent>
           </Dialog>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -473,6 +578,16 @@ const Vendors = () => {
           </TableBody>
         </Table>
       </div>
+      <CSVImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        title="Import Vendors"
+        description="Upload a CSV file to import vendors. Required field: name"
+        requiredFields={vendorImportFields}
+        fieldMapping={vendorExportHeaders}
+        onImport={handleImport}
+        templateFilename="vendors"
+      />
     </div>
   );
 };
