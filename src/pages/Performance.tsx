@@ -38,7 +38,7 @@ interface PerformanceNote {
   rating: number | null;
   created_at: string;
   created_by: string | null;
-  profile?: { full_name: string } | null;
+  employee?: { full_name: string } | null;
   creator?: { full_name: string } | null;
 }
 
@@ -67,13 +67,13 @@ const Performance = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      if (isAdmin) {
-        const { data: employeesData } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .order("full_name");
-        setEmployees(employeesData || []);
-      }
+      // Fetch employees from employees table
+      const { data: employeesData } = await supabase
+        .from("employees")
+        .select("id, full_name")
+        .eq("is_active", true)
+        .order("full_name");
+      setEmployees(employeesData || []);
 
       let query = supabase
         .from("performance_notes")
@@ -88,29 +88,17 @@ const Performance = () => {
 
       const { data: notesData } = await query;
 
-      if (notesData) {
-        const notesWithProfiles = await Promise.all(
-          notesData.map(async (note) => {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("full_name")
-              .eq("id", note.user_id)
-              .maybeSingle();
-
-            let creator = null;
-            if (note.created_by) {
-              const { data: creatorData } = await supabase
-                .from("profiles")
-                .select("full_name")
-                .eq("id", note.created_by)
-                .maybeSingle();
-              creator = creatorData;
-            }
-
-            return { ...note, profile, creator };
-          })
-        );
-        setNotes(notesWithProfiles);
+      if (notesData && employeesData) {
+        const notesWithEmployees = notesData.map((note) => {
+          const employee = employeesData.find((e) => e.id === note.user_id);
+          const creator = employeesData.find((e) => e.id === note.created_by);
+          return {
+            ...note,
+            employee: employee ? { full_name: employee.full_name } : null,
+            creator: creator ? { full_name: creator.full_name } : null,
+          };
+        });
+        setNotes(notesWithEmployees);
       }
     } catch (error) {
       console.error("Error fetching performance data:", error);
@@ -347,7 +335,7 @@ const Performance = () => {
                   </TableCell>
                   {isAdmin && (
                     <TableCell className="font-medium">
-                      {note.profile?.full_name || "-"}
+                      {note.employee?.full_name || "-"}
                     </TableCell>
                   )}
                   <TableCell>{getRatingStars(note.rating)}</TableCell>

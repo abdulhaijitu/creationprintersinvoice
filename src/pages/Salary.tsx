@@ -29,10 +29,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Wallet, Calendar, ShieldAlert, Loader2 } from "lucide-react";
+import { Plus, Calendar, ShieldAlert, Loader2, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface SalaryRecord {
   id: string;
@@ -58,6 +59,19 @@ interface Employee {
   basic_salary: number;
 }
 
+interface EmployeeAdvance {
+  id: string;
+  employee_id: string;
+  amount: number;
+  date: string;
+  reason: string | null;
+  status: string;
+  deducted_from_month: number | null;
+  deducted_from_year: number | null;
+  created_at: string;
+  employee?: { full_name: string } | null;
+}
+
 const months = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
@@ -67,10 +81,13 @@ const Salary = () => {
   const { isAdmin, role, loading: authLoading } = useAuth();
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [advances, setAdvances] = useState<EmployeeAdvance[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("salary");
   const [formData, setFormData] = useState({
     employee_id: "",
     month: new Date().getMonth() + 1,
@@ -82,6 +99,11 @@ const Salary = () => {
     deductions: "0",
     advance: "0",
     notes: "",
+  });
+  const [advanceFormData, setAdvanceFormData] = useState({
+    employee_id: "",
+    amount: "",
+    reason: "",
   });
 
   const fetchData = useCallback(async () => {
@@ -109,6 +131,20 @@ const Salary = () => {
           return { ...record, employee: employee ? { full_name: employee.full_name } : null };
         });
         setSalaryRecords(recordsWithEmployee);
+      }
+
+      // Fetch advances
+      const { data: advancesData } = await supabase
+        .from("employee_advances")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (advancesData && employeesData) {
+        const advancesWithEmployee = advancesData.map((advance) => {
+          const employee = employeesData.find((e) => e.id === advance.employee_id);
+          return { ...advance, employee: employee ? { full_name: employee.full_name } : null };
+        });
+        setAdvances(advancesWithEmployee);
       }
     } catch (error) {
       console.error("Error fetching salary data:", error);
@@ -197,6 +233,63 @@ const Salary = () => {
     });
   };
 
+  const resetAdvanceForm = () => {
+    setAdvanceFormData({
+      employee_id: "",
+      amount: "",
+      reason: "",
+    });
+  };
+
+  const handleAdvanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!advanceFormData.employee_id || !advanceFormData.amount) {
+      toast.error("Please select employee and enter amount");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("employee_advances").insert({
+        employee_id: advanceFormData.employee_id,
+        amount: parseFloat(advanceFormData.amount),
+        reason: advanceFormData.reason || null,
+        status: "pending",
+      });
+
+      if (error) throw error;
+
+      toast.success("Advance recorded");
+      setIsAdvanceDialogOpen(false);
+      resetAdvanceForm();
+      fetchData();
+    } catch (error) {
+      console.error("Error saving advance:", error);
+      toast.error("Failed to save advance");
+    }
+  };
+
+  const markAdvanceDeducted = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("employee_advances")
+        .update({
+          status: "deducted",
+          deducted_from_month: selectedMonth,
+          deducted_from_year: selectedYear,
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast.success("Marked as deducted");
+      fetchData();
+    } catch (error) {
+      console.error("Error updating advance:", error);
+      toast.error("Update failed");
+    }
+  };
+
   const markAsPaid = async (id: string) => {
     try {
       const { error } = await supabase
@@ -229,6 +322,9 @@ const Salary = () => {
   const totalPaid = salaryRecords
     .filter((r) => r.status === "paid")
     .reduce((sum, r) => sum + r.net_payable, 0);
+  const totalPendingAdvances = advances
+    .filter((a) => a.status === "pending")
+    .reduce((sum, a) => sum + a.amount, 0);
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
@@ -279,13 +375,70 @@ const Salary = () => {
           <p className="text-muted-foreground">Employee salary management</p>
         </div>
         {isAdmin && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New Salary Sheet
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Dialog open={isAdvanceDialogOpen} onOpenChange={setIsAdvanceDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Banknote className="mr-2 h-4 w-4" />
+                  Record Advance
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Record Employee Advance</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAdvanceSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Employee</Label>
+                    <Select
+                      value={advanceFormData.employee_id}
+                      onValueChange={(v) => setAdvanceFormData({ ...advanceFormData, employee_id: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select employee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees.map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Amount</Label>
+                    <Input
+                      type="number"
+                      placeholder="Enter amount"
+                      value={advanceFormData.amount}
+                      onChange={(e) => setAdvanceFormData({ ...advanceFormData, amount: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Reason (Optional)</Label>
+                    <Textarea
+                      placeholder="Reason for advance..."
+                      value={advanceFormData.reason}
+                      onChange={(e) => setAdvanceFormData({ ...advanceFormData, reason: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setIsAdvanceDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">Save</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Salary Sheet
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Create New Salary Sheet</DialogTitle>
@@ -422,12 +575,13 @@ const Salary = () => {
                 </div>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         )}
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -448,7 +602,7 @@ const Salary = () => {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-destructive">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium text-destructive">Pending Salary</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-destructive">
@@ -456,7 +610,23 @@ const Salary = () => {
             </p>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-warning">Pending Advances</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-warning">{formatCurrency(totalPendingAdvances)}</p>
+          </CardContent>
+        </Card>
       </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="salary">Salary Records</TabsTrigger>
+          <TabsTrigger value="advances">Advances</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="salary" className="space-y-4">
 
       {/* Filters */}
       <div className="flex gap-4">
@@ -565,6 +735,74 @@ const Salary = () => {
           </TableBody>
         </Table>
       </div>
+        </TabsContent>
+
+        <TabsContent value="advances" className="space-y-4">
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Employee</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead>Action</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      Loading...
+                    </TableCell>
+                  </TableRow>
+                ) : advances.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No advances recorded
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  advances.map((advance) => (
+                    <TableRow key={advance.id}>
+                      <TableCell>{format(new Date(advance.date), "dd MMM yyyy")}</TableCell>
+                      <TableCell className="font-medium">
+                        {advance.employee?.full_name || "-"}
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        {formatCurrency(advance.amount)}
+                      </TableCell>
+                      <TableCell className="max-w-[200px]">
+                        <p className="line-clamp-1">{advance.reason || "-"}</p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={advance.status === "deducted" ? "default" : "secondary"}>
+                          {advance.status === "deducted" ? "Deducted" : "Pending"}
+                        </Badge>
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          {advance.status === "pending" && (
+                            <Button size="sm" onClick={() => markAdvanceDeducted(advance.id)}>
+                              Mark Deducted
+                            </Button>
+                          )}
+                          {advance.status === "deducted" && advance.deducted_from_month && (
+                            <span className="text-sm text-muted-foreground">
+                              {months[advance.deducted_from_month - 1]} {advance.deducted_from_year}
+                            </span>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

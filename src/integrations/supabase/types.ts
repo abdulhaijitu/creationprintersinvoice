@@ -158,6 +158,53 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_advances: {
+        Row: {
+          amount: number
+          created_at: string | null
+          date: string
+          deducted_from_month: number | null
+          deducted_from_year: number | null
+          employee_id: string
+          id: string
+          reason: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          date?: string
+          deducted_from_month?: number | null
+          deducted_from_year?: number | null
+          employee_id: string
+          id?: string
+          reason?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          date?: string
+          deducted_from_month?: number | null
+          deducted_from_year?: number | null
+          employee_id?: string
+          id?: string
+          reason?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_advances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_attendance: {
         Row: {
           check_in: string | null
