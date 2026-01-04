@@ -33,7 +33,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Plus, Phone, Mail, MapPin, Building2, CreditCard, Edit2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { bn } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 
 interface Vendor {
@@ -140,7 +139,7 @@ const VendorDetail = () => {
     e.preventDefault();
 
     if (!billForm.amount) {
-      toast.error("বিলের পরিমাণ দিন");
+      toast.error("Please enter bill amount");
       return;
     }
 
@@ -157,7 +156,7 @@ const VendorDetail = () => {
           .eq("id", editingBill.id);
 
         if (error) throw error;
-        toast.success("বিল আপডেট হয়েছে");
+        toast.success("Bill updated successfully");
       } else {
         const { error } = await supabase.from("vendor_bills").insert({
           vendor_id: id,
@@ -169,7 +168,7 @@ const VendorDetail = () => {
         });
 
         if (error) throw error;
-        toast.success("বিল যোগ হয়েছে");
+        toast.success("Bill added successfully");
       }
 
       setIsBillDialogOpen(false);
@@ -177,12 +176,12 @@ const VendorDetail = () => {
       fetchVendorData();
     } catch (error) {
       console.error("Error saving bill:", error);
-      toast.error("বিল সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.error("Failed to save bill");
     }
   };
 
   const handleDeleteBill = async (billId: string) => {
-    if (!confirm("আপনি কি এই বিল মুছে ফেলতে চান?")) return;
+    if (!confirm("Are you sure you want to delete this bill?")) return;
 
     try {
       const { error } = await supabase
@@ -191,11 +190,11 @@ const VendorDetail = () => {
         .eq("id", billId);
 
       if (error) throw error;
-      toast.success("বিল মুছে ফেলা হয়েছে");
+      toast.success("Bill deleted successfully");
       fetchVendorData();
     } catch (error) {
       console.error("Error deleting bill:", error);
-      toast.error("বিল মুছে ফেলা ব্যর্থ হয়েছে");
+      toast.error("Failed to delete bill");
     }
   };
 
@@ -224,7 +223,7 @@ const VendorDetail = () => {
     e.preventDefault();
 
     if (!paymentForm.amount) {
-      toast.error("পেমেন্টের পরিমাণ দিন");
+      toast.error("Please enter payment amount");
       return;
     }
 
@@ -242,7 +241,7 @@ const VendorDetail = () => {
           .eq("id", editingPayment.id);
 
         if (error) throw error;
-        toast.success("পেমেন্ট আপডেট হয়েছে");
+        toast.success("Payment updated successfully");
       } else {
         const { error } = await supabase.from("vendor_payments").insert({
           vendor_id: id,
@@ -276,7 +275,7 @@ const VendorDetail = () => {
           }
         }
 
-        toast.success("পেমেন্ট যোগ হয়েছে");
+        toast.success("Payment added successfully");
       }
 
       setIsPaymentDialogOpen(false);
@@ -284,12 +283,12 @@ const VendorDetail = () => {
       fetchVendorData();
     } catch (error) {
       console.error("Error saving payment:", error);
-      toast.error("পেমেন্ট সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.error("Failed to save payment");
     }
   };
 
   const handleDeletePayment = async (paymentId: string) => {
-    if (!confirm("আপনি কি এই পেমেন্ট মুছে ফেলতে চান?")) return;
+    if (!confirm("Are you sure you want to delete this payment?")) return;
 
     try {
       const { error } = await supabase
@@ -298,11 +297,11 @@ const VendorDetail = () => {
         .eq("id", paymentId);
 
       if (error) throw error;
-      toast.success("পেমেন্ট মুছে ফেলা হয়েছে");
+      toast.success("Payment deleted successfully");
       fetchVendorData();
     } catch (error) {
       console.error("Error deleting payment:", error);
-      toast.error("পেমেন্ট মুছে ফেলা ব্যর্থ হয়েছে");
+      toast.error("Failed to delete payment");
     }
   };
 
@@ -330,7 +329,7 @@ const VendorDetail = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("bn-BD", {
+    return new Intl.NumberFormat("en-BD", {
       style: "currency",
       currency: "BDT",
       minimumFractionDigits: 0,
@@ -344,18 +343,18 @@ const VendorDetail = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "paid":
-        return <Badge className="bg-success">পরিশোধিত</Badge>;
+        return <Badge className="bg-success">Paid</Badge>;
       case "partial":
-        return <Badge variant="secondary">আংশিক</Badge>;
+        return <Badge variant="secondary">Partial</Badge>;
       default:
-        return <Badge variant="destructive">বাকি</Badge>;
+        return <Badge variant="destructive">Unpaid</Badge>;
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p>লোড হচ্ছে...</p>
+        <p>Loading...</p>
       </div>
     );
   }
@@ -363,9 +362,9 @@ const VendorDetail = () => {
   if (!vendor) {
     return (
       <div className="text-center py-8">
-        <p>ভেন্ডর পাওয়া যায়নি</p>
+        <p>Vendor not found</p>
         <Button variant="outline" onClick={() => navigate("/vendors")} className="mt-4">
-          ফিরে যান
+          Go Back
         </Button>
       </div>
     );
@@ -379,7 +378,7 @@ const VendorDetail = () => {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">{vendor.name}</h1>
-          <p className="text-muted-foreground">ভেন্ডর বিস্তারিত</p>
+          <p className="text-muted-foreground">Vendor Details</p>
         </div>
       </div>
 
@@ -389,7 +388,7 @@ const VendorDetail = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
-              যোগাযোগ তথ্য
+              Contact Information
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -424,7 +423,7 @@ const VendorDetail = () => {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                মোট বিল
+                Total Bills
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -434,7 +433,7 @@ const VendorDetail = () => {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                পরিশোধ
+                Paid
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -444,7 +443,7 @@ const VendorDetail = () => {
           <Card className={dueAmount > 0 ? "border-destructive/50 bg-destructive/5" : ""}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                বকেয়া
+                Due
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -460,9 +459,9 @@ const VendorDetail = () => {
       <Tabs defaultValue="ledger" className="space-y-4">
         <div className="flex justify-between items-center">
           <TabsList>
-            <TabsTrigger value="ledger">লেজার</TabsTrigger>
-            <TabsTrigger value="bills">বিল ({bills.length})</TabsTrigger>
-            <TabsTrigger value="payments">পেমেন্ট ({payments.length})</TabsTrigger>
+            <TabsTrigger value="ledger">Ledger</TabsTrigger>
+            <TabsTrigger value="bills">Bills ({bills.length})</TabsTrigger>
+            <TabsTrigger value="payments">Payments ({payments.length})</TabsTrigger>
           </TabsList>
 
           {isAdmin && (
@@ -474,17 +473,17 @@ const VendorDetail = () => {
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Plus className="mr-2 h-4 w-4" />
-                    নতুন বিল
+                    New Bill
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>{editingBill ? "বিল সম্পাদনা" : "নতুন বিল যোগ করুন"}</DialogTitle>
+                    <DialogTitle>{editingBill ? "Edit Bill" : "Add New Bill"}</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleAddBill} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>বিল তারিখ</Label>
+                        <Label>Bill Date</Label>
                         <Input
                           type="date"
                           value={billForm.bill_date}
@@ -494,7 +493,7 @@ const VendorDetail = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>টাকা</Label>
+                        <Label>Amount</Label>
                         <Input
                           type="number"
                           placeholder="0"
@@ -506,9 +505,9 @@ const VendorDetail = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>বিবরণ</Label>
+                      <Label>Description</Label>
                       <Textarea
-                        placeholder="বিলের বিবরণ"
+                        placeholder="Bill description"
                         value={billForm.description}
                         onChange={(e) =>
                           setBillForm({ ...billForm, description: e.target.value })
@@ -516,7 +515,7 @@ const VendorDetail = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>ডিউ ডেট (ঐচ্ছিক)</Label>
+                      <Label>Due Date (Optional)</Label>
                       <Input
                         type="date"
                         value={billForm.due_date}
@@ -530,9 +529,9 @@ const VendorDetail = () => {
                         setIsBillDialogOpen(false);
                         resetBillForm();
                       }}>
-                        বাতিল
+                        Cancel
                       </Button>
-                      <Button type="submit">সংরক্ষণ</Button>
+                      <Button type="submit">Save</Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -545,17 +544,17 @@ const VendorDetail = () => {
                 <DialogTrigger asChild>
                   <Button size="sm">
                     <Plus className="mr-2 h-4 w-4" />
-                    পেমেন্ট
+                    Payment
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>{editingPayment ? "পেমেন্ট সম্পাদনা" : "পেমেন্ট যোগ করুন"}</DialogTitle>
+                    <DialogTitle>{editingPayment ? "Edit Payment" : "Add Payment"}</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleAddPayment} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>তারিখ</Label>
+                        <Label>Date</Label>
                         <Input
                           type="date"
                           value={paymentForm.payment_date}
@@ -565,7 +564,7 @@ const VendorDetail = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>টাকা</Label>
+                        <Label>Amount</Label>
                         <Input
                           type="number"
                           placeholder="0"
@@ -578,7 +577,7 @@ const VendorDetail = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>পেমেন্ট মেথড</Label>
+                        <Label>Payment Method</Label>
                         <Select
                           value={paymentForm.payment_method}
                           onValueChange={(value) =>
@@ -589,14 +588,14 @@ const VendorDetail = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="cash">নগদ</SelectItem>
-                            <SelectItem value="bank">ব্যাংক</SelectItem>
-                            <SelectItem value="bkash">বিকাশ</SelectItem>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="bank">Bank</SelectItem>
+                            <SelectItem value="bkash">bKash</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label>বিল (ঐচ্ছিক)</Label>
+                        <Label>Bill (Optional)</Label>
                         <Select
                           value={paymentForm.bill_id}
                           onValueChange={(value) =>
@@ -604,7 +603,7 @@ const VendorDetail = () => {
                           }
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="বাছুন" />
+                            <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
                             {bills.filter(b => b.status !== "paid").map((bill) => (
@@ -617,9 +616,9 @@ const VendorDetail = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>নোট</Label>
+                      <Label>Notes</Label>
                       <Textarea
-                        placeholder="পেমেন্ট নোট"
+                        placeholder="Payment notes"
                         value={paymentForm.notes}
                         onChange={(e) =>
                           setPaymentForm({ ...paymentForm, notes: e.target.value })
@@ -631,9 +630,9 @@ const VendorDetail = () => {
                         setIsPaymentDialogOpen(false);
                         resetPaymentForm();
                       }}>
-                        বাতিল
+                        Cancel
                       </Button>
-                      <Button type="submit">সংরক্ষণ</Button>
+                      <Button type="submit">Save</Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -648,11 +647,11 @@ const VendorDetail = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>তারিখ</TableHead>
-                  <TableHead>বিবরণ</TableHead>
-                  <TableHead className="text-right">বিল</TableHead>
-                  <TableHead className="text-right">পেমেন্ট</TableHead>
-                  <TableHead className="text-right">ব্যালেন্স</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Bill</TableHead>
+                  <TableHead className="text-right">Payment</TableHead>
+                  <TableHead className="text-right">Balance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -663,7 +662,7 @@ const VendorDetail = () => {
                   bills.forEach(bill => {
                     ledgerItems.push({
                       date: bill.bill_date,
-                      description: bill.description || 'বিল',
+                      description: bill.description || 'Bill',
                       bill: bill.amount,
                       payment: 0,
                       type: 'bill'
@@ -673,7 +672,7 @@ const VendorDetail = () => {
                   payments.forEach(payment => {
                     ledgerItems.push({
                       date: payment.payment_date,
-                      description: payment.notes || `পেমেন্ট (${payment.payment_method === 'cash' ? 'নগদ' : payment.payment_method === 'bank' ? 'ব্যাংক' : 'বিকাশ'})`,
+                      description: payment.notes || `Payment (${payment.payment_method === 'cash' ? 'Cash' : payment.payment_method === 'bank' ? 'Bank' : 'bKash'})`,
                       bill: 0,
                       payment: payment.amount,
                       type: 'payment'
@@ -689,7 +688,7 @@ const VendorDetail = () => {
                     return (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          কোনো লেনদেন নেই
+                          No transactions
                         </TableCell>
                       </TableRow>
                     );
@@ -700,7 +699,7 @@ const VendorDetail = () => {
                     return (
                       <TableRow key={index}>
                         <TableCell>
-                          {format(new Date(item.date), "dd MMM yyyy", { locale: bn })}
+                          {format(new Date(item.date), "dd MMM yyyy")}
                         </TableCell>
                         <TableCell>{item.description}</TableCell>
                         <TableCell className="text-right">
@@ -726,31 +725,31 @@ const VendorDetail = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>তারিখ</TableHead>
-                  <TableHead>বিবরণ</TableHead>
-                  <TableHead>ডিউ ডেট</TableHead>
-                  <TableHead className="text-right">টাকা</TableHead>
-                  <TableHead>স্ট্যাটাস</TableHead>
-                  {isAdmin && <TableHead className="text-right">অ্যাকশন</TableHead>}
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Due Date</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {bills.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8 text-muted-foreground">
-                      কোনো বিল নেই
+                      No bills
                     </TableCell>
                   </TableRow>
                 ) : (
                   bills.map((bill) => (
                     <TableRow key={bill.id}>
                       <TableCell>
-                        {format(new Date(bill.bill_date), "dd MMM yyyy", { locale: bn })}
+                        {format(new Date(bill.bill_date), "dd MMM yyyy")}
                       </TableCell>
                       <TableCell>{bill.description || "-"}</TableCell>
                       <TableCell>
                         {bill.due_date
-                          ? format(new Date(bill.due_date), "dd MMM yyyy", { locale: bn })
+                          ? format(new Date(bill.due_date), "dd MMM yyyy")
                           : "-"}
                       </TableCell>
                       <TableCell className="text-right font-medium">
@@ -791,33 +790,33 @@ const VendorDetail = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>তারিখ</TableHead>
-                  <TableHead>পেমেন্ট মেথড</TableHead>
-                  <TableHead>নোট</TableHead>
-                  <TableHead className="text-right">টাকা</TableHead>
-                  {isAdmin && <TableHead className="text-right">অ্যাকশন</TableHead>}
+                  <TableHead>Date</TableHead>
+                  <TableHead>Payment Method</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {payments.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={isAdmin ? 5 : 4} className="text-center py-8 text-muted-foreground">
-                      কোনো পেমেন্ট নেই
+                      No payments
                     </TableCell>
                   </TableRow>
                 ) : (
                   payments.map((payment) => (
                     <TableRow key={payment.id}>
                       <TableCell>
-                        {format(new Date(payment.payment_date), "dd MMM yyyy", { locale: bn })}
+                        {format(new Date(payment.payment_date), "dd MMM yyyy")}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
                           {payment.payment_method === "cash"
-                            ? "নগদ"
+                            ? "Cash"
                             : payment.payment_method === "bank"
-                            ? "ব্যাংক"
-                            : "বিকাশ"}
+                            ? "Bank"
+                            : "bKash"}
                         </Badge>
                       </TableCell>
                       <TableCell>{payment.notes || "-"}</TableCell>
