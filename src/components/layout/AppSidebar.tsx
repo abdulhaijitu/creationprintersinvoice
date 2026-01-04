@@ -135,31 +135,31 @@ export function AppSidebar() {
 
   // Build navigation items based on permissions
   const mainNavItems = [
-    { title: 'ড্যাশবোর্ড', url: '/', icon: LayoutDashboard },
-    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'রিপোর্ট', url: '/reports', icon: BarChart3 }] : []),
-    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'সেটিংস', url: '/settings', icon: Settings }] : []),
-    ...(hasPermission(role, 'user_roles', 'view') ? [{ title: 'রোল ম্যানেজমেন্ট', url: '/user-roles', icon: UserCog }] : []),
+    { title: 'Dashboard', url: '/', icon: LayoutDashboard },
+    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'Reports', url: '/reports', icon: BarChart3 }] : []),
+    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'Settings', url: '/settings', icon: Settings }] : []),
+    ...(hasPermission(role, 'user_roles', 'view') ? [{ title: 'Role Management', url: '/user-roles', icon: UserCog }] : []),
   ];
 
   const invoicingItems = [
-    ...(hasPermission(role, 'customers', 'view') ? [{ title: 'গ্রাহক তালিকা', url: '/customers', icon: Users }] : []),
-    ...(hasPermission(role, 'invoices', 'view') ? [{ title: 'ইনভয়েস', url: '/invoices', icon: FileText }] : []),
-    ...(hasPermission(role, 'quotations', 'view') ? [{ title: 'কোটেশন', url: '/quotations', icon: FileCheck }] : []),
-    ...(hasPermission(role, 'price_calculations', 'view') ? [{ title: 'মূল্য হিসাব', url: '/price-calculation', icon: Calculator }] : []),
+    ...(hasPermission(role, 'customers', 'view') ? [{ title: 'Customers', url: '/customers', icon: Users }] : []),
+    ...(hasPermission(role, 'invoices', 'view') ? [{ title: 'Invoices', url: '/invoices', icon: FileText }] : []),
+    ...(hasPermission(role, 'quotations', 'view') ? [{ title: 'Quotations', url: '/quotations', icon: FileCheck }] : []),
+    ...(hasPermission(role, 'price_calculations', 'view') ? [{ title: 'Price Calculation', url: '/price-calculation', icon: Calculator }] : []),
   ];
 
   const expenseItems = [
-    ...(hasPermission(role, 'expenses', 'view') ? [{ title: 'দৈনিক খরচ', url: '/expenses', icon: Wallet }] : []),
-    ...(hasPermission(role, 'vendors', 'view') ? [{ title: 'ভেন্ডর', url: '/vendors', icon: Building2 }] : []),
+    ...(hasPermission(role, 'vendors', 'view') ? [{ title: 'Vendors', url: '/vendors', icon: Building2 }] : []),
+    ...(hasPermission(role, 'expenses', 'view') ? [{ title: 'Expenses', url: '/expenses', icon: Wallet }] : []),
   ];
 
   const hrItems = [
-    ...(hasPermission(role, 'employees', 'view') ? [{ title: 'কর্মচারী', url: '/employees', icon: Users }] : []),
-    ...(hasPermission(role, 'attendance', 'view') ? [{ title: 'উপস্থিতি', url: '/attendance', icon: CalendarCheck }] : []),
-    ...(hasPermission(role, 'salary', 'view') ? [{ title: 'বেতন', url: '/salary', icon: Receipt }] : []),
-    ...(hasPermission(role, 'leave', 'view') ? [{ title: 'ছুটি', url: '/leave', icon: ClipboardList }] : []),
-    ...(hasPermission(role, 'performance', 'view') ? [{ title: 'পারফরম্যান্স', url: '/performance', icon: Award }] : []),
-    ...(hasPermission(role, 'tasks', 'view') ? [{ title: 'টাস্ক', url: '/tasks', icon: ListTodo }] : []),
+    ...(hasPermission(role, 'employees', 'view') ? [{ title: 'Employees', url: '/employees', icon: Users }] : []),
+    ...(hasPermission(role, 'attendance', 'view') ? [{ title: 'Attendance', url: '/attendance', icon: CalendarCheck }] : []),
+    ...(hasPermission(role, 'salary', 'view') ? [{ title: 'Salary', url: '/salary', icon: Receipt }] : []),
+    ...(hasPermission(role, 'leave', 'view') ? [{ title: 'Leave', url: '/leave', icon: ClipboardList }] : []),
+    ...(hasPermission(role, 'performance', 'view') ? [{ title: 'Performance', url: '/performance', icon: Award }] : []),
+    ...(hasPermission(role, 'tasks', 'view') ? [{ title: 'Tasks', url: '/tasks', icon: ListTodo }] : []),
   ];
 
   return (
@@ -176,7 +176,7 @@ export function AppSidebar() {
             <div className="flex flex-col">
               <span className="font-semibold text-sidebar-foreground">Creation Printers</span>
               <span className="text-xs text-sidebar-foreground/60">
-                {role ? getRoleDisplayName(role) : 'লোড হচ্ছে...'}
+                {role ? getRoleDisplayName(role) : 'Loading...'}
               </span>
             </div>
           )}
@@ -198,9 +198,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {invoicingItems.length > 0 && <NavGroup label="ইনভয়েসিং" items={invoicingItems} defaultOpen />}
-        {expenseItems.length > 0 && <NavGroup label="খরচ" items={expenseItems} />}
-        {hrItems.length > 0 && <NavGroup label="এইচআর" items={hrItems} />}
+        {invoicingItems.length > 0 && <NavGroup label="Invoicing" items={invoicingItems} defaultOpen />}
+        {expenseItems.length > 0 && <NavGroup label="Expenses" items={expenseItems} />}
+        {hrItems.length > 0 && <NavGroup label="HR" items={hrItems} />}
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
@@ -225,7 +225,7 @@ export function AppSidebar() {
             size="icon"
             onClick={signOut}
             className="shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
-            title="লগআউট"
+            title="Logout"
           >
             <LogOut className="h-4 w-4" />
           </Button>

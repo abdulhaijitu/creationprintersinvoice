@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasPermission } from "@/lib/permissions";
@@ -32,7 +32,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Wallet, Calendar, ShieldAlert, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { bn } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 
 interface SalaryRecord {
@@ -60,8 +59,8 @@ interface Employee {
 }
 
 const months = [
-  "জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন",
-  "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
 ];
 
 const Salary = () => {
@@ -85,11 +84,7 @@ const Salary = () => {
     notes: "",
   });
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedYear, selectedMonth, isAdmin]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch employees if admin
@@ -135,7 +130,11 @@ const Salary = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedYear, selectedMonth, isAdmin, user?.id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const calculateNetPayable = () => {
     const basic = parseFloat(formData.basic_salary) || 0;
@@ -160,7 +159,7 @@ const Salary = () => {
     e.preventDefault();
 
     if (!formData.user_id) {
-      toast.error("কর্মচারী বাছুন");
+      toast.error("Please select an employee");
       return;
     }
 
@@ -184,13 +183,14 @@ const Salary = () => {
 
       if (error) throw error;
 
-      toast.success("বেতন রেকর্ড সংরক্ষণ হয়েছে");
+      toast.success("Salary record saved");
       setIsDialogOpen(false);
       resetForm();
+      // Immediately refresh data
       fetchData();
     } catch (error) {
       console.error("Error saving salary record:", error);
-      toast.error("বেতন রেকর্ড সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.error("Failed to save salary record");
     }
   };
 
@@ -221,16 +221,17 @@ const Salary = () => {
 
       if (error) throw error;
 
-      toast.success("বেতন পরিশোধিত হিসেবে চিহ্নিত হয়েছে");
+      toast.success("Marked as paid");
+      // Immediately refresh data
       fetchData();
     } catch (error) {
       console.error("Error marking as paid:", error);
-      toast.error("আপডেট ব্যর্থ হয়েছে");
+      toast.error("Update failed");
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("bn-BD", {
+    return new Intl.NumberFormat("en-BD", {
       style: "currency",
       currency: "BDT",
       minimumFractionDigits: 0,
@@ -257,9 +258,9 @@ const Salary = () => {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">বেতন</h1>
+          <h1 className="text-3xl font-bold text-foreground">Salary</h1>
           <p className="text-muted-foreground mt-1">
-            কর্মচারী বেতন ব্যবস্থাপনা
+            Employee salary management
           </p>
         </div>
         
@@ -270,10 +271,10 @@ const Salary = () => {
                 <ShieldAlert className="h-12 w-12 text-destructive" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold text-foreground">অ্যাক্সেস নেই</h2>
+                <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
                 <p className="text-muted-foreground max-w-md">
-                  শুধুমাত্র অ্যাডমিন ব্যবহারকারীরা বেতন ব্যবস্থাপনা দেখতে পারেন। 
-                  আপনার অ্যাডমিন অ্যাক্সেস প্রয়োজন হলে আপনার সিস্টেম অ্যাডমিনের সাথে যোগাযোগ করুন।
+                  Only admin users can view salary management. 
+                  Contact your system administrator if you need access.
                 </p>
               </div>
             </div>
@@ -287,27 +288,27 @@ const Salary = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">বেতন</h1>
-          <p className="text-muted-foreground">কর্মচারী বেতন ব্যবস্থাপনা</p>
+          <h1 className="text-3xl font-bold">Salary</h1>
+          <p className="text-muted-foreground">Employee salary management</p>
         </div>
         {isAdmin && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                নতুন বেতন শীট
+                New Salary Sheet
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>নতুন বেতন শীট তৈরি</DialogTitle>
+                <DialogTitle>Create New Salary Sheet</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>কর্মচারী</Label>
+                  <Label>Employee</Label>
                   <Select value={formData.user_id} onValueChange={handleEmployeeSelect}>
                     <SelectTrigger>
-                      <SelectValue placeholder="কর্মচারী বাছুন" />
+                      <SelectValue placeholder="Select employee" />
                     </SelectTrigger>
                     <SelectContent>
                       {employees.map((emp) => (
@@ -321,7 +322,7 @@ const Salary = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>মাস</Label>
+                    <Label>Month</Label>
                     <Select
                       value={formData.month.toString()}
                       onValueChange={(v) => setFormData({ ...formData, month: parseInt(v) })}
@@ -339,7 +340,7 @@ const Salary = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>বছর</Label>
+                    <Label>Year</Label>
                     <Select
                       value={formData.year.toString()}
                       onValueChange={(v) => setFormData({ ...formData, year: parseInt(v) })}
@@ -360,7 +361,7 @@ const Salary = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>মূল বেতন</Label>
+                    <Label>Basic Salary</Label>
                     <Input
                       type="number"
                       value={formData.basic_salary}
@@ -368,7 +369,7 @@ const Salary = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>ওভারটাইম (ঘণ্টা)</Label>
+                    <Label>Overtime (Hours)</Label>
                     <Input
                       type="number"
                       value={formData.overtime_hours}
@@ -379,7 +380,7 @@ const Salary = () => {
 
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>ওভারটাইম (টাকা)</Label>
+                    <Label>Overtime (Amount)</Label>
                     <Input
                       type="number"
                       value={formData.overtime_amount}
@@ -387,7 +388,7 @@ const Salary = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>বোনাস</Label>
+                    <Label>Bonus</Label>
                     <Input
                       type="number"
                       value={formData.bonus}
@@ -395,7 +396,7 @@ const Salary = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>কর্তন</Label>
+                    <Label>Deductions</Label>
                     <Input
                       type="number"
                       value={formData.deductions}
@@ -405,7 +406,7 @@ const Salary = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>অগ্রিম কর্তন</Label>
+                  <Label>Advance Deduction</Label>
                   <Input
                     type="number"
                     value={formData.advance}
@@ -414,7 +415,7 @@ const Salary = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>নোট</Label>
+                  <Label>Notes</Label>
                   <Textarea
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -422,15 +423,15 @@ const Salary = () => {
                 </div>
 
                 <div className="bg-muted p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">নেট প্রদেয়</p>
+                  <p className="text-sm text-muted-foreground">Net Payable</p>
                   <p className="text-2xl font-bold">{formatCurrency(calculateNetPayable())}</p>
                 </div>
 
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    বাতিল
+                    Cancel
                   </Button>
-                  <Button type="submit">সংরক্ষণ</Button>
+                  <Button type="submit">Save</Button>
                 </div>
               </form>
             </DialogContent>
@@ -443,7 +444,7 @@ const Salary = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              মোট প্রদেয়
+              Total Payable
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -452,7 +453,7 @@ const Salary = () => {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-success">পরিশোধিত</CardTitle>
+            <CardTitle className="text-sm font-medium text-success">Paid</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-success">{formatCurrency(totalPaid)}</p>
@@ -460,7 +461,7 @@ const Salary = () => {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-destructive">বাকি</CardTitle>
+            <CardTitle className="text-sm font-medium text-destructive">Pending</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-destructive">
@@ -504,27 +505,27 @@ const Salary = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>কর্মচারী</TableHead>
-              <TableHead className="text-right">মূল বেতন</TableHead>
-              <TableHead className="text-right">ওভারটাইম</TableHead>
-              <TableHead className="text-right">বোনাস</TableHead>
-              <TableHead className="text-right">কর্তন</TableHead>
-              <TableHead className="text-right">নেট প্রদেয়</TableHead>
-              <TableHead>স্ট্যাটাস</TableHead>
-              {isAdmin && <TableHead className="text-center">অ্যাকশন</TableHead>}
+              <TableHead>Employee</TableHead>
+              <TableHead className="text-right">Basic Salary</TableHead>
+              <TableHead className="text-right">Overtime</TableHead>
+              <TableHead className="text-right">Bonus</TableHead>
+              <TableHead className="text-right">Deductions</TableHead>
+              <TableHead className="text-right">Net Payable</TableHead>
+              <TableHead>Status</TableHead>
+              {isAdmin && <TableHead className="text-center">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8">
-                  লোড হচ্ছে...
+                  Loading...
                 </TableCell>
               </TableRow>
             ) : salaryRecords.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8 text-muted-foreground">
-                  কোনো রেকর্ড পাওয়া যায়নি
+                  No records found
                 </TableCell>
               </TableRow>
             ) : (
@@ -540,16 +541,16 @@ const Salary = () => {
                   <TableCell className="text-right font-bold">{formatCurrency(record.net_payable)}</TableCell>
                   <TableCell>
                     {record.status === "paid" ? (
-                      <Badge className="bg-success">পরিশোধিত</Badge>
+                      <Badge className="bg-success">Paid</Badge>
                     ) : (
-                      <Badge variant="secondary">বাকি</Badge>
+                      <Badge variant="secondary">Pending</Badge>
                     )}
                   </TableCell>
                   {isAdmin && (
                     <TableCell className="text-center">
                       {record.status !== "paid" && (
                         <Button variant="outline" size="sm" onClick={() => markAsPaid(record.id)}>
-                          পরিশোধ
+                          Mark Paid
                         </Button>
                       )}
                     </TableCell>

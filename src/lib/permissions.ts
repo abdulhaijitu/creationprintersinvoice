@@ -121,15 +121,50 @@ export const hasPermission = (role: AppRole | null, module: Module, action: Acti
 
 export const getRoleDisplayName = (role: AppRole): string => {
   const roleNames: Record<AppRole, string> = {
-    super_admin: 'সুপার এডমিন',
-    admin: 'এডমিন',
-    manager: 'ম্যানেজার',
-    accounts: 'একাউন্টস',
-    sales_staff: 'সেলস স্টাফ',
-    graphic_designer: 'গ্রাফিক ডিজাইনার',
-    employee: 'কর্মচারী',
+    super_admin: 'Super Admin',
+    admin: 'Admin',
+    manager: 'Manager',
+    accounts: 'Accounts',
+    sales_staff: 'Sales Staff',
+    graphic_designer: 'Graphic Designer',
+    employee: 'Employee',
   };
   return roleNames[role] || role;
 };
 
 export const allRoles: AppRole[] = ['super_admin', 'admin', 'manager', 'accounts', 'sales_staff', 'graphic_designer', 'employee'];
+
+// Get all modules with their permissions for role management UI
+export const getModulesWithPermissions = () => {
+  return Object.entries(permissions).map(([module, actions]) => ({
+    module: module as Module,
+    moduleName: getModuleDisplayName(module as Module),
+    actions: {
+      view: actions.view,
+      create: actions.create,
+      edit: actions.edit,
+      delete: actions.delete,
+    },
+  }));
+};
+
+export const getModuleDisplayName = (module: Module): string => {
+  const moduleNames: Record<Module, string> = {
+    customers: 'Customers',
+    quotations: 'Quotations',
+    invoices: 'Invoices',
+    price_calculations: 'Price Calculations',
+    expenses: 'Expenses',
+    vendors: 'Vendors',
+    employees: 'Employees',
+    attendance: 'Attendance',
+    salary: 'Salary',
+    leave: 'Leave',
+    performance: 'Performance',
+    tasks: 'Tasks',
+    reports: 'Reports',
+    settings: 'Settings',
+    user_roles: 'User Roles',
+  };
+  return moduleNames[module] || module;
+};
