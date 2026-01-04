@@ -92,7 +92,7 @@ const PriceCalculationForm = () => {
     foil_printing: initialCostItem,
     binding: initialCostItem,
     others: initialCostItem,
-    margin_percent: 20,
+    margin_percent: 25,
   });
 
   useEffect(() => {
@@ -137,12 +137,12 @@ const PriceCalculationForm = () => {
           foil_printing: { qty: Number(data.foil_printing_qty) || 0, price: Number(data.foil_printing_price) || 0 },
           binding: { qty: Number(data.binding_qty) || 0, price: Number(data.binding_price) || Number(data.binding_cost) || 0 },
           others: { qty: Number(data.others_qty) || 0, price: Number(data.others_price) || Number(data.others_cost) || 0 },
-          margin_percent: Number(data.margin_percent) || 20,
+          margin_percent: Number(data.margin_percent) || 25,
         });
       }
     } catch (error) {
       console.error('Error fetching calculation:', error);
-      toast.error('ডেটা লোড করতে সমস্যা হয়েছে');
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -180,7 +180,7 @@ const PriceCalculationForm = () => {
   const pricePerPcs = formData.quantity > 0 ? quotedPrice / formData.quantity : 0;
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-BD', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0,
@@ -209,7 +209,7 @@ const PriceCalculationForm = () => {
     e.preventDefault();
 
     if (!formData.job_description.trim()) {
-      toast.error('জবের বিবরণ দিন');
+      toast.error('Please enter job description');
       return;
     }
 
@@ -279,7 +279,7 @@ const PriceCalculationForm = () => {
           .update(dataToSave)
           .eq('id', id);
         if (error) throw error;
-        toast.success('হিসাব আপডেট হয়েছে');
+        toast.success('Calculation updated');
       } else {
         const { data, error } = await supabase
           .from('price_calculations')
@@ -287,12 +287,12 @@ const PriceCalculationForm = () => {
           .select()
           .single();
         if (error) throw error;
-        toast.success('হিসাব সংরক্ষণ হয়েছে');
+        toast.success('Calculation saved');
         navigate(`/price-calculation/${data.id}`);
       }
     } catch (error: any) {
       console.error('Error saving:', error);
-      toast.error(error.message || 'সমস্যা হয়েছে');
+      toast.error(error.message || 'Error occurred');
     } finally {
       setSaving(false);
     }
@@ -313,7 +313,7 @@ const PriceCalculationForm = () => {
             quotation_date: format(new Date(), 'yyyy-MM-dd'),
             subtotal: quotedPrice,
             total: quotedPrice,
-            notes: `জব: ${formData.job_description}`,
+            notes: `Job: ${formData.job_description}`,
             created_by: user?.id,
           }])
           .select()
@@ -336,7 +336,7 @@ const PriceCalculationForm = () => {
             .eq('id', id);
         }
 
-        toast.success('কোটেশন তৈরি হয়েছে');
+        toast.success('Quotation created');
         navigate(`/quotations/${quotation.id}`);
       } else {
         const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
@@ -349,7 +349,7 @@ const PriceCalculationForm = () => {
             invoice_date: format(new Date(), 'yyyy-MM-dd'),
             subtotal: quotedPrice,
             total: quotedPrice,
-            notes: `জব: ${formData.job_description}`,
+            notes: `Job: ${formData.job_description}`,
             created_by: user?.id,
           }])
           .select()
@@ -372,12 +372,12 @@ const PriceCalculationForm = () => {
             .eq('id', id);
         }
 
-        toast.success('ইনভয়েস তৈরি হয়েছে');
+        toast.success('Invoice created');
         navigate(`/invoices/${invoice.id}`);
       }
     } catch (error: any) {
       console.error('Error converting:', error);
-      toast.error(error.message || 'সমস্যা হয়েছে');
+      toast.error(error.message || 'Error occurred');
     } finally {
       setConverting(false);
       setConvertDialogOpen(false);
@@ -385,15 +385,15 @@ const PriceCalculationForm = () => {
   };
 
   const handleDelete = async () => {
-    if (!isEditing || !window.confirm('এই হিসাব মুছে ফেলতে চান?')) return;
+    if (!isEditing || !window.confirm('Delete this calculation?')) return;
 
     try {
       const { error } = await supabase.from('price_calculations').delete().eq('id', id);
       if (error) throw error;
-      toast.success('হিসাব মুছে ফেলা হয়েছে');
+      toast.success('Calculation deleted');
       navigate('/price-calculation');
     } catch (error: any) {
-      toast.error(error.message || 'সমস্যা হয়েছে');
+      toast.error(error.message || 'Error occurred');
     }
   };
 
@@ -402,8 +402,8 @@ const PriceCalculationForm = () => {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
         <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
-        <h2 className="text-2xl font-bold mb-2">অ্যাক্সেস নেই</h2>
-        <p className="text-muted-foreground">এই পেজ দেখার অনুমতি আপনার নেই।</p>
+        <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+        <p className="text-muted-foreground">You don't have permission to view this page.</p>
       </div>
     );
   }
@@ -435,20 +435,20 @@ const PriceCalculationForm = () => {
           <Label className="text-base font-semibold">{label}</Label>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">পরিমাণ</Label>
+          <Label className="text-xs text-muted-foreground">Quantity</Label>
           <Input
             type="number"
-            value={item.qty}
-            onChange={(e) => handleItemChange(field, 'qty', Number(e.target.value))}
+            value={item.qty || ''}
+            onChange={(e) => handleItemChange(field, 'qty', Number(e.target.value) || 0)}
             min={0}
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">দাম</Label>
+          <Label className="text-xs text-muted-foreground">Price</Label>
           <Input
             type="number"
-            value={item.price}
-            onChange={(e) => handleItemChange(field, 'price', Number(e.target.value))}
+            value={item.price || ''}
+            onChange={(e) => handleItemChange(field, 'price', Number(e.target.value) || 0)}
             min={0}
           />
         </div>
@@ -467,15 +467,23 @@ const PriceCalculationForm = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{isEditing ? 'হিসাব সম্পাদনা' : 'নতুন মূল্য হিসাব'}</h1>
-            <p className="text-muted-foreground">প্রিন্টিং জবের কস্টিং ক্যালকুলেশন</p>
+            <h1 className="text-3xl font-bold">{isEditing ? 'Edit Calculation' : 'New Price Calculation'}</h1>
+            <p className="text-muted-foreground">Printing job costing calculation</p>
           </div>
         </div>
-        {isEditing && hasPermission(role, 'price_calculations', 'delete') && (
-          <Button variant="destructive" size="icon" onClick={handleDelete}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {hasPermission(role, 'price_calculations', 'create') && !isEditing && (
+            <Button variant="outline" onClick={() => navigate('/price-calculation/new')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Job
+            </Button>
+          )}
+          {isEditing && hasPermission(role, 'price_calculations', 'delete') && (
+            <Button variant="destructive" size="icon" onClick={handleDelete}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -484,19 +492,19 @@ const PriceCalculationForm = () => {
             {/* Basic Info */}
             <Card>
               <CardHeader>
-                <CardTitle>জবের তথ্য</CardTitle>
+                <CardTitle>Job Information</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>জবের বিবরণ *</Label>
+                  <Label>Job Description *</Label>
                   <Input
                     value={formData.job_description}
                     onChange={(e) => handleChange('job_description', e.target.value)}
-                    placeholder="যেমন: বিজনেস কার্ড 1000 পিস"
+                    placeholder="e.g. Business Card 1000 pcs"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>পরিমাণ (পিস)</Label>
+                  <Label>Quantity (pcs)</Label>
                   <Input
                     type="number"
                     value={formData.quantity}
@@ -505,13 +513,13 @@ const PriceCalculationForm = () => {
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-3">
-                  <Label>গ্রাহক</Label>
+                  <Label>Customer</Label>
                   <Select
                     value={formData.customer_id}
                     onValueChange={(value) => handleChange('customer_id', value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="গ্রাহক নির্বাচন করুন" />
+                      <SelectValue placeholder="Select customer" />
                     </SelectTrigger>
                     <SelectContent>
                       {customers.map((customer) => (
@@ -528,24 +536,24 @@ const PriceCalculationForm = () => {
             {/* Costing Items */}
             <Card>
               <CardHeader>
-                <CardTitle>খরচের হিসাব</CardTitle>
+                <CardTitle>Cost Breakdown</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <CostLineItemRow label="ডিজাইন" field="design" />
-                <CostLineItemRow label="প্লেট-০১" field="plate1" />
-                <CostLineItemRow label="প্লেট-০২" field="plate2" />
-                <CostLineItemRow label="প্লেট-০৩" field="plate3" />
-                <CostLineItemRow label="কাগজ-১" field="paper1" />
-                <CostLineItemRow label="কাগজ-২" field="paper2" />
-                <CostLineItemRow label="কাগজ-৩" field="paper3" />
-                <CostLineItemRow label="প্রিন্টিং-১" field="print1" />
-                <CostLineItemRow label="প্রিন্টিং-২" field="print2" />
-                <CostLineItemRow label="প্রিন্টিং-৩" field="print3" />
-                <CostLineItemRow label="ল্যামিনেশন" field="lamination" />
-                <CostLineItemRow label="ডাই কাটিং" field="die_cutting" />
-                <CostLineItemRow label="ফয়েল প্রিন্টিং" field="foil_printing" />
-                <CostLineItemRow label="বাইন্ডিং" field="binding" />
-                <CostLineItemRow label="অন্যান্য" field="others" showDivider={false} />
+                <CostLineItemRow label="Design" field="design" />
+                <CostLineItemRow label="Plate-01" field="plate1" />
+                <CostLineItemRow label="Plate-02" field="plate2" />
+                <CostLineItemRow label="Plate-03" field="plate3" />
+                <CostLineItemRow label="Paper-1" field="paper1" />
+                <CostLineItemRow label="Paper-2" field="paper2" />
+                <CostLineItemRow label="Paper-3" field="paper3" />
+                <CostLineItemRow label="Printing-1" field="print1" />
+                <CostLineItemRow label="Printing-2" field="print2" />
+                <CostLineItemRow label="Printing-3" field="print3" />
+                <CostLineItemRow label="Lamination" field="lamination" />
+                <CostLineItemRow label="Die Cutting" field="die_cutting" />
+                <CostLineItemRow label="Foil Printing" field="foil_printing" />
+                <CostLineItemRow label="Binding" field="binding" />
+                <CostLineItemRow label="Others" field="others" showDivider={false} />
               </CardContent>
             </Card>
           </div>
@@ -554,16 +562,16 @@ const PriceCalculationForm = () => {
           <div className="space-y-6">
             <Card className="sticky top-20">
               <CardHeader>
-                <CardTitle>সারাংশ</CardTitle>
+                <CardTitle>Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between text-lg">
-                  <span className="text-muted-foreground">মোট কস্টিং</span>
+                  <span className="text-muted-foreground">Total Costing</span>
                   <span className="font-bold">{formatCurrency(costingTotal)}</span>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>মার্জিন/প্রফিট (%)</Label>
+                  <Label>Margin/Profit (%)</Label>
                   <Input
                     type="number"
                     value={formData.margin_percent}
@@ -574,17 +582,17 @@ const PriceCalculationForm = () => {
                 </div>
 
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">মার্জিন পরিমাণ</span>
+                  <span className="text-muted-foreground">Margin Amount</span>
                   <span className="font-medium text-success">+{formatCurrency(marginAmount)}</span>
                 </div>
 
                 <div className="pt-4 border-t space-y-2">
                   <div className="flex justify-between text-xl font-bold">
-                    <span>কোটেড প্রাইস</span>
+                    <span>Quoted Price</span>
                     <span className="text-primary">{formatCurrency(quotedPrice)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">প্রতি পিস</span>
+                    <span className="text-muted-foreground">Per Piece</span>
                     <span className="font-medium">{formatCurrency(pricePerPcs)}</span>
                   </div>
                 </div>
@@ -592,7 +600,7 @@ const PriceCalculationForm = () => {
                 <div className="space-y-2 pt-4">
                   <Button type="submit" className="w-full gap-2" disabled={saving}>
                     <Save className="h-4 w-4" />
-                    {saving ? 'সংরক্ষণ হচ্ছে...' : 'হিসাব সংরক্ষণ করুন'}
+                    {saving ? 'Saving...' : 'Save Calculation'}
                   </Button>
 
                   {isEditing && (
@@ -607,7 +615,7 @@ const PriceCalculationForm = () => {
                         }}
                       >
                         <FileText className="h-4 w-4" />
-                        কোটেশন তৈরি করুন
+                        Convert to Quotation
                       </Button>
                       <Button
                         type="button"
@@ -619,7 +627,7 @@ const PriceCalculationForm = () => {
                         }}
                       >
                         <Receipt className="h-4 w-4" />
-                        ইনভয়েস তৈরি করুন
+                        Convert to Invoice
                       </Button>
                     </>
                   )}
@@ -635,22 +643,22 @@ const PriceCalculationForm = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {convertType === 'quotation' ? 'কোটেশন তৈরি করুন' : 'ইনভয়েস তৈরি করুন'}
+              {convertType === 'quotation' ? 'Create Quotation' : 'Create Invoice'}
             </DialogTitle>
             <DialogDescription>
-              এই হিসাব থেকে একটি নতুন {convertType === 'quotation' ? 'কোটেশন' : 'ইনভয়েস'} তৈরি হবে।
+              A new {convertType === 'quotation' ? 'quotation' : 'invoice'} will be created from this calculation.
               <br />
-              <strong>জব:</strong> {formData.job_description}
+              <strong>Job:</strong> {formData.job_description}
               <br />
-              <strong>মূল্য:</strong> {formatCurrency(quotedPrice)}
+              <strong>Price:</strong> {formatCurrency(quotedPrice)}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
-              বাতিল
+              Cancel
             </Button>
             <Button onClick={handleConvert} disabled={converting}>
-              {converting ? 'তৈরি হচ্ছে...' : 'তৈরি করুন'}
+              {converting ? 'Creating...' : 'Create'}
             </Button>
           </DialogFooter>
         </DialogContent>
