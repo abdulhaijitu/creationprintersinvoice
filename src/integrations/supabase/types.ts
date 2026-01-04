@@ -158,6 +158,98 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_attendance: {
+        Row: {
+          check_in: string | null
+          check_out: string | null
+          created_at: string | null
+          date: string
+          employee_id: string
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["attendance_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string | null
+          date?: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["attendance_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string | null
+          date?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["attendance_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          address: string | null
+          basic_salary: number | null
+          created_at: string | null
+          department: string | null
+          designation: string | null
+          email: string | null
+          full_name: string
+          id: string
+          is_active: boolean | null
+          joining_date: string | null
+          nid: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          basic_salary?: number | null
+          created_at?: string | null
+          department?: string | null
+          designation?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean | null
+          joining_date?: string | null
+          nid?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          basic_salary?: number | null
+          created_at?: string | null
+          department?: string | null
+          designation?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean | null
+          joining_date?: string | null
+          nid?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       expense_categories: {
         Row: {
           created_at: string
