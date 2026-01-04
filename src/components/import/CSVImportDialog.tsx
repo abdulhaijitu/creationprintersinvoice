@@ -47,11 +47,9 @@ const CSVImportDialog = ({
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = (file: File) => {
     if (!file.name.endsWith('.csv')) {
       toast.error('Only CSV files are accepted');
       return;
@@ -66,6 +64,32 @@ const CSVImportDialog = ({
       setImportResult(null);
     };
     reader.readAsText(file);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
   };
 
   const handleImport = async () => {
@@ -134,8 +158,18 @@ const CSVImportDialog = ({
             </Button>
           </div>
 
-          {/* File Upload */}
-          <div className="border-2 border-dashed rounded-lg p-6 text-center">
+          {/* File Upload with Drag & Drop */}
+          <div 
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+              isDragging 
+                ? 'border-primary bg-primary/10' 
+                : 'border-muted-foreground/25 hover:border-primary/50'
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
             <input
               ref={fileInputRef}
               type="file"
@@ -144,15 +178,16 @@ const CSVImportDialog = ({
               className="hidden"
               id="csv-file-input"
             />
-            <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+            <Upload className={`h-8 w-8 mx-auto mb-2 transition-colors ${
+              isDragging ? 'text-primary' : 'text-muted-foreground'
+            }`} />
             <p className="text-sm text-muted-foreground mb-2">
-              Upload CSV file
+              {isDragging ? 'Drop your CSV file here' : 'Drag & drop CSV file here, or click to select'}
             </p>
             <Button 
               type="button"
               variant="outline" 
               onClick={(e) => {
-                e.preventDefault();
                 e.stopPropagation();
                 fileInputRef.current?.click();
               }}
