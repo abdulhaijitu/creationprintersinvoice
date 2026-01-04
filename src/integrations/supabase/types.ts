@@ -395,6 +395,7 @@ export type Database = {
           payment_method: string | null
           receipt_url: string | null
           updated_at: string
+          vendor_bill_id: string | null
           vendor_id: string | null
         }
         Insert: {
@@ -408,6 +409,7 @@ export type Database = {
           payment_method?: string | null
           receipt_url?: string | null
           updated_at?: string
+          vendor_bill_id?: string | null
           vendor_id?: string | null
         }
         Update: {
@@ -421,6 +423,7 @@ export type Database = {
           payment_method?: string | null
           receipt_url?: string | null
           updated_at?: string
+          vendor_bill_id?: string | null
           vendor_id?: string | null
         }
         Relationships: [
@@ -429,6 +432,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_vendor_bill_id_fkey"
+            columns: ["vendor_bill_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_bills"
             referencedColumns: ["id"]
           },
           {
