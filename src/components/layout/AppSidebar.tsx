@@ -45,6 +45,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { FavoritePages } from './FavoritePages';
 
 interface NavItemProps {
   item: { title: string; url: string; icon: React.ElementType; badge?: number };
@@ -358,6 +359,9 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Favorites */}
+        <FavoritePages />
 
         {/* Divider */}
         {!collapsed && <div className="mx-3 my-3 border-t border-slate-800" />}

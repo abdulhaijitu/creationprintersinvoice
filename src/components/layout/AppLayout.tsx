@@ -13,6 +13,10 @@ import { NotificationManager } from '@/components/notifications/NotificationMana
 import { PushNotificationToggle } from '@/components/notifications/PushNotificationToggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { ThemeToggle } from './ThemeToggle';
+import { RecentActivity } from './RecentActivity';
+import { QuickActions } from './QuickActions';
+import { FavoriteButton } from './FavoriteButton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -61,21 +65,27 @@ const AppLayout = () => {
           <SidebarInset className="flex-1 min-w-0 flex flex-col">
             {/* Top Header Bar */}
             <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 px-4 md:px-6 shadow-sm">
-              {/* Left side - trigger + breadcrumb */}
+              {/* Left side - trigger + breadcrumb + favorite */}
               <div className="flex items-center gap-3">
                 <SidebarTrigger className="-ml-1 h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors" />
-                <div className="hidden md:block">
+                <div className="hidden md:flex items-center gap-2">
                   <Breadcrumb />
+                  <FavoriteButton />
                 </div>
               </div>
               
               {/* Center - spacer */}
               <div className="flex-1" />
               
-              {/* Right side - search, notifications, user */}
+              {/* Right side - search, quick actions, notifications, user */}
               <div className="flex items-center gap-1">
                 <div className="hidden sm:block">
                   <GlobalSearch />
+                </div>
+                <QuickActions />
+                <div className="hidden md:flex items-center gap-1">
+                  <ThemeToggle />
+                  <RecentActivity />
                 </div>
                 <PushNotificationToggle />
                 <NotificationBell />
