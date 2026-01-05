@@ -31,6 +31,8 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import UserRoles from "./pages/UserRoles";
 import NotFound from "./pages/NotFound";
+import DeliveryChallans from "./pages/DeliveryChallans";
+import ChallanPrintTemplate from "./components/delivery-challan/ChallanPrintTemplate";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +46,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/delivery-challans/:id/print" element={<ChallanPrintTemplate />} />
             
             <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />
@@ -72,6 +75,7 @@ const App = () => (
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/user-roles" element={<UserRoles />} />
+              <Route path="/delivery-challans" element={<DeliveryChallans />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
