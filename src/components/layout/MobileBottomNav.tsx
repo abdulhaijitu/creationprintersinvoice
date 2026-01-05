@@ -1,0 +1,183 @@
+import { useLocation, useNavigate } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  FileText, 
+  Users, 
+  Wallet, 
+  Menu,
+  Plus,
+  X
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { hasPermission } from '@/lib/permissions';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface NavItem {
+  icon: React.ElementType;
+  label: string;
+  path: string;
+  matchPaths?: string[];
+}
+
+export const MobileBottomNav = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { role } = useAuth();
+  const [showQuickActions, setShowQuickActions] = useState(false);
+
+  const navItems: NavItem[] = [
+    { 
+      icon: LayoutDashboard, 
+      label: 'Home', 
+      path: '/',
+      matchPaths: ['/']
+    },
+    { 
+      icon: FileText, 
+      label: 'Invoices', 
+      path: '/invoices',
+      matchPaths: ['/invoices', '/quotations', '/delivery-challans']
+    },
+    { 
+      icon: Users, 
+      label: 'Customers', 
+      path: '/customers',
+      matchPaths: ['/customers']
+    },
+    { 
+      icon: Wallet, 
+      label: 'Expenses', 
+      path: '/expenses',
+      matchPaths: ['/expenses', '/vendors']
+    },
+  ];
+
+  const quickActions = [
+    { label: 'New Invoice', path: '/invoices/new', permission: ['invoices', 'create'] as const },
+    { label: 'New Customer', path: '/customers', permission: ['customers', 'create'] as const },
+    { label: 'New Quotation', path: '/quotations/new', permission: ['quotations', 'create'] as const },
+    { label: 'Add Expense', path: '/expenses', permission: ['expenses', 'create'] as const },
+  ];
+
+  const isActive = (item: NavItem) => {
+    if (item.matchPaths) {
+      return item.matchPaths.some(p => 
+        p === '/' ? location.pathname === '/' : location.pathname.startsWith(p)
+      );
+    }
+    return location.pathname === item.path;
+  };
+
+  const handleNavClick = (path: string) => {
+    navigate(path);
+    setShowQuickActions(false);
+  };
+
+  return (
+    <>
+      {/* Quick Actions Overlay */}
+      {showQuickActions && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden animate-fade-in"
+          onClick={() => setShowQuickActions(false)}
+        />
+      )}
+
+      {/* Quick Actions Menu */}
+      <div className={cn(
+        "fixed bottom-20 left-1/2 -translate-x-1/2 z-50 md:hidden transition-all duration-300",
+        showQuickActions 
+          ? "opacity-100 translate-y-0" 
+          : "opacity-0 translate-y-4 pointer-events-none"
+      )}>
+        <div className="bg-card border rounded-2xl shadow-xl p-2 flex flex-col gap-1 min-w-[200px]">
+          {quickActions
+            .filter(action => hasPermission(role, action.permission[0], action.permission[1]))
+            .map((action) => (
+              <Button
+                key={action.path}
+                variant="ghost"
+                className="justify-start h-11 text-sm font-medium"
+                onClick={() => handleNavClick(action.path)}
+              >
+                <Plus className="h-4 w-4 mr-2 text-primary" />
+                {action.label}
+              </Button>
+            ))}
+        </div>
+      </div>
+
+      {/* Bottom Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-background/95 backdrop-blur-lg border-t safe-area-bottom">
+        <div className="flex items-center justify-around h-16 px-2">
+          {navItems.slice(0, 2).map((item) => {
+            const active = isActive(item);
+            return (
+              <button
+                key={item.path}
+                onClick={() => handleNavClick(item.path)}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-200 min-w-[64px]",
+                  active 
+                    ? "text-primary" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <div className={cn(
+                  "p-1.5 rounded-lg transition-colors",
+                  active && "bg-primary/10"
+                )}>
+                  <item.icon className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </button>
+            );
+          })}
+
+          {/* Center FAB Button */}
+          <button
+            onClick={() => setShowQuickActions(!showQuickActions)}
+            className={cn(
+              "relative -mt-6 flex items-center justify-center h-14 w-14 rounded-full shadow-lg transition-all duration-300",
+              showQuickActions 
+                ? "bg-muted rotate-45" 
+                : "bg-primary hover:bg-primary/90"
+            )}
+          >
+            {showQuickActions ? (
+              <X className="h-6 w-6 text-foreground" />
+            ) : (
+              <Plus className="h-6 w-6 text-primary-foreground" />
+            )}
+          </button>
+
+          {navItems.slice(2, 4).map((item) => {
+            const active = isActive(item);
+            return (
+              <button
+                key={item.path}
+                onClick={() => handleNavClick(item.path)}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-200 min-w-[64px]",
+                  active 
+                    ? "text-primary" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <div className={cn(
+                  "p-1.5 rounded-lg transition-colors",
+                  active && "bg-primary/10"
+                )}>
+                  <item.icon className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+    </>
+  );
+};
