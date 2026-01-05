@@ -8,9 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import {
   Dialog,
@@ -41,6 +39,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 import CSVImportDialog from '@/components/import/CSVImportDialog';
 import { ImportResult } from '@/lib/importUtils';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { formatCurrency } from '@/lib/formatters';
 
 interface Customer {
   id: string;
@@ -65,6 +68,7 @@ const Customers = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -156,14 +160,15 @@ const Customers = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this customer?')) return;
+  const handleDelete = async () => {
+    if (!deleteId) return;
 
     try {
-      const { error } = await supabase.from('customers').delete().eq('id', id);
+      const { error } = await supabase.from('customers').delete().eq('id', deleteId);
 
       if (error) throw error;
       toast.success('Customer deleted');
+      setDeleteId(null);
       fetchCustomers();
     } catch (error: any) {
       console.error('Error deleting customer:', error);
@@ -505,7 +510,7 @@ const Customers = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(customer.id)}
+                              onClick={() => setDeleteId(customer.id)}
                               className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -531,6 +536,16 @@ const Customers = () => {
         fieldMapping={customerHeaders}
         onImport={handleImport}
         templateFilename="customers"
+      />
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={() => setDeleteId(null)}
+        title="Delete Customer"
+        description="Are you sure you want to delete this customer? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
       />
     </div>
   );

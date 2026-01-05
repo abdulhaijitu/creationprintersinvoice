@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Users, Phone, Mail, Briefcase, Edit2, Plus, UserPlus, Trash2, Shield, ShieldAlert, Loader2 } from "lucide-react";
+import { Search, Users, Phone, Briefcase, Edit2, UserPlus, Trash2, ShieldAlert } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -34,6 +34,11 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { TableSkeleton } from "@/components/shared/TableSkeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { formatCurrency, getInitials } from "@/lib/formatters";
 
 interface Employee {
   id: string;
@@ -58,6 +63,7 @@ const Employees = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [addLoading, setAddLoading] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
@@ -181,18 +187,19 @@ const Employees = () => {
     }
   };
 
-  const handleDeleteEmployee = async (id: string) => {
-    if (!window.confirm("Are you sure you want to remove this employee?")) return;
+  const handleDeleteEmployee = async () => {
+    if (!deleteId) return;
 
     try {
       const { error } = await supabase
         .from("employees")
         .update({ is_active: false })
-        .eq("id", id);
+        .eq("id", deleteId);
 
       if (error) throw error;
 
       toast.success("Employee removed");
+      setDeleteId(null);
       fetchEmployees();
     } catch (error) {
       console.error("Error removing employee:", error);
@@ -224,27 +231,11 @@ const Employees = () => {
       emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-BD", {
-      style: "currency",
-      currency: "BDT",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <TableSkeleton rows={5} columns={7} />
       </div>
     );
   }
@@ -481,7 +472,7 @@ const Employees = () => {
                         <Button variant="ghost" size="sm" onClick={() => openEditDialog(employee)}>
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteEmployee(employee.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteId(employee.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -601,6 +592,16 @@ const Employees = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={() => setDeleteId(null)}
+        title="Remove Employee"
+        description="Are you sure you want to remove this employee? This action will deactivate their profile."
+        confirmLabel="Remove"
+        variant="destructive"
+        onConfirm={handleDeleteEmployee}
+      />
     </div>
   );
 };

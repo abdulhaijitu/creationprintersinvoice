@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   Table,
@@ -14,9 +13,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, FileText, CheckCircle, Clock, XCircle, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, FileText, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { formatCurrency } from '@/lib/formatters';
 
 interface Quotation {
   id: string;
@@ -35,6 +40,7 @@ const Quotations = () => {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchQuotations();
@@ -57,57 +63,22 @@ const Quotations = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this quotation?')) return;
+  const handleDelete = async () => {
+    if (!deleteId) return;
     
     try {
       // Delete quotation items first
-      await supabase.from('quotation_items').delete().eq('quotation_id', id);
+      await supabase.from('quotation_items').delete().eq('quotation_id', deleteId);
       // Delete quotation
-      const { error } = await supabase.from('quotations').delete().eq('id', id);
+      const { error } = await supabase.from('quotations').delete().eq('id', deleteId);
       if (error) throw error;
       
       toast.success('Quotation deleted');
+      setDeleteId(null);
       fetchQuotations();
     } catch (error) {
       console.error('Error deleting quotation:', error);
       toast.error('Failed to delete quotation');
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-BD', {
-      style: 'currency',
-      currency: 'BDT',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'accepted':
-        return (
-          <Badge className="bg-success/10 text-success border-0">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Accepted
-          </Badge>
-        );
-      case 'pending':
-        return (
-          <Badge className="bg-warning/10 text-warning border-0">
-            <Clock className="w-3 h-3 mr-1" />
-            Pending
-          </Badge>
-        );
-      case 'rejected':
-        return (
-          <Badge className="bg-destructive/10 text-destructive border-0">
-            <XCircle className="w-3 h-3 mr-1" />
-            Rejected
-          </Badge>
-        );
-      default:
-        return null;
     }
   };
 
@@ -118,18 +89,17 @@ const Quotations = () => {
   );
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Quotations</h1>
-          <p className="text-muted-foreground">Manage all quotations</p>
-        </div>
-
-        <Button className="gap-2" onClick={() => navigate('/quotations/new')}>
-          <Plus className="h-4 w-4" />
-          New Quotation
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Quotations"
+        description="Manage all quotations"
+        actions={
+          <Button className="gap-2" onClick={() => navigate('/quotations/new')}>
+            <Plus className="h-4 w-4" />
+            New Quotation
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader className="pb-4">
@@ -147,16 +117,18 @@ const Quotations = () => {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
-              ))}
-            </div>
+            <TableSkeleton rows={5} columns={7} />
           ) : filteredQuotations.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No quotations found</p>
-            </div>
+            <EmptyState
+              icon={FileText}
+              title="No quotations found"
+              description="Create your first quotation to get started"
+              action={{
+                label: 'New Quotation',
+                onClick: () => navigate('/quotations/new'),
+                icon: Plus,
+              }}
+            />
           ) : (
             <div className="rounded-lg border overflow-x-auto">
               <Table>
@@ -189,7 +161,9 @@ const Quotations = () => {
                       <TableCell className="text-right font-medium whitespace-nowrap">
                         {formatCurrency(Number(quotation.total))}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">{getStatusBadge(quotation.status)}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <StatusBadge status={quotation.status} />
+                      </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           <Button
@@ -204,7 +178,7 @@ const Quotations = () => {
                               variant="ghost"
                               size="icon"
                               className="text-destructive hover:text-destructive"
-                              onClick={() => handleDelete(quotation.id)}
+                              onClick={() => setDeleteId(quotation.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -219,6 +193,16 @@ const Quotations = () => {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={() => setDeleteId(null)}
+        title="Delete Quotation"
+        description="Are you sure you want to delete this quotation? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 };

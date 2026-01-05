@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Plus, Eye, Printer, MoreVertical, Trash2 } from 'lucide-react';
+import { Plus, Eye, Printer, MoreVertical, Trash2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -18,21 +18,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ChallanStatusBadge } from '@/components/delivery-challan/ChallanStatusBadge';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { ChallanDetailDrawer } from '@/components/delivery-challan/ChallanDetailDrawer';
 import { CreateChallanDialog } from '@/components/delivery-challan/CreateChallanDialog';
 import { useDeliveryChallans } from '@/hooks/useDeliveryChallans';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 export default function DeliveryChallans() {
   const {
@@ -54,7 +47,9 @@ export default function DeliveryChallans() {
     setDetailOpen(true);
   };
 
-  const handlePrint = (id: string) => {
+  const handlePrint = (id: string, status: string) => {
+    // Don't allow printing cancelled challans
+    if (status === 'cancelled') return;
     window.open(`/delivery-challans/${id}/print`, '_blank');
   };
 
@@ -65,20 +60,21 @@ export default function DeliveryChallans() {
     }
   };
 
+  const canModify = (status: string) => status === 'draft';
+  const canPrint = (status: string) => status !== 'cancelled';
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Delivery Challans</h1>
-          <p className="text-muted-foreground">
-            Manage delivery challans for your invoices
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Challan
-        </Button>
-      </div>
+      <PageHeader
+        title="Delivery Challans"
+        description="Manage delivery challans for your invoices"
+        actions={
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Challan
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader className="pb-3">
@@ -93,22 +89,18 @@ export default function DeliveryChallans() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full" />
-              ))}
-            </div>
+            <TableSkeleton rows={5} columns={6} />
           ) : challans.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No delivery challans yet</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => setCreateOpen(true)}
-              >
-                Create your first challan
-              </Button>
-            </div>
+            <EmptyState
+              icon={FileText}
+              title="No delivery challans yet"
+              description="Create your first delivery challan to get started"
+              action={{
+                label: 'Create Challan',
+                onClick: () => setCreateOpen(true),
+                icon: Plus,
+              }}
+            />
           ) : (
             <div className="rounded-md border">
               <Table>
@@ -126,7 +118,7 @@ export default function DeliveryChallans() {
                   {challans.map((challan) => (
                     <TableRow
                       key={challan.id}
-                      className="cursor-pointer transition-colors hover:bg-muted/50"
+                      className="cursor-pointer transition-colors duration-200 hover:bg-muted/50"
                       onClick={() => handleView(challan.id)}
                     >
                       <TableCell className="font-medium">
@@ -144,7 +136,7 @@ export default function DeliveryChallans() {
                           'N/A'}
                       </TableCell>
                       <TableCell>
-                        <ChallanStatusBadge status={challan.status} />
+                        <StatusBadge status={challan.status} />
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -166,20 +158,22 @@ export default function DeliveryChallans() {
                               <Eye className="h-4 w-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePrint(challan.id);
-                              }}
-                            >
-                              <Printer className="h-4 w-4 mr-2" />
-                              Print
-                            </DropdownMenuItem>
-                            {challan.status === 'draft' && (
+                            {canPrint(challan.status) && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePrint(challan.id, challan.status);
+                                }}
+                              >
+                                <Printer className="h-4 w-4 mr-2" />
+                                Print
+                              </DropdownMenuItem>
+                            )}
+                            {canModify(challan.status) && (
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                  className="text-destructive"
+                                  className="text-destructive focus:text-destructive"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setDeleteId(challan.id);
@@ -215,26 +209,15 @@ export default function DeliveryChallans() {
         onStatusChange={updateChallanStatus}
       />
 
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Challan</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this delivery challan? This action
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={() => setDeleteId(null)}
+        title="Delete Challan"
+        description="Are you sure you want to delete this delivery challan? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

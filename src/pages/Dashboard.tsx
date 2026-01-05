@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   ChartContainer,
   ChartTooltip,
@@ -29,11 +28,11 @@ import {
   Users,
   TrendingUp,
   AlertCircle,
-  Clock,
-  CheckCircle,
-  XCircle,
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+import { CardSkeleton } from '@/components/shared/TableSkeleton';
+import { formatCurrency, formatChartCurrency } from '@/lib/formatters';
 
 interface DashboardStats {
   todaySales: number;
@@ -232,51 +231,6 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [user, isAdmin]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-BD', {
-      style: 'currency',
-      currency: 'BDT',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatChartCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `৳${(value / 1000000).toFixed(1)}M`;
-    } else if (value >= 1000) {
-      return `৳${(value / 1000).toFixed(0)}K`;
-    }
-    return `৳${value}`;
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return (
-          <Badge className="bg-success/10 text-success border-0">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Paid
-          </Badge>
-        );
-      case 'partial':
-        return (
-          <Badge className="bg-warning/10 text-warning border-0">
-            <Clock className="w-3 h-3 mr-1" />
-            Partial
-          </Badge>
-        );
-      case 'unpaid':
-        return (
-          <Badge className="bg-destructive/10 text-destructive border-0">
-            <XCircle className="w-3 h-3 mr-1" />
-            Unpaid
-          </Badge>
-        );
-      default:
-        return null;
-    }
-  };
-
   const chartConfig = {
     income: {
       label: 'Income',
@@ -290,15 +244,11 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 bg-muted rounded-xl" />
-          ))}
-        </div>
+      <div className="space-y-6">
+        <CardSkeleton count={6} className="lg:grid-cols-6" />
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="h-80 bg-muted rounded-xl" />
-          <div className="h-80 bg-muted rounded-xl" />
+          <CardSkeleton count={1} className="h-80" />
+          <CardSkeleton count={1} className="h-80" />
         </div>
       </div>
     );
@@ -519,7 +469,7 @@ const Dashboard = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-semibold">{formatCurrency(Number(invoice.total))}</p>
-                    {getStatusBadge(invoice.status)}
+                    <StatusBadge status={invoice.status} />
                   </div>
                 </div>
               ))

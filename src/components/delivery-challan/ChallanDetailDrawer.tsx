@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { X, Printer, Download, Share2, Mail, MessageCircle, ExternalLink, Truck, User, Phone, MapPin, FileText } from 'lucide-react';
+import { Printer, Download, Share2, Mail, MessageCircle, ExternalLink, Truck, User, Phone, MapPin, FileText, Lock } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -9,17 +9,19 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChallanStatusBadge } from './ChallanStatusBadge';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+import { ContentSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { DeliveryChallan, DeliveryChallanItem } from '@/hooks/useDeliveryChallans';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 interface ChallanDetailDrawerProps {
   open: boolean;
@@ -76,11 +78,18 @@ export function ChallanDetailDrawer({
     }
   };
 
+  // Business logic helpers
+  const isLocked = challan?.status === 'delivered' || challan?.status === 'cancelled';
+  const canPrint = challan?.status !== 'cancelled';
+  const canShare = challan?.status !== 'cancelled';
+
   const handlePrint = () => {
+    if (!canPrint) return;
     window.open(`/delivery-challans/${challanId}/print`, '_blank');
   };
 
   const handleShare = (method: 'whatsapp' | 'email') => {
+    if (!canShare) return;
     const challanUrl = `${window.location.origin}/delivery-challans/${challanId}`;
     const message = `Delivery Challan: ${challan?.challan_number}\nView: ${challanUrl}`;
 
@@ -93,10 +102,9 @@ export function ChallanDetailDrawer({
 
   const customerName = challan?.customers?.name || challan?.invoice?.customers?.name || 'N/A';
   const customerAddress = challan?.delivery_address || challan?.customers?.address || challan?.invoice?.customers?.address || 'N/A';
-
   const totalQuantity = items.reduce((sum, item) => sum + Number(item.quantity), 0);
 
-  const isLocked = challan?.status === 'delivered';
+  
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -104,40 +112,54 @@ export function ChallanDetailDrawer({
         <SheetHeader className="space-y-1">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
-              {loading ? (
-                <Skeleton className="h-6 w-32" />
-              ) : (
-                <>
-                  <FileText className="h-5 w-5" />
-                  {challan?.challan_number}
-                </>
-              )}
+              <FileText className="h-5 w-5" />
+              {loading ? 'Loading...' : challan?.challan_number}
             </SheetTitle>
-            {!loading && challan && <ChallanStatusBadge status={challan.status} />}
+            {!loading && challan && (
+              <div className="flex items-center gap-2">
+                {isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
+                <StatusBadge status={challan.status} />
+              </div>
+            )}
           </div>
         </SheetHeader>
 
         {loading ? (
-          <div className="space-y-4 mt-6">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-48 w-full" />
+          <div className="mt-6">
+            <ContentSkeleton />
           </div>
         ) : challan ? (
           <div className="space-y-6 mt-6">
-            {/* Actions */}
+            {/* Actions - disabled for cancelled challans */}
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handlePrint}
+                disabled={!canPrint}
+                className={cn(!canPrint && 'opacity-50 cursor-not-allowed')}
+              >
                 <Printer className="h-4 w-4 mr-2" />
                 Print
               </Button>
-              <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handlePrint}
+                disabled={!canPrint}
+                className={cn(!canPrint && 'opacity-50 cursor-not-allowed')}
+              >
                 <Download className="h-4 w-4 mr-2" />
                 PDF
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={!canShare}
+                    className={cn(!canShare && 'opacity-50 cursor-not-allowed')}
+                  >
                     <Share2 className="h-4 w-4 mr-2" />
                     Share
                   </Button>
@@ -274,7 +296,7 @@ export function ChallanDetailDrawer({
 
             <Separator />
 
-            {/* Status Actions */}
+            {/* Status Actions - only show if not locked */}
             {!isLocked && onStatusChange && (
               <div className="space-y-3">
                 <h4 className="font-medium">Update Status</h4>
@@ -284,6 +306,7 @@ export function ChallanDetailDrawer({
                       <Button
                         size="sm"
                         onClick={() => onStatusChange(challan.id, 'dispatched')}
+                        className="transition-transform duration-200 active:scale-95"
                       >
                         Mark as Dispatched
                       </Button>
@@ -291,6 +314,7 @@ export function ChallanDetailDrawer({
                         size="sm"
                         variant="destructive"
                         onClick={() => onStatusChange(challan.id, 'cancelled')}
+                        className="transition-transform duration-200 active:scale-95"
                       >
                         Cancel
                       </Button>
@@ -299,7 +323,7 @@ export function ChallanDetailDrawer({
                   {challan.status === 'dispatched' && (
                     <Button
                       size="sm"
-                      className="bg-green-600 hover:bg-green-700"
+                      className="bg-success hover:bg-success/90 transition-transform duration-200 active:scale-95"
                       onClick={() => onStatusChange(challan.id, 'delivered')}
                     >
                       Mark as Delivered
@@ -308,11 +332,23 @@ export function ChallanDetailDrawer({
                 </div>
               </div>
             )}
+
+            {/* Locked state indicator */}
+            {isLocked && (
+              <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                {challan.status === 'delivered' 
+                  ? 'This challan has been delivered and cannot be modified.'
+                  : 'This challan has been cancelled and cannot be modified.'}
+              </div>
+            )}
           </div>
         ) : (
-          <div className="flex items-center justify-center h-40">
-            <p className="text-muted-foreground">Challan not found</p>
-          </div>
+          <EmptyState
+            icon={FileText}
+            title="Challan not found"
+            description="The requested delivery challan could not be found."
+          />
         )}
       </SheetContent>
     </Sheet>
