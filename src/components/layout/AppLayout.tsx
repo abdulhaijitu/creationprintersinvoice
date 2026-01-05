@@ -8,6 +8,9 @@ import { GlobalSearch } from './GlobalSearch';
 import { UserDropdown } from './UserDropdown';
 import { MobileBottomNav } from './MobileBottomNav';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
+import { OfflineIndicator } from '@/components/offline/OfflineIndicator';
+import { NotificationManager } from '@/components/notifications/NotificationManager';
+import { PushNotificationToggle } from '@/components/notifications/PushNotificationToggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -54,6 +57,7 @@ const AppLayout = () => {
         <div className="min-h-screen flex w-full bg-muted/30">
           <AppSidebar />
           <MobileSidebarHandler />
+          <NotificationManager />
           <SidebarInset className="flex-1 min-w-0 flex flex-col">
             {/* Top Header Bar */}
             <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 px-4 md:px-6 shadow-sm">
@@ -69,10 +73,11 @@ const AppLayout = () => {
               <div className="flex-1" />
               
               {/* Right side - search, notifications, user */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <div className="hidden sm:block">
                   <GlobalSearch />
                 </div>
+                <PushNotificationToggle />
                 <NotificationBell />
                 <div className="w-px h-6 bg-border mx-1 hidden md:block" />
                 <UserDropdown />
@@ -91,6 +96,9 @@ const AppLayout = () => {
 
             {/* PWA Install Prompt */}
             <InstallPrompt />
+
+            {/* Offline Indicator */}
+            <OfflineIndicator />
           </SidebarInset>
         </div>
       </SidebarProvider>
