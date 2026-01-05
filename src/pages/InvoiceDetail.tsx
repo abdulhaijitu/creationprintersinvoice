@@ -46,11 +46,13 @@ import {
   Mail,
   MapPin,
   Building2,
+  Truck,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { bn } from 'date-fns/locale';
 import PrintTemplate from '@/components/print/PrintTemplate';
 import '@/components/print/printStyles.css';
+import { CreateChallanDialog } from '@/components/delivery-challan/CreateChallanDialog';
 
 interface Invoice {
   id: string;
@@ -309,6 +311,15 @@ const InvoiceDetail = () => {
               <Edit className="h-4 w-4 mr-2" />
               Edit
             </Button>
+            <CreateChallanDialog 
+              preselectedInvoiceId={invoice.id}
+              trigger={
+                <Button variant="outline" size="sm">
+                  <Truck className="h-4 w-4 mr-2" />
+                  Create Challan
+                </Button>
+              }
+            />
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />
               Print
