@@ -1358,6 +1358,8 @@ export type Database = {
           description: string | null
           id: string
           priority: Database["public"]["Enums"]["task_priority"] | null
+          reference_id: string | null
+          reference_type: string | null
           status: Database["public"]["Enums"]["task_status"] | null
           title: string
           updated_at: string
@@ -1371,6 +1373,8 @@ export type Database = {
           description?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["task_priority"] | null
+          reference_id?: string | null
+          reference_type?: string | null
           status?: Database["public"]["Enums"]["task_status"] | null
           title: string
           updated_at?: string
@@ -1384,6 +1388,8 @@ export type Database = {
           description?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["task_priority"] | null
+          reference_id?: string | null
+          reference_type?: string | null
           status?: Database["public"]["Enums"]["task_status"] | null
           title?: string
           updated_at?: string
@@ -1588,7 +1594,18 @@ export type Database = {
       leave_type: "casual" | "sick" | "annual" | "other"
       quotation_status: "pending" | "accepted" | "rejected"
       task_priority: "low" | "medium" | "high"
-      task_status: "todo" | "in_progress" | "completed"
+      task_status:
+        | "todo"
+        | "in_progress"
+        | "completed"
+        | "design"
+        | "plate"
+        | "printing"
+        | "lamination"
+        | "die_cutting"
+        | "binding"
+        | "packaging"
+        | "delivered"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1731,7 +1748,19 @@ export const Constants = {
       leave_type: ["casual", "sick", "annual", "other"],
       quotation_status: ["pending", "accepted", "rejected"],
       task_priority: ["low", "medium", "high"],
-      task_status: ["todo", "in_progress", "completed"],
+      task_status: [
+        "todo",
+        "in_progress",
+        "completed",
+        "design",
+        "plate",
+        "printing",
+        "lamination",
+        "die_cutting",
+        "binding",
+        "packaging",
+        "delivered",
+      ],
     },
   },
 } as const
