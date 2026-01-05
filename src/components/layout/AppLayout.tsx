@@ -7,6 +7,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { GlobalSearch } from './GlobalSearch';
 import { UserDropdown } from './UserDropdown';
 import { MobileBottomNav } from './MobileBottomNav';
+import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -87,6 +88,9 @@ const AppLayout = () => {
 
             {/* Mobile Bottom Navigation */}
             <MobileBottomNav />
+
+            {/* PWA Install Prompt */}
+            <InstallPrompt />
           </SidebarInset>
         </div>
       </SidebarProvider>

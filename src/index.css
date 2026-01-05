@@ -272,4 +272,25 @@
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium 
            bg-muted text-muted-foreground border border-border;
   }
+
+  /* Safe area for notched devices */
+  .safe-area-bottom {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  /* PWA animations */
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
 }
