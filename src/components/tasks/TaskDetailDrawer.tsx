@@ -17,8 +17,9 @@ import {
   WORKFLOW_LABELS,
   type WorkflowStatus 
 } from './ProductionWorkflow';
+import { ReferenceLink } from './ReferenceSelect';
 import { Task } from '@/hooks/useTasks';
-import { ArrowRight, Calendar, User, AlertCircle, Lock, FileText } from 'lucide-react';
+import { ArrowRight, Calendar, User, AlertCircle, Lock, FileText, Link } from 'lucide-react';
 
 interface TaskDetailDrawerProps {
   task: Task | null;
@@ -108,15 +109,13 @@ export function TaskDetailDrawer({
               </div>
             )}
 
-            {task.reference_type && (
-              <div className="space-y-1">
+            {task.reference_type && task.reference_id && (
+              <div className="space-y-1 sm:col-span-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                  Reference
+                  <Link className="h-4 w-4" />
+                  Linked Order
                 </div>
-                <p className="text-sm font-medium capitalize">
-                  {task.reference_type}
-                </p>
+                <ReferenceLink referenceType={task.reference_type} referenceId={task.reference_id} />
               </div>
             )}
 
