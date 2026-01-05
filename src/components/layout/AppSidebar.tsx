@@ -265,10 +265,15 @@ export function AppSidebar() {
     ...(hasPermission(role, 'tasks', 'view') ? [{ title: 'Tasks', url: '/tasks', icon: ListTodo }] : []),
   ];
 
+  const reportItems = [
+    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'Financial Reports', url: '/reports', icon: BarChart3 }] : []),
+    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'HR Reports', url: '/reports?tab=hr', icon: Users }] : []),
+  ];
+
   const settingsItems = [
-    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'Reports', url: '/reports', icon: BarChart3 }] : []),
-    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'System Settings', url: '/settings', icon: Settings }] : []),
     ...(hasPermission(role, 'user_roles', 'view') ? [{ title: 'Role Management', url: '/user-roles', icon: UserCog }] : []),
+    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'System Settings', url: '/settings', icon: Settings }] : []),
+    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'Company Profile', url: '/settings?tab=company', icon: Building2 }] : []),
   ];
 
   return (
@@ -343,6 +348,13 @@ export function AppSidebar() {
             label="HR & Workforce" 
             icon={Briefcase}
             items={hrItems} 
+          />
+        )}
+        {reportItems.length > 0 && (
+          <NavGroup 
+            label="Reports" 
+            icon={BarChart3}
+            items={reportItems} 
           />
         )}
         {settingsItems.length > 0 && (
