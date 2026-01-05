@@ -24,11 +24,11 @@ export const StatCard = ({
 }: StatCardProps) => {
   return (
     <Card className={cn('shadow-soft hover:shadow-lg transition-shadow', className)}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
+      <CardContent className="p-4 md:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1 md:space-y-2 min-w-0 flex-1">
+            <p className="text-xs md:text-sm text-muted-foreground truncate">{title}</p>
+            <p className="text-xl md:text-2xl font-bold truncate">{value}</p>
             {trend && (
               <p
                 className={cn(
@@ -43,11 +43,11 @@ export const StatCard = ({
           </div>
           <div
             className={cn(
-              'p-3 rounded-xl',
+              'p-2 md:p-3 rounded-xl shrink-0',
               iconClassName || 'bg-primary/10 text-primary'
             )}
           >
-            <Icon className="h-6 w-6" />
+            <Icon className="h-5 w-5 md:h-6 md:w-6" />
           </div>
         </div>
       </CardContent>
