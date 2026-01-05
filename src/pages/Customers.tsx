@@ -6,11 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-} from '@/components/ui/card';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -32,19 +27,35 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Phone, Mail, Building2, Download, Upload, Eye } from 'lucide-react';
+import { 
+  Plus, 
+  Search, 
+  Edit, 
+  Trash2, 
+  Phone, 
+  Mail, 
+  Building2, 
+  Download, 
+  Upload, 
+  Eye,
+  MoreHorizontal,
+  Users
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 import CSVImportDialog from '@/components/import/CSVImportDialog';
 import { ImportResult } from '@/lib/importUtils';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { TableSkeleton } from '@/components/shared/TableSkeleton';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { formatCurrency } from '@/lib/formatters';
 
 interface Customer {
   id: string;
@@ -92,7 +103,6 @@ const Customers = () => {
 
       if (error) throw error;
 
-      // Fetch invoice totals for each customer
       const { data: invoicesData } = await supabase
         .from('invoices')
         .select('customer_id, total, paid_amount');
@@ -197,12 +207,7 @@ const Customers = () => {
   );
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-BD', {
-      style: 'currency',
-      currency: 'BDT',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
+    return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const customerHeaders = {
@@ -286,357 +291,479 @@ const Customers = () => {
     return { success, failed, errors };
   };
 
+  // Stats
+  const totalCustomers = customers.length;
+  const totalInvoiced = customers.reduce((sum, c) => sum + (c.total_invoiced || 0), 0);
+  const totalPaid = customers.reduce((sum, c) => sum + (c.total_paid || 0), 0);
+  const totalDue = customers.reduce((sum, c) => sum + (c.total_due || 0), 0);
+
   return (
-    <div className="space-y-4 md:space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold truncate">Customer List</h1>
-          <p className="text-sm text-muted-foreground">Manage all customer information</p>
+    <TooltipProvider>
+      <div className="space-y-6 animate-fade-in">
+        {/* Header */}
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold text-foreground">Customer List</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage all customer information and view their ledger
+          </p>
         </div>
 
-        <div className="flex gap-2 flex-wrap">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9 md:h-10">
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Export</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handleExport('csv')}>
-                Download CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('excel')}>
-                Download Excel
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button variant="outline" size="sm" className="gap-1.5 h-9 md:h-10" onClick={() => setIsImportOpen(true)}>
-            <Upload className="h-4 w-4" />
-            <span className="hidden sm:inline">Import</span>
-          </Button>
-
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5 h-9 md:h-10">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">New Customer</span>
-              <span className="sm:hidden">New</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>
-                {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
-              </DialogTitle>
-              <DialogDescription>
-                Fill in all customer information correctly
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit}>
-              <div className="grid gap-3 md:gap-4 py-4">
-                <div className="space-y-1.5 md:space-y-2">
-                  <Label htmlFor="name">Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Customer name"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                  <div className="space-y-1.5 md:space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="01XXXXXXXXX"
-                    />
-                  </div>
-                  <div className="space-y-1.5 md:space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="email@example.com"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5 md:space-y-2">
-                  <Label htmlFor="company_name">Company Name</Label>
-                  <Input
-                    id="company_name"
-                    value={formData.company_name}
-                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                    placeholder="Company name"
-                  />
-                </div>
-                <div className="space-y-1.5 md:space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Textarea
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Full address"
-                    rows={2}
-                  />
-                </div>
-                <div className="space-y-1.5 md:space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Additional information"
-                    rows={2}
-                  />
-                </div>
-              </div>
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
-                  Cancel
-                </Button>
-                <Button type="submit" className="w-full sm:w-auto">
-                  {editingCustomer ? 'Update' : 'Save'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Customers</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{totalCustomers}</p>
+          </div>
+          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Invoiced</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{formatCurrency(totalInvoiced)}</p>
+          </div>
+          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+            <p className="text-xs font-medium text-success uppercase tracking-wide">Total Paid</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{formatCurrency(totalPaid)}</p>
+          </div>
+          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+            <p className="text-xs font-medium text-destructive uppercase tracking-wide">Total Due</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{formatCurrency(totalDue)}</p>
+          </div>
         </div>
-      </div>
 
-      <Card>
-        <CardHeader className="pb-3 md:pb-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-full sm:max-w-sm">
+        {/* Controls */}
+        <div className="bg-card rounded-xl shadow-sm border border-border/50">
+          <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            {/* Search */}
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search..."
+                placeholder="Search by name, phone, or company..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-background/50 border-border/50 h-10"
               />
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="px-0 md:px-6">
-          {loading ? (
-            <div className="space-y-3 px-4 md:px-0">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : filteredCustomers.length === 0 ? (
-            <div className="text-center py-8 md:py-12">
-              <Building2 className="h-10 w-10 md:h-12 md:w-12 mx-auto text-muted-foreground mb-3 md:mb-4" />
-              <p className="text-sm md:text-base text-muted-foreground">No customers found</p>
-            </div>
-          ) : (
-            <>
-              {/* Mobile Card View */}
-              <div className="md:hidden space-y-3 px-4">
-                {filteredCustomers.map((customer) => (
-                  <div
-                    key={customer.id}
-                    className="border rounded-lg p-3 space-y-2"
-                    onClick={() => navigate(`/customers/${customer.id}`)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium truncate">{customer.name}</p>
-                        {customer.company_name && (
-                          <p className="text-sm text-muted-foreground truncate">{customer.company_name}</p>
-                        )}
+
+            <div className="flex items-center gap-2 sm:ml-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-10 gap-2 border-border/50">
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">Export</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExport('csv')}>
+                    Download CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('excel')}>
+                    Download Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-10 gap-2 border-border/50" 
+                onClick={() => setIsImportOpen(true)}
+              >
+                <Upload className="h-4 w-4" />
+                <span className="hidden sm:inline">Import</span>
+              </Button>
+
+              <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) resetForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="h-10 gap-2 shadow-sm">
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden sm:inline">New Customer</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
+                    </DialogTitle>
+                    <DialogDescription>
+                      Fill in customer information
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSubmit}>
+                    <div className="grid gap-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Name *</Label>
+                        <Input
+                          id="name"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          placeholder="Customer name"
+                          required
+                        />
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className={cn(
-                          'text-sm font-medium',
-                          (customer.total_due || 0) > 0 ? 'text-destructive' : 'text-muted-foreground'
-                        )}>
-                          {formatCurrency(customer.total_due || 0)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">due</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="phone">Phone</Label>
+                          <Input
+                            id="phone"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            placeholder="01XXXXXXXXX"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="email">Email</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            placeholder="email@example.com"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="company_name">Company Name</Label>
+                        <Input
+                          id="company_name"
+                          value={formData.company_name}
+                          onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                          placeholder="Company name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="address">Address</Label>
+                        <Textarea
+                          id="address"
+                          value={formData.address}
+                          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                          placeholder="Full address"
+                          rows={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="notes">Notes</Label>
+                        <Textarea
+                          id="notes"
+                          value={formData.notes}
+                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                          placeholder="Additional information"
+                          rows={2}
+                        />
                       </div>
                     </div>
-                    {(customer.phone || customer.email) && (
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        {customer.phone && (
-                          <span className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" />
-                            {customer.phone}
-                          </span>
-                        )}
-                        {customer.email && (
-                          <span className="flex items-center gap-1 truncate">
-                            <Mail className="h-3 w-3" />
-                            {customer.email}
-                          </span>
-                        )}
+                    <DialogFooter className="gap-2 sm:gap-0">
+                      <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit">
+                        {editingCustomer ? 'Update' : 'Save'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="border-t border-border/50">
+            {loading ? (
+              <div className="p-6 space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-14 bg-muted/30 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : filteredCustomers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4">
+                <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
+                  <Users className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-base font-medium text-foreground mb-1">No customers found</h3>
+                <p className="text-sm text-muted-foreground text-center max-w-sm">
+                  {searchQuery 
+                    ? 'Try adjusting your search criteria'
+                    : 'Add your first customer to get started'}
+                </p>
+                {!searchQuery && (
+                  <Button 
+                    className="mt-4 gap-2" 
+                    size="sm"
+                    onClick={() => setIsDialogOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Customer
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Mobile Card View */}
+                <div className="md:hidden divide-y divide-border/50">
+                  {filteredCustomers.map((customer) => (
+                    <div
+                      key={customer.id}
+                      className="p-4 hover:bg-muted/30 transition-colors duration-150 cursor-pointer"
+                      onClick={() => navigate(`/customers/${customer.id}`)}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-foreground truncate">{customer.name}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {customer.company_name || '—'}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className={cn(
+                            'text-sm font-medium tabular-nums',
+                            (customer.total_due || 0) > 0 ? 'text-destructive' : 'text-muted-foreground'
+                          )}>
+                            {formatCurrency(customer.total_due || 0)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">due</p>
+                        </div>
                       </div>
-                    )}
-                    <div className="flex items-center gap-2 pt-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 h-9"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/customers/${customer.id}`);
-                        }}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-9 px-3"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(customer);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      {isAdmin && (
+                      {customer.phone && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          {customer.phone}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-9 px-3 text-destructive hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(customer.id);
-                          }}
+                          className="flex-1 h-8"
+                          onClick={() => navigate(`/customers/${customer.id}`)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Eye className="h-3.5 w-3.5 mr-1.5" />
+                          View
                         </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop Table View */}
-              <div className="hidden md:block rounded-lg border mx-0 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="whitespace-nowrap">Name</TableHead>
-                    <TableHead className="whitespace-nowrap">Contact</TableHead>
-                    <TableHead className="whitespace-nowrap">Company</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Total Invoiced</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Paid</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Due</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCustomers.map((customer) => (
-                    <TableRow key={customer.id}>
-                      <TableCell>
-                        <div className="font-medium">{customer.name}</div>
-                        {customer.address && (
-                          <div className="text-sm text-muted-foreground truncate max-w-xs">
-                            {customer.address}
-                          </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2.5"
+                          onClick={() => handleEdit(customer)}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeleteId(customer.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {customer.phone && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Phone className="h-3 w-3 text-muted-foreground" />
-                              {customer.phone}
-                            </div>
-                          )}
-                          {customer.email && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Mail className="h-3 w-3 text-muted-foreground" />
-                              {customer.email}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">{customer.company_name || '-'}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
-                        {formatCurrency(customer.total_invoiced || 0)}
-                      </TableCell>
-                      <TableCell className="text-right text-green-600 whitespace-nowrap">
-                        {formatCurrency(customer.total_paid || 0)}
-                      </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
-                        <span className={(customer.total_due || 0) > 0 ? 'text-destructive font-medium' : 'text-muted-foreground'}>
-                          {formatCurrency(customer.total_due || 0)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate(`/customers/${customer.id}`)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(customer)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          {isAdmin && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteId(customer.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
-              </div>
-            </>
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
+                          Name
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
+                          Contact
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
+                          Company
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap">
+                          Total Invoiced
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap">
+                          Paid
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap">
+                          Due
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap w-[120px]">
+                          Action
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCustomers.map((customer, index) => (
+                        <TableRow 
+                          key={customer.id}
+                          className={cn(
+                            'transition-colors duration-150 cursor-pointer',
+                            index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20',
+                            'hover:bg-primary/5'
+                          )}
+                          onClick={() => navigate(`/customers/${customer.id}`)}
+                        >
+                          <TableCell className="whitespace-nowrap">
+                            <span className="font-semibold text-foreground">{customer.name}</span>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <div className="space-y-0.5">
+                              {customer.phone && (
+                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                  <Phone className="h-3 w-3" />
+                                  {customer.phone}
+                                </div>
+                              )}
+                              {customer.email && (
+                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                  <Mail className="h-3 w-3" />
+                                  <span className="truncate max-w-[180px]">{customer.email}</span>
+                                </div>
+                              )}
+                              {!customer.phone && !customer.email && (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {customer.company_name || '—'}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-foreground whitespace-nowrap tabular-nums">
+                            {formatCurrency(customer.total_invoiced || 0)}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap tabular-nums">
+                            <span className="text-success font-medium">
+                              {formatCurrency(customer.total_paid || 0)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap tabular-nums">
+                            <span className={cn(
+                              'font-medium',
+                              (customer.total_due || 0) > 0 ? 'text-destructive' : 'text-muted-foreground'
+                            )}>
+                              {formatCurrency(customer.total_due || 0)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                    onClick={() => navigate(`/customers/${customer.id}`)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>View Details</TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                    onClick={() => handleEdit(customer)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit Customer</TooltipContent>
+                              </Tooltip>
+
+                              {isAdmin && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                      onClick={() => setDeleteId(customer.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete Customer</TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem onClick={() => navigate(`/customers/${customer.id}`)}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleEdit(customer)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  {isAdmin && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem 
+                                        onClick={() => setDeleteId(customer.id)}
+                                        className="text-destructive focus:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          {!loading && filteredCustomers.length > 0 && (
+            <div className="px-4 py-3 border-t border-border/50 bg-muted/20">
+              <p className="text-xs text-muted-foreground">
+                Showing {filteredCustomers.length} of {customers.length} customers
+              </p>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
-      <CSVImportDialog
-        open={isImportOpen}
-        onOpenChange={setIsImportOpen}
-        title="Import Customers"
-        description="Import customer list from CSV file"
-        requiredFields={['name']}
-        fieldMapping={customerHeaders}
-        onImport={handleImport}
-        templateFilename="customers"
-      />
+        <CSVImportDialog
+          open={isImportOpen}
+          onOpenChange={setIsImportOpen}
+          title="Import Customers"
+          description="Import customer list from CSV file"
+          requiredFields={['name']}
+          fieldMapping={customerHeaders}
+          onImport={handleImport}
+          templateFilename="customers"
+        />
 
-      <ConfirmDialog
-        open={!!deleteId}
-        onOpenChange={() => setDeleteId(null)}
-        title="Delete Customer"
-        description="Are you sure you want to delete this customer? This action cannot be undone."
-        confirmLabel="Delete"
-        variant="destructive"
-        onConfirm={handleDelete}
-      />
-    </div>
+        <ConfirmDialog
+          open={!!deleteId}
+          onOpenChange={() => setDeleteId(null)}
+          title="Delete Customer"
+          description="Are you sure you want to delete this customer? This action cannot be undone."
+          confirmLabel="Delete"
+          variant="destructive"
+          onConfirm={handleDelete}
+        />
+      </div>
+    </TooltipProvider>
   );
 };
 
