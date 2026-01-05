@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { format } from 'date-fns';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import {
@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { CreateChallanData } from '@/hooks/useDeliveryChallans';
+import { CreateChallanData, useDeliveryChallans } from '@/hooks/useDeliveryChallans';
 
 interface Invoice {
   id: string;
@@ -49,19 +50,23 @@ interface ChallanItem {
 }
 
 interface CreateChallanDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (data: CreateChallanData) => Promise<unknown>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onSubmit?: (data: CreateChallanData) => Promise<unknown>;
   preselectedInvoiceId?: string;
+  trigger?: ReactNode;
 }
 
 export function CreateChallanDialog({
-  open,
-  onOpenChange,
-  onSubmit,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  onSubmit: externalOnSubmit,
   preselectedInvoiceId,
+  trigger,
 }: CreateChallanDialogProps) {
   const { toast } = useToast();
+  const { createChallan } = useDeliveryChallans();
+  const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<string>('');
@@ -73,6 +78,12 @@ export function CreateChallanDialog({
   const [driverName, setDriverName] = useState('');
   const [driverPhone, setDriverPhone] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Use controlled or internal state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const onOpenChange = controlledOnOpenChange || setInternalOpen;
+  const onSubmit = externalOnSubmit || createChallan;
+  
 
   useEffect(() => {
     if (open) {
@@ -221,6 +232,7 @@ export function CreateChallanDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Delivery Challan</DialogTitle>
