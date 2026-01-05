@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { hasPermission } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -178,7 +179,8 @@ const PriceCalculationForm = () => {
     return new Intl.NumberFormat('en-BD', {
       style: 'currency',
       currency: 'BDT',
-      minimumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
@@ -441,12 +443,9 @@ const PriceCalculationForm = () => {
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Price</Label>
-          <Input
-            type="number"
-            defaultValue={item.price === 0 ? '' : item.price}
-            key={`${field}-price-${item.price}`}
-            onBlur={(e) => handleItemChange(field, 'price', e.target.value === '' ? 0 : Number(e.target.value))}
-            min={0}
+          <CurrencyInput
+            value={item.price}
+            onChange={(val) => handleItemChange(field, 'price', val)}
           />
         </div>
         <div className="text-right font-medium">

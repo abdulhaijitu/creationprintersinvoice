@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -285,7 +286,8 @@ const InvoiceForm = () => {
     return new Intl.NumberFormat('en-BD', {
       style: 'currency',
       currency: 'BDT',
-      minimumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
@@ -412,25 +414,21 @@ const InvoiceForm = () => {
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="number"
+                            <CurrencyInput
                               value={item.unit_price}
-                              onChange={(e) =>
-                                updateItem(item.id, 'unit_price', Number(e.target.value))
+                              onChange={(val) =>
+                                updateItem(item.id, 'unit_price', val)
                               }
-                              className="text-right w-28"
-                              min={0}
+                              className="w-28"
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="number"
+                            <CurrencyInput
                               value={item.discount}
-                              onChange={(e) =>
-                                updateItem(item.id, 'discount', Number(e.target.value))
+                              onChange={(val) =>
+                                updateItem(item.id, 'discount', val)
                               }
-                              className="text-right w-24"
-                              min={0}
+                              className="w-24"
                             />
                           </TableCell>
                           <TableCell className="text-right font-medium">
@@ -485,24 +483,20 @@ const InvoiceForm = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Discount</Label>
-                  <Input
-                    type="number"
+                  <CurrencyInput
                     value={formData.discount}
-                    onChange={(e) =>
-                      setFormData({ ...formData, discount: Number(e.target.value) })
+                    onChange={(val) =>
+                      setFormData({ ...formData, discount: val })
                     }
-                    min={0}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Tax/VAT</Label>
-                  <Input
-                    type="number"
+                  <CurrencyInput
                     value={formData.tax}
-                    onChange={(e) =>
-                      setFormData({ ...formData, tax: Number(e.target.value) })
+                    onChange={(val) =>
+                      setFormData({ ...formData, tax: val })
                     }
-                    min={0}
                   />
                 </div>
                 <div className="pt-4 border-t">
