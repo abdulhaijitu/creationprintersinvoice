@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   LayoutDashboard,
   FileText,
@@ -14,7 +14,6 @@ import {
   Building2,
   LogOut,
   ChevronDown,
-  ChevronRight,
   User,
   BarChart3,
   Settings,
@@ -23,6 +22,7 @@ import {
   TrendingUp,
   CreditCard,
   Briefcase,
+  FileBarChart,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -34,18 +34,12 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -67,15 +61,16 @@ const NavItem = ({ item, isActive }: NavItemProps) => {
         asChild 
         isActive={isActive}
         className={cn(
-          "relative h-9 transition-all duration-200",
-          isActive && "bg-sidebar-primary/10 text-sidebar-primary font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r-full before:bg-sidebar-primary"
+          "relative h-10 transition-all duration-200 rounded-lg mx-1",
+          "text-slate-400 hover:text-white hover:bg-white/5",
+          isActive && "bg-gradient-to-r from-primary/20 to-primary/5 text-white font-medium border-l-2 border-primary"
         )}
       >
         <NavLink to={item.url} className="flex items-center gap-3 px-3">
           <div className="relative flex-shrink-0">
-            <item.icon className={cn("h-[18px] w-[18px]", isActive && "text-sidebar-primary")} />
+            <item.icon className={cn("h-[18px] w-[18px]", isActive && "text-primary")} />
             {item.badge !== undefined && item.badge > 0 && collapsed && (
-              <span className="absolute -top-1.5 -right-1.5 bg-sidebar-primary text-sidebar-primary-foreground text-[10px] h-4 min-w-4 px-1 rounded-full flex items-center justify-center font-medium">
+              <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] h-4 min-w-4 px-1 rounded-full flex items-center justify-center font-medium">
                 {item.badge > 9 ? '9+' : item.badge}
               </span>
             )}
@@ -84,7 +79,7 @@ const NavItem = ({ item, isActive }: NavItemProps) => {
             <span className="flex-1 flex items-center justify-between text-sm">
               {item.title}
               {item.badge !== undefined && item.badge > 0 && (
-                <span className="bg-sidebar-primary text-sidebar-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+                <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full font-medium">
                   {item.badge > 99 ? '99+' : item.badge}
                 </span>
               )}
@@ -117,25 +112,20 @@ const NavItem = ({ item, isActive }: NavItemProps) => {
 };
 
 interface NavGroupProps {
+  id: string;
   label: string;
   icon: React.ElementType;
   items: { title: string; url: string; icon: React.ElementType; badge?: number }[];
-  defaultOpen?: boolean;
+  expandedGroup: string | null;
+  onToggle: (id: string) => void;
 }
 
-const NavGroup = ({ label, icon: GroupIcon, items, defaultOpen = false }: NavGroupProps) => {
+const NavGroup = ({ id, label, icon: GroupIcon, items, expandedGroup, onToggle }: NavGroupProps) => {
   const location = useLocation();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const isGroupActive = items.some((item) => location.pathname === item.url || location.pathname.startsWith(item.url + '/'));
-  const [isOpen, setIsOpen] = useState(defaultOpen || isGroupActive);
-
-  // Keep group open when navigating to a child route
-  useEffect(() => {
-    if (isGroupActive && !isOpen) {
-      setIsOpen(true);
-    }
-  }, [isGroupActive]);
+  const isOpen = expandedGroup === id;
 
   if (items.length === 0) return null;
 
@@ -159,40 +149,45 @@ const NavGroup = ({ label, icon: GroupIcon, items, defaultOpen = false }: NavGro
   }
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="group/collapsible">
-      <SidebarGroup className="py-1">
-        <CollapsibleTrigger asChild>
-          <SidebarGroupLabel 
-            className={cn(
-              "cursor-pointer rounded-md px-3 py-2 flex items-center gap-3 text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors duration-200",
-              isGroupActive && "text-sidebar-foreground"
-            )}
-          >
-            <GroupIcon className="h-4 w-4 flex-shrink-0" />
-            <span className="flex-1 text-xs font-semibold uppercase tracking-wider">{label}</span>
-            <ChevronRight className={cn(
-              "h-4 w-4 transition-transform duration-200",
-              isOpen && "rotate-90"
-            )} />
-          </SidebarGroupLabel>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="animate-accordion-down">
-          <SidebarGroupContent className="pl-2 mt-1">
-            <SidebarMenu>
-              {items.map((item) => (
-                <NavItem
-                  key={item.url}
-                  item={item}
-                  isActive={location.pathname === item.url || location.pathname.startsWith(item.url + '/')}
-                />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </CollapsibleContent>
-      </SidebarGroup>
-    </Collapsible>
+    <SidebarGroup className="py-1">
+      <button
+        onClick={() => onToggle(id)}
+        className={cn(
+          "w-full cursor-pointer rounded-lg px-3 py-2.5 mx-1 flex items-center gap-3",
+          "text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200",
+          isGroupActive && "text-white"
+        )}
+      >
+        <GroupIcon className="h-4 w-4 flex-shrink-0" />
+        <span className="flex-1 text-xs font-semibold uppercase tracking-wider text-left">{label}</span>
+        <ChevronDown className={cn(
+          "h-4 w-4 transition-transform duration-300 ease-out",
+          isOpen && "rotate-180"
+        )} />
+      </button>
+      <div
+        className={cn(
+          "overflow-hidden transition-all duration-300 ease-out",
+          isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        )}
+      >
+        <SidebarGroupContent className="pl-3 mt-1">
+          <SidebarMenu>
+            {items.map((item) => (
+              <NavItem
+                key={item.url}
+                item={item}
+                isActive={location.pathname === item.url || location.pathname.startsWith(item.url + '/')}
+              />
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </div>
+    </SidebarGroup>
   );
 };
+
+const SIDEBAR_STATE_KEY = 'erp-sidebar-expanded-group';
 
 export function AppSidebar() {
   const location = useLocation();
@@ -200,6 +195,43 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const [pendingChallanCount, setPendingChallanCount] = useState(0);
+  
+  // Remember last expanded group
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(() => {
+    const saved = localStorage.getItem(SIDEBAR_STATE_KEY);
+    return saved || 'sales';
+  });
+
+  const handleToggleGroup = useCallback((groupId: string) => {
+    setExpandedGroup(prev => {
+      const newValue = prev === groupId ? null : groupId;
+      if (newValue) {
+        localStorage.setItem(SIDEBAR_STATE_KEY, newValue);
+      } else {
+        localStorage.removeItem(SIDEBAR_STATE_KEY);
+      }
+      return newValue;
+    });
+  }, []);
+
+  // Auto-expand group when navigating to a child route
+  useEffect(() => {
+    const groups = [
+      { id: 'sales', paths: ['/customers', '/invoices', '/quotations', '/delivery-challans', '/price-calculation'] },
+      { id: 'expenses', paths: ['/vendors', '/expenses'] },
+      { id: 'hr', paths: ['/employees', '/attendance', '/leave', '/salary', '/performance', '/tasks'] },
+      { id: 'reports', paths: ['/reports'] },
+      { id: 'settings', paths: ['/user-roles', '/settings'] },
+    ];
+
+    for (const group of groups) {
+      if (group.paths.some(p => location.pathname.startsWith(p))) {
+        setExpandedGroup(group.id);
+        localStorage.setItem(SIDEBAR_STATE_KEY, group.id);
+        break;
+      }
+    }
+  }, [location.pathname]);
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
@@ -246,9 +278,9 @@ export function AppSidebar() {
   const salesItems = [
     ...(hasPermission(role, 'customers', 'view') ? [{ title: 'Customers', url: '/customers', icon: Users }] : []),
     ...(hasPermission(role, 'invoices', 'view') ? [{ title: 'Invoices', url: '/invoices', icon: FileText }] : []),
-    ...(hasPermission(role, 'invoices', 'view') ? [{ title: 'Delivery Challan', url: '/delivery-challans', icon: Truck, badge: pendingChallanCount }] : []),
     ...(hasPermission(role, 'quotations', 'view') ? [{ title: 'Quotations', url: '/quotations', icon: FileCheck }] : []),
-    ...(hasPermission(role, 'price_calculations', 'view') ? [{ title: 'Price Calculation', url: '/price-calculation', icon: Calculator }] : []),
+    ...(hasPermission(role, 'invoices', 'view') ? [{ title: 'Delivery Challans', url: '/delivery-challans', icon: Truck, badge: pendingChallanCount }] : []),
+    ...(hasPermission(role, 'price_calculations', 'view') ? [{ title: 'Price Calculations', url: '/price-calculation', icon: Calculator }] : []),
   ];
 
   const expenseItems = [
@@ -259,15 +291,15 @@ export function AppSidebar() {
   const hrItems = [
     ...(hasPermission(role, 'employees', 'view') ? [{ title: 'Employees', url: '/employees', icon: Users }] : []),
     ...(hasPermission(role, 'attendance', 'view') ? [{ title: 'Attendance', url: '/attendance', icon: CalendarCheck }] : []),
-    ...(hasPermission(role, 'salary', 'view') ? [{ title: 'Payroll', url: '/salary', icon: Receipt }] : []),
     ...(hasPermission(role, 'leave', 'view') ? [{ title: 'Leave Management', url: '/leave', icon: ClipboardList }] : []),
+    ...(hasPermission(role, 'salary', 'view') ? [{ title: 'Payroll', url: '/salary', icon: Receipt }] : []),
     ...(hasPermission(role, 'performance', 'view') ? [{ title: 'Performance', url: '/performance', icon: Award }] : []),
     ...(hasPermission(role, 'tasks', 'view') ? [{ title: 'Tasks', url: '/tasks', icon: ListTodo }] : []),
   ];
 
   const reportItems = [
     ...(hasPermission(role, 'reports', 'view') ? [{ title: 'Financial Reports', url: '/reports', icon: BarChart3 }] : []),
-    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'HR Reports', url: '/reports?tab=hr', icon: Users }] : []),
+    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'HR Reports', url: '/reports?tab=hr', icon: FileBarChart }] : []),
   ];
 
   const settingsItems = [
@@ -277,15 +309,18 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+    <Sidebar 
+      collapsible="icon" 
+      className="border-r border-slate-800 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950"
+    >
       {/* Header */}
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
+      <SidebarHeader className="p-4 border-b border-slate-800">
         <div className={cn(
           "flex items-center",
           collapsed ? "justify-center" : "gap-3"
         )}>
           <div className={cn(
-            "flex items-center justify-center rounded-lg overflow-hidden flex-shrink-0",
+            "flex items-center justify-center rounded-xl overflow-hidden flex-shrink-0 bg-white/10 p-1.5",
             collapsed ? "h-10 w-10" : "h-10 w-10"
           )}>
             <img 
@@ -296,10 +331,10 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-semibold text-sidebar-foreground truncate">
+              <span className="text-sm font-semibold text-white truncate">
                 Creation Printers
               </span>
-              <span className="text-[11px] text-sidebar-muted truncate">
+              <span className="text-[11px] text-slate-400 truncate">
                 {role ? getRoleDisplayName(role) : 'Loading...'}
               </span>
             </div>
@@ -308,7 +343,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       {/* Navigation */}
-      <SidebarContent className="px-2 py-3">
+      <SidebarContent className="px-2 py-3 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
         {/* Dashboard - Always visible */}
         <SidebarGroup className="py-1">
           <SidebarGroupContent>
@@ -325,64 +360,78 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Divider */}
-        {!collapsed && <div className="mx-3 my-2 border-t border-sidebar-border" />}
+        {!collapsed && <div className="mx-3 my-3 border-t border-slate-800" />}
 
         {/* Navigation Groups */}
         {salesItems.length > 0 && (
           <NavGroup 
+            id="sales"
             label="Sales & Billing" 
             icon={TrendingUp}
-            items={salesItems} 
-            defaultOpen 
+            items={salesItems}
+            expandedGroup={expandedGroup}
+            onToggle={handleToggleGroup}
           />
         )}
         {expenseItems.length > 0 && (
           <NavGroup 
+            id="expenses"
             label="Expenses" 
             icon={CreditCard}
-            items={expenseItems} 
+            items={expenseItems}
+            expandedGroup={expandedGroup}
+            onToggle={handleToggleGroup}
           />
         )}
         {hrItems.length > 0 && (
           <NavGroup 
+            id="hr"
             label="HR & Workforce" 
             icon={Briefcase}
-            items={hrItems} 
+            items={hrItems}
+            expandedGroup={expandedGroup}
+            onToggle={handleToggleGroup}
           />
         )}
         {reportItems.length > 0 && (
           <NavGroup 
+            id="reports"
             label="Reports" 
             icon={BarChart3}
-            items={reportItems} 
+            items={reportItems}
+            expandedGroup={expandedGroup}
+            onToggle={handleToggleGroup}
           />
         )}
         {settingsItems.length > 0 && (
           <NavGroup 
+            id="settings"
             label="Settings" 
             icon={Settings}
-            items={settingsItems} 
+            items={settingsItems}
+            expandedGroup={expandedGroup}
+            onToggle={handleToggleGroup}
           />
         )}
       </SidebarContent>
 
       {/* Footer */}
-      <SidebarFooter className="p-3 border-t border-sidebar-border">
+      <SidebarFooter className="p-3 border-t border-slate-800">
         <div className={cn(
           "flex items-center",
           collapsed ? "justify-center" : "gap-3"
         )}>
-          <Avatar className="h-9 w-9 flex-shrink-0">
-            <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-sm font-medium">
+          <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-slate-700">
+            <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
               {user?.email ? getInitials(user.email) : <User className="h-4 w-4" />}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">
+              <p className="text-sm font-medium text-white truncate">
                 {user?.email?.split('@')[0]}
               </p>
-              <p className="text-[11px] text-sidebar-muted truncate">
+              <p className="text-[11px] text-slate-400 truncate">
                 {user?.email}
               </p>
             </div>
@@ -393,7 +442,7 @@ export function AppSidebar() {
                 variant="ghost"
                 size="icon"
                 onClick={signOut}
-                className="shrink-0 h-8 w-8 text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                className="shrink-0 h-8 w-8 text-slate-400 hover:text-white hover:bg-white/10"
               >
                 <LogOut className="h-4 w-4" />
               </Button>
