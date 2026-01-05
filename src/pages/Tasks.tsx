@@ -27,7 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, FileText } from "lucide-react";
+import { ReferenceSelect, ReferenceLink } from "@/components/tasks/ReferenceSelect";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { useTasks, Task, TaskPriority } from "@/hooks/useTasks";
@@ -68,7 +69,8 @@ const Tasks = () => {
     assigned_to: "",
     deadline: "",
     priority: "medium" as TaskPriority,
-    reference_type: "",
+    reference_type: "" as "" | "invoice" | "challan" | "quotation",
+    reference_id: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,6 +89,7 @@ const Tasks = () => {
         deadline: formData.deadline || undefined,
         priority: formData.priority,
         reference_type: formData.reference_type || undefined,
+        reference_id: formData.reference_id || undefined,
       });
     } else {
       success = await createTask({
@@ -96,6 +99,7 @@ const Tasks = () => {
         deadline: formData.deadline || undefined,
         priority: formData.priority,
         reference_type: formData.reference_type || undefined,
+        reference_id: formData.reference_id || undefined,
       });
     }
 
@@ -112,7 +116,8 @@ const Tasks = () => {
       assigned_to: "",
       deadline: "",
       priority: "medium",
-      reference_type: "",
+      reference_type: "" as "" | "invoice" | "challan" | "quotation",
+      reference_id: "",
     });
     setEditingTask(null);
   };
@@ -126,7 +131,8 @@ const Tasks = () => {
       assigned_to: task.assigned_to || "",
       deadline: task.deadline || "",
       priority: task.priority,
-      reference_type: task.reference_type || "",
+      reference_type: (task.reference_type || "") as "" | "invoice" | "challan" | "quotation",
+      reference_id: task.reference_id || "",
     });
     setIsDialogOpen(true);
   };
@@ -269,21 +275,14 @@ const Tasks = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Reference Type</Label>
-                      <Select
-                        value={formData.reference_type}
-                        onValueChange={(v) => setFormData({ ...formData, reference_type: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Optional" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="invoice">Invoice</SelectItem>
-                          <SelectItem value="challan">Delivery Challan</SelectItem>
-                          <SelectItem value="quotation">Quotation</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-2 col-span-2">
+                      <Label>Link to Order (Optional)</Label>
+                      <ReferenceSelect
+                        referenceType={formData.reference_type}
+                        referenceId={formData.reference_id}
+                        onReferenceTypeChange={(type) => setFormData({ ...formData, reference_type: type })}
+                        onReferenceIdChange={(id) => setFormData({ ...formData, reference_id: id })}
+                      />
                     </div>
                   </div>
 
@@ -466,7 +465,10 @@ const Tasks = () => {
                     <TableCell>
                       <div>
                         <p className="font-medium">{task.title}</p>
-                        {task.description && (
+                        {task.reference_type && task.reference_id && (
+                          <ReferenceLink referenceType={task.reference_type} referenceId={task.reference_id} />
+                        )}
+                        {!task.reference_type && task.description && (
                           <p className="text-sm text-muted-foreground line-clamp-1">
                             {task.description}
                           </p>
