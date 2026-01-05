@@ -6,6 +6,7 @@ import { hasPermission } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CustomerSelect } from '@/components/shared/CustomerSelect';
 import {
@@ -432,18 +433,20 @@ const PriceCalculationForm = () => {
           <Label className="text-xs text-muted-foreground">Quantity</Label>
           <Input
             type="number"
-            value={item.qty || ''}
-            onChange={(e) => handleItemChange(field, 'qty', Number(e.target.value) || 0)}
+            value={item.qty === 0 ? '' : item.qty}
+            onChange={(e) => handleItemChange(field, 'qty', e.target.value === '' ? 0 : Number(e.target.value))}
             min={0}
+            onFocus={(e) => e.target.select()}
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Price</Label>
           <Input
             type="number"
-            value={item.price || ''}
-            onChange={(e) => handleItemChange(field, 'price', Number(e.target.value) || 0)}
+            value={item.price === 0 ? '' : item.price}
+            onChange={(e) => handleItemChange(field, 'price', e.target.value === '' ? 0 : Number(e.target.value))}
             min={0}
+            onFocus={(e) => e.target.select()}
           />
         </div>
         <div className="text-right font-medium">
@@ -491,10 +494,12 @@ const PriceCalculationForm = () => {
               <CardContent className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Job Description *</Label>
-                  <Input
+                  <Textarea
                     value={formData.job_description}
                     onChange={(e) => handleChange('job_description', e.target.value)}
                     placeholder="e.g. Business Card 1000 pcs"
+                    rows={2}
+                    className="min-h-[60px] resize-y"
                   />
                 </div>
                 <div className="space-y-2">

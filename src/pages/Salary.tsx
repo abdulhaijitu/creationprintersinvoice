@@ -104,6 +104,8 @@ const Salary = () => {
     employee_id: "",
     amount: "",
     reason: "",
+    deduction_month: new Date().getMonth() + 1,
+    deduction_year: new Date().getFullYear(),
   });
 
   const fetchData = useCallback(async () => {
@@ -238,6 +240,8 @@ const Salary = () => {
       employee_id: "",
       amount: "",
       reason: "",
+      deduction_month: new Date().getMonth() + 1,
+      deduction_year: new Date().getFullYear(),
     });
   };
 
@@ -255,6 +259,8 @@ const Salary = () => {
         amount: parseFloat(advanceFormData.amount),
         reason: advanceFormData.reason || null,
         status: "pending",
+        deducted_from_month: advanceFormData.deduction_month,
+        deducted_from_year: advanceFormData.deduction_year,
       });
 
       if (error) throw error;
@@ -414,6 +420,44 @@ const Salary = () => {
                       value={advanceFormData.amount}
                       onChange={(e) => setAdvanceFormData({ ...advanceFormData, amount: e.target.value })}
                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Deduction Month</Label>
+                      <Select
+                        value={advanceFormData.deduction_month.toString()}
+                        onValueChange={(v) => setAdvanceFormData({ ...advanceFormData, deduction_month: parseInt(v) })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {months.map((m, i) => (
+                            <SelectItem key={i} value={(i + 1).toString()}>
+                              {m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Deduction Year</Label>
+                      <Select
+                        value={advanceFormData.deduction_year.toString()}
+                        onValueChange={(v) => setAdvanceFormData({ ...advanceFormData, deduction_year: parseInt(v) })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {years.map((y) => (
+                            <SelectItem key={y} value={y.toString()}>
+                              {y}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Reason (Optional)</Label>
