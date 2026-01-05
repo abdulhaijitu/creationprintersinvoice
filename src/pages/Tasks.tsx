@@ -164,7 +164,7 @@ const Tasks = () => {
           title: formData.title,
           description: formData.description || null,
           assigned_to: formData.assigned_to || null,
-          assigned_by: user?.id,
+          assigned_by: null,
           deadline: formData.deadline || null,
           priority: formData.priority,
           status: "todo",

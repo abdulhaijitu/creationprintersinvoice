@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +25,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, UserPlus } from 'lucide-react';
+import { UserPlus, Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Customer {
   id: string;
@@ -41,12 +48,18 @@ export function CustomerSelect({
   onCustomerAdded,
   placeholder = 'Select customer',
 }: CustomerSelectProps) {
+  const [open, setOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
   });
+
+  const selectedCustomer = useMemo(() => 
+    customers.find((customer) => customer.id === value),
+    [customers, value]
+  );
 
   const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,35 +98,59 @@ export function CustomerSelect({
 
   return (
     <>
-      <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger>
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          <div
-            className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent rounded-sm text-primary"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsAddDialogOpen(true);
-            }}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between font-normal"
           >
-            <UserPlus className="h-4 w-4" />
-            <span className="text-sm font-medium">Add New Customer</span>
-          </div>
-          <div className="h-px bg-border my-1" />
-          {customers.length === 0 ? (
-            <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-              No customers found
-            </div>
-          ) : (
-            customers.map((customer) => (
-              <SelectItem key={customer.id} value={customer.id}>
-                {customer.name}
-              </SelectItem>
-            ))
-          )}
-        </SelectContent>
-      </Select>
+            {selectedCustomer ? selectedCustomer.name : placeholder}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[300px] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search customer..." />
+            <CommandList>
+              <CommandEmpty>No customer found.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  onSelect={() => {
+                    setOpen(false);
+                    setIsAddDialogOpen(true);
+                  }}
+                  className="text-primary"
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add New Customer
+                </CommandItem>
+              </CommandGroup>
+              <CommandGroup heading="Customers">
+                {customers.map((customer) => (
+                  <CommandItem
+                    key={customer.id}
+                    value={customer.name}
+                    onSelect={() => {
+                      onValueChange(customer.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === customer.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {customer.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
