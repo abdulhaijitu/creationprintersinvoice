@@ -378,12 +378,14 @@ const QuotationForm = () => {
                       {items.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell>
-                            <Input
+                            <Textarea
                               value={item.description}
                               onChange={(e) =>
                                 updateItem(item.id, 'description', e.target.value)
                               }
                               placeholder="Item description"
+                              rows={2}
+                              className="min-h-[60px] resize-none"
                             />
                           </TableCell>
                           <TableCell>
