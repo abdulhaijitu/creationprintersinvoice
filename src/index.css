@@ -2,48 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Creation Printers - Professional Business Management Design System */
-@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
-@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
+/* Enterprise ERP - Professional Finance Management Design System */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 209 40% 96%;
+    /* Enterprise neutral palette - Clean, professional, trustworthy */
+    --background: 210 20% 98%;
     --foreground: 222 47% 11%;
 
-    --card: 210 40% 98%;
+    --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
 
-    --popover: 214 31% 91%;
+    --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 200 98% 39%;
-    --primary-foreground: 204 100% 97%;
+    /* Professional blue primary - Trust & finance */
+    --primary: 217 91% 50%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 24% 26%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 215 16% 47%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 215 20% 65%;
-    --muted-foreground: 222 47% 11%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 210 40% 98%;
-    --accent-foreground: 215 19% 34%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 222 47% 11%;
 
-    --destructive: 0 72% 50%;
-    --destructive-foreground: 0 85% 97%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 212 26% 83%;
-    --input: 212 26% 83%;
-    --ring: 200 98% 39%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 50%;
 
     --radius: 0.5rem;
 
-    /* Status colors */
+    /* Status colors - Finance specific */
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
@@ -51,66 +47,68 @@
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
 
-    /* Sidebar */
+    /* Enterprise Sidebar - Dark professional */
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 200 98% 39%;
-    --sidebar-primary-foreground: 204 100% 97%;
-    --sidebar-accent: 215 24% 26%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 17% 17%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 212 26% 83%;
-    --sidebar-ring: 200 98% 39%;
+    --sidebar-border: 220 17% 20%;
+    --sidebar-ring: 217 91% 60%;
+    --sidebar-muted: 220 14% 40%;
 
-    /* Chart colors */
-    --chart-1: 198 93% 59%;
-    --chart-2: 213 93% 67%;
-    --chart-3: 215 20% 65%;
-    --chart-4: 215 16% 46%;
-    --chart-5: 215 19% 34%;
-    --sidebar: 210 40% 98%;
-    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
-    --font-serif: 'Lora', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
-    --font-mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
-    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
-    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
-    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
-    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
-    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
-    --tracking-normal: 0em;
+    /* Chart colors - Professional gradient */
+    --chart-1: 217 91% 50%;
+    --chart-2: 199 89% 48%;
+    --chart-3: 142 71% 45%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 72% 51%;
+
+    /* Typography */
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-display: 'Hind Siliguri', 'Inter', sans-serif;
+
+    /* Enterprise shadows - Subtle, professional */
+    --shadow-2xs: 0 1px 2px 0 hsl(220 9% 46% / 0.05);
+    --shadow-xs: 0 1px 3px 0 hsl(220 9% 46% / 0.06);
+    --shadow-sm: 0 1px 2px 0 hsl(220 9% 46% / 0.05), 0 1px 3px 0 hsl(220 9% 46% / 0.1);
+    --shadow: 0 2px 4px -1px hsl(220 9% 46% / 0.06), 0 4px 6px -1px hsl(220 9% 46% / 0.1);
+    --shadow-md: 0 4px 6px -2px hsl(220 9% 46% / 0.05), 0 10px 15px -3px hsl(220 9% 46% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(220 9% 46% / 0.08), 0 20px 25px -5px hsl(220 9% 46% / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(220 9% 46% / 0.1), 0 25px 50px -12px hsl(220 9% 46% / 0.15);
+    
     --spacing: 0.25rem;
   }
 
   .dark {
-    --background: 222 47% 11%;
+    --background: 222 47% 8%;
     --foreground: 210 40% 98%;
 
-    --card: 217 32% 17%;
+    --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 215 24% 26%;
+    --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 198 93% 59%;
-    --primary-foreground: 204 80% 15%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
 
-    --secondary: 212 26% 83%;
-    --secondary-foreground: 228 84% 4%;
+    --secondary: 215 20% 65%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 215 16% 46%;
-    --muted-foreground: 210 40% 98%;
+    --muted: 220 17% 17%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 228 84% 4%;
-    --accent-foreground: 215 20% 65%;
+    --accent: 220 17% 17%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 85% 97%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 215 19% 34%;
-    --input: 215 19% 34%;
-    --ring: 198 93% 59%;
+    --border: 220 17% 20%;
+    --input: 220 17% 20%;
+    --ring: 217 91% 60%;
 
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
@@ -118,26 +116,19 @@
 
     --sidebar-background: 222 47% 6%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 198 93% 59%;
-    --sidebar-primary-foreground: 204 80% 15%;
-    --sidebar-accent: 215 20% 65%;
-    --sidebar-accent-foreground: 228 84% 4%;
-    --sidebar-border: 215 19% 34%;
-    --sidebar-ring: 198 93% 59%;
-    --chart-1: 199 95% 73%;
-    --chart-2: 211 96% 78%;
-    --chart-3: 215 20% 65%;
-    --chart-4: 215 16% 46%;
-    --chart-5: 215 19% 34%;
-    --sidebar: 217 32% 17%;
-    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
-    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
-    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
-    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
-    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
-    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 17% 12%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 220 17% 15%;
+    --sidebar-ring: 217 91% 60%;
+    --sidebar-muted: 220 14% 40%;
+
+    --chart-1: 217 91% 60%;
+    --chart-2: 199 89% 58%;
+    --chart-3: 142 71% 55%;
+    --chart-4: 38 92% 60%;
+    --chart-5: 0 72% 61%;
   }
 }
 
@@ -147,35 +138,138 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Hind Siliguri', 'Inter', sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Hind Siliguri', sans-serif;
-    @apply font-semibold tracking-tight;
+    font-family: var(--font-display);
+    @apply font-semibold tracking-tight text-foreground;
+  }
+
+  /* Scrollbar styling for enterprise feel */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted/30;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
   }
 }
 
 @layer utilities {
+  /* Glass effect for cards */
   .glass {
-    @apply bg-card/80 backdrop-blur-sm;
+    @apply bg-card/80 backdrop-blur-sm border border-border/50;
   }
 
+  /* Enterprise gradients */
   .gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(217 91% 50%) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(217 91% 40%) 100%);
   }
 
   .gradient-success {
     background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(142 71% 35%) 100%);
   }
 
-  .shadow-soft {
-    box-shadow: 0 2px 8px -2px hsl(var(--foreground) / 0.08), 
-                0 4px 16px -4px hsl(var(--foreground) / 0.12);
+  .gradient-sidebar {
+    background: linear-gradient(180deg, hsl(var(--sidebar-background)) 0%, hsl(222 47% 8%) 100%);
   }
 
-  .shadow-glow {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  /* Enterprise shadows */
+  .shadow-soft {
+    box-shadow: 0 2px 8px -2px hsl(var(--foreground) / 0.06), 
+                0 4px 16px -4px hsl(var(--foreground) / 0.08);
+  }
+
+  .shadow-card {
+    box-shadow: 0 1px 3px 0 hsl(var(--foreground) / 0.04),
+                0 1px 2px 0 hsl(var(--foreground) / 0.06);
+  }
+
+  .shadow-card-hover {
+    box-shadow: 0 4px 12px -2px hsl(var(--foreground) / 0.08),
+                0 8px 24px -4px hsl(var(--foreground) / 0.12);
+  }
+
+  /* Stat card variants */
+  .stat-card {
+    @apply relative overflow-hidden rounded-lg border bg-card p-6 shadow-card transition-all duration-200;
+  }
+
+  .stat-card:hover {
+    @apply shadow-card-hover;
+  }
+
+  /* Table enhancements */
+  .table-sticky-header {
+    @apply sticky top-0 z-10 bg-muted/80 backdrop-blur-sm;
+  }
+
+  /* Enterprise input styling */
+  .input-enterprise {
+    @apply h-10 rounded-md border border-input bg-background px-3 py-2 text-sm 
+           ring-offset-background placeholder:text-muted-foreground 
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+           transition-colors duration-200;
+  }
+
+  /* Page container */
+  .page-container {
+    @apply space-y-6 animate-fade-in;
+  }
+
+  /* Section styling */
+  .section-card {
+    @apply rounded-lg border bg-card shadow-card;
+  }
+}
+
+@layer components {
+  /* Enterprise button variants */
+  .btn-enterprise {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium 
+           ring-offset-background transition-all duration-200 
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+           disabled:pointer-events-none disabled:opacity-50
+           active:scale-[0.98];
+  }
+
+  /* Status badges */
+  .badge-success {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium 
+           bg-success/10 text-success border border-success/20;
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium 
+           bg-warning/10 text-warning border border-warning/20;
+  }
+
+  .badge-destructive {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium 
+           bg-destructive/10 text-destructive border border-destructive/20;
+  }
+
+  .badge-info {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium 
+           bg-info/10 text-info border border-info/20;
+  }
+
+  .badge-muted {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium 
+           bg-muted text-muted-foreground border border-border;
   }
 }
