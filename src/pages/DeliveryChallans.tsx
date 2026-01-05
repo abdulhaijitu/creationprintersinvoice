@@ -64,21 +64,22 @@ export default function DeliveryChallans() {
   const canPrint = (status: string) => status !== 'cancelled';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <PageHeader
         title="Delivery Challans"
         description="Manage delivery challans for your invoices"
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Challan
+          <Button onClick={() => setCreateOpen(true)} size="sm" className="md:h-10 md:px-4">
+            <Plus className="h-4 w-4 mr-1 md:mr-2" />
+            <span className="hidden sm:inline">New Challan</span>
+            <span className="sm:hidden">New</span>
           </Button>
         }
       />
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-medium flex items-center gap-2">
+          <CardTitle className="text-base md:text-lg font-medium flex items-center gap-2">
             All Challans
             {pendingCount > 0 && (
               <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
@@ -87,9 +88,11 @@ export default function DeliveryChallans() {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0 md:px-6">
           {loading ? (
-            <TableSkeleton rows={5} columns={6} />
+            <div className="px-4 md:px-0">
+              <TableSkeleton rows={5} columns={4} />
+            </div>
           ) : challans.length === 0 ? (
             <EmptyState
               icon={FileText}
@@ -102,96 +105,169 @@ export default function DeliveryChallans() {
               }}
             />
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Challan No</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Invoice No</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {challans.map((challan) => (
-                    <TableRow
-                      key={challan.id}
-                      className="cursor-pointer transition-colors duration-200 hover:bg-muted/50"
-                      onClick={() => handleView(challan.id)}
-                    >
-                      <TableCell className="font-medium">
-                        {challan.challan_number}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(challan.challan_date), 'dd MMM yyyy')}
-                      </TableCell>
-                      <TableCell>
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3 px-4">
+                {challans.map((challan) => (
+                  <div
+                    key={challan.id}
+                    className="border rounded-lg p-3 space-y-2 active:bg-muted/50 transition-colors"
+                    onClick={() => handleView(challan.id)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{challan.challan_number}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(challan.challan_date), 'dd MMM yyyy')}
+                        </p>
+                      </div>
+                      <StatusBadge status={challan.status} />
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground truncate max-w-[60%]">
+                        {challan.customers?.name || challan.invoice?.customers?.name || 'N/A'}
+                      </span>
+                      <span className="text-muted-foreground">
                         {challan.invoice?.invoice_number || 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        {challan.customers?.name ||
-                          challan.invoice?.customers?.name ||
-                          'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={challan.status} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            asChild
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleView(challan.id);
-                              }}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-9"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleView(challan.id);
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                      {canPrint(challan.status) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 h-9"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePrint(challan.id, challan.status);
+                          }}
+                        >
+                          <Printer className="h-4 w-4 mr-1" />
+                          Print
+                        </Button>
+                      )}
+                      {canModify(challan.status) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 px-2 text-destructive hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteId(challan.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block rounded-md border mx-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Challan No</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Invoice No</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {challans.map((challan) => (
+                      <TableRow
+                        key={challan.id}
+                        className="cursor-pointer transition-colors duration-200 hover:bg-muted/50"
+                        onClick={() => handleView(challan.id)}
+                      >
+                        <TableCell className="font-medium">
+                          {challan.challan_number}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(challan.challan_date), 'dd MMM yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          {challan.invoice?.invoice_number || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {challan.customers?.name ||
+                            challan.invoice?.customers?.name ||
+                            'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={challan.status} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              asChild
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            {canPrint(challan.status) && (
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handlePrint(challan.id, challan.status);
+                                  handleView(challan.id);
                                 }}
                               >
-                                <Printer className="h-4 w-4 mr-2" />
-                                Print
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
                               </DropdownMenuItem>
-                            )}
-                            {canModify(challan.status) && (
-                              <>
-                                <DropdownMenuSeparator />
+                              {canPrint(challan.status) && (
                                 <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setDeleteId(challan.id);
+                                    handlePrint(challan.id, challan.status);
                                   }}
                                 >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
+                                  <Printer className="h-4 w-4 mr-2" />
+                                  Print
                                 </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                              )}
+                              {canModify(challan.status) && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteId(challan.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

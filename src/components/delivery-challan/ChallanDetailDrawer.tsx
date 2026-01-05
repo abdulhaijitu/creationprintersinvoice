@@ -108,15 +108,15 @@ export function ChallanDetailDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-4 md:p-6">
         <SheetHeader className="space-y-1">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              {loading ? 'Loading...' : challan?.challan_number}
+          <div className="flex items-center justify-between gap-2">
+            <SheetTitle className="flex items-center gap-2 text-base md:text-lg">
+              <FileText className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="truncate">{loading ? 'Loading...' : challan?.challan_number}</span>
             </SheetTitle>
             {!loading && challan && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 {isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
                 <StatusBadge status={challan.status} />
               </div>
@@ -125,11 +125,11 @@ export function ChallanDetailDrawer({
         </SheetHeader>
 
         {loading ? (
-          <div className="mt-6">
+          <div className="mt-4 md:mt-6">
             <ContentSkeleton />
           </div>
         ) : challan ? (
-          <div className="space-y-6 mt-6">
+          <div className="space-y-4 md:space-y-6 mt-4 md:mt-6">
             {/* Actions - disabled for cancelled challans */}
             <div className="flex flex-wrap gap-2">
               <Button 
@@ -137,9 +137,9 @@ export function ChallanDetailDrawer({
                 size="sm" 
                 onClick={handlePrint}
                 disabled={!canPrint}
-                className={cn(!canPrint && 'opacity-50 cursor-not-allowed')}
+                className={cn("h-9 flex-1 sm:flex-none", !canPrint && 'opacity-50 cursor-not-allowed')}
               >
-                <Printer className="h-4 w-4 mr-2" />
+                <Printer className="h-4 w-4 mr-1.5" />
                 Print
               </Button>
               <Button 
@@ -147,9 +147,9 @@ export function ChallanDetailDrawer({
                 size="sm" 
                 onClick={handlePrint}
                 disabled={!canPrint}
-                className={cn(!canPrint && 'opacity-50 cursor-not-allowed')}
+                className={cn("h-9 flex-1 sm:flex-none", !canPrint && 'opacity-50 cursor-not-allowed')}
               >
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="h-4 w-4 mr-1.5" />
                 PDF
               </Button>
               <DropdownMenu>
@@ -158,9 +158,9 @@ export function ChallanDetailDrawer({
                     variant="outline" 
                     size="sm"
                     disabled={!canShare}
-                    className={cn(!canShare && 'opacity-50 cursor-not-allowed')}
+                    className={cn("h-9 flex-1 sm:flex-none", !canShare && 'opacity-50 cursor-not-allowed')}
                   >
-                    <Share2 className="h-4 w-4 mr-2" />
+                    <Share2 className="h-4 w-4 mr-1.5" />
                     Share
                   </Button>
                 </DropdownMenuTrigger>
@@ -180,18 +180,18 @@ export function ChallanDetailDrawer({
             <Separator />
 
             {/* Basic Info */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-3 md:gap-4 text-sm">
               <div>
-                <p className="text-muted-foreground">Date</p>
-                <p className="font-medium">
+                <p className="text-xs md:text-sm text-muted-foreground">Date</p>
+                <p className="font-medium text-sm md:text-base">
                   {format(new Date(challan.challan_date), 'dd MMM yyyy')}
                 </p>
               </div>
               <div>
-                <p className="text-muted-foreground">Invoice</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Invoice</p>
                 <Button
                   variant="link"
-                  className="p-0 h-auto font-medium"
+                  className="p-0 h-auto font-medium text-sm md:text-base"
                   onClick={() => navigate(`/invoices/${challan.invoice_id}`)}
                 >
                   {challan.invoice?.invoice_number}
@@ -253,28 +253,28 @@ export function ChallanDetailDrawer({
             <Separator />
 
             {/* Items */}
-            <div className="space-y-3">
-              <h4 className="font-medium">Items ({items.length})</h4>
+            <div className="space-y-2 md:space-y-3">
+              <h4 className="font-medium text-sm md:text-base">Items ({items.length})</h4>
               <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
+                <table className="w-full text-xs md:text-sm">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left p-3 font-medium">Description</th>
-                      <th className="text-right p-3 font-medium w-24">Qty</th>
+                      <th className="text-left p-2.5 md:p-3 font-medium">Description</th>
+                      <th className="text-right p-2.5 md:p-3 font-medium w-20 md:w-24">Qty</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((item) => (
                       <tr key={item.id} className="border-t">
-                        <td className="p-3">{item.description}</td>
-                        <td className="p-3 text-right">
+                        <td className="p-2.5 md:p-3">{item.description}</td>
+                        <td className="p-2.5 md:p-3 text-right">
                           {item.quantity} {item.unit}
                         </td>
                       </tr>
                     ))}
                     <tr className="border-t bg-muted/30 font-medium">
-                      <td className="p-3">Total</td>
-                      <td className="p-3 text-right">{totalQuantity}</td>
+                      <td className="p-2.5 md:p-3">Total</td>
+                      <td className="p-2.5 md:p-3 text-right">{totalQuantity}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -298,15 +298,15 @@ export function ChallanDetailDrawer({
 
             {/* Status Actions - only show if not locked */}
             {!isLocked && onStatusChange && (
-              <div className="space-y-3">
-                <h4 className="font-medium">Update Status</h4>
-                <div className="flex flex-wrap gap-2">
+              <div className="space-y-2 md:space-y-3">
+                <h4 className="font-medium text-sm md:text-base">Update Status</h4>
+                <div className="flex flex-col sm:flex-row gap-2">
                   {challan.status === 'draft' && (
                     <>
                       <Button
                         size="sm"
                         onClick={() => onStatusChange(challan.id, 'dispatched')}
-                        className="transition-transform duration-200 active:scale-95"
+                        className="h-10 sm:h-9 transition-transform duration-200 active:scale-95 flex-1 sm:flex-none"
                       >
                         Mark as Dispatched
                       </Button>
@@ -314,7 +314,7 @@ export function ChallanDetailDrawer({
                         size="sm"
                         variant="destructive"
                         onClick={() => onStatusChange(challan.id, 'cancelled')}
-                        className="transition-transform duration-200 active:scale-95"
+                        className="h-10 sm:h-9 transition-transform duration-200 active:scale-95 flex-1 sm:flex-none"
                       >
                         Cancel
                       </Button>
@@ -323,7 +323,7 @@ export function ChallanDetailDrawer({
                   {challan.status === 'dispatched' && (
                     <Button
                       size="sm"
-                      className="bg-success hover:bg-success/90 transition-transform duration-200 active:scale-95"
+                      className="h-10 sm:h-9 bg-success hover:bg-success/90 transition-transform duration-200 active:scale-95 w-full sm:w-auto"
                       onClick={() => onStatusChange(challan.id, 'delivered')}
                     >
                       Mark as Delivered

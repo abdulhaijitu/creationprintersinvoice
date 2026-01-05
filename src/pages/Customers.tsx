@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { Plus, Search, Edit, Trash2, Phone, Mail, Building2, Download, Upload, Eye } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 import CSVImportDialog from '@/components/import/CSVImportDialog';
@@ -285,19 +286,19 @@ const Customers = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Customer List</h1>
-          <p className="text-muted-foreground">Manage all customer information</p>
+    <div className="space-y-4 md:space-y-6 animate-fade-in">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold truncate">Customer List</h1>
+          <p className="text-sm text-muted-foreground">Manage all customer information</p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5 h-9 md:h-10">
                 <Download className="h-4 w-4" />
-                Export
+                <span className="hidden sm:inline">Export</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -310,9 +311,9 @@ const Customers = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="outline" className="gap-2" onClick={() => setIsImportOpen(true)}>
+          <Button variant="outline" size="sm" className="gap-1.5 h-9 md:h-10" onClick={() => setIsImportOpen(true)}>
             <Upload className="h-4 w-4" />
-            Import
+            <span className="hidden sm:inline">Import</span>
           </Button>
 
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -320,9 +321,10 @@ const Customers = () => {
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button size="sm" className="gap-1.5 h-9 md:h-10">
               <Plus className="h-4 w-4" />
-              New Customer
+              <span className="hidden sm:inline">New Customer</span>
+              <span className="sm:hidden">New</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
@@ -335,8 +337,8 @@ const Customers = () => {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit}>
-              <div className="grid gap-4 py-4">
-                <div className="space-y-2">
+              <div className="grid gap-3 md:gap-4 py-4">
+                <div className="space-y-1.5 md:space-y-2">
                   <Label htmlFor="name">Name *</Label>
                   <Input
                     id="name"
@@ -346,8 +348,8 @@ const Customers = () => {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                  <div className="space-y-1.5 md:space-y-2">
                     <Label htmlFor="phone">Phone</Label>
                     <Input
                       id="phone"
@@ -356,7 +358,7 @@ const Customers = () => {
                       placeholder="01XXXXXXXXX"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5 md:space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
@@ -367,7 +369,7 @@ const Customers = () => {
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5 md:space-y-2">
                   <Label htmlFor="company_name">Company Name</Label>
                   <Input
                     id="company_name"
@@ -376,7 +378,7 @@ const Customers = () => {
                     placeholder="Company name"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5 md:space-y-2">
                   <Label htmlFor="address">Address</Label>
                   <Textarea
                     id="address"
@@ -386,7 +388,7 @@ const Customers = () => {
                     rows={2}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5 md:space-y-2">
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea
                     id="notes"
@@ -397,11 +399,11 @@ const Customers = () => {
                   />
                 </div>
               </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
                   Cancel
                 </Button>
-                <Button type="submit">
+                <Button type="submit" className="w-full sm:w-auto">
                   {editingCustomer ? 'Update' : 'Save'}
                 </Button>
               </DialogFooter>
@@ -412,12 +414,12 @@ const Customers = () => {
       </div>
 
       <Card>
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-3 md:pb-4">
           <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
+            <div className="relative flex-1 max-w-full sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, phone or company..."
+                placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -425,20 +427,105 @@ const Customers = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0 md:px-6">
           {loading ? (
-            <div className="space-y-3">
+            <div className="space-y-3 px-4 md:px-0">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
               ))}
             </div>
           ) : filteredCustomers.length === 0 ? (
-            <div className="text-center py-12">
-              <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No customers found</p>
+            <div className="text-center py-8 md:py-12">
+              <Building2 className="h-10 w-10 md:h-12 md:w-12 mx-auto text-muted-foreground mb-3 md:mb-4" />
+              <p className="text-sm md:text-base text-muted-foreground">No customers found</p>
             </div>
           ) : (
-            <div className="rounded-lg border overflow-x-auto">
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3 px-4">
+                {filteredCustomers.map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="border rounded-lg p-3 space-y-2"
+                    onClick={() => navigate(`/customers/${customer.id}`)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{customer.name}</p>
+                        {customer.company_name && (
+                          <p className="text-sm text-muted-foreground truncate">{customer.company_name}</p>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={cn(
+                          'text-sm font-medium',
+                          (customer.total_due || 0) > 0 ? 'text-destructive' : 'text-muted-foreground'
+                        )}>
+                          {formatCurrency(customer.total_due || 0)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">due</p>
+                      </div>
+                    </div>
+                    {(customer.phone || customer.email) && (
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        {customer.phone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            {customer.phone}
+                          </span>
+                        )}
+                        {customer.email && (
+                          <span className="flex items-center gap-1 truncate">
+                            <Mail className="h-3 w-3" />
+                            {customer.email}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-9"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/customers/${customer.id}`);
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 px-3"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(customer);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 px-3 text-destructive hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteId(customer.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block rounded-lg border mx-0 overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -522,7 +609,8 @@ const Customers = () => {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -244,27 +244,27 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <CardSkeleton count={6} className="lg:grid-cols-6" />
-        <div className="grid gap-4 md:grid-cols-2">
-          <CardSkeleton count={1} className="h-80" />
-          <CardSkeleton count={1} className="h-80" />
+      <div className="space-y-4 md:space-y-6">
+        <CardSkeleton count={6} className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" />
+        <div className="grid gap-3 md:gap-4 md:grid-cols-2">
+          <CardSkeleton count={1} className="h-64 md:h-80" />
+          <CardSkeleton count={1} className="h-64 md:h-80" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 md:space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">
           {format(new Date(), "EEEE, d MMMM yyyy")}
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           title="Today's Sales"
           value={formatCurrency(stats.todaySales)}
@@ -304,19 +304,19 @@ const Dashboard = () => {
       </div>
 
       {/* Charts Row */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:gap-4 md:grid-cols-2">
         {/* Monthly Income vs Expense Trend */}
         <Card>
-          <CardHeader>
-            <CardTitle>Monthly Income-Expense Trend</CardTitle>
-            <CardDescription>Last 6 months comparison</CardDescription>
+          <CardHeader className="pb-2 md:pb-4">
+            <CardTitle className="text-base md:text-lg">Monthly Income-Expense Trend</CardTitle>
+            <CardDescription className="text-xs md:text-sm">Last 6 months comparison</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[280px] w-full">
-              <BarChart data={monthlyTrend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+          <CardContent className="pb-4">
+            <ChartContainer config={chartConfig} className="h-[200px] md:h-[280px] w-full">
+              <BarChart data={monthlyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="month" className="text-xs" />
-                <YAxis tickFormatter={formatChartCurrency} className="text-xs" />
+                <XAxis dataKey="month" className="text-[10px] md:text-xs" tick={{ fontSize: 10 }} />
+                <YAxis tickFormatter={formatChartCurrency} className="text-[10px] md:text-xs" tick={{ fontSize: 10 }} />
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
@@ -333,16 +333,16 @@ const Dashboard = () => {
 
         {/* Income Expense Line Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle>Income-Expense Line Chart</CardTitle>
-            <CardDescription>Monthly trend analysis</CardDescription>
+          <CardHeader className="pb-2 md:pb-4">
+            <CardTitle className="text-base md:text-lg">Income-Expense Line Chart</CardTitle>
+            <CardDescription className="text-xs md:text-sm">Monthly trend analysis</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[280px] w-full">
-              <LineChart data={monthlyTrend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+          <CardContent className="pb-4">
+            <ChartContainer config={chartConfig} className="h-[200px] md:h-[280px] w-full">
+              <LineChart data={monthlyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="month" className="text-xs" />
-                <YAxis tickFormatter={formatChartCurrency} className="text-xs" />
+                <XAxis dataKey="month" className="text-[10px] md:text-xs" tick={{ fontSize: 10 }} />
+                <YAxis tickFormatter={formatChartCurrency} className="text-[10px] md:text-xs" tick={{ fontSize: 10 }} />
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
@@ -355,7 +355,7 @@ const Dashboard = () => {
                   dataKey="income"
                   stroke="hsl(var(--success))"
                   strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--success))', strokeWidth: 2 }}
+                  dot={{ fill: 'hsl(var(--success))', strokeWidth: 2, r: 3 }}
                   name="Income"
                 />
                 <Line
@@ -363,7 +363,7 @@ const Dashboard = () => {
                   dataKey="expense"
                   stroke="hsl(var(--destructive))"
                   strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--destructive))', strokeWidth: 2 }}
+                  dot={{ fill: 'hsl(var(--destructive))', strokeWidth: 2, r: 3 }}
                   name="Expense"
                 />
               </LineChart>
@@ -373,23 +373,23 @@ const Dashboard = () => {
       </div>
 
       {/* Second Charts Row */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
         {/* Invoice Status Pie Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle>Invoice Status</CardTitle>
-            <CardDescription>Payment status analysis</CardDescription>
+          <CardHeader className="pb-2 md:pb-4">
+            <CardTitle className="text-base md:text-lg">Invoice Status</CardTitle>
+            <CardDescription className="text-xs md:text-sm">Payment status analysis</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-[200px] w-full">
+          <CardContent className="pb-4">
+            <div className="h-[160px] md:h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={invoiceStatusData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
+                    innerRadius={35}
+                    outerRadius={55}
                     paddingAngle={5}
                     dataKey="value"
                   >
@@ -398,7 +398,8 @@ const Dashboard = () => {
                     ))}
                   </Pie>
                   <Legend
-                    formatter={(value: string) => <span className="text-foreground text-sm">{value}</span>}
+                    formatter={(value: string) => <span className="text-foreground text-xs md:text-sm">{value}</span>}
+                    wrapperStyle={{ fontSize: '12px' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -408,30 +409,30 @@ const Dashboard = () => {
 
         {/* Alerts */}
         <Card className={stats.pendingInvoices > 0 ? 'border-warning' : ''}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-warning" />
+          <CardHeader className="pb-2 md:pb-4">
+            <CardTitle className="text-base md:text-lg flex items-center gap-2">
+              <FileText className="h-4 w-4 md:h-5 md:w-5 text-warning" />
               Pending Invoices
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold text-warning">{stats.pendingInvoices}</p>
-            <p className="text-sm text-muted-foreground mt-2">
+          <CardContent className="pb-4">
+            <p className="text-3xl md:text-4xl font-bold text-warning">{stats.pendingInvoices}</p>
+            <p className="text-xs md:text-sm text-muted-foreground mt-1 md:mt-2">
               {stats.pendingInvoices > 0 ? 'Payments pending' : 'All invoices paid'}
             </p>
           </CardContent>
         </Card>
 
         <Card className={stats.vendorPayable > 0 ? 'border-destructive' : ''}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive" />
+          <CardHeader className="pb-2 md:pb-4">
+            <CardTitle className="text-base md:text-lg flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-destructive" />
               Vendor Payable
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-destructive">{formatCurrency(stats.vendorPayable)}</p>
-            <p className="text-sm text-muted-foreground mt-2">
+          <CardContent className="pb-4">
+            <p className="text-2xl md:text-3xl font-bold text-destructive truncate">{formatCurrency(stats.vendorPayable)}</p>
+            <p className="text-xs md:text-sm text-muted-foreground mt-1 md:mt-2">
               {stats.vendorPayable > 0 ? 'Vendor payments pending' : 'All payments complete'}
             </p>
           </CardContent>
@@ -440,35 +441,35 @@ const Dashboard = () => {
 
       {/* Recent Invoices */}
       <Card>
-        <CardHeader>
-          <CardTitle>Recent Invoices</CardTitle>
-          <CardDescription>Last 5 invoices</CardDescription>
+        <CardHeader className="pb-2 md:pb-4">
+          <CardTitle className="text-base md:text-lg">Recent Invoices</CardTitle>
+          <CardDescription className="text-xs md:text-sm">Last 5 invoices</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="pb-4">
+          <div className="space-y-2 md:space-y-4">
             {recentInvoices.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">
+              <p className="text-muted-foreground text-center py-4 text-sm">
                 No invoices found
               </p>
             ) : (
               recentInvoices.map((invoice) => (
                 <div
                   key={invoice.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                  className="flex items-center justify-between p-2.5 md:p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors gap-3"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <FileText className="h-4 w-4 text-primary" />
+                  <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                    <div className="p-1.5 md:p-2 rounded-lg bg-primary/10 shrink-0">
+                      <FileText className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                     </div>
-                    <div>
-                      <p className="font-medium">{invoice.invoice_number}</p>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{invoice.invoice_number}</p>
+                      <p className="text-xs text-muted-foreground truncate">
                         {invoice.customers?.name || 'Unknown customer'}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{formatCurrency(Number(invoice.total))}</p>
+                  <div className="text-right shrink-0">
+                    <p className="font-semibold text-sm">{formatCurrency(Number(invoice.total))}</p>
                     <StatusBadge status={invoice.status} />
                   </div>
                 </div>

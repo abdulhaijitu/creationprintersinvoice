@@ -9,16 +9,16 @@ interface TableSkeletonProps {
 
 export function TableSkeleton({ rows = 5, columns = 5, className }: TableSkeletonProps) {
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn('space-y-2 md:space-y-3', className)}>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4">
+        <div key={i} className="flex items-center gap-2 md:gap-4">
           {Array.from({ length: columns }).map((_, j) => (
             <Skeleton
               key={j}
               className={cn(
-                'h-10',
-                j === 0 ? 'w-32' : 'flex-1',
-                j === columns - 1 && 'w-24'
+                'h-9 md:h-10',
+                j === 0 ? 'w-24 md:w-32' : 'flex-1',
+                j === columns - 1 && 'w-16 md:w-24'
               )}
             />
           ))}
@@ -35,9 +35,9 @@ interface CardSkeletonProps {
 
 export function CardSkeleton({ count = 4, className }: CardSkeletonProps) {
   return (
-    <div className={cn('grid gap-4 md:grid-cols-2 lg:grid-cols-4', className)}>
+    <div className={cn('grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4', className)}>
       {Array.from({ length: count }).map((_, i) => (
-        <Skeleton key={i} className="h-32 rounded-xl" />
+        <Skeleton key={i} className="h-24 md:h-32 rounded-xl" />
       ))}
     </div>
   );
@@ -49,10 +49,10 @@ interface ContentSkeletonProps {
 
 export function ContentSkeleton({ className }: ContentSkeletonProps) {
   return (
-    <div className={cn('space-y-4', className)}>
-      <Skeleton className="h-20 w-full" />
-      <Skeleton className="h-32 w-full" />
-      <Skeleton className="h-48 w-full" />
+    <div className={cn('space-y-3 md:space-y-4', className)}>
+      <Skeleton className="h-16 md:h-20 w-full" />
+      <Skeleton className="h-24 md:h-32 w-full" />
+      <Skeleton className="h-36 md:h-48 w-full" />
     </div>
   );
 }
