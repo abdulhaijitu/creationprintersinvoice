@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, FileText, Users, Building2, Package, X } from 'lucide-react';
+import { Search, FileText, Users, Building2, Package, X, UserCheck, Wallet, Calculator } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 interface SearchResult {
   id: string;
-  type: 'customer' | 'invoice' | 'vendor' | 'quotation';
+  type: 'customer' | 'invoice' | 'vendor' | 'quotation' | 'employee' | 'expense';
   title: string;
   subtitle: string;
   url: string;
@@ -19,6 +19,8 @@ const typeIcons = {
   invoice: FileText,
   vendor: Building2,
   quotation: Package,
+  employee: UserCheck,
+  expense: Wallet,
 };
 
 const typeLabels = {
@@ -26,6 +28,8 @@ const typeLabels = {
   invoice: 'Invoice',
   vendor: 'Vendor',
   quotation: 'Quotation',
+  employee: 'Employee',
+  expense: 'Expense',
 };
 
 export const GlobalSearch = () => {
@@ -143,6 +147,41 @@ export const GlobalSearch = () => {
             title: q.quotation_number,
             subtitle: `৳${q.total?.toLocaleString('en-BD')}`,
             url: `/quotations/${q.id}`,
+          });
+        });
+
+        // Search employees
+        const { data: employees } = await supabase
+          .from('employees')
+          .select('id, full_name, designation')
+          .or(`full_name.ilike.%${query}%,designation.ilike.%${query}%`)
+          .eq('is_active', true)
+          .limit(3);
+
+        employees?.forEach(e => {
+          searchResults.push({
+            id: e.id,
+            type: 'employee',
+            title: e.full_name,
+            subtitle: e.designation || 'Employee',
+            url: `/employees`,
+          });
+        });
+
+        // Search expenses
+        const { data: expenses } = await supabase
+          .from('expenses')
+          .select('id, description, amount')
+          .ilike('description', `%${query}%`)
+          .limit(3);
+
+        expenses?.forEach(exp => {
+          searchResults.push({
+            id: exp.id,
+            type: 'expense',
+            title: exp.description,
+            subtitle: `৳${exp.amount?.toLocaleString('en-BD')}`,
+            url: `/expenses`,
           });
         });
 
