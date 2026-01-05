@@ -433,20 +433,20 @@ const PriceCalculationForm = () => {
           <Label className="text-xs text-muted-foreground">Quantity</Label>
           <Input
             type="number"
-            value={item.qty === 0 ? '' : item.qty}
-            onChange={(e) => handleItemChange(field, 'qty', e.target.value === '' ? 0 : Number(e.target.value))}
+            defaultValue={item.qty === 0 ? '' : item.qty}
+            key={`${field}-qty-${item.qty}`}
+            onBlur={(e) => handleItemChange(field, 'qty', e.target.value === '' ? 0 : Number(e.target.value))}
             min={0}
-            onFocus={(e) => e.target.select()}
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Price</Label>
           <Input
             type="number"
-            value={item.price === 0 ? '' : item.price}
-            onChange={(e) => handleItemChange(field, 'price', e.target.value === '' ? 0 : Number(e.target.value))}
+            defaultValue={item.price === 0 ? '' : item.price}
+            key={`${field}-price-${item.price}`}
+            onBlur={(e) => handleItemChange(field, 'price', e.target.value === '' ? 0 : Number(e.target.value))}
             min={0}
-            onFocus={(e) => e.target.select()}
           />
         </div>
         <div className="text-right font-medium">
