@@ -158,6 +158,117 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_challan_items: {
+        Row: {
+          challan_id: string
+          created_at: string
+          description: string
+          id: string
+          invoice_item_id: string | null
+          quantity: number
+          unit: string | null
+        }
+        Insert: {
+          challan_id: string
+          created_at?: string
+          description: string
+          id?: string
+          invoice_item_id?: string | null
+          quantity?: number
+          unit?: string | null
+        }
+        Update: {
+          challan_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_item_id?: string | null
+          quantity?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_challan_items_challan_id_fkey"
+            columns: ["challan_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_challans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_challan_items_invoice_item_id_fkey"
+            columns: ["invoice_item_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_challans: {
+        Row: {
+          challan_date: string
+          challan_number: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          delivery_address: string | null
+          driver_name: string | null
+          driver_phone: string | null
+          id: string
+          invoice_id: string
+          notes: string | null
+          status: string
+          updated_at: string
+          vehicle_info: string | null
+        }
+        Insert: {
+          challan_date?: string
+          challan_number: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          delivery_address?: string | null
+          driver_name?: string | null
+          driver_phone?: string | null
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          vehicle_info?: string | null
+        }
+        Update: {
+          challan_date?: string
+          challan_number?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          delivery_address?: string | null
+          driver_name?: string | null
+          driver_phone?: string | null
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          vehicle_info?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_challans_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_challans_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_advances: {
         Row: {
           amount: number
@@ -1445,6 +1556,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_challan_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
       get_user_role: {

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   FileText,
@@ -17,6 +18,7 @@ import {
   BarChart3,
   Settings,
   UserCog,
+  Truck,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -43,9 +45,10 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NavItemProps {
-  item: { title: string; url: string; icon: React.ElementType };
+  item: { title: string; url: string; icon: React.ElementType; badge?: number };
   isActive: boolean;
 }
 
@@ -57,8 +60,24 @@ const NavItem = ({ item, isActive }: NavItemProps) => {
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={isActive}>
         <NavLink to={item.url} className="flex items-center gap-3">
-          <item.icon className="h-4 w-4" />
-          {!collapsed && <span>{item.title}</span>}
+          <div className="relative">
+            <item.icon className="h-4 w-4" />
+            {item.badge !== undefined && item.badge > 0 && collapsed && (
+              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] h-4 w-4 rounded-full flex items-center justify-center">
+                {item.badge > 9 ? '9+' : item.badge}
+              </span>
+            )}
+          </div>
+          {!collapsed && (
+            <span className="flex-1 flex items-center justify-between">
+              {item.title}
+              {item.badge !== undefined && item.badge > 0 && (
+                <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full ml-2">
+                  {item.badge > 99 ? '99+' : item.badge}
+                </span>
+              )}
+            </span>
+          )}
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -67,7 +86,7 @@ const NavItem = ({ item, isActive }: NavItemProps) => {
 
 interface NavGroupProps {
   label: string;
-  items: { title: string; url: string; icon: React.ElementType }[];
+  items: { title: string; url: string; icon: React.ElementType; badge?: number }[];
   defaultOpen?: boolean;
 }
 
@@ -75,7 +94,7 @@ const NavGroup = ({ label, items, defaultOpen = false }: NavGroupProps) => {
   const location = useLocation();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
-  const isGroupActive = items.some((item) => location.pathname === item.url);
+  const isGroupActive = items.some((item) => location.pathname === item.url || location.pathname.startsWith(item.url + '/'));
 
   if (items.length === 0) return null;
 
@@ -88,7 +107,7 @@ const NavGroup = ({ label, items, defaultOpen = false }: NavGroupProps) => {
               <NavItem
                 key={item.url}
                 item={item}
-                isActive={location.pathname === item.url}
+                isActive={location.pathname === item.url || location.pathname.startsWith(item.url + '/')}
               />
             ))}
           </SidebarMenu>
@@ -113,7 +132,7 @@ const NavGroup = ({ label, items, defaultOpen = false }: NavGroupProps) => {
                 <NavItem
                   key={item.url}
                   item={item}
-                  isActive={location.pathname === item.url}
+                  isActive={location.pathname === item.url || location.pathname.startsWith(item.url + '/')}
                 />
               ))}
             </SidebarMenu>
@@ -129,10 +148,44 @@ export function AppSidebar() {
   const { user, signOut, role } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
+  const [pendingChallanCount, setPendingChallanCount] = useState(0);
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
   };
+
+  // Fetch pending challan count with realtime updates
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      const { count } = await supabase
+        .from('delivery_challans')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['draft', 'dispatched']);
+      
+      setPendingChallanCount(count || 0);
+    };
+
+    fetchPendingCount();
+
+    const channel = supabase
+      .channel('sidebar_challan_count')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'delivery_challans',
+        },
+        () => {
+          fetchPendingCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Build navigation items based on permissions
   const mainNavItems = [
@@ -142,6 +195,7 @@ export function AppSidebar() {
   const invoicingItems = [
     ...(hasPermission(role, 'customers', 'view') ? [{ title: 'Customers', url: '/customers', icon: Users }] : []),
     ...(hasPermission(role, 'invoices', 'view') ? [{ title: 'Invoices', url: '/invoices', icon: FileText }] : []),
+    ...(hasPermission(role, 'invoices', 'view') ? [{ title: 'Delivery Challan', url: '/delivery-challans', icon: Truck, badge: pendingChallanCount }] : []),
     ...(hasPermission(role, 'quotations', 'view') ? [{ title: 'Quotations', url: '/quotations', icon: FileCheck }] : []),
     ...(hasPermission(role, 'price_calculations', 'view') ? [{ title: 'Price Calculation', url: '/price-calculation', icon: Calculator }] : []),
   ];
