@@ -50,6 +50,36 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string
+          entity_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           address: string | null
@@ -615,6 +645,7 @@ export type Database = {
           notes: string | null
           payment_date: string
           payment_method: string | null
+          reference: string | null
         }
         Insert: {
           amount: number
@@ -625,6 +656,7 @@ export type Database = {
           notes?: string | null
           payment_date?: string
           payment_method?: string | null
+          reference?: string | null
         }
         Update: {
           amount?: number
@@ -635,6 +667,7 @@ export type Database = {
           notes?: string | null
           payment_date?: string
           payment_method?: string | null
+          reference?: string | null
         }
         Relationships: [
           {

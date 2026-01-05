@@ -1,29 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -32,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -47,12 +29,13 @@ import {
   MapPin,
   Building2,
   Truck,
+  User,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { bn } from 'date-fns/locale';
 import PrintTemplate from '@/components/print/PrintTemplate';
 import '@/components/print/printStyles.css';
 import { CreateChallanDialog } from '@/components/delivery-challan/CreateChallanDialog';
+import { AddPaymentDialog } from '@/components/invoice/AddPaymentDialog';
 
 interface Invoice {
   id: string;
@@ -89,20 +72,29 @@ interface Payment {
   payment_date: string;
   amount: number;
   payment_method: string;
+  reference: string | null;
   notes: string | null;
+  created_by: string | null;
+  created_at: string;
 }
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: 'Cash',
+  bank: 'Bank Transfer',
+  bkash: 'bKash',
+  nagad: 'Nagad',
+  check: 'Check',
+  other: 'Other',
+};
 
 const InvoiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
 
   // Fetch company settings
   const { data: companySettings } = useQuery({
@@ -152,56 +144,6 @@ const InvoiceDetail = () => {
     }
   };
 
-  const handleAddPayment = async () => {
-    if (!invoice || !paymentAmount) return;
-
-    const amount = Number(paymentAmount);
-    const remaining = Number(invoice.total) - Number(invoice.paid_amount);
-
-    if (amount <= 0 || amount > remaining) {
-      toast.error('Please enter valid amount');
-      return;
-    }
-
-    try {
-      // Add payment
-      const { error: paymentError } = await supabase.from('invoice_payments').insert([
-        {
-          invoice_id: invoice.id,
-          amount,
-          payment_method: paymentMethod,
-          payment_date: format(new Date(), 'yyyy-MM-dd'),
-          created_by: user?.id,
-        },
-      ]);
-
-      if (paymentError) throw paymentError;
-
-      // Update invoice
-      const newPaidAmount = Number(invoice.paid_amount) + amount;
-      const newStatus =
-        newPaidAmount >= Number(invoice.total) ? 'paid' : 'partial';
-
-      const { error: updateError } = await supabase
-        .from('invoices')
-        .update({
-          paid_amount: newPaidAmount,
-          status: newStatus,
-        })
-        .eq('id', invoice.id);
-
-      if (updateError) throw updateError;
-
-      toast.success('Payment added');
-      setPaymentDialogOpen(false);
-      setPaymentAmount('');
-      fetchInvoice();
-    } catch (error: any) {
-      console.error('Error adding payment:', error);
-      toast.error(error.message || 'An error occurred');
-    }
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-BD', {
       style: 'currency',
@@ -244,7 +186,6 @@ const InvoiceDetail = () => {
   };
 
   const handleDownloadPDF = () => {
-    // Open print dialog which can be saved as PDF
     window.print();
     toast.success('Select "Save as PDF" to save as PDF');
   };
@@ -330,55 +271,10 @@ const InvoiceDetail = () => {
               PDF
             </Button>
             {invoice.status !== 'paid' && (
-              <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Add Payment
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Record Payment</DialogTitle>
-                    <DialogDescription>
-                      Amount Due: {formatCurrency(remaining)}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Amount</Label>
-                      <Input
-                        type="number"
-                        value={paymentAmount}
-                        onChange={(e) => setPaymentAmount(e.target.value)}
-                        placeholder="Enter amount"
-                        max={remaining}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Payment Method</Label>
-                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="bank">Bank Transfer</SelectItem>
-                          <SelectItem value="bkash">bKash</SelectItem>
-                          <SelectItem value="nagad">Nagad</SelectItem>
-                          <SelectItem value="check">Check</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleAddPayment}>Save Payment</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <Button size="sm" onClick={() => setPaymentDialogOpen(true)}>
+                <CreditCard className="h-4 w-4 mr-2" />
+                Add Payment
+              </Button>
             )}
           </div>
         </div>
@@ -565,36 +461,78 @@ const InvoiceDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Payment History */}
-            {payments.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Payment History</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {payments.map((payment) => (
-                    <div
-                      key={payment.id}
-                      className="flex justify-between items-center p-3 bg-success/5 border border-success/20 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium text-success">
-                          {formatCurrency(Number(payment.amount))}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(payment.payment_date), 'dd MMM yyyy')} •{' '}
-                          {payment.payment_method}
-                        </p>
+            {/* Payment History - Professional Read-Only Table */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Payment History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {payments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No payments recorded yet
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {payments.map((payment, index) => (
+                      <div key={payment.id}>
+                        <div className="p-3 bg-success/5 border border-success/20 rounded-lg space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-semibold text-success">
+                                {formatCurrency(Number(payment.amount))}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(payment.payment_date), 'dd MMM yyyy')}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {PAYMENT_METHOD_LABELS[payment.payment_method] || payment.payment_method}
+                            </Badge>
+                          </div>
+                          
+                          {payment.reference && (
+                            <div className="text-xs text-muted-foreground">
+                              <span className="font-medium">Ref:</span> {payment.reference}
+                            </div>
+                          )}
+                          
+                          {payment.notes && (
+                            <div className="text-xs text-muted-foreground italic">
+                              {payment.notes}
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground pt-1 border-t border-border/50">
+                            <User className="h-3 w-3" />
+                            <span>
+                              Recorded {format(new Date(payment.created_at), 'dd MMM yyyy, HH:mm')}
+                            </span>
+                          </div>
+                        </div>
+                        {index < payments.length - 1 && <Separator className="my-2" />}
                       </div>
-                      <CheckCircle className="h-5 w-5 text-success" />
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
+
+      {/* Add Payment Dialog */}
+      <AddPaymentDialog
+        invoice={{
+          id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          total: Number(invoice.total),
+          paid_amount: Number(invoice.paid_amount),
+          customers: invoice.customers,
+        }}
+        open={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
+        onPaymentAdded={fetchInvoice}
+      />
     </>
   );
 };
