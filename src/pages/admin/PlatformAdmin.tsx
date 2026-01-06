@@ -83,7 +83,7 @@ const sectionConfig: Record<string, { title: string; description: string }> = {
 };
 
 const PlatformAdmin = () => {
-  const { role, loading: authLoading, signOut } = useAuth();
+  const { user, role, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   
   const adminRole = getAdminRole(role);
@@ -240,21 +240,51 @@ const PlatformAdmin = () => {
     });
   };
 
+  const [changingPlanOrgId, setChangingPlanOrgId] = useState<string | null>(null);
+
   const changePlan = async (orgId: string, newPlan: 'free' | 'basic' | 'pro' | 'enterprise', orgName: string) => {
+    setChangingPlanOrgId(orgId);
     try {
-      const { error } = await supabase
-        .from('subscriptions')
-        .update({ plan: newPlan })
-        .eq('organization_id', orgId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Authentication required');
+        return;
+      }
 
-      if (error) throw error;
+      const response = await supabase.functions.invoke('change-organization-plan', {
+        body: {
+          organizationId: orgId,
+          newPlan,
+          adminEmail: user?.email
+        }
+      });
 
-      await logAction('change_plan', 'organization', orgId, { new_plan: newPlan, org_name: orgName });
-      toast.success(`Plan changed to ${newPlan}`);
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to change plan');
+      }
+
+      const data = response.data;
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to change plan');
+      }
+
+      if (data.noChange) {
+        toast.info(`${orgName} is already on ${newPlan} plan`);
+      } else {
+        toast.success(`${orgName} plan changed: ${data.previousPlan} → ${data.newPlan}`, {
+          description: `Status: ${data.newStatus} (${data.changeType})`
+        });
+      }
+
+      // Refresh data
       fetchOrganizations();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error changing plan:', error);
-      toast.error('Failed to change plan');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to change plan';
+      toast.error('Plan change failed', { description: errorMessage });
+    } finally {
+      setChangingPlanOrgId(null);
     }
   };
 
@@ -423,9 +453,20 @@ const PlatformAdmin = () => {
                                 onValueChange={(value: 'free' | 'basic' | 'pro' | 'enterprise') => 
                                   changePlan(org.id, value, org.name)
                                 }
+                                disabled={changingPlanOrgId === org.id || isCurrentSectionReadOnly}
                               >
-                                <SelectTrigger className="w-[110px] h-8">
-                                  <SelectValue />
+                                <SelectTrigger className={cn(
+                                  "w-[110px] h-8",
+                                  changingPlanOrgId === org.id && "opacity-50"
+                                )}>
+                                  {changingPlanOrgId === org.id ? (
+                                    <span className="flex items-center gap-2">
+                                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                      <span className="text-xs">Updating...</span>
+                                    </span>
+                                  ) : (
+                                    <SelectValue />
+                                  )}
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="free">Free</SelectItem>
