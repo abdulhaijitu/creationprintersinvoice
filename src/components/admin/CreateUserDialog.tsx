@@ -146,12 +146,19 @@ export const CreateUserDialog = ({
         },
       });
 
+      // Handle edge function errors - check both error property and data.error
       if (response.error) {
-        throw new Error(response.error.message || 'Failed to create user');
+        const errorMessage = response.error.message || 'Failed to create user';
+        throw new Error(errorMessage);
+      }
+
+      // Check if response contains an error in data (non-2xx responses)
+      if (response.data?.error) {
+        throw new Error(response.data.error);
       }
 
       if (!response.data?.success) {
-        throw new Error(response.data?.error || 'Failed to create user');
+        throw new Error('Failed to create user');
       }
 
       setSuccess(true);
