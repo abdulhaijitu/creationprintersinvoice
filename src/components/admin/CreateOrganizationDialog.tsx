@@ -42,7 +42,10 @@ export function CreateOrganizationDialog({
     id: string;
     name: string;
     ownerCreated: boolean;
-    inviteSent: boolean;
+    emailSent: boolean;
+    emailError?: string;
+    plan: string;
+    status: string;
   } | null>(null);
 
   // Form state
@@ -105,13 +108,20 @@ export function CreateOrganizationDialog({
         id: data.organization.id,
         name: data.organization.name,
         ownerCreated: data.owner.created,
-        inviteSent: data.owner.invite_sent,
+        emailSent: data.email?.sent || false,
+        emailError: data.email?.error,
+        plan: data.subscription?.plan || plan,
+        status: data.subscription?.status || status,
       });
+
+      const emailStatus = data.email?.sent 
+        ? 'Credential email sent successfully.'
+        : 'Organization created (email not sent).';
 
       toast.success('Organization created successfully', {
         description: data.owner.created 
-          ? 'A new user account was created and invite sent.'
-          : 'Organization linked to existing user.',
+          ? `New user account created. ${emailStatus}`
+          : `Linked to existing user. ${emailStatus}`,
       });
 
       onSuccess();
@@ -144,15 +154,42 @@ export function CreateOrganizationDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {/* Plan Info */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+              <Building2 className="h-5 w-5 text-primary mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium">Plan: {createdOrg.plan.charAt(0).toUpperCase() + createdOrg.plan.slice(1)}</p>
+                <p className="text-muted-foreground">
+                  Status: {createdOrg.status.charAt(0).toUpperCase() + createdOrg.status.slice(1)}
+                </p>
+              </div>
+            </div>
+
             {createdOrg.ownerCreated && (
               <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border">
                 <UserPlus className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="text-sm">
                   <p className="font-medium">New user account created</p>
                   <p className="text-muted-foreground">
-                    {createdOrg.inviteSent 
-                      ? 'A password reset email has been sent to the owner.'
-                      : 'The owner will need to reset their password to access the account.'}
+                    {createdOrg.emailSent 
+                      ? 'Credential email with login details has been sent.'
+                      : createdOrg.emailError 
+                        ? `Email failed: ${createdOrg.emailError}`
+                        : 'The owner will need to reset their password to access the account.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!createdOrg.ownerCreated && (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border">
+                <UserPlus className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium">Existing user linked</p>
+                  <p className="text-muted-foreground">
+                    {createdOrg.emailSent 
+                      ? 'Access notification email has been sent.'
+                      : 'User can access the organization with their existing credentials.'}
                   </p>
                 </div>
               </div>
