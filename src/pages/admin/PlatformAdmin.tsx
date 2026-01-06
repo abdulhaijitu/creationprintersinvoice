@@ -720,11 +720,11 @@ const PlatformAdmin = () => {
         {/* Main Content */}
         <main
           className={cn(
-            'transition-all duration-300 ease-out',
+            'transition-all duration-300 ease-out flex flex-col',
             sidebarCollapsed ? 'pl-16' : 'pl-64'
           )}
         >
-          <div className="min-h-screen">
+          <div className="flex-1 flex flex-col min-h-screen">
             {/* Page Header */}
             <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
               <div className="px-6 py-4">
@@ -736,11 +736,26 @@ const PlatformAdmin = () => {
             </header>
 
             {/* Page Content */}
-            <div className="p-6">
+            <div className="flex-1 p-6">
               <div className="animate-fade-in">
                 {renderContent()}
               </div>
             </div>
+
+            {/* Footer */}
+            <footer className="border-t border-border/50 bg-background/50 py-4 px-6">
+              <p className="text-center text-xs text-muted-foreground">
+                © Copyright 2025. Design and develop by{" "}
+                <a
+                  href="http://creationtechbd.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 rounded-sm transition-colors"
+                >
+                  Creation Tech
+                </a>
+              </p>
+            </footer>
           </div>
         </main>
 

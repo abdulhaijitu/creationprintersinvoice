@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -6,9 +6,31 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Search, Building2, User, Mail } from 'lucide-react';
+import { 
+  Search, 
+  Building2, 
+  User, 
+  Mail, 
+  UserPlus, 
+  Settings, 
+  KeyRound,
+  UserX,
+  UserCheck,
+  MoreHorizontal,
+} from 'lucide-react';
 import { format } from 'date-fns';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { UserOrgAssignmentDialog } from './UserOrgAssignmentDialog';
+import { CreateUserDialog } from './CreateUserDialog';
+import { ManageUserDialog } from './ManageUserDialog';
+import { UserActionsDialog } from './UserActionsDialog';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface UserWithOrgs {
   id: string;
@@ -32,12 +54,12 @@ export const AdminUsersTable = () => {
     full_name: string;
   } | null>(null);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [manageDialogOpen, setManageDialogOpen] = useState(false);
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [actionType, setActionType] = useState<'enable' | 'disable' | null>(null);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch all profiles
@@ -91,7 +113,11 @@ export const AdminUsersTable = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleAssignOrgs = (user: UserWithOrgs) => {
     setSelectedUser({
@@ -100,6 +126,25 @@ export const AdminUsersTable = () => {
       full_name: user.full_name,
     });
     setAssignDialogOpen(true);
+  };
+
+  const handleManageUser = (user: UserWithOrgs) => {
+    setSelectedUser({
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+    });
+    setManageDialogOpen(true);
+  };
+
+  const handleUserAction = (user: UserWithOrgs, action: 'enable' | 'disable') => {
+    setSelectedUser({
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+    });
+    setActionType(action);
+    setActionDialogOpen(true);
   };
 
   const filteredUsers = users.filter(
@@ -135,15 +180,30 @@ export const AdminUsersTable = () => {
                 className="pl-10"
               />
             </div>
-            <div className="text-sm text-muted-foreground">
-              {filteredUsers.length} users
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">
+                {filteredUsers.length} users
+              </span>
+              <Button onClick={() => setCreateDialogOpen(true)} size="sm">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Create User
+              </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            <div className="p-4 space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-9 w-9 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                  <Skeleton className="h-8 w-24" />
+                </div>
+              ))}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -207,14 +267,48 @@ export const AdminUsersTable = () => {
                           {format(new Date(user.created_at), 'MMM d, yyyy')}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleAssignOrgs(user)}
-                          >
-                            <Building2 className="h-4 w-4 mr-2" />
-                            Manage Orgs
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAssignOrgs(user)}
+                            >
+                              <Building2 className="h-4 w-4 mr-2" />
+                              Orgs
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleManageUser(user)}>
+                                  <Settings className="h-4 w-4 mr-2" />
+                                  Manage Credentials
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleManageUser(user)}>
+                                  <KeyRound className="h-4 w-4 mr-2" />
+                                  Reset Password
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onClick={() => handleUserAction(user, 'disable')}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <UserX className="h-4 w-4 mr-2" />
+                                  Disable User
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleUserAction(user, 'enable')}
+                                  className="text-green-600 focus:text-green-600"
+                                >
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Enable User
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -229,6 +323,27 @@ export const AdminUsersTable = () => {
       <UserOrgAssignmentDialog
         open={assignDialogOpen}
         onOpenChange={setAssignDialogOpen}
+        user={selectedUser}
+        onSuccess={fetchUsers}
+      />
+
+      <CreateUserDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={fetchUsers}
+      />
+
+      <ManageUserDialog
+        open={manageDialogOpen}
+        onOpenChange={setManageDialogOpen}
+        user={selectedUser}
+        onSuccess={fetchUsers}
+      />
+
+      <UserActionsDialog
+        open={actionDialogOpen}
+        onOpenChange={setActionDialogOpen}
+        action={actionType}
         user={selectedUser}
         onSuccess={fetchUsers}
       />
