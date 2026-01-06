@@ -1,8 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface GlobalPermission {
+  role: string;
+  permission_key: string;
+  is_enabled: boolean;
+}
+
+interface PlanPreset {
+  plan_name: string;
   role: string;
   permission_key: string;
   is_enabled: boolean;
@@ -16,22 +23,27 @@ interface OrgSpecificPermission {
 
 interface OrgPermissionSettings {
   use_global_permissions: boolean;
+  override_plan_permissions: boolean;
 }
 
 // Cache for permissions
 let globalPermissionCache: GlobalPermission[] | null = null;
+let planPresetCache: PlanPreset[] | null = null;
 let globalCacheTimestamp = 0;
 const CACHE_DURATION = 60000; // 1 minute
 
 export const useOrgPermissionResolver = () => {
-  const { organization, orgRole } = useOrganization();
+  const { organization, orgRole, subscription } = useOrganization();
   const organizationId = organization?.id;
+  const subscriptionPlan = subscription?.plan || 'free';
 
   const [globalPermissions, setGlobalPermissions] = useState<GlobalPermission[]>([]);
+  const [planPresets, setPlanPresets] = useState<PlanPreset[]>([]);
   const [orgPermissions, setOrgPermissions] = useState<OrgSpecificPermission[]>([]);
   const [settings, setSettings] = useState<OrgPermissionSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasCustomPermissions, setHasCustomPermissions] = useState(false);
+  const [usesPlanPresets, setUsesPlanPresets] = useState(true);
 
   const fetchPermissions = useCallback(async () => {
     if (!organizationId) {
@@ -40,16 +52,19 @@ export const useOrgPermissionResolver = () => {
     }
 
     try {
-      // Fetch global permissions (with cache)
-      if (!globalPermissionCache || Date.now() - globalCacheTimestamp > CACHE_DURATION) {
-        const { data: globalData } = await supabase
-          .from('org_role_permissions')
-          .select('role, permission_key, is_enabled');
+      // Fetch global permissions and plan presets (with cache)
+      if (!globalPermissionCache || !planPresetCache || Date.now() - globalCacheTimestamp > CACHE_DURATION) {
+        const [globalRes, planRes] = await Promise.all([
+          supabase.from('org_role_permissions').select('role, permission_key, is_enabled'),
+          supabase.from('plan_permission_presets').select('plan_name, role, permission_key, is_enabled'),
+        ]);
 
-        globalPermissionCache = globalData || [];
+        globalPermissionCache = globalRes.data || [];
+        planPresetCache = planRes.data || [];
         globalCacheTimestamp = Date.now();
       }
       setGlobalPermissions(globalPermissionCache);
+      setPlanPresets(planPresetCache);
 
       // Fetch org-specific permissions
       const { data: orgData } = await supabase
@@ -62,12 +77,13 @@ export const useOrgPermissionResolver = () => {
       // Fetch org permission settings
       const { data: settingsData } = await supabase
         .from('org_permission_settings')
-        .select('use_global_permissions')
+        .select('use_global_permissions, override_plan_permissions')
         .eq('organization_id', organizationId)
         .maybeSingle();
 
       setSettings(settingsData);
-      setHasCustomPermissions(settingsData?.use_global_permissions === false);
+      setHasCustomPermissions(settingsData?.use_global_permissions === false || settingsData?.override_plan_permissions === true);
+      setUsesPlanPresets(!(settingsData?.override_plan_permissions === true));
     } catch (error) {
       console.error('Error fetching permissions:', error);
     } finally {
@@ -81,30 +97,40 @@ export const useOrgPermissionResolver = () => {
 
   /**
    * Resolves whether a permission is enabled for a given role.
-   * Falls back to global if no org override exists.
+   * Resolution order (highest priority first):
+   * 1. Organization-specific override
+   * 2. Plan preset (if not overriding plan)
+   * 3. Global default
    */
   const hasPermission = useCallback(
     (permissionKey: string, role?: string): boolean => {
       const checkRole = role || orgRole;
       if (!checkRole) return false;
 
-      // If using global permissions (default)
       const useGlobal = settings?.use_global_permissions ?? true;
+      const overridePlan = settings?.override_plan_permissions ?? false;
 
-      if (useGlobal) {
-        const globalPerm = globalPermissions.find(
+      // If using custom org permissions (not global)
+      if (!useGlobal) {
+        // Check org-specific override first
+        const orgPerm = orgPermissions.find(
           (p) => p.role === checkRole && p.permission_key === permissionKey
         );
-        return globalPerm?.is_enabled ?? false;
+
+        if (orgPerm) {
+          return orgPerm.is_enabled;
+        }
       }
 
-      // Check org-specific override first
-      const orgPerm = orgPermissions.find(
-        (p) => p.role === checkRole && p.permission_key === permissionKey
-      );
+      // If not overriding plan, check plan preset
+      if (!overridePlan) {
+        const planPerm = planPresets.find(
+          (p) => p.plan_name === subscriptionPlan && p.role === checkRole && p.permission_key === permissionKey
+        );
 
-      if (orgPerm) {
-        return orgPerm.is_enabled;
+        if (planPerm) {
+          return planPerm.is_enabled;
+        }
       }
 
       // Fallback to global
@@ -113,7 +139,7 @@ export const useOrgPermissionResolver = () => {
       );
       return globalPerm?.is_enabled ?? false;
     },
-    [globalPermissions, orgPermissions, settings, orgRole]
+    [globalPermissions, planPresets, orgPermissions, settings, orgRole, subscriptionPlan]
   );
 
   /**
@@ -140,7 +166,8 @@ export const useOrgPermissionResolver = () => {
    * Refresh permissions from the database
    */
   const refreshPermissions = useCallback(async () => {
-    globalPermissionCache = null; // Force refresh global cache
+    globalPermissionCache = null;
+    planPresetCache = null;
     await fetchPermissions();
   }, [fetchPermissions]);
 
@@ -149,33 +176,37 @@ export const useOrgPermissionResolver = () => {
     hasAnyPermission,
     hasAllPermissions,
     hasCustomPermissions,
+    usesPlanPresets,
     loading,
     orgRole,
+    subscriptionPlan,
     refreshPermissions,
   };
 };
 
 /**
  * Utility function for non-hook contexts (edge functions, etc.)
- * Resolves permission considering org-specific overrides
+ * Resolves permission considering org-specific overrides and plan presets
  */
 export const resolveOrgPermission = async (
   organizationId: string,
   role: string,
-  permissionKey: string
+  permissionKey: string,
+  subscriptionPlan: string = 'free'
 ): Promise<boolean> => {
   try {
     // Check if org uses custom permissions
     const { data: settings } = await supabase
       .from('org_permission_settings')
-      .select('use_global_permissions')
+      .select('use_global_permissions, override_plan_permissions')
       .eq('organization_id', organizationId)
       .maybeSingle();
 
     const useGlobal = settings?.use_global_permissions ?? true;
+    const overridePlan = settings?.override_plan_permissions ?? false;
 
+    // If not using global, check org-specific override
     if (!useGlobal) {
-      // Check org-specific override
       const { data: orgPerm } = await supabase
         .from('org_specific_permissions')
         .select('is_enabled')
@@ -186,6 +217,21 @@ export const resolveOrgPermission = async (
 
       if (orgPerm) {
         return orgPerm.is_enabled;
+      }
+    }
+
+    // If not overriding plan, check plan preset
+    if (!overridePlan) {
+      const { data: planPerm } = await supabase
+        .from('plan_permission_presets')
+        .select('is_enabled')
+        .eq('plan_name', subscriptionPlan)
+        .eq('role', role)
+        .eq('permission_key', permissionKey)
+        .maybeSingle();
+
+      if (planPerm) {
+        return planPerm.is_enabled;
       }
     }
 

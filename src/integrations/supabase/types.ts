@@ -1354,6 +1354,7 @@ export type Database = {
           created_at: string
           id: string
           organization_id: string
+          override_plan_permissions: boolean | null
           updated_at: string
           use_global_permissions: boolean
         }
@@ -1361,6 +1362,7 @@ export type Database = {
           created_at?: string
           id?: string
           organization_id: string
+          override_plan_permissions?: boolean | null
           updated_at?: string
           use_global_permissions?: boolean
         }
@@ -1368,6 +1370,7 @@ export type Database = {
           created_at?: string
           id?: string
           organization_id?: string
+          override_plan_permissions?: boolean | null
           updated_at?: string
           use_global_permissions?: boolean
         }
@@ -1969,6 +1972,36 @@ export type Database = {
           quotation_limit?: number
           updated_at?: string
           user_limit?: number
+        }
+        Relationships: []
+      }
+      plan_permission_presets: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          permission_key: string
+          plan_name: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          permission_key: string
+          plan_name: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          permission_key?: string
+          plan_name?: string
+          role?: string
+          updated_at?: string
         }
         Relationships: []
       }
