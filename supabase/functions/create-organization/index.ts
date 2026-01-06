@@ -9,19 +9,12 @@ const corsHeaders = {
 interface CreateOrganizationRequest {
   organizationName: string;
   ownerEmail: string;
+  ownerPassword: string;
   plan: 'free' | 'basic' | 'pro' | 'enterprise';
   trialDays?: number;
   status: 'trial' | 'active' | 'suspended';
   adminEmail?: string;
-  passwordMethod?: 'invite' | 'temporary';
-  temporaryPassword?: string;
-}
-
-interface BrandingData {
-  logo_url?: string;
-  app_name?: string;
-  primary_color?: string;
-  footer_text?: string;
+  sendEmail?: boolean;
 }
 
 function generateSlug(name: string): string {
@@ -33,14 +26,6 @@ function generateSlug(name: string): string {
     .substring(0, 50) + '-' + Date.now().toString(36);
 }
 
-// Generate a cryptographically secure invite token
-function generateSecureToken(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
-// Helper function to adjust color brightness for gradient
 function adjustColor(hex: string, percent: number): string {
   try {
     const num = parseInt(hex.replace('#', ''), 16);
@@ -54,286 +39,15 @@ function adjustColor(hex: string, percent: number): string {
   }
 }
 
-// Generate branded invite email HTML for new users (with Set Password link)
-function generateInviteSetPasswordEmailHtml(
+function generateCredentialsEmailHtml(
   recipientEmail: string,
   organizationName: string,
-  inviteLink: string,
-  expiresIn: string,
-  appUrl: string,
-  branding: BrandingData | null
+  password: string,
+  loginUrl: string
 ): string {
-  const brandName = branding?.app_name || 'PrintoSaas';
-  const primaryColor = branding?.primary_color || '#6366f1';
+  const primaryColor = '#6366f1';
   const gradientEnd = adjustColor(primaryColor, 20);
-  const footerText = branding?.footer_text || `This email was sent by ${brandName}. If you didn't request this account, please contact support immediately.`;
   const currentYear = new Date().getFullYear();
-  
-  // Logo section
-  const logoHtml = branding?.logo_url 
-    ? `<img src="${branding.logo_url}" width="180" height="50" alt="${brandName}" style="margin: 0 auto; display: block; object-fit: contain;" />`
-    : `<h1 style="color: #ffffff; font-size: 32px; font-weight: 700; margin: 0; text-align: center;">${brandName}</h1>`;
-
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Set Your Password - ${organizationName}</title>
-</head>
-<body style="margin: 0; padding: 20px; background-color: #f6f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);">
-    <!-- Header with Logo -->
-    <tr>
-      <td style="background: linear-gradient(135deg, ${primaryColor} 0%, ${gradientEnd} 100%); padding: 40px 20px; text-align: center;">
-        ${logoHtml}
-      </td>
-    </tr>
-    
-    <!-- Main Content -->
-    <tr>
-      <td style="padding: 40px 40px 32px;">
-        <h1 style="color: #1a1a2e; font-size: 24px; font-weight: 700; line-height: 1.3; margin: 0 0 24px; text-align: center;">
-          Welcome to ${organizationName}
-        </h1>
-        
-        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
-          Hello,
-        </p>
-        
-        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
-          Your account has been created for <strong>${organizationName}</strong>. To get started, please set your password by clicking the button below.
-        </p>
-
-        <!-- Security Info Box -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; margin: 24px 0;">
-          <tr>
-            <td style="padding: 24px;">
-              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px;">Your Email</p>
-              <p style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0;">${recipientEmail}</p>
-              
-              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 4px;">Organization</p>
-              <p style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0;">${organizationName}</p>
-            </td>
-          </tr>
-        </table>
-
-        <!-- Security Warning -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; margin: 24px 0;">
-          <tr>
-            <td style="padding: 16px 20px;">
-              <p style="color: #92400e; font-size: 14px; line-height: 1.5; margin: 0;">
-                <strong>🔐 Security Notice:</strong> This link expires in <strong>${expiresIn}</strong> and can only be used once. If you didn't expect this invitation, please ignore this email.
-              </p>
-            </td>
-          </tr>
-        </table>
-
-        <!-- CTA Button -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0;">
-          <tr>
-            <td style="text-align: center;">
-              <a href="${inviteLink}" style="display: inline-block; background-color: ${primaryColor}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
-                Set Your Password
-              </a>
-            </td>
-          </tr>
-        </table>
-
-        <p style="color: #6b7280; font-size: 14px; line-height: 1.5; text-align: center; margin: 0 0 16px;">
-          If the button doesn't work, copy and paste this link into your browser:
-        </p>
-        <p style="color: ${primaryColor}; font-size: 12px; line-height: 1.5; text-align: center; margin: 0; word-break: break-all;">
-          ${inviteLink}
-        </p>
-      </td>
-    </tr>
-
-    <!-- Divider -->
-    <tr>
-      <td style="border-top: 1px solid #e5e7eb;"></td>
-    </tr>
-
-    <!-- Footer -->
-    <tr>
-      <td style="padding: 24px 40px; background-color: #f9fafb;">
-        <p style="color: #6b7280; font-size: 12px; line-height: 1.5; text-align: center; margin: 0 0 8px;">
-          ${footerText}
-        </p>
-        <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
-          © ${currentYear} ${brandName}. All rights reserved.
-        </p>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `;
-}
-
-// Generate branded invite email HTML for existing users (org access notification)
-function generateAccessNotificationEmailHtml(
-  recipientEmail: string,
-  organizationName: string,
-  inviterName: string | undefined,
-  appUrl: string,
-  branding: BrandingData | null
-): string {
-  const brandName = branding?.app_name || 'PrintoSaas';
-  const primaryColor = branding?.primary_color || '#6366f1';
-  const gradientEnd = adjustColor(primaryColor, 20);
-  const footerText = branding?.footer_text || `This email was sent by ${brandName}. If you weren't expecting this invitation, you can safely ignore this email.`;
-  const currentYear = new Date().getFullYear();
-  
-  // Logo section
-  const logoHtml = branding?.logo_url 
-    ? `<img src="${branding.logo_url}" width="180" height="50" alt="${brandName}" style="margin: 0 auto; display: block; object-fit: contain;" />`
-    : `<h1 style="color: #ffffff; font-size: 32px; font-weight: 700; margin: 0; text-align: center;">${brandName}</h1>`;
-
-  const inviterText = inviterName 
-    ? `<strong>${inviterName}</strong> has granted you access to <strong>${organizationName}</strong>.`
-    : `You have been granted access to <strong>${organizationName}</strong>.`;
-
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Access Granted - ${organizationName}</title>
-</head>
-<body style="margin: 0; padding: 20px; background-color: #f6f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);">
-    <!-- Header with Logo -->
-    <tr>
-      <td style="background: linear-gradient(135deg, ${primaryColor} 0%, ${gradientEnd} 100%); padding: 40px 20px; text-align: center;">
-        ${logoHtml}
-      </td>
-    </tr>
-    
-    <!-- Main Content -->
-    <tr>
-      <td style="padding: 40px 40px 32px;">
-        <h1 style="color: #1a1a2e; font-size: 24px; font-weight: 700; line-height: 1.3; margin: 0 0 24px; text-align: center;">
-          Organization Access Granted
-        </h1>
-        
-        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
-          Hello,
-        </p>
-        
-        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
-          ${inviterText}
-        </p>
-        
-        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
-          You can now log in using your existing credentials to access the organization dashboard.
-        </p>
-
-        <!-- Access Info Box -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; margin: 24px 0;">
-          <tr>
-            <td style="padding: 24px;">
-              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px;">Organization</p>
-              <p style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0;">${organizationName}</p>
-              
-              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 4px;">Your Email</p>
-              <p style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0;">${recipientEmail}</p>
-              
-              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 4px;">Dashboard URL</p>
-              <a href="${appUrl}" style="color: ${primaryColor}; font-size: 16px; font-weight: 500; text-decoration: none;">${appUrl}</a>
-            </td>
-          </tr>
-        </table>
-
-        <!-- CTA Button -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0;">
-          <tr>
-            <td style="text-align: center;">
-              <a href="${appUrl}" style="display: inline-block; background-color: ${primaryColor}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
-                Access Your Dashboard
-              </a>
-            </td>
-          </tr>
-        </table>
-
-        <p style="color: #6b7280; font-size: 14px; line-height: 1.5; text-align: center; margin: 0;">
-          Use your existing login credentials to access the dashboard. If you have any questions, please contact the organization administrator.
-        </p>
-      </td>
-    </tr>
-
-    <!-- Divider -->
-    <tr>
-      <td style="border-top: 1px solid #e5e7eb;"></td>
-    </tr>
-
-    <!-- Footer -->
-    <tr>
-      <td style="padding: 24px 40px; background-color: #f9fafb;">
-        <p style="color: #6b7280; font-size: 12px; line-height: 1.5; text-align: center; margin: 0 0 8px;">
-          ${footerText}
-        </p>
-        <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
-          © ${currentYear} ${brandName}. All rights reserved.
-        </p>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `;
-}
-
-// Fetch organization branding or return null for default PrintoSaas branding
-async function getOrganizationBranding(
-  supabase: any,
-  orgId: string
-): Promise<BrandingData | null> {
-  try {
-    // Check if white-label is enabled
-    const { data: whiteLabelSettings } = await supabase
-      .from('organization_whitelabel_settings')
-      .select('whitelabel_enabled')
-      .eq('organization_id', orgId)
-      .maybeSingle();
-
-    if (!whiteLabelSettings?.whitelabel_enabled) {
-      return null; // Use default PrintoSaas branding
-    }
-
-    // Fetch branding data
-    const { data: branding } = await supabase
-      .from('organization_branding')
-      .select('logo_url, app_name, primary_color, footer_text')
-      .eq('organization_id', orgId)
-      .maybeSingle();
-
-    return branding || null;
-  } catch (error) {
-    console.error('Error fetching branding:', error);
-    return null;
-  }
-}
-
-// Generate temporary password credential email HTML
-function generateTempPasswordEmailHtml(
-  recipientEmail: string,
-  organizationName: string,
-  temporaryPassword: string,
-  appUrl: string,
-  branding: BrandingData | null
-): string {
-  const brandName = branding?.app_name || 'PrintoSaas';
-  const primaryColor = branding?.primary_color || '#6366f1';
-  const gradientEnd = adjustColor(primaryColor, 20);
-  const footerText = branding?.footer_text || `This email was sent by ${brandName}. If you didn't request this account, please contact support immediately.`;
-  const currentYear = new Date().getFullYear();
-  
-  const logoHtml = branding?.logo_url 
-    ? `<img src="${branding.logo_url}" width="180" height="50" alt="${brandName}" style="margin: 0 auto; display: block; object-fit: contain;" />`
-    : `<h1 style="color: #ffffff; font-size: 32px; font-weight: 700; margin: 0; text-align: center;">${brandName}</h1>`;
 
   return `
 <!DOCTYPE html>
@@ -344,83 +58,68 @@ function generateTempPasswordEmailHtml(
   <title>Your Login Credentials - ${organizationName}</title>
 </head>
 <body style="margin: 0; padding: 20px; background-color: #f6f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);">
-    <!-- Header with Logo -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
     <tr>
       <td style="background: linear-gradient(135deg, ${primaryColor} 0%, ${gradientEnd} 100%); padding: 40px 20px; text-align: center;">
-        ${logoHtml}
+        <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0;">Welcome to PrintoSaas</h1>
       </td>
     </tr>
     
-    <!-- Main Content -->
     <tr>
-      <td style="padding: 40px 40px 32px;">
-        <h1 style="color: #1a1a2e; font-size: 24px; font-weight: 700; line-height: 1.3; margin: 0 0 24px; text-align: center;">
-          Welcome to ${organizationName}
-        </h1>
+      <td style="padding: 40px;">
+        <h2 style="color: #1a1a2e; font-size: 22px; font-weight: 700; margin: 0 0 20px; text-align: center;">
+          Your Account for ${organizationName}
+        </h2>
         
-        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
-          Hello,
-        </p>
-        
-        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
-          Your account has been created for <strong>${organizationName}</strong>. Below are your login credentials.
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 24px;">
+          Your account has been created. Use the credentials below to log in.
         </p>
 
-        <!-- Credentials Box -->
         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; margin: 24px 0;">
           <tr>
             <td style="padding: 24px;">
-              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px;">Your Email</p>
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; margin: 0 0 4px;">Email</p>
               <p style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 16px;">${recipientEmail}</p>
               
-              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px;">Temporary Password</p>
-              <p style="color: #1f2937; font-size: 16px; font-weight: 600; font-family: monospace; background-color: #ffffff; padding: 8px 12px; border-radius: 4px; border: 1px dashed #d1d5db; margin: 0;">${temporaryPassword}</p>
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; margin: 0 0 4px;">Password</p>
+              <p style="color: #1f2937; font-size: 16px; font-weight: 600; font-family: monospace; background-color: #fef3c7; padding: 8px 12px; border-radius: 4px; border: 1px dashed #d1d5db; margin: 0;">${password}</p>
             </td>
           </tr>
         </table>
 
-        <!-- Security Warning -->
         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; margin: 24px 0;">
           <tr>
             <td style="padding: 16px 20px;">
               <p style="color: #92400e; font-size: 14px; line-height: 1.5; margin: 0;">
-                <strong>⚠️ Important:</strong> You will be required to change this password when you first log in. For security, please do not share these credentials.
+                <strong>⚠️ Security Notice:</strong> For security reasons, please change your password immediately after your first login.
               </p>
             </td>
           </tr>
         </table>
 
-        <!-- CTA Button -->
         <table width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0;">
           <tr>
             <td style="text-align: center;">
-              <a href="${appUrl}/login" style="display: inline-block; background-color: ${primaryColor}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
-                Log In Now
+              <a href="${loginUrl}" style="display: inline-block; background-color: ${primaryColor}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
+                Login to Your Account
               </a>
             </td>
           </tr>
         </table>
 
-        <p style="color: #6b7280; font-size: 14px; line-height: 1.5; text-align: center; margin: 0;">
-          Dashboard URL: <a href="${appUrl}" style="color: ${primaryColor};">${appUrl}</a>
+        <p style="color: #6b7280; font-size: 14px; text-align: center; margin: 0;">
+          Login URL: <a href="${loginUrl}" style="color: ${primaryColor};">${loginUrl}</a>
         </p>
       </td>
     </tr>
 
-    <!-- Divider -->
     <tr>
-      <td style="border-top: 1px solid #e5e7eb;"></td>
-    </tr>
-
-    <!-- Footer -->
-    <tr>
-      <td style="padding: 24px 40px; background-color: #f9fafb;">
-        <p style="color: #6b7280; font-size: 12px; line-height: 1.5; text-align: center; margin: 0 0 8px;">
-          ${footerText}
+      <td style="padding: 24px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb;">
+        <p style="color: #6b7280; font-size: 12px; text-align: center; margin: 0 0 8px;">
+          This email was sent by PrintoSaas. If you didn't expect this, please contact support.
         </p>
         <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
-          © ${currentYear} ${brandName}. All rights reserved.
+          © ${currentYear} PrintoSaas. All rights reserved.
         </p>
       </td>
     </tr>
@@ -430,88 +129,8 @@ function generateTempPasswordEmailHtml(
   `;
 }
 
-async function sendInviteEmail(
-  resend: Resend,
-  email: string,
-  organizationName: string,
-  isNewUser: boolean,
-  inviteLink: string | null,
-  appUrl: string,
-  inviterName: string | undefined,
-  branding: BrandingData | null,
-  passwordMethod: 'invite' | 'temporary' = 'invite',
-  temporaryPassword?: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const brandName = branding?.app_name || 'PrintoSaas';
-    let htmlContent: string;
-    let subject: string;
-
-    if (isNewUser) {
-      if (passwordMethod === 'temporary' && temporaryPassword) {
-        // Send temporary password credentials email
-        subject = `Your ${brandName} Login Credentials for ${organizationName}`;
-        htmlContent = generateTempPasswordEmailHtml(
-          email,
-          organizationName,
-          temporaryPassword,
-          appUrl,
-          branding
-        );
-      } else if (inviteLink) {
-        // Send invite email with set password link
-        subject = `Welcome to ${brandName} - Set Your Password for ${organizationName}`;
-        htmlContent = generateInviteSetPasswordEmailHtml(
-          email,
-          organizationName,
-          inviteLink,
-          '24 hours',
-          appUrl,
-          branding
-        );
-      } else {
-        // Fallback - should not happen
-        subject = `Welcome to ${organizationName} on ${brandName}`;
-        htmlContent = generateAccessNotificationEmailHtml(
-          email,
-          organizationName,
-          inviterName,
-          appUrl,
-          branding
-        );
-      }
-    } else {
-      subject = `You've been added to ${organizationName} on ${brandName}`;
-      htmlContent = generateAccessNotificationEmailHtml(
-        email,
-        organizationName,
-        inviterName,
-        appUrl,
-        branding
-      );
-    }
-
-    const { error } = await resend.emails.send({
-      from: `${brandName} <onboarding@resend.dev>`,
-      to: [email],
-      subject,
-      html: htmlContent,
-    });
-
-    if (error) {
-      console.error('Resend email error:', error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Unknown email error';
-    console.error('Email sending failed:', errorMessage);
-    return { success: false, error: errorMessage };
-  }
-}
-
 Deno.serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -522,19 +141,18 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
-    // Initialize Resend if API key is available
     const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
-    // Verify the caller is authenticated
+    // Verify authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
+        JSON.stringify({ success: false, error: 'Missing authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create client with user's token to verify their role
+    // Verify user
     const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -542,15 +160,15 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
     if (authError || !user) {
       return new Response(
-        JSON.stringify({ error: 'Invalid authentication' }),
+        JSON.stringify({ success: false, error: 'Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create admin client for privileged operations
+    // Admin client
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify the user is a super_admin
+    // Check super_admin role
     const { data: userRole, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
@@ -560,28 +178,51 @@ Deno.serve(async (req) => {
     if (roleError || userRole?.role !== 'super_admin') {
       console.error('Unauthorized access attempt:', { userId: user.id, role: userRole?.role });
       return new Response(
-        JSON.stringify({ error: 'Only Super Admins can create organizations' }),
+        JSON.stringify({ success: false, error: 'Super Admin privileges required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Parse request
-    const body: CreateOrganizationRequest = await req.json();
+    // Parse request body
+    let body: CreateOrganizationRequest;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { 
       organizationName, 
       ownerEmail, 
+      ownerPassword,
       plan, 
       trialDays = 14, 
       status, 
       adminEmail,
-      passwordMethod = 'invite',
-      temporaryPassword 
+      sendEmail = true
     } = body;
 
     // Validate required fields
-    if (!organizationName || !ownerEmail || !plan || !status) {
+    if (!organizationName?.trim()) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: organizationName, ownerEmail, plan, status' }),
+        JSON.stringify({ success: false, error: 'Organization name is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!ownerEmail?.trim()) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Owner email is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!ownerPassword || ownerPassword.length < 8) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Password must be at least 8 characters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -590,200 +231,134 @@ Deno.serve(async (req) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(ownerEmail)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid email format' }),
+        JSON.stringify({ success: false, error: 'Invalid email format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Validate temporary password if method is 'temporary' - relaxed rules (8+ chars)
-    let passwordStrengthLevel = 'none';
-    if (passwordMethod === 'temporary') {
-      if (!temporaryPassword || temporaryPassword.length < 8) {
-        return new Response(
-          JSON.stringify({ error: 'Temporary password must be at least 8 characters' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      // Check password complexity for audit logging
-      const hasLower = /[a-z]/.test(temporaryPassword);
-      const hasUpper = /[A-Z]/.test(temporaryPassword);
-      const hasNumber = /[0-9]/.test(temporaryPassword);
-      const hasSpecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(temporaryPassword);
-      const isStrong = temporaryPassword.length >= 12 && hasLower && hasUpper && hasNumber && hasSpecial;
-      passwordStrengthLevel = isStrong ? 'strong' : 'weak';
+    if (!plan || !status) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Plan and status are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log('Creating organization:', { 
-      organizationName, 
-      ownerEmail, 
-      plan, 
-      status, 
-      trialDays,
-      passwordMethod,
-      passwordStrengthLevel,
-      selectedPlan: plan,
-      selectedStatus: status
-    });
+    console.log('Creating organization:', { organizationName, ownerEmail, plan, status });
 
     // Check for duplicate organization name
     const { data: existingOrg } = await supabaseAdmin
       .from('organizations')
       .select('id')
-      .ilike('name', organizationName)
+      .ilike('name', organizationName.trim())
       .maybeSingle();
 
     if (existingOrg) {
       return new Response(
-        JSON.stringify({ error: 'An organization with this name already exists' }),
+        JSON.stringify({ success: false, error: 'An organization with this name already exists' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check if user exists with this email
+    // Check if user already exists
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === ownerEmail.toLowerCase());
-
-    let ownerId: string | null = null;
-    let ownerCreated = false;
-    let inviteToken: string | null = null;
-    const usedPasswordMethod = passwordMethod;
+    const existingUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === ownerEmail.toLowerCase().trim());
 
     if (existingUser) {
-      ownerId = existingUser.id;
-      console.log('Found existing user:', ownerId);
-    } else {
-      // Determine password to use
-      let userPassword: string;
-      
-      if (passwordMethod === 'temporary' && temporaryPassword) {
-        // Use the provided temporary password
-        userPassword = temporaryPassword;
-        console.log('Using temporary password method');
-      } else {
-        // Generate a random secure password that the user will never know
-        // This is required by Supabase but will be replaced when user sets their password
-        userPassword = generateSecureToken();
-        inviteToken = generateSecureToken();
-        console.log('Using invite method with secure token');
-      }
-      
-      // Create a new user
-      const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-        email: ownerEmail,
-        password: userPassword,
-        email_confirm: true,
-        user_metadata: {
-          full_name: organizationName + ' Owner',
-          invited_by: adminEmail || user.email,
-          requires_password_setup: passwordMethod === 'invite',
-          must_reset_password: true, // Always require password change on first login
-        }
-      });
-
-      if (createUserError) {
-        console.error('Error creating user:', createUserError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to create user: ' + createUserError.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      ownerId = newUser.user.id;
-      ownerCreated = true;
-      console.log('Created new user:', ownerId, 'with password method:', passwordMethod);
+      return new Response(
+        JSON.stringify({ success: false, error: 'A user with this email already exists' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Generate unique slug
-    const slug = generateSlug(organizationName);
+    // Create user directly with provided password
+    const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+      email: ownerEmail.toLowerCase().trim(),
+      password: ownerPassword,
+      email_confirm: true,
+      user_metadata: {
+        full_name: organizationName.trim() + ' Owner',
+        invited_by: adminEmail || user.email,
+        must_reset_password: true,
+      }
+    });
 
-    // Create the organization
+    if (createUserError) {
+      console.error('Error creating user:', createUserError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to create user: ' + createUserError.message }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const ownerId = newUser.user.id;
+    console.log('Created user:', ownerId);
+
+    // Generate slug
+    const slug = generateSlug(organizationName.trim());
+
+    // Create organization
     const { data: newOrg, error: orgError } = await supabaseAdmin
       .from('organizations')
       .insert({
-        name: organizationName,
+        name: organizationName.trim(),
         slug,
         owner_id: ownerId,
-        owner_email: ownerEmail,
+        owner_email: ownerEmail.toLowerCase().trim(),
       })
       .select()
       .single();
 
     if (orgError) {
       console.error('Error creating organization:', orgError);
-      // Rollback: delete the user if we created them
-      if (ownerCreated && ownerId) {
-        await supabaseAdmin.auth.admin.deleteUser(ownerId);
-        console.log('Rolled back user creation due to org failure');
-      }
+      // Rollback: delete user
+      await supabaseAdmin.auth.admin.deleteUser(ownerId);
+      console.log('Rolled back user creation');
       return new Response(
-        JSON.stringify({ error: 'Failed to create organization: ' + orgError.message }),
+        JSON.stringify({ success: false, error: 'Failed to create organization: ' + orgError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('Created organization:', newOrg.id);
 
-    // Add owner as organization member
-    if (ownerId) {
-      const { error: memberError } = await supabaseAdmin
-        .from('organization_members')
-        .insert({
-          organization_id: newOrg.id,
-          user_id: ownerId,
-          role: 'owner',
-        });
+    // Add owner as organization member with 'owner' role
+    const { error: memberError } = await supabaseAdmin
+      .from('organization_members')
+      .insert({
+        organization_id: newOrg.id,
+        user_id: ownerId,
+        role: 'owner',
+      });
 
-      if (memberError) {
-        console.error('Error adding member:', memberError);
-      }
-
-      // If user was newly created, set must_reset_password flag (and invite token if using invite method)
-      if (ownerCreated) {
-        const updateData: Record<string, unknown> = {
-          must_reset_password: true,
-        };
-        
-        // Only set invite token for invite method
-        if (usedPasswordMethod === 'invite' && inviteToken) {
-          const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-          updateData.invite_token = inviteToken;
-          updateData.invite_token_expires_at = tokenExpiresAt;
-          console.log('Set invite token (expires:', tokenExpiresAt, ')');
-        }
-        
-        const { error: resetFlagError } = await supabaseAdmin
-          .from('user_roles')
-          .update(updateData)
-          .eq('user_id', ownerId);
-
-        if (resetFlagError) {
-          console.error('Error setting reset flag:', resetFlagError);
-        } else {
-          console.log('Set must_reset_password flag for new user, method:', usedPasswordMethod);
-        }
-      }
+    if (memberError) {
+      console.error('Error adding member:', memberError);
+      // Rollback
+      await supabaseAdmin.from('organizations').delete().eq('id', newOrg.id);
+      await supabaseAdmin.auth.admin.deleteUser(ownerId);
+      console.log('Rolled back due to member error');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to assign owner role: ' + memberError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Use the SELECTED status and plan - don't default to trial
-    const subscriptionStatus = status;
-    const subscriptionPlan = plan;
-    const trialEndsAt = subscriptionStatus === 'trial' 
+    // Set must_reset_password flag
+    await supabaseAdmin
+      .from('user_roles')
+      .update({ must_reset_password: true })
+      .eq('user_id', ownerId);
+
+    // Create subscription
+    const trialEndsAt = status === 'trial' 
       ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    console.log('Creating subscription with:', {
-      plan: subscriptionPlan,
-      status: subscriptionStatus,
-      trial_ends_at: trialEndsAt
-    });
-
-    // Create subscription with the SELECTED plan and status
     const { data: subscription, error: subError } = await supabaseAdmin
       .from('subscriptions')
       .insert({
         organization_id: newOrg.id,
-        plan: subscriptionPlan,
-        status: subscriptionStatus,
+        plan,
+        status,
         trial_ends_at: trialEndsAt,
       })
       .select()
@@ -791,157 +366,83 @@ Deno.serve(async (req) => {
 
     if (subError) {
       console.error('Error creating subscription:', subError);
-      // Rollback: delete org and user
+      // Rollback
       await supabaseAdmin.from('organization_members').delete().eq('organization_id', newOrg.id);
       await supabaseAdmin.from('organizations').delete().eq('id', newOrg.id);
-      if (ownerCreated && ownerId) {
-        await supabaseAdmin.auth.admin.deleteUser(ownerId);
-      }
-      console.log('Rolled back due to subscription failure');
+      await supabaseAdmin.auth.admin.deleteUser(ownerId);
+      console.log('Rolled back due to subscription error');
       return new Response(
-        JSON.stringify({ error: 'Failed to create subscription: ' + subError.message }),
+        JSON.stringify({ success: false, error: 'Failed to create subscription: ' + subError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Created subscription:', { 
-      id: subscription.id, 
-      plan: subscription.plan, 
-      status: subscription.status 
-    });
+    console.log('Created subscription:', { plan: subscription.plan, status: subscription.status });
 
-    // Fetch organization branding for email
-    const branding = await getOrganizationBranding(supabaseAdmin, newOrg.id);
-    console.log('Branding for email:', branding ? 'Custom branding' : 'Default PrintoSaas branding');
-
-    // Send invite email with secure link (for new users) or notification (for existing users)
+    // Send credentials email if requested
     let emailSent = false;
     let emailError: string | null = null;
-    const finalAppUrl = 'https://printosaas.lovable.app';
-    
-    // Build invite link for new users (only for invite method)
-    let inviteLink: string | null = null;
-    if (ownerCreated && usedPasswordMethod === 'invite' && inviteToken) {
-      inviteLink = `${finalAppUrl}/accept-invite?token=${inviteToken}`;
-    }
+    const loginUrl = 'https://printosaas.lovable.app/login';
 
-    if (resend) {
-      const emailResult = await sendInviteEmail(
-        resend,
-        ownerEmail,
-        organizationName,
-        ownerCreated,
-        inviteLink,
-        finalAppUrl,
-        adminEmail || user.email,
-        branding,
-        usedPasswordMethod,
-        usedPasswordMethod === 'temporary' ? temporaryPassword : undefined
-      );
-      emailSent = emailResult.success;
-      emailError = emailResult.error || null;
-      
-      console.log('Email send result:', { 
-        emailSent, 
-        emailError, 
-        type: ownerCreated ? (usedPasswordMethod === 'temporary' ? 'temp_password' : 'invite') : 'notification' 
-      });
-    } else {
-      console.warn('RESEND_API_KEY not configured, skipping email');
+    if (sendEmail && resend) {
+      try {
+        const emailHtml = generateCredentialsEmailHtml(
+          ownerEmail.toLowerCase().trim(),
+          organizationName.trim(),
+          ownerPassword,
+          loginUrl
+        );
+
+        const { error: sendError } = await resend.emails.send({
+          from: 'PrintoSaas <onboarding@resend.dev>',
+          to: [ownerEmail.toLowerCase().trim()],
+          subject: `Your Login Credentials for ${organizationName.trim()}`,
+          html: emailHtml,
+        });
+
+        if (sendError) {
+          console.error('Email send error:', sendError);
+          emailError = sendError.message;
+        } else {
+          emailSent = true;
+          console.log('Credentials email sent successfully');
+        }
+      } catch (err) {
+        console.error('Email sending failed:', err);
+        emailError = err instanceof Error ? err.message : 'Email delivery failed';
+      }
+    } else if (sendEmail && !resend) {
       emailError = 'Email service not configured';
     }
 
-    // Log the creation in audit logs
-    await supabaseAdmin.rpc('insert_audit_log', {
-      p_actor_id: user.id,
-      p_actor_email: adminEmail || user.email,
-      p_actor_role: 'super_admin',
-      p_actor_type: 'user',
-      p_action_type: 'create',
-      p_action_label: 'Created organization manually',
-      p_entity_type: 'organization',
-      p_entity_id: newOrg.id,
-      p_entity_name: organizationName,
-      p_organization_id: newOrg.id,
-      p_organization_name: organizationName,
-      p_source: 'ui',
-      p_metadata: {
-        owner_email: ownerEmail,
-        plan: subscriptionPlan,
-        status: subscriptionStatus,
-        trial_days: subscriptionStatus === 'trial' ? trialDays : null,
-        owner_created: ownerCreated,
-        email_sent: emailSent,
-        email_error: emailError,
-        previous_plan: null,
-        new_plan: subscriptionPlan,
-        branding_used: branding ? 'custom' : 'default',
-        password_method: usedPasswordMethod,
-        temporary_password_used: usedPasswordMethod === 'temporary', // Logged without the actual value
-        password_strength_level: usedPasswordMethod === 'temporary' ? passwordStrengthLevel : null,
-        invite_type: ownerCreated 
-          ? (usedPasswordMethod === 'temporary' ? 'temp_password_credential' : 'new_user_invite') 
-          : 'existing_user_notification',
-      },
-    });
+    // Log audit
+    try {
+      await supabaseAdmin.rpc('insert_audit_log', {
+        p_actor_id: user.id,
+        p_actor_email: adminEmail || user.email,
+        p_actor_role: 'super_admin',
+        p_actor_type: 'user',
+        p_action_type: 'create',
+        p_action_label: 'Created organization with owner',
+        p_entity_type: 'organization',
+        p_entity_id: newOrg.id,
+        p_entity_name: organizationName.trim(),
+        p_organization_id: newOrg.id,
+        p_organization_name: organizationName.trim(),
+        p_source: 'ui',
+        p_metadata: {
+          owner_email: ownerEmail.toLowerCase().trim(),
+          plan,
+          status,
+          trial_days: status === 'trial' ? trialDays : null,
+          email_sent: emailSent,
+        },
+      });
+    } catch (auditErr) {
+      console.error('Audit log failed:', auditErr);
+    }
 
-    // Log owner invited event
-    await supabaseAdmin.rpc('insert_audit_log', {
-      p_actor_id: user.id,
-      p_actor_email: adminEmail || user.email,
-      p_actor_role: 'super_admin',
-      p_actor_type: 'user',
-      p_action_type: 'create',
-      p_action_label: ownerCreated 
-        ? (usedPasswordMethod === 'temporary' 
-            ? 'Organization owner created with temporary password' 
-            : 'Organization owner invited (new user)')
-        : 'Organization owner assigned (existing user)',
-      p_entity_type: 'user',
-      p_entity_id: ownerId,
-      p_entity_name: ownerEmail,
-      p_organization_id: newOrg.id,
-      p_organization_name: organizationName,
-      p_source: 'ui',
-      p_metadata: {
-        target_email: ownerEmail,
-        is_new_user: ownerCreated,
-        password_method: usedPasswordMethod,
-        invite_expires_at: ownerCreated && usedPasswordMethod === 'invite' 
-          ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() 
-          : null,
-        must_reset_password: true,
-      },
-    });
-
-    // Log email send attempt
-    await supabaseAdmin.rpc('insert_audit_log', {
-      p_actor_id: user.id,
-      p_actor_email: adminEmail || user.email,
-      p_actor_role: 'super_admin',
-      p_actor_type: 'system',
-      p_action_type: emailSent ? 'access' : 'update',
-      p_action_label: emailSent 
-        ? `${ownerCreated ? 'Invite' : 'Access notification'} email sent successfully` 
-        : `${ownerCreated ? 'Invite' : 'Access notification'} email failed`,
-      p_entity_type: 'notification',
-      p_entity_id: newOrg.id,
-      p_entity_name: ownerCreated ? 'Invite email (set password)' : 'Access notification email',
-      p_organization_id: newOrg.id,
-      p_organization_name: organizationName,
-      p_source: 'system',
-      p_metadata: {
-        recipient: ownerEmail,
-        email_type: ownerCreated ? 'new_user_invite' : 'existing_user_access',
-        success: emailSent,
-        error: emailError,
-        template_used: ownerCreated ? 'invite-set-password' : 'access-notification',
-        branding_used: branding ? 'custom' : 'default',
-      },
-    });
-
-    console.log('Organization creation completed successfully');
-
+    // Success response
     return new Response(
       JSON.stringify({
         success: true,
@@ -950,32 +451,32 @@ Deno.serve(async (req) => {
           name: newOrg.name,
           slug: newOrg.slug,
         },
+        owner: {
+          id: ownerId,
+          email: ownerEmail.toLowerCase().trim(),
+          created: true,
+        },
         subscription: {
           id: subscription.id,
           plan: subscription.plan,
           status: subscription.status,
           trial_ends_at: subscription.trial_ends_at,
         },
-        owner: {
-          id: ownerId,
-          email: ownerEmail,
-          created: ownerCreated,
-        },
         email: {
           sent: emailSent,
           error: emailError,
-          type: ownerCreated ? 'invite' : 'notification',
-          branding: branding ? 'custom' : 'default',
         },
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Unexpected error in create-organization:', error);
+  } catch (error) {
+    console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: errorMessage }),
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'An unexpected error occurred' 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

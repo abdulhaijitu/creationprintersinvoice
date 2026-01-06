@@ -15,22 +15,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Eye, EyeOff, UserPlus, CheckCircle2, Mail } from 'lucide-react';
+import { Loader2, Eye, EyeOff, UserPlus, CheckCircle2, Mail, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const userSchema = z.object({
   email: z.string().trim().email('Invalid email address').max(255),
   fullName: z.string().trim().min(2, 'Name must be at least 2 characters').max(100),
   password: z.string().min(8, 'Password must be at least 8 characters').max(72),
-  organizationId: z.string().optional(),
-  role: z.enum(['owner', 'manager', 'accounts', 'staff']).optional(),
-  forcePasswordReset: z.boolean().default(false),
+  role: z.enum(['admin', 'service', 'support']),
+  forcePasswordReset: z.boolean().default(true),
 });
-
-interface Organization {
-  id: string;
-  name: string;
-}
 
 interface CreateUserDialogProps {
   open: boolean;
@@ -47,61 +41,39 @@ export const CreateUserDialog = ({
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [organizationId, setOrganizationId] = useState<string>('');
-  const [role, setRole] = useState<string>('staff');
+  const [role, setRole] = useState<string>('support');
   const [forcePasswordReset, setForcePasswordReset] = useState(true);
   const [sendEmail, setSendEmail] = useState(true);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingOrgs, setLoadingOrgs] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [inlineError, setInlineError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
     if (open) {
-      fetchOrganizations();
       resetForm();
     }
   }, [open]);
-
-  const fetchOrganizations = async () => {
-    setLoadingOrgs(true);
-    try {
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('id, name')
-        .order('name');
-      
-      if (error) throw error;
-      setOrganizations(data || []);
-    } catch (error) {
-      console.error('Error fetching organizations:', error);
-    } finally {
-      setLoadingOrgs(false);
-    }
-  };
 
   const resetForm = () => {
     setEmail('');
     setFullName('');
     setPassword('');
-    setOrganizationId('');
-    setRole('staff');
+    setRole('support');
     setForcePasswordReset(true);
     setSendEmail(true);
-    setErrors({});
+    setInlineError(null);
     setSuccess(false);
     setEmailSent(false);
   };
 
   const generatePassword = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-    let password = '';
+    let pwd = '';
     for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    setPassword(password);
+    setPassword(pwd);
     setShowPassword(true);
   };
 
@@ -118,23 +90,32 @@ export const CreateUserDialog = ({
   const passwordStrength = getPasswordStrength(password);
 
   const handleSubmit = async () => {
-    setErrors({});
+    setInlineError(null);
     
     try {
       const validatedData = userSchema.parse({
         email,
         fullName,
         password,
-        organizationId: organizationId || undefined,
-        role: organizationId ? role : undefined,
+        role,
         forcePasswordReset,
       });
 
       setLoading(true);
 
+      // Debug log in dev mode
+      if (import.meta.env.DEV) {
+        console.log('[CreateUser] Submitting:', { 
+          email: validatedData.email, 
+          fullName: validatedData.fullName,
+          role: validatedData.role,
+          sendEmail
+        });
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error('Authentication required');
+        setInlineError('Authentication required');
         return;
       }
 
@@ -144,21 +125,24 @@ export const CreateUserDialog = ({
           email: validatedData.email,
           password: validatedData.password,
           fullName: validatedData.fullName,
-          organizationId: validatedData.organizationId,
           role: validatedData.role,
           forcePasswordReset: validatedData.forcePasswordReset,
           sendEmail,
           loginUrl: window.location.origin + '/login',
+          isInternalUser: true, // Flag for internal platform users
         },
       });
 
-      // Handle edge function errors - check both error property and data.error
-      if (response.error) {
-        const errorMessage = response.error.message || 'Failed to create user';
-        throw new Error(errorMessage);
+      // Debug log in dev mode
+      if (import.meta.env.DEV) {
+        console.log('[CreateUser] Response:', response);
       }
 
-      // Check if response contains an error in data (non-2xx responses)
+      // Handle edge function errors
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to create user');
+      }
+
       if (response.data?.error) {
         throw new Error(response.data.error);
       }
@@ -184,15 +168,12 @@ export const CreateUserDialog = ({
       }, 1500);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const fieldErrors: Record<string, string> = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            fieldErrors[err.path[0] as string] = err.message;
-          }
-        });
-        setErrors(fieldErrors);
+        const firstError = error.errors[0];
+        setInlineError(firstError?.message || 'Validation error');
       } else {
-        toast.error(error instanceof Error ? error.message : 'Failed to create user');
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create user';
+        setInlineError(errorMessage);
+        toast.error(errorMessage);
       }
     } finally {
       setLoading(false);
@@ -205,10 +186,10 @@ export const CreateUserDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
-            Create New User
+            Create Internal User
           </DialogTitle>
           <DialogDescription>
-            Create a new user account with optional organization assignment.
+            Create a new platform user (Admin, Service, or Support role).
           </DialogDescription>
         </DialogHeader>
 
@@ -230,48 +211,52 @@ export const CreateUserDialog = ({
           </div>
         ) : (
           <div className="space-y-4 py-2">
+            {/* Inline Error */}
+            {inlineError && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-destructive">{inlineError}</p>
+              </div>
+            )}
+
             {/* Full Name */}
             <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
+              <Label htmlFor="fullName">Full Name *</Label>
               <Input
                 id="fullName"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="John Doe"
-                className={errors.fullName ? 'border-destructive' : ''}
+                disabled={loading}
               />
-              {errors.fullName && (
-                <p className="text-sm text-destructive">{errors.fullName}</p>
-              )}
             </div>
 
             {/* Email */}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="user@example.com"
-                className={errors.email ? 'border-destructive' : ''}
+                disabled={loading}
               />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
-              )}
             </div>
 
             {/* Password */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Password *</Label>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onClick={generatePassword}
                   className="h-auto py-1 px-2 text-xs"
+                  disabled={loading}
                 >
+                  <RefreshCw className="h-3 w-3 mr-1" />
                   Generate
                 </Button>
               </div>
@@ -281,8 +266,9 @@ export const CreateUserDialog = ({
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  className={cn('pr-10', errors.password ? 'border-destructive' : '')}
+                  placeholder="Enter password (min 8 chars)"
+                  className="pr-10"
+                  disabled={loading}
                 />
                 <Button
                   type="button"
@@ -317,46 +303,25 @@ export const CreateUserDialog = ({
                   ))}
                 </div>
               )}
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
-              )}
             </div>
 
-            {/* Organization */}
+            {/* Role - Internal roles only */}
             <div className="space-y-2">
-              <Label htmlFor="organization">Organization (Optional)</Label>
-              <Select value={organizationId || 'none'} onValueChange={(val) => setOrganizationId(val === 'none' ? '' : val)}>
-                <SelectTrigger id="organization">
-                  <SelectValue placeholder={loadingOrgs ? 'Loading...' : 'Select organization'} />
+              <Label htmlFor="role">Role *</Label>
+              <Select value={role} onValueChange={setRole} disabled={loading}>
+                <SelectTrigger id="role">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No organization</SelectItem>
-                  {organizations.map((org) => (
-                    <SelectItem key={org.id} value={org.id}>
-                      {org.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="service">Service</SelectItem>
+                  <SelectItem value="support">Support</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Internal platform roles only. Use Organizations to manage client users.
+              </p>
             </div>
-
-            {/* Role (if org selected) */}
-            {organizationId && (
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select value={role} onValueChange={setRole}>
-                  <SelectTrigger id="role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="owner">Owner</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="accounts">Accounts</SelectItem>
-                    <SelectItem value="staff">Staff</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             {/* Force Password Reset */}
             <div className="flex items-center gap-2">
@@ -364,6 +329,7 @@ export const CreateUserDialog = ({
                 id="forceReset"
                 checked={forcePasswordReset}
                 onCheckedChange={(checked) => setForcePasswordReset(checked as boolean)}
+                disabled={loading}
               />
               <Label htmlFor="forceReset" className="text-sm cursor-pointer">
                 Force password change on first login
@@ -376,6 +342,7 @@ export const CreateUserDialog = ({
                 id="sendEmail"
                 checked={sendEmail}
                 onCheckedChange={(checked) => setSendEmail(checked as boolean)}
+                disabled={loading}
               />
               <div className="flex-1">
                 <Label htmlFor="sendEmail" className="text-sm cursor-pointer flex items-center gap-2">
@@ -392,7 +359,7 @@ export const CreateUserDialog = ({
 
         {!success && (
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
             <Button onClick={handleSubmit} disabled={loading}>
