@@ -39,6 +39,7 @@ import ChallanPrintTemplate from "./components/delivery-challan/ChallanPrintTemp
 import PlatformAdmin from "./pages/admin/PlatformAdmin";
 import SuperAdminLogin from "./pages/admin/SuperAdminLogin";
 import Pricing from "./pages/Pricing";
+import Billing from "./pages/Billing";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,7 @@ const App = () => (
                 <Route path="/user-roles" element={<UserRoles />} />
                 <Route path="/team-members" element={<TeamMembers />} />
                 <Route path="/delivery-challans" element={<DeliveryChallans />} />
+                <Route path="/billing" element={<Billing />} />
               </Route>
               
               <Route path="*" element={<NotFound />} />
