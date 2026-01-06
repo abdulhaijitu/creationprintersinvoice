@@ -1797,6 +1797,39 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_pricing: {
+        Row: {
+          annual_price: number | null
+          created_at: string
+          currency: string
+          id: string
+          is_active: boolean | null
+          monthly_price: number
+          plan_name: string
+          updated_at: string
+        }
+        Insert: {
+          annual_price?: number | null
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean | null
+          monthly_price?: number
+          plan_name: string
+          updated_at?: string
+        }
+        Update: {
+          annual_price?: number | null
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean | null
+          monthly_price?: number
+          plan_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       price_calculations: {
         Row: {
           binding_cost: number | null
@@ -2183,6 +2216,51 @@ export type Database = {
           },
         ]
       }
+      revenue_snapshots: {
+        Row: {
+          active_subscriptions: number
+          churned_subscriptions: number
+          contraction_revenue: number | null
+          created_at: string
+          expansion_revenue: number | null
+          id: string
+          new_subscriptions: number
+          plan_breakdown: Json | null
+          snapshot_date: string
+          total_arr: number
+          total_mrr: number
+          trial_subscriptions: number
+        }
+        Insert: {
+          active_subscriptions?: number
+          churned_subscriptions?: number
+          contraction_revenue?: number | null
+          created_at?: string
+          expansion_revenue?: number | null
+          id?: string
+          new_subscriptions?: number
+          plan_breakdown?: Json | null
+          snapshot_date?: string
+          total_arr?: number
+          total_mrr?: number
+          trial_subscriptions?: number
+        }
+        Update: {
+          active_subscriptions?: number
+          churned_subscriptions?: number
+          contraction_revenue?: number | null
+          created_at?: string
+          expansion_revenue?: number | null
+          id?: string
+          new_subscriptions?: number
+          plan_breakdown?: Json | null
+          snapshot_date?: string
+          total_arr?: number
+          total_mrr?: number
+          trial_subscriptions?: number
+        }
+        Relationships: []
+      }
       salary_advances: {
         Row: {
           amount: number
@@ -2327,6 +2405,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "scheduled_reminders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_events: {
+        Row: {
+          created_at: string
+          event_date: string
+          event_type: string
+          from_plan: string | null
+          id: string
+          metadata: Json | null
+          mrr_change: number | null
+          organization_id: string
+          to_plan: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_date?: string
+          event_type: string
+          from_plan?: string | null
+          id?: string
+          metadata?: Json | null
+          mrr_change?: number | null
+          organization_id: string
+          to_plan?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_date?: string
+          event_type?: string
+          from_plan?: string | null
+          id?: string
+          metadata?: Json | null
+          mrr_change?: number | null
+          organization_id?: string
+          to_plan?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_events_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -2754,12 +2876,25 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      calculate_saas_metrics: {
+        Args: { end_date?: string; start_date?: string }
+        Returns: Json
+      }
       check_overdue_invoices: { Args: never; Returns: undefined }
       generate_billing_invoice_number: { Args: never; Returns: string }
       generate_challan_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_payment_receipt_number: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
+      get_mrr_trend: {
+        Args: { days_back?: number }
+        Returns: {
+          active_subscriptions: number
+          arr: number
+          mrr: number
+          snapshot_date: string
+        }[]
+      }
       get_org_usage_percentage: {
         Args: { org_id: string }
         Returns: {
