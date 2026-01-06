@@ -26,6 +26,7 @@ import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { AdminDashboardOverview } from '@/components/admin/AdminDashboardOverview';
 import { AdminCommandPalette } from '@/components/admin/AdminCommandPalette';
 import { CreateOrganizationDialog } from '@/components/admin/CreateOrganizationDialog';
+import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { 
@@ -61,6 +62,10 @@ const sectionConfig: Record<string, { title: string; description: string }> = {
   organizations: {
     title: 'Organizations',
     description: 'View and manage all registered organizations',
+  },
+  users: {
+    title: 'Users',
+    description: 'Manage users and their organization assignments',
   },
   analytics: {
     title: 'Analytics',
@@ -675,6 +680,9 @@ const PlatformAdmin = () => {
             </CardContent>
           </Card>
         );
+
+      case 'users':
+        return <AdminUsersTable />;
 
       case 'analytics':
         return <AdminAnalyticsDashboard />;
