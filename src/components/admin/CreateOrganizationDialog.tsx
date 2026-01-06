@@ -89,14 +89,16 @@ export function CreateOrganizationDialog({
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to create organization');
-      }
-
       const data = response.data;
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to create organization');
+      // Handle error responses from the edge function
+      if (response.error || (data && data.error)) {
+        const errorMessage = data?.error || response.error?.message || 'Failed to create organization';
+        throw new Error(errorMessage);
+      }
+
+      if (!data?.success) {
+        throw new Error('Failed to create organization');
       }
 
       setCreatedOrg({
