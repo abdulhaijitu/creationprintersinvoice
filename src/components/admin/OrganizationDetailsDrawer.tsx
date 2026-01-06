@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { User, FileText, Receipt, Activity, Ban, Save, KeyRound, Loader2, AlertTriangle, UserCheck, AlertCircle } from 'lucide-react';
+import { User, FileText, Receipt, Activity, Ban, Save, KeyRound, Loader2, AlertTriangle, UserCheck, AlertCircle, Shield } from 'lucide-react';
+import { OrgSpecificPermissionsManager } from './OrgSpecificPermissionsManager';
 import { toast } from 'sonner';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -393,9 +394,13 @@ const OrganizationDetailsDrawer = ({
           </SheetHeader>
 
           <Tabs defaultValue="overview" className="mt-6">
-            <TabsList className="grid grid-cols-3 w-full">
+            <TabsList className="grid grid-cols-4 w-full">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="permissions" className="flex items-center gap-1">
+                <Shield className="h-3.5 w-3.5" />
+                Permissions
+              </TabsTrigger>
               <TabsTrigger value="usage">Usage</TabsTrigger>
             </TabsList>
 
@@ -654,6 +659,13 @@ const OrganizationDetailsDrawer = ({
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="permissions" className="mt-4">
+              <OrgSpecificPermissionsManager
+                organizationId={organization.id}
+                organizationName={organization.name}
+              />
             </TabsContent>
 
             <TabsContent value="usage" className="mt-4">
