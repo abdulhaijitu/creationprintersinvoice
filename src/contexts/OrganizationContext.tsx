@@ -5,6 +5,9 @@ import { useAuth } from './AuthContext';
 // Storage key for impersonation - must match ImpersonationContext
 const IMPERSONATION_STORAGE_KEY = 'printosaas_impersonation';
 
+// Storage key for active org selection (multi-org users)
+const ACTIVE_ORG_STORAGE_KEY = 'printosaas_active_organization_id';
+
 export type OrgRole = 'owner' | 'manager' | 'accounts' | 'staff';
 export type SubscriptionPlan = 'free' | 'basic' | 'pro' | 'enterprise';
 export type SubscriptionStatus = 'trial' | 'active' | 'suspended' | 'cancelled' | 'expired';
@@ -152,12 +155,12 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return;
       }
 
-      // Normal flow: Get the user's organization membership
-      const { data: membershipData, error: membershipError } = await supabase
+      // Normal flow: Get the user's organization membership(s)
+      const { data: membershipRows, error: membershipError } = await supabase
         .from('organization_members')
         .select('*')
         .eq('user_id', user.id)
-        .maybeSingle();
+        .limit(25);
 
       if (membershipError) {
         console.error('Error fetching membership:', membershipError);
@@ -166,21 +169,54 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return;
       }
 
-      if (!membershipData) {
+      if (!membershipRows || membershipRows.length === 0) {
         // User has no organization, needs onboarding
         setNeedsOnboarding(true);
         setLoading(false);
         return;
       }
 
-      setMembership(membershipData as OrganizationMember);
+      // Choose active org:
+      // 1) localStorage preference
+      // 2) first org with an active/trial subscription
+      // 3) fallback to first membership
+      let selectedMembership = membershipRows[0] as OrganizationMember;
+
+      const preferredOrgId = (() => {
+        try {
+          return localStorage.getItem(ACTIVE_ORG_STORAGE_KEY);
+        } catch {
+          return null;
+        }
+      })();
+
+      if (preferredOrgId) {
+        const match = membershipRows.find((m) => m.organization_id === preferredOrgId);
+        if (match) selectedMembership = match as OrganizationMember;
+      }
+
+      if (membershipRows.length > 1 && !preferredOrgId) {
+        const orgIds = membershipRows.map((m) => m.organization_id);
+        const { data: subs } = await supabase
+          .from('subscriptions')
+          .select('organization_id, status')
+          .in('organization_id', orgIds);
+
+        const activeOrgId = subs?.find((s) => s.status === 'active' || s.status === 'trial')?.organization_id;
+        if (activeOrgId) {
+          const match = membershipRows.find((m) => m.organization_id === activeOrgId);
+          if (match) selectedMembership = match as OrganizationMember;
+        }
+      }
+
+      setMembership(selectedMembership);
       setNeedsOnboarding(false);
 
       // Get the organization details
       const { data: orgData, error: orgError } = await supabase
         .from('organizations')
         .select('*')
-        .eq('id', membershipData.organization_id)
+        .eq('id', selectedMembership.organization_id)
         .single();
 
       if (orgError) {
@@ -195,12 +231,10 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const { data: subData } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('organization_id', membershipData.organization_id)
+        .eq('organization_id', selectedMembership.organization_id)
         .maybeSingle();
 
-      if (subData) {
-        setSubscription(subData as Subscription);
-      }
+      setSubscription(subData ? (subData as Subscription) : null);
 
       setLoading(false);
     } catch (error) {

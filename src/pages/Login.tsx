@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,18 +20,180 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    try {
-      const { error } = await signIn(email, password);
-      if (error) {
-        toast.error('Login failed', {
-          description: error.message
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const audit = async (payload: Record<string, unknown>) => {
+      try {
+        await supabase.functions.invoke('audit-log', {
+          body: payload,
         });
-      } else {
-        toast.success('Successfully logged in');
-        // Navigation will be handled by AppLayout which checks for must_reset_password
-        navigate('/');
+      } catch {
+        // best-effort only
       }
-    } catch (error) {
+    };
+
+    try {
+      const { error } = await signIn(normalizedEmail, password);
+
+      if (error) {
+        const msg = (error.message || '').toLowerCase();
+
+        void audit({
+          actor_email: normalizedEmail,
+          actor_type: 'user',
+          action_type: 'login_failed',
+          action_label: 'Login failed',
+          entity_type: 'session',
+          source: 'ui',
+          metadata: {
+            reason: msg.includes('invalid login credentials') ? 'invalid_credentials' : 'auth_error',
+          },
+        });
+
+        if (msg.includes('email not confirmed')) {
+          toast.error('Please verify your email', {
+            description: 'Check your inbox and confirm your email address to continue.',
+          });
+          return;
+        }
+
+        if (msg.includes('invalid login credentials')) {
+          toast.error('Invalid email or password');
+          return;
+        }
+
+        toast.error('Login failed', {
+          description: error.message,
+        });
+        return;
+      }
+
+      // Give role/user bootstrap triggers a moment to complete
+      await new Promise((r) => setTimeout(r, 150));
+
+      const { data: userData } = await supabase.auth.getUser();
+      const authedUser = userData.user;
+
+      if (!authedUser) {
+        toast.error('Login failed', {
+          description: 'Could not load your session. Please try again.',
+        });
+        return;
+      }
+
+      const emailConfirmedAt = (authedUser as any).email_confirmed_at ?? (authedUser as any).confirmed_at;
+      if (!emailConfirmedAt) {
+        await supabase.auth.signOut();
+        toast.error('Please verify your email', {
+          description: 'Check your inbox and confirm your email address to continue.',
+        });
+        void audit({
+          actor_id: authedUser.id,
+          actor_email: authedUser.email,
+          actor_type: 'user',
+          action_type: 'access',
+          action_label: 'Login blocked: email not verified',
+          entity_type: 'auth_gate',
+          entity_id: authedUser.id,
+          source: 'ui',
+        });
+        return;
+      }
+
+      const { data: roleRow } = await supabase
+        .from('user_roles')
+        .select('role, must_reset_password')
+        .eq('user_id', authedUser.id)
+        .maybeSingle();
+
+      const mustResetPassword = roleRow?.must_reset_password ?? false;
+
+      const { data: memberships, error: membershipError } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', authedUser.id);
+
+      if (membershipError || !memberships || memberships.length === 0) {
+        await supabase.auth.signOut();
+        toast.error('No organization access', {
+          description: 'Your account is not linked to an organization. Contact your administrator.',
+        });
+        void audit({
+          actor_id: authedUser.id,
+          actor_email: authedUser.email,
+          actor_role: roleRow?.role,
+          actor_type: 'user',
+          action_type: 'access',
+          action_label: 'Login blocked: no organization access',
+          entity_type: 'organization_membership',
+          entity_id: authedUser.id,
+          source: 'ui',
+        });
+        return;
+      }
+
+      const orgId = memberships[0].organization_id;
+      localStorage.setItem('printosaas_active_organization_id', orgId);
+
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('status')
+        .eq('organization_id', orgId)
+        .maybeSingle();
+
+      if (subscription?.status === 'suspended') {
+        await supabase.auth.signOut();
+        toast.error('Organization is suspended', {
+          description: 'Please contact your administrator or support.',
+        });
+        void audit({
+          actor_id: authedUser.id,
+          actor_email: authedUser.email,
+          actor_role: roleRow?.role,
+          actor_type: 'user',
+          action_type: 'access',
+          action_label: 'Login blocked: organization suspended',
+          entity_type: 'organization',
+          organization_id: orgId,
+          source: 'ui',
+        });
+        return;
+      }
+
+      if (mustResetPassword) {
+        void audit({
+          actor_id: authedUser.id,
+          actor_email: authedUser.email,
+          actor_role: roleRow?.role,
+          actor_type: 'user',
+          action_type: 'access',
+          action_label: 'Login blocked: password setup required',
+          entity_type: 'user_password',
+          organization_id: orgId,
+          source: 'ui',
+        });
+
+        toast.info('Please complete password setup');
+        navigate('/reset-password', { replace: true });
+        return;
+      }
+
+      void audit({
+        actor_id: authedUser.id,
+        actor_email: authedUser.email,
+        actor_role: roleRow?.role,
+        actor_type: 'user',
+        action_type: 'login',
+        action_label: 'Login successful',
+        entity_type: 'session',
+        organization_id: orgId,
+        source: 'ui',
+      });
+
+      toast.success('Successfully logged in');
+      navigate('/', { replace: true });
+    } catch {
       toast.error('Something went wrong');
     } finally {
       setLoading(false);
