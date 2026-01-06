@@ -213,8 +213,25 @@ const OrganizationDetailsDrawer = ({
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      // Update form state from backend response (source of truth)
+      const updatedPlan = (data.subscription?.plan || 'free') as PlanType;
+      const updatedStatus = (data.subscription?.status || 'trial') as StatusType;
+      const updatedTrialEndsAt = data.subscription?.trial_ends_at 
+        ? format(new Date(data.subscription.trial_ends_at), "yyyy-MM-dd'T'HH:mm")
+        : '';
+      const updatedName = data.organization?.name || formData.name;
+
+      const newFormData = {
+        name: updatedName,
+        plan: updatedPlan,
+        status: updatedStatus,
+        trialEndsAt: updatedTrialEndsAt,
+      };
+
+      setFormData(newFormData);
+      setOriginalData(newFormData);
+
       toast.success('Organization updated successfully');
-      setOriginalData(formData);
       onRefresh();
     } catch (error) {
       console.error('Error saving organization:', error);

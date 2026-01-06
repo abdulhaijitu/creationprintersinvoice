@@ -408,6 +408,59 @@ const PlatformAdmin = () => {
     setDetailsOpen(true);
   };
 
+  // Refresh selected org after updates to sync drawer with backend
+  const handleDetailsRefresh = useCallback(async () => {
+    // Refetch all organizations
+    const { data: orgs, error } = await supabase
+      .from('organizations')
+      .select(`
+        *,
+        subscriptions (plan, status, trial_ends_at)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error refreshing organizations:', error);
+      return;
+    }
+
+    const orgsWithStats = await Promise.all(
+      (orgs || []).map(async (org) => {
+        const { count } = await supabase
+          .from('organization_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', org.id);
+
+        let ownerName = 'Unknown';
+        if (org.owner_id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', org.owner_id)
+            .single();
+          ownerName = profile?.full_name || 'Unknown';
+        }
+
+        return {
+          ...org,
+          subscription: org.subscriptions?.[0],
+          member_count: count || 0,
+          owner_name: ownerName,
+        };
+      })
+    );
+
+    setOrganizations(orgsWithStats);
+
+    // Update selectedOrg with the refreshed data
+    if (selectedOrg) {
+      const updatedOrg = orgsWithStats.find(o => o.id === selectedOrg.id);
+      if (updatedOrg) {
+        setSelectedOrg(updatedOrg);
+      }
+    }
+  }, [selectedOrg]);
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/admin/login');
@@ -698,7 +751,7 @@ const PlatformAdmin = () => {
           organization={selectedOrg}
           open={detailsOpen}
           onClose={() => setDetailsOpen(false)}
-          onRefresh={fetchOrganizations}
+          onRefresh={handleDetailsRefresh}
         />
 
         {/* Confirm Dialog */}
