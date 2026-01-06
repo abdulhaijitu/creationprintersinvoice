@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Building2, Search, Calendar, RotateCcw, Eye, Ban, CheckCircle, Plus } from 'lucide-react';
+import { Building2, Search, Calendar, RotateCcw, Eye, Ban, CheckCircle, Plus, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
 import { format, addDays, startOfMonth } from 'date-fns';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -26,8 +26,11 @@ import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { AdminDashboardOverview } from '@/components/admin/AdminDashboardOverview';
 import { AdminCommandPalette } from '@/components/admin/AdminCommandPalette';
 import { CreateOrganizationDialog } from '@/components/admin/CreateOrganizationDialog';
+import { EditOrganizationDialog } from '@/components/admin/EditOrganizationDialog';
+import { DeleteOrganizationDialog } from '@/components/admin/DeleteOrganizationDialog';
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { AdminGlobalSearch } from '@/components/admin/AdminGlobalSearch';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { 
@@ -104,6 +107,8 @@ const PlatformAdmin = () => {
   });
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [createOrgDialogOpen, setCreateOrgDialogOpen] = useState(false);
+  const [editOrgDialogOpen, setEditOrgDialogOpen] = useState(false);
+  const [deleteOrgDialogOpen, setDeleteOrgDialogOpen] = useState(false);
   const [organizations, setOrganizations] = useState<OrganizationWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -681,35 +686,59 @@ const PlatformAdmin = () => {
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => extendTrial(org.id, 7, org.name)}
-                                  title="Extend trial by 7 days"
-                                >
-                                  <RotateCcw className="h-4 w-4" />
-                                </Button>
-                                {org.subscription?.status === 'suspended' ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
-                                    onClick={() => updateSubscriptionStatus(org.id, 'active', org.name)}
-                                    title="Activate"
-                                  >
-                                    <CheckCircle className="h-4 w-4" />
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    onClick={() => updateSubscriptionStatus(org.id, 'suspended', org.name)}
-                                    title="Suspend"
-                                  >
-                                    <Ban className="h-4 w-4" />
-                                  </Button>
+                                
+                                {role === 'super_admin' && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                      <DropdownMenuItem 
+                                        onClick={() => {
+                                          setSelectedOrg(org);
+                                          setEditOrgDialogOpen(true);
+                                        }}
+                                      >
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Edit Organization
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => extendTrial(org.id, 7, org.name)}>
+                                        <RotateCcw className="mr-2 h-4 w-4" />
+                                        Extend Trial (+7 days)
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      {org.subscription?.status === 'suspended' ? (
+                                        <DropdownMenuItem 
+                                          onClick={() => updateSubscriptionStatus(org.id, 'active', org.name)}
+                                          className="text-green-600"
+                                        >
+                                          <CheckCircle className="mr-2 h-4 w-4" />
+                                          Activate
+                                        </DropdownMenuItem>
+                                      ) : (
+                                        <DropdownMenuItem 
+                                          onClick={() => updateSubscriptionStatus(org.id, 'suspended', org.name)}
+                                          className="text-amber-600"
+                                        >
+                                          <Ban className="mr-2 h-4 w-4" />
+                                          Suspend
+                                        </DropdownMenuItem>
+                                      )}
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem 
+                                        onClick={() => {
+                                          setSelectedOrg(org);
+                                          setDeleteOrgDialogOpen(true);
+                                        }}
+                                        className="text-destructive focus:text-destructive"
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete Organization
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 )}
                               </div>
                             </TableCell>
@@ -844,6 +873,22 @@ const PlatformAdmin = () => {
           confirmLabel="Confirm"
           variant={confirmAction.variant}
           onConfirm={confirmAction.action}
+        />
+
+        {/* Edit Organization Dialog */}
+        <EditOrganizationDialog
+          open={editOrgDialogOpen}
+          onOpenChange={setEditOrgDialogOpen}
+          organization={selectedOrg}
+          onSuccess={fetchOrganizations}
+        />
+
+        {/* Delete Organization Dialog */}
+        <DeleteOrganizationDialog
+          open={deleteOrgDialogOpen}
+          onOpenChange={setDeleteOrgDialogOpen}
+          organization={selectedOrg}
+          onSuccess={fetchOrganizations}
         />
       </div>
     </TooltipProvider>
