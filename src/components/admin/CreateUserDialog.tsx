@@ -298,12 +298,12 @@ export const CreateUserDialog = ({
             {/* Organization */}
             <div className="space-y-2">
               <Label htmlFor="organization">Organization (Optional)</Label>
-              <Select value={organizationId} onValueChange={setOrganizationId}>
+              <Select value={organizationId || 'none'} onValueChange={(val) => setOrganizationId(val === 'none' ? '' : val)}>
                 <SelectTrigger id="organization">
                   <SelectValue placeholder={loadingOrgs ? 'Loading...' : 'Select organization'} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No organization</SelectItem>
+                  <SelectItem value="none">No organization</SelectItem>
                   {organizations.map((org) => (
                     <SelectItem key={org.id} value={org.id}>
                       {org.name}
