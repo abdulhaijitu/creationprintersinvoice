@@ -58,6 +58,9 @@ interface OrganizationContextType {
   isOrgManager: boolean;
   isOrgAdmin: boolean;
   orgRole: OrgRole | null;
+  isSubscriptionActive: boolean;
+  isTrialExpired: boolean;
+  daysRemaining: number | null;
   refetchOrganization: () => Promise<void>;
   createOrganization: (name: string, slug: string) => Promise<{ error: Error | null; organization: Organization | null }>;
 }
@@ -176,7 +179,10 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { error: memberError, organization: null };
       }
 
-      // Create a free trial subscription
+      // Create a free trial subscription (7 days)
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+      
       const { error: subError } = await supabase
         .from('subscriptions')
         .insert({
@@ -184,6 +190,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           plan: 'free' as SubscriptionPlan,
           status: 'trial' as SubscriptionStatus,
           user_limit: 5,
+          trial_ends_at: trialEndsAt.toISOString(),
         });
 
       if (subError) {
@@ -212,6 +219,17 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const isOrgManager = orgRole === 'manager';
   const isOrgAdmin = isOrgOwner || isOrgManager;
 
+  // Calculate trial status
+  const isTrialExpired = subscription?.status === 'expired' || 
+    (subscription?.status === 'trial' && subscription?.trial_ends_at && new Date(subscription.trial_ends_at) < new Date());
+  
+  const isSubscriptionActive = subscription?.status === 'active' || 
+    (subscription?.status === 'trial' && !isTrialExpired);
+
+  const daysRemaining = subscription?.trial_ends_at 
+    ? Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+    : null;
+
   const value = {
     organization,
     subscription,
@@ -222,6 +240,9 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isOrgManager,
     isOrgAdmin,
     orgRole,
+    isSubscriptionActive,
+    isTrialExpired,
+    daysRemaining,
     refetchOrganization: fetchOrganization,
     createOrganization,
   };
