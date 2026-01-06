@@ -14,9 +14,11 @@ export type AuditActionType =
   | 'activate'
   | 'configure'
   | 'export'
-  | 'import';
+  | 'import'
+  | 'impersonate_start'
+  | 'impersonate_end';
 
-export type AuditSource = 'ui' | 'api' | 'system' | 'edge_function' | 'webhook';
+export type AuditSource = 'ui' | 'api' | 'system' | 'edge_function' | 'webhook' | 'admin_panel';
 
 export interface AuditLogParams {
   action_type: AuditActionType;
