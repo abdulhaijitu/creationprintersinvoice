@@ -1280,6 +1280,153 @@ export type Database = {
           },
         ]
       }
+      organization_branding: {
+        Row: {
+          accent_color: string | null
+          app_name: string | null
+          created_at: string
+          favicon_url: string | null
+          footer_text: string | null
+          hide_platform_branding: boolean | null
+          id: string
+          logo_url: string | null
+          organization_id: string
+          primary_color: string | null
+          secondary_color: string | null
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string | null
+          app_name?: string | null
+          created_at?: string
+          favicon_url?: string | null
+          footer_text?: string | null
+          hide_platform_branding?: boolean | null
+          id?: string
+          logo_url?: string | null
+          organization_id: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string | null
+          app_name?: string | null
+          created_at?: string
+          favicon_url?: string | null
+          footer_text?: string | null
+          hide_platform_branding?: boolean | null
+          id?: string
+          logo_url?: string | null
+          organization_id?: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_branding_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_domains: {
+        Row: {
+          created_at: string
+          domain: string
+          id: string
+          is_primary: boolean | null
+          is_verified: boolean | null
+          organization_id: string
+          ssl_status: string | null
+          updated_at: string
+          verification_token: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+          id?: string
+          is_primary?: boolean | null
+          is_verified?: boolean | null
+          organization_id: string
+          ssl_status?: string | null
+          updated_at?: string
+          verification_token?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          id?: string
+          is_primary?: boolean | null
+          is_verified?: boolean | null
+          organization_id?: string
+          ssl_status?: string | null
+          updated_at?: string
+          verification_token?: string | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_domains_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_email_branding: {
+        Row: {
+          created_at: string
+          email_footer: string | null
+          id: string
+          organization_id: string
+          reply_to_email: string | null
+          sender_email: string | null
+          sender_name: string | null
+          sms_sender_label: string | null
+          updated_at: string
+          whatsapp_sender_label: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_footer?: string | null
+          id?: string
+          organization_id: string
+          reply_to_email?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sms_sender_label?: string | null
+          updated_at?: string
+          whatsapp_sender_label?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_footer?: string | null
+          id?: string
+          organization_id?: string
+          reply_to_email?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sms_sender_label?: string | null
+          updated_at?: string
+          whatsapp_sender_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_email_branding_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           created_at: string
@@ -1448,6 +1595,56 @@ export type Database = {
             foreignKeyName: "organization_usage_stats_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_whitelabel_settings: {
+        Row: {
+          created_at: string
+          custom_domain_enabled: boolean | null
+          email_branding_enabled: boolean | null
+          enabled_at: string | null
+          enabled_by: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          pdf_branding_enabled: boolean | null
+          updated_at: string
+          whitelabel_enabled: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          custom_domain_enabled?: boolean | null
+          email_branding_enabled?: boolean | null
+          enabled_at?: string | null
+          enabled_by?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          pdf_branding_enabled?: boolean | null
+          updated_at?: string
+          whitelabel_enabled?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          custom_domain_enabled?: boolean | null
+          email_branding_enabled?: boolean | null
+          enabled_at?: string | null
+          enabled_by?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          pdf_branding_enabled?: boolean | null
+          updated_at?: string
+          whitelabel_enabled?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_whitelabel_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -2578,6 +2775,14 @@ export type Database = {
           expense_total: number
           invoice_count: number
           last_activity: string
+        }[]
+      }
+      get_organization_by_domain: {
+        Args: { domain_name: string }
+        Returns: {
+          branding: Json
+          organization_id: string
+          organization_name: string
         }[]
       }
       get_user_org_role: {
