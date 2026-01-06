@@ -553,6 +553,22 @@ Deno.serve(async (req) => {
       if (memberError) {
         console.error('Error adding member:', memberError);
       }
+
+      // If user was newly created, set must_reset_password flag
+      if (ownerCreated) {
+        const { error: resetFlagError } = await supabaseAdmin
+          .from('user_roles')
+          .update({ 
+            must_reset_password: true,
+          })
+          .eq('user_id', ownerId);
+
+        if (resetFlagError) {
+          console.error('Error setting must_reset_password flag:', resetFlagError);
+        } else {
+          console.log('Set must_reset_password flag for new user');
+        }
+      }
     }
 
     // Use the SELECTED status and plan - don't default to trial

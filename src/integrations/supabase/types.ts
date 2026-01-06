@@ -2741,16 +2741,31 @@ export type Database = {
       user_roles: {
         Row: {
           id: string
+          invite_token: string | null
+          invite_token_expires_at: string | null
+          invite_used_at: string | null
+          must_reset_password: boolean | null
+          password_reset_at: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           id?: string
+          invite_token?: string | null
+          invite_token_expires_at?: string | null
+          invite_used_at?: string | null
+          must_reset_password?: boolean | null
+          password_reset_at?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           id?: string
+          invite_token?: string | null
+          invite_token_expires_at?: string | null
+          invite_used_at?: string | null
+          must_reset_password?: boolean | null
+          password_reset_at?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -3035,6 +3050,15 @@ export type Database = {
       }
       is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       is_subscription_active: { Args: { _org_id: string }; Returns: boolean }
+      log_password_reset_event: {
+        Args: {
+          p_action_type: string
+          p_organization_id: string
+          p_source: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       process_failed_payment: {
         Args: {
           p_failure_reason: string
