@@ -15,6 +15,13 @@ interface CreateOrganizationRequest {
   adminEmail?: string;
 }
 
+interface BrandingData {
+  logo_url?: string;
+  app_name?: string;
+  primary_color?: string;
+  footer_text?: string;
+}
+
 function generateSlug(name: string): string {
   return name
     .toLowerCase()
@@ -33,88 +40,319 @@ function generateSecurePassword(): string {
   return password;
 }
 
+// Helper function to adjust color brightness for gradient
+function adjustColor(hex: string, percent: number): string {
+  try {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.min(255, Math.max(0, (num >> 16) + amt));
+    const G = Math.min(255, Math.max(0, (num >> 8 & 0x00FF) + amt));
+    const B = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
+    return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  } catch {
+    return hex;
+  }
+}
+
+// Generate branded credential email HTML for new users
+function generateCredentialEmailHtml(
+  recipientEmail: string,
+  organizationName: string,
+  temporaryPassword: string,
+  appUrl: string,
+  branding: BrandingData | null
+): string {
+  const brandName = branding?.app_name || 'PrintoSaas';
+  const primaryColor = branding?.primary_color || '#6366f1';
+  const gradientEnd = adjustColor(primaryColor, 20);
+  const footerText = branding?.footer_text || `This email was sent by ${brandName}. If you didn't request this account, please contact support immediately.`;
+  const currentYear = new Date().getFullYear();
+  
+  // Logo section - use org logo if available, otherwise show brand name
+  const logoHtml = branding?.logo_url 
+    ? `<img src="${branding.logo_url}" width="180" height="50" alt="${brandName}" style="margin: 0 auto; display: block; object-fit: contain;" />`
+    : `<h1 style="color: #ffffff; font-size: 32px; font-weight: 700; margin: 0; text-align: center;">${brandName}</h1>`;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to ${organizationName}</title>
+</head>
+<body style="margin: 0; padding: 20px; background-color: #f6f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);">
+    <!-- Header with Logo -->
+    <tr>
+      <td style="background: linear-gradient(135deg, ${primaryColor} 0%, ${gradientEnd} 100%); padding: 40px 20px; text-align: center;">
+        ${logoHtml}
+      </td>
+    </tr>
+    
+    <!-- Main Content -->
+    <tr>
+      <td style="padding: 40px 40px 32px;">
+        <h1 style="color: #1a1a2e; font-size: 24px; font-weight: 700; line-height: 1.3; margin: 0 0 24px; text-align: center;">
+          Welcome to ${organizationName}
+        </h1>
+        
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
+          Hello,
+        </p>
+        
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
+          Your organization <strong>${organizationName}</strong> has been created successfully. Below are your login credentials to access your dashboard:
+        </p>
+
+        <!-- Credentials Box -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; margin: 24px 0;">
+          <tr>
+            <td style="padding: 24px;">
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px;">Login URL</p>
+              <a href="${appUrl}" style="color: ${primaryColor}; font-size: 16px; font-weight: 500; text-decoration: none;">${appUrl}</a>
+              
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 4px;">Email</p>
+              <p style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0;">${recipientEmail}</p>
+              
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 4px;">Temporary Password</p>
+              <code style="display: inline-block; background-color: #1f2937; color: #f9fafb; padding: 8px 16px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; font-size: 16px; font-weight: 600; letter-spacing: 0.1em;">${temporaryPassword}</code>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Security Warning -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; margin: 24px 0;">
+          <tr>
+            <td style="padding: 16px 20px;">
+              <p style="color: #92400e; font-size: 14px; line-height: 1.5; margin: 0;">
+                <strong>🔐 Security Notice:</strong> Please change your password immediately after your first login. This temporary password will expire after first use.
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- CTA Button -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0;">
+          <tr>
+            <td style="text-align: center;">
+              <a href="${appUrl}" style="display: inline-block; background-color: ${primaryColor}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
+                Access Your Dashboard
+              </a>
+            </td>
+          </tr>
+        </table>
+
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.5; text-align: center; margin: 0;">
+          If you have any questions or need assistance, please contact our support team.
+        </p>
+      </td>
+    </tr>
+
+    <!-- Divider -->
+    <tr>
+      <td style="border-top: 1px solid #e5e7eb;"></td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="padding: 24px 40px; background-color: #f9fafb;">
+        <p style="color: #6b7280; font-size: 12px; line-height: 1.5; text-align: center; margin: 0 0 8px;">
+          ${footerText}
+        </p>
+        <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+          © ${currentYear} ${brandName}. All rights reserved.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
+// Generate branded invite email HTML for existing users
+function generateInviteEmailHtml(
+  recipientEmail: string,
+  organizationName: string,
+  inviterName: string | undefined,
+  appUrl: string,
+  branding: BrandingData | null
+): string {
+  const brandName = branding?.app_name || 'PrintoSaas';
+  const primaryColor = branding?.primary_color || '#6366f1';
+  const gradientEnd = adjustColor(primaryColor, 20);
+  const footerText = branding?.footer_text || `This email was sent by ${brandName}. If you weren't expecting this invitation, you can safely ignore this email.`;
+  const currentYear = new Date().getFullYear();
+  
+  // Logo section
+  const logoHtml = branding?.logo_url 
+    ? `<img src="${branding.logo_url}" width="180" height="50" alt="${brandName}" style="margin: 0 auto; display: block; object-fit: contain;" />`
+    : `<h1 style="color: #ffffff; font-size: 32px; font-weight: 700; margin: 0; text-align: center;">${brandName}</h1>`;
+
+  const inviterText = inviterName 
+    ? `<strong>${inviterName}</strong> has granted you access to <strong>${organizationName}</strong>.`
+    : `You have been granted access to <strong>${organizationName}</strong>.`;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Access Granted - ${organizationName}</title>
+</head>
+<body style="margin: 0; padding: 20px; background-color: #f6f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);">
+    <!-- Header with Logo -->
+    <tr>
+      <td style="background: linear-gradient(135deg, ${primaryColor} 0%, ${gradientEnd} 100%); padding: 40px 20px; text-align: center;">
+        ${logoHtml}
+      </td>
+    </tr>
+    
+    <!-- Main Content -->
+    <tr>
+      <td style="padding: 40px 40px 32px;">
+        <h1 style="color: #1a1a2e; font-size: 24px; font-weight: 700; line-height: 1.3; margin: 0 0 24px; text-align: center;">
+          Organization Access Granted
+        </h1>
+        
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
+          Hello,
+        </p>
+        
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
+          ${inviterText}
+        </p>
+        
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
+          You can now log in using your existing credentials to access the organization dashboard.
+        </p>
+
+        <!-- Access Info Box -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; margin: 24px 0;">
+          <tr>
+            <td style="padding: 24px;">
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px;">Organization</p>
+              <p style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0;">${organizationName}</p>
+              
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 4px;">Your Email</p>
+              <p style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0;">${recipientEmail}</p>
+              
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 4px;">Dashboard URL</p>
+              <a href="${appUrl}" style="color: ${primaryColor}; font-size: 16px; font-weight: 500; text-decoration: none;">${appUrl}</a>
+            </td>
+          </tr>
+        </table>
+
+        <!-- CTA Button -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0;">
+          <tr>
+            <td style="text-align: center;">
+              <a href="${appUrl}" style="display: inline-block; background-color: ${primaryColor}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
+                Access Your Dashboard
+              </a>
+            </td>
+          </tr>
+        </table>
+
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.5; text-align: center; margin: 0;">
+          Use your existing login credentials to access the dashboard. If you have any questions, please contact the organization administrator.
+        </p>
+      </td>
+    </tr>
+
+    <!-- Divider -->
+    <tr>
+      <td style="border-top: 1px solid #e5e7eb;"></td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="padding: 24px 40px; background-color: #f9fafb;">
+        <p style="color: #6b7280; font-size: 12px; line-height: 1.5; text-align: center; margin: 0 0 8px;">
+          ${footerText}
+        </p>
+        <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+          © ${currentYear} ${brandName}. All rights reserved.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
+// Fetch organization branding or return null for default PrintoSaas branding
+async function getOrganizationBranding(
+  supabase: any,
+  orgId: string
+): Promise<BrandingData | null> {
+  try {
+    // Check if white-label is enabled
+    const { data: whiteLabelSettings } = await supabase
+      .from('organization_whitelabel_settings')
+      .select('whitelabel_enabled')
+      .eq('organization_id', orgId)
+      .maybeSingle();
+
+    if (!whiteLabelSettings?.whitelabel_enabled) {
+      return null; // Use default PrintoSaas branding
+    }
+
+    // Fetch branding data
+    const { data: branding } = await supabase
+      .from('organization_branding')
+      .select('logo_url, app_name, primary_color, footer_text')
+      .eq('organization_id', orgId)
+      .maybeSingle();
+
+    return branding || null;
+  } catch (error) {
+    console.error('Error fetching branding:', error);
+    return null;
+  }
+}
+
 async function sendCredentialEmail(
   resend: Resend,
   email: string,
   organizationName: string,
   isNewUser: boolean,
   tempPassword: string | null,
-  appUrl: string
+  appUrl: string,
+  inviterName: string | undefined,
+  branding: BrandingData | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const subject = isNewUser 
-      ? `Welcome to PrintoSaas - Your ${organizationName} Account is Ready`
-      : `You've been added to ${organizationName} on PrintoSaas`;
+    const brandName = branding?.app_name || 'PrintoSaas';
+    let htmlContent: string;
+    let subject: string;
 
-    const htmlContent = isNewUser
-      ? `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to PrintoSaas</h1>
-          </div>
-          <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
-            <p style="font-size: 16px; margin-bottom: 20px;">Hello,</p>
-            <p style="font-size: 16px; margin-bottom: 20px;">Your organization <strong>${organizationName}</strong> has been created on PrintoSaas. Below are your login credentials:</p>
-            
-            <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>Login URL:</strong> <a href="${appUrl}" style="color: #6366f1;">${appUrl}</a></p>
-              <p style="margin: 5px 0;"><strong>Email:</strong> ${email}</p>
-              <p style="margin: 5px 0;"><strong>Temporary Password:</strong> <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${tempPassword}</code></p>
-            </div>
-            
-            <div style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 20px 0;">
-              <p style="margin: 0; color: #92400e;"><strong>Important:</strong> Please change your password after your first login for security purposes.</p>
-            </div>
-            
-            <div style="text-align: center; margin-top: 30px;">
-              <a href="${appUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Login to PrintoSaas</a>
-            </div>
-            
-            <p style="margin-top: 30px; font-size: 14px; color: #6b7280;">If you have any questions, please contact our support team.</p>
-          </div>
-          <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} PrintoSaas. All rights reserved.</p>
-        </body>
-        </html>
-      `
-      : `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Organization Access Granted</h1>
-          </div>
-          <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
-            <p style="font-size: 16px; margin-bottom: 20px;">Hello,</p>
-            <p style="font-size: 16px; margin-bottom: 20px;">You have been granted access to <strong>${organizationName}</strong> on PrintoSaas.</p>
-            
-            <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>Login URL:</strong> <a href="${appUrl}" style="color: #6366f1;">${appUrl}</a></p>
-              <p style="margin: 5px 0;">Use your existing PrintoSaas credentials to log in.</p>
-            </div>
-            
-            <div style="text-align: center; margin-top: 30px;">
-              <a href="${appUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Login to PrintoSaas</a>
-            </div>
-            
-            <p style="margin-top: 30px; font-size: 14px; color: #6b7280;">If you have any questions, please contact our support team.</p>
-          </div>
-          <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} PrintoSaas. All rights reserved.</p>
-        </body>
-        </html>
-      `;
+    if (isNewUser && tempPassword) {
+      subject = `Welcome to ${brandName} - Your ${organizationName} Account is Ready`;
+      htmlContent = generateCredentialEmailHtml(
+        email,
+        organizationName,
+        tempPassword,
+        appUrl,
+        branding
+      );
+    } else {
+      subject = `You've been added to ${organizationName} on ${brandName}`;
+      htmlContent = generateInviteEmailHtml(
+        email,
+        organizationName,
+        inviterName,
+        appUrl,
+        branding
+      );
+    }
 
     const { error } = await resend.emails.send({
-      from: 'PrintoSaas <onboarding@resend.dev>',
+      from: `${brandName} <onboarding@resend.dev>`,
       to: [email],
       subject,
       html: htmlContent,
@@ -214,7 +452,6 @@ Deno.serve(async (req) => {
       plan, 
       status, 
       trialDays,
-      // Explicitly log that we're using the selected plan/status
       selectedPlan: plan,
       selectedStatus: status
     });
@@ -252,7 +489,7 @@ Deno.serve(async (req) => {
       const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
         email: ownerEmail,
         password: tempPassword,
-        email_confirm: true, // Confirm email so they can log in immediately
+        email_confirm: true,
         user_metadata: {
           full_name: organizationName + ' Owner',
           invited_by: adminEmail || user.email,
@@ -318,10 +555,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // CRITICAL: Use the SELECTED status and plan - don't default to trial
-    // Only set trial_ends_at if status is explicitly 'trial'
-    const subscriptionStatus = status; // Use the selected status directly
-    const subscriptionPlan = plan; // Use the selected plan directly
+    // Use the SELECTED status and plan - don't default to trial
+    const subscriptionStatus = status;
+    const subscriptionPlan = plan;
     const trialEndsAt = subscriptionStatus === 'trial' 
       ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString()
       : null;
@@ -365,11 +601,13 @@ Deno.serve(async (req) => {
       status: subscription.status 
     });
 
-    // Send credential email
+    // Fetch organization branding for email
+    const branding = await getOrganizationBranding(supabaseAdmin, newOrg.id);
+    console.log('Branding for email:', branding ? 'Custom branding' : 'Default PrintoSaas branding');
+
+    // Send credential email with branded template
     let emailSent = false;
     let emailError: string | null = null;
-    const appUrl = supabaseUrl.replace('.supabase.co', '.lovable.app').replace('https://nauwhubjoxeihxhmegjh', 'https://printosaas');
-    // Fallback to a reasonable default
     const finalAppUrl = 'https://printosaas.lovable.app';
 
     if (resend) {
@@ -379,7 +617,9 @@ Deno.serve(async (req) => {
         organizationName,
         ownerCreated,
         tempPassword,
-        finalAppUrl
+        finalAppUrl,
+        adminEmail || user.email,
+        branding
       );
       emailSent = emailResult.success;
       emailError = emailResult.error || null;
@@ -412,8 +652,9 @@ Deno.serve(async (req) => {
         owner_created: ownerCreated,
         email_sent: emailSent,
         email_error: emailError,
-        previous_plan: null, // New organization, no previous plan
+        previous_plan: null,
         new_plan: subscriptionPlan,
+        branding_used: branding ? 'custom' : 'default',
       },
     });
 
@@ -445,10 +686,12 @@ Deno.serve(async (req) => {
       p_actor_role: 'super_admin',
       p_actor_type: 'system',
       p_action_type: emailSent ? 'access' : 'update',
-      p_action_label: emailSent ? 'Credential email sent successfully' : 'Credential email failed',
+      p_action_label: emailSent 
+        ? `${ownerCreated ? 'Credential' : 'Invite'} email sent successfully` 
+        : `${ownerCreated ? 'Credential' : 'Invite'} email failed`,
       p_entity_type: 'notification',
       p_entity_id: newOrg.id,
-      p_entity_name: 'Credential email',
+      p_entity_name: ownerCreated ? 'Credential email' : 'Invite email',
       p_organization_id: newOrg.id,
       p_organization_name: organizationName,
       p_source: 'system',
@@ -457,6 +700,8 @@ Deno.serve(async (req) => {
         email_type: ownerCreated ? 'new_user_credentials' : 'existing_user_access',
         success: emailSent,
         error: emailError,
+        template_used: ownerCreated ? 'credential-email' : 'invite-email',
+        branding_used: branding ? 'custom' : 'default',
       },
     });
 
@@ -484,6 +729,8 @@ Deno.serve(async (req) => {
         email: {
           sent: emailSent,
           error: emailError,
+          type: ownerCreated ? 'credential' : 'invite',
+          branding: branding ? 'custom' : 'default',
         },
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
