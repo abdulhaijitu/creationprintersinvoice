@@ -30,6 +30,7 @@ import { EditOrganizationDialog } from '@/components/admin/EditOrganizationDialo
 import { DeleteOrganizationDialog } from '@/components/admin/DeleteOrganizationDialog';
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { AdminGlobalSearch } from '@/components/admin/AdminGlobalSearch';
+import { OrgRolePermissionsManager } from '@/components/admin/OrgRolePermissionsManager';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -70,6 +71,10 @@ const sectionConfig: Record<string, { title: string; description: string }> = {
   users: {
     title: 'Users',
     description: 'Manage users and their organization assignments',
+  },
+  'role-permissions': {
+    title: 'Role Permissions',
+    description: 'Manage permission matrix for organization roles',
   },
   analytics: {
     title: 'Analytics',
@@ -755,6 +760,9 @@ const PlatformAdmin = () => {
 
       case 'users':
         return <AdminUsersTable />;
+
+      case 'role-permissions':
+        return <OrgRolePermissionsManager />;
 
       case 'analytics':
         return <AdminAnalyticsDashboard />;

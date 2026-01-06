@@ -42,10 +42,13 @@ interface NavItem {
   icon: React.ElementType;
 }
 
+import { Shield } from 'lucide-react';
+
 const allNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'organizations', label: 'Organizations', icon: Building2 },
   { id: 'users', label: 'Users', icon: Users },
+  { id: 'role-permissions', label: 'Role Permissions', icon: Shield },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'billing', label: 'Billing', icon: CreditCard },
   { id: 'whitelabel', label: 'White-Label', icon: Palette },
