@@ -24,6 +24,7 @@ import {
   Briefcase,
   Bell,
   FileBarChart,
+  Palette,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -312,6 +313,7 @@ export function AppSidebar() {
     { title: 'Team Members', url: '/team-members', icon: Users },
     { title: 'Usage & Limits', url: '/usage', icon: BarChart3 },
     ...(orgRole === 'owner' ? [{ title: 'Notifications', url: '/notification-settings', icon: Bell }] : []),
+    ...(orgRole === 'owner' ? [{ title: 'White-Label', url: '/white-label', icon: Palette }] : []),
     ...(orgRole === 'owner' ? [{ title: 'Billing', url: '/billing', icon: CreditCard }] : []),
     ...(isSuperAdmin ? [{ title: 'Platform Admin', url: '/admin', icon: Building2 }] : []),
   ];

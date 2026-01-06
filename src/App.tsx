@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
+import { BrandingProvider } from "@/contexts/BrandingContext";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -42,6 +43,7 @@ import Pricing from "./pages/Pricing";
 import Billing from "./pages/Billing";
 import Usage from "./pages/Usage";
 import NotificationSettings from "./pages/NotificationSettings";
+import WhiteLabelSettings from "./pages/WhiteLabelSettings";
 
 const queryClient = new QueryClient();
 
@@ -49,7 +51,8 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <OrganizationProvider>
-        <TooltipProvider>
+        <BrandingProvider>
+          <TooltipProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -94,12 +97,14 @@ const App = () => (
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/usage" element={<Usage />} />
                 <Route path="/notification-settings" element={<NotificationSettings />} />
+                <Route path="/white-label" element={<WhiteLabelSettings />} />
               </Route>
               
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
+        </BrandingProvider>
       </OrganizationProvider>
     </AuthProvider>
   </QueryClientProvider>
