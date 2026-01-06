@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +23,7 @@ import { InvestorDashboard } from '@/components/admin/InvestorDashboard';
 import { AdminSidebar, SIDEBAR_STORAGE_KEY_EXPORT } from '@/components/admin/AdminSidebar';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { AdminDashboardOverview } from '@/components/admin/AdminDashboardOverview';
+import { AdminCommandPalette } from '@/components/admin/AdminCommandPalette';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
@@ -83,6 +84,7 @@ const PlatformAdmin = () => {
     const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY_EXPORT);
     return saved ? JSON.parse(saved) : false;
   });
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [organizations, setOrganizations] = useState<OrganizationWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -98,6 +100,23 @@ const PlatformAdmin = () => {
   }>({ open: false, title: '', description: '', action: () => {}, variant: 'default' });
   
   const { logAction } = useAdminAudit();
+
+  // Keyboard shortcut for command palette
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(true);
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleCommandNavigate = useCallback((page: string) => {
+    setActiveSection(page);
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !isSuperAdmin) {
@@ -490,6 +509,7 @@ const PlatformAdmin = () => {
           onSignOut={handleSignOut}
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
+          onCommandPaletteOpen={() => setCommandPaletteOpen(true)}
         />
 
         {/* Main Content */}
@@ -518,6 +538,14 @@ const PlatformAdmin = () => {
             </div>
           </div>
         </main>
+
+        {/* Command Palette */}
+        <AdminCommandPalette
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+          onNavigate={handleCommandNavigate}
+          currentPage={activeSection}
+        />
 
         {/* Organization Details Drawer */}
         <OrganizationDetailsDrawer

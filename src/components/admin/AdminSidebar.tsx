@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
@@ -13,6 +12,7 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeft,
+  Command,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -49,6 +49,7 @@ interface AdminSidebarProps {
   onSignOut: () => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
+  onCommandPaletteOpen: () => void;
 }
 
 export const AdminSidebar = ({
@@ -57,6 +58,7 @@ export const AdminSidebar = ({
   onSignOut,
   collapsed,
   onCollapsedChange,
+  onCommandPaletteOpen,
 }: AdminSidebarProps) => {
   const { user } = useAuth();
 
@@ -119,13 +121,51 @@ export const AdminSidebar = ({
         )}
       </div>
 
-      {/* Toggle Button */}
+      {/* Command Palette & Toggle */}
       <div
         className={cn(
           'flex border-b border-sidebar-border py-2 transition-all duration-300',
-          collapsed ? 'justify-center px-2' : 'px-3'
+          collapsed ? 'flex-col gap-1 px-2' : 'gap-2 px-3'
         )}
       >
+        {/* Command Palette Trigger */}
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onCommandPaletteOpen}
+              onKeyDown={(e) => handleKeyDown(e, onCommandPaletteOpen)}
+              className={cn(
+                'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-200',
+                collapsed ? 'h-9 w-full p-0 justify-center' : 'flex-1 justify-start gap-2'
+              )}
+              aria-label="Open command palette"
+            >
+              <Command className="h-4 w-4" />
+              {!collapsed && (
+                <>
+                  <span className="text-xs flex-1 text-left">Search...</span>
+                  <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+                    <span className="text-xs">⌘</span>K
+                  </kbd>
+                </>
+              )}
+            </Button>
+          </TooltipTrigger>
+          {collapsed && (
+            <TooltipContent side="right" sideOffset={10}>
+              <span className="flex items-center gap-2">
+                Search
+                <kbd className="pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium inline-flex">
+                  <span className="text-xs">⌘</span>K
+                </kbd>
+              </span>
+            </TooltipContent>
+          )}
+        </Tooltip>
+
+        {/* Toggle Button */}
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <Button
@@ -135,7 +175,7 @@ export const AdminSidebar = ({
               onKeyDown={(e) => handleKeyDown(e, handleToggle)}
               className={cn(
                 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-200',
-                collapsed ? 'h-9 w-9 p-0' : 'w-full justify-start gap-2'
+                collapsed ? 'h-9 w-full p-0 justify-center' : 'h-9 w-9 p-0'
               )}
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               aria-expanded={!collapsed}
@@ -143,18 +183,13 @@ export const AdminSidebar = ({
               {collapsed ? (
                 <PanelLeft className="h-4 w-4" />
               ) : (
-                <>
-                  <PanelLeftClose className="h-4 w-4" />
-                  <span className="text-xs">Collapse</span>
-                </>
+                <PanelLeftClose className="h-4 w-4" />
               )}
             </Button>
           </TooltipTrigger>
-          {collapsed && (
-            <TooltipContent side="right" sideOffset={10}>
-              Expand sidebar
-            </TooltipContent>
-          )}
+          <TooltipContent side="right" sideOffset={10}>
+            {collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          </TooltipContent>
         </Tooltip>
       </div>
 
