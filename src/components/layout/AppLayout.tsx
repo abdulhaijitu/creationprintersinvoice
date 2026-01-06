@@ -26,6 +26,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { TrialBanner } from '@/components/subscription/TrialBanner';
 import { UsageLimitBanner } from '@/components/usage/UsageLimitBanner';
+import AppFooter from './AppFooter';
 import WelcomeScreen from '@/components/welcome/WelcomeScreen';
 
 // Component to handle closing sidebar on route change
@@ -127,6 +128,9 @@ const AppLayout = () => {
                 <Outlet />
               </div>
             </main>
+
+            {/* Footer */}
+            <AppFooter />
 
             {/* Mobile Bottom Navigation */}
             <MobileBottomNav />
