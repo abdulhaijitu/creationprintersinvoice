@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_logs: {
+        Row: {
+          action: string
+          admin_user_id: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+        }
+        Insert: {
+          action: string
+          admin_user_id: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+        }
+        Relationships: []
+      }
       attendance: {
         Row: {
           check_in: string | null
@@ -1095,6 +1128,7 @@ export type Database = {
           logo_url: string | null
           mobile_banking: string | null
           name: string
+          owner_email: string | null
           owner_id: string | null
           phone: string | null
           quotation_prefix: string | null
@@ -1120,6 +1154,7 @@ export type Database = {
           logo_url?: string | null
           mobile_banking?: string | null
           name: string
+          owner_email?: string | null
           owner_id?: string | null
           phone?: string | null
           quotation_prefix?: string | null
@@ -1145,6 +1180,7 @@ export type Database = {
           logo_url?: string | null
           mobile_banking?: string | null
           name?: string
+          owner_email?: string | null
           owner_id?: string | null
           phone?: string | null
           quotation_prefix?: string | null
@@ -1977,6 +2013,14 @@ export type Database = {
       generate_challan_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
+      get_org_usage_stats: {
+        Args: { _org_id: string }
+        Returns: {
+          expense_total: number
+          invoice_count: number
+          last_activity: string
+        }[]
+      }
       get_user_org_role: {
         Args: { _org_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["org_role"]
