@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.change-organization-plan]
 verify_jwt = false
+
+[functions.create-organization]
+verify_jwt = false

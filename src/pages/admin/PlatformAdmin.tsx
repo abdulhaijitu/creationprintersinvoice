@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Building2, Search, Calendar, RotateCcw, Eye, Ban, CheckCircle } from 'lucide-react';
+import { Building2, Search, Calendar, RotateCcw, Eye, Ban, CheckCircle, Plus } from 'lucide-react';
 import { format, addDays, startOfMonth } from 'date-fns';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -24,6 +24,7 @@ import { AdminSidebar, SIDEBAR_STORAGE_KEY_EXPORT } from '@/components/admin/Adm
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { AdminDashboardOverview } from '@/components/admin/AdminDashboardOverview';
 import { AdminCommandPalette } from '@/components/admin/AdminCommandPalette';
+import { CreateOrganizationDialog } from '@/components/admin/CreateOrganizationDialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { 
@@ -94,6 +95,7 @@ const PlatformAdmin = () => {
     return saved ? JSON.parse(saved) : false;
   });
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [createOrgDialogOpen, setCreateOrgDialogOpen] = useState(false);
   const [organizations, setOrganizations] = useState<OrganizationWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -138,6 +140,10 @@ const PlatformAdmin = () => {
       setActiveSection(page);
     }
   }, [adminRole]);
+
+  const handleCreateOrganization = useCallback(() => {
+    setCreateOrgDialogOpen(true);
+  }, []);
 
   // Redirect if user doesn't have admin access or tries to access unauthorized section
   useEffect(() => {
@@ -390,19 +396,27 @@ const PlatformAdmin = () => {
                     className="pl-10"
                   />
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="trial">Trial</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                    <SelectItem value="expired">Expired</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  {role === 'super_admin' && (
+                    <Button onClick={() => setCreateOrgDialogOpen(true)} size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Organization
+                    </Button>
+                  )}
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="trial">Trial</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -612,7 +626,16 @@ const PlatformAdmin = () => {
           open={commandPaletteOpen}
           onOpenChange={setCommandPaletteOpen}
           onNavigate={handleCommandNavigate}
+          onCreateOrganization={handleCreateOrganization}
           currentPage={activeSection}
+        />
+
+        {/* Create Organization Dialog */}
+        <CreateOrganizationDialog
+          open={createOrgDialogOpen}
+          onOpenChange={setCreateOrgDialogOpen}
+          onSuccess={fetchOrganizations}
+          adminEmail={user?.email}
         />
 
         {/* Organization Details Drawer */}
