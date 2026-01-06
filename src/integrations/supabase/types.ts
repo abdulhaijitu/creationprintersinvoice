@@ -2125,6 +2125,7 @@ export type Database = {
           created_at: string
           department: string | null
           designation: string | null
+          first_login_completed: boolean | null
           full_name: string
           id: string
           joining_date: string | null
@@ -2139,6 +2140,7 @@ export type Database = {
           created_at?: string
           department?: string | null
           designation?: string | null
+          first_login_completed?: boolean | null
           full_name: string
           id: string
           joining_date?: string | null
@@ -2153,6 +2155,7 @@ export type Database = {
           created_at?: string
           department?: string | null
           designation?: string | null
+          first_login_completed?: boolean | null
           full_name?: string
           id?: string
           joining_date?: string | null
