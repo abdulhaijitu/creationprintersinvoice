@@ -696,6 +696,75 @@ export type Database = {
           },
         ]
       }
+      enhanced_audit_logs: {
+        Row: {
+          action_label: string
+          action_type: Database["public"]["Enums"]["audit_action_type"]
+          actor_email: string | null
+          actor_id: string | null
+          actor_role: string | null
+          actor_type: string
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          entity_id: string | null
+          entity_name: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          organization_id: string | null
+          organization_name: string | null
+          source: Database["public"]["Enums"]["audit_source"]
+          timestamp: string
+          user_agent: string | null
+        }
+        Insert: {
+          action_label: string
+          action_type: Database["public"]["Enums"]["audit_action_type"]
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          actor_type?: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id?: string | null
+          organization_name?: string | null
+          source?: Database["public"]["Enums"]["audit_source"]
+          timestamp?: string
+          user_agent?: string | null
+        }
+        Update: {
+          action_label?: string
+          action_type?: Database["public"]["Enums"]["audit_action_type"]
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          actor_type?: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id?: string | null
+          organization_name?: string | null
+          source?: Database["public"]["Enums"]["audit_source"]
+          timestamp?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       expense_categories: {
         Row: {
           created_at: string
@@ -2937,6 +3006,28 @@ export type Database = {
         }
         Returns: boolean
       }
+      insert_audit_log: {
+        Args: {
+          p_action_label?: string
+          p_action_type?: string
+          p_actor_email?: string
+          p_actor_id?: string
+          p_actor_role?: string
+          p_actor_type?: string
+          p_after_state?: Json
+          p_before_state?: Json
+          p_entity_id?: string
+          p_entity_name?: string
+          p_entity_type?: string
+          p_ip_address?: string
+          p_metadata?: Json
+          p_organization_id?: string
+          p_organization_name?: string
+          p_source?: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
       is_admin_or_manager: { Args: { _user_id: string }; Returns: boolean }
       is_org_admin: {
         Args: { _org_id: string; _user_id: string }
@@ -2992,6 +3083,20 @@ export type Database = {
         | "accounts"
         | "sales_staff"
       attendance_status: "present" | "absent" | "late" | "half_day"
+      audit_action_type:
+        | "login"
+        | "logout"
+        | "login_failed"
+        | "create"
+        | "update"
+        | "delete"
+        | "access"
+        | "suspend"
+        | "activate"
+        | "configure"
+        | "export"
+        | "import"
+      audit_source: "ui" | "api" | "system" | "edge_function" | "webhook"
       invoice_status: "unpaid" | "partial" | "paid"
       leave_status: "pending" | "approved" | "rejected"
       leave_type: "casual" | "sick" | "annual" | "other"
@@ -3178,6 +3283,21 @@ export const Constants = {
         "sales_staff",
       ],
       attendance_status: ["present", "absent", "late", "half_day"],
+      audit_action_type: [
+        "login",
+        "logout",
+        "login_failed",
+        "create",
+        "update",
+        "delete",
+        "access",
+        "suspend",
+        "activate",
+        "configure",
+        "export",
+        "import",
+      ],
+      audit_source: ["ui", "api", "system", "edge_function", "webhook"],
       invoice_status: ["unpaid", "partial", "paid"],
       leave_status: ["pending", "approved", "rejected"],
       leave_type: ["casual", "sick", "annual", "other"],
