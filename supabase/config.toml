@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.audit-log]
 verify_jwt = false
+
+[functions.change-organization-plan]
+verify_jwt = false
