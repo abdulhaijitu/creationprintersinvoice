@@ -168,7 +168,7 @@ const PlatformAdmin = () => {
         .from('organizations')
         .select(`
           *,
-          subscriptions (plan, status, trial_ends_at)
+          subscription:subscriptions (plan, status, trial_ends_at)
         `)
         .order('created_at', { ascending: false });
 
@@ -193,7 +193,6 @@ const PlatformAdmin = () => {
 
           return {
             ...org,
-            subscription: org.subscriptions?.[0],
             member_count: count || 0,
             owner_name: ownerName,
           };
@@ -415,7 +414,7 @@ const PlatformAdmin = () => {
       .from('organizations')
       .select(`
         *,
-        subscriptions (plan, status, trial_ends_at)
+        subscription:subscriptions (plan, status, trial_ends_at)
       `)
       .order('created_at', { ascending: false });
 
@@ -443,7 +442,6 @@ const PlatformAdmin = () => {
 
         return {
           ...org,
-          subscription: org.subscriptions?.[0],
           member_count: count || 0,
           owner_name: ownerName,
         };
