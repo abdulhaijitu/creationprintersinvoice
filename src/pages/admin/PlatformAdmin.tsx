@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,11 @@ import { AdminAnalyticsDashboard } from '@/components/admin/AdminAnalyticsDashbo
 import { AdminNotificationLogs } from '@/components/admin/AdminNotificationLogs';
 import { AdminWhiteLabelManagement } from '@/components/admin/AdminWhiteLabelManagement';
 import { InvestorDashboard } from '@/components/admin/InvestorDashboard';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminSidebar, SIDEBAR_STORAGE_KEY_EXPORT } from '@/components/admin/AdminSidebar';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { AdminDashboardOverview } from '@/components/admin/AdminDashboardOverview';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 interface OrganizationWithStats {
   id: string;
@@ -79,6 +79,10 @@ const PlatformAdmin = () => {
   const { isSuperAdmin, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY_EXPORT);
+    return saved ? JSON.parse(saved) : false;
+  });
   const [organizations, setOrganizations] = useState<OrganizationWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -484,10 +488,17 @@ const PlatformAdmin = () => {
           activeSection={activeSection}
           onSectionChange={setActiveSection}
           onSignOut={handleSignOut}
+          collapsed={sidebarCollapsed}
+          onCollapsedChange={setSidebarCollapsed}
         />
 
         {/* Main Content */}
-        <main className="pl-64">
+        <main
+          className={cn(
+            'transition-all duration-300 ease-out',
+            sidebarCollapsed ? 'pl-16' : 'pl-64'
+          )}
+        >
           <div className="min-h-screen">
             {/* Page Header */}
             <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
