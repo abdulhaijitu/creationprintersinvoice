@@ -44,6 +44,7 @@ import Billing from "./pages/Billing";
 import Usage from "./pages/Usage";
 import NotificationSettings from "./pages/NotificationSettings";
 import WhiteLabelSettings from "./pages/WhiteLabelSettings";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/admin" element={<PlatformAdmin />} />
               <Route path="/admin/login" element={<SuperAdminLogin />} />
               <Route path="/pricing" element={<Pricing />} />

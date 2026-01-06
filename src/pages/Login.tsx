@@ -27,6 +27,7 @@ const Login = () => {
         });
       } else {
         toast.success('Successfully logged in');
+        // Navigation will be handled by AppLayout which checks for must_reset_password
         navigate('/');
       }
     } catch (error) {
