@@ -3,6 +3,7 @@ import { Download, X, Share, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { cn } from '@/lib/utils';
+import logoIcon from '@/assets/logo-icon.jpg';
 
 export const InstallPrompt = () => {
   const { canInstall, isInstalled, isIOS, promptInstall } = usePWAInstall();
@@ -45,11 +46,11 @@ export const InstallPrompt = () => {
         <div className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 animate-slide-up">
           <div className="bg-card border rounded-xl shadow-xl p-4">
             <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Download className="h-5 w-5 text-primary" />
+              <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                <img src={logoIcon} alt="PrintoSaas" className="h-8 w-8 object-contain" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-sm">Install App</h3>
+                <h3 className="font-semibold text-sm">Install PrintoSaas</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Add to your home screen for the best experience
                 </p>
@@ -148,11 +149,11 @@ export const InstallPrompt = () => {
     <div className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 animate-slide-up">
       <div className="bg-card border rounded-xl shadow-xl p-4">
         <div className="flex items-start gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <Download className="h-5 w-5 text-primary" />
+          <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <img src={logoIcon} alt="PrintoSaas" className="h-8 w-8 object-contain" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm">Install App</h3>
+            <h3 className="font-semibold text-sm">Install PrintoSaas</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Install for quick access and offline use
             </p>

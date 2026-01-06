@@ -15,17 +15,18 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.jpg", "logo.png"],
+      includeAssets: ["favicon.jpg", "apple-touch-icon.png"],
       manifest: {
-        name: "Creation Printers Management",
-        short_name: "Creation ERP",
-        description: "Complete business management application for printing press",
+        name: "PrintoSaas - Printing Business Software",
+        short_name: "PrintoSaas",
+        description: "Complete business management platform for printing press and service businesses",
         theme_color: "#0f172a",
         background_color: "#0f172a",
         display: "standalone",
         orientation: "portrait",
         scope: "/",
         start_url: "/",
+        categories: ["business", "productivity"],
         icons: [
           {
             src: "/pwa-192x192.png",
@@ -38,10 +39,37 @@ export default defineConfig(({ mode }) => ({
             type: "image/png",
           },
           {
-            src: "/pwa-512x512.png",
+            src: "/pwa-maskable-512x512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
+          },
+          {
+            src: "/apple-touch-icon.png",
+            sizes: "180x180",
+            type: "image/png",
+            purpose: "apple touch icon",
+          },
+        ],
+        screenshots: [],
+        shortcuts: [
+          {
+            name: "Dashboard",
+            short_name: "Dashboard",
+            url: "/",
+            icons: [{ src: "/pwa-192x192.png", sizes: "192x192" }],
+          },
+          {
+            name: "Invoices",
+            short_name: "Invoices",
+            url: "/invoices",
+            icons: [{ src: "/pwa-192x192.png", sizes: "192x192" }],
+          },
+          {
+            name: "Customers",
+            short_name: "Customers",
+            url: "/customers",
+            icons: [{ src: "/pwa-192x192.png", sizes: "192x192" }],
           },
         ],
       },
@@ -70,6 +98,21 @@ export default defineConfig(({ mode }) => ({
               expiration: {
                 maxEntries: 10,
                 maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "supabase-cache",
+              networkTimeoutSeconds: 10,
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 5, // 5 minutes
               },
               cacheableResponse: {
                 statuses: [0, 200],
