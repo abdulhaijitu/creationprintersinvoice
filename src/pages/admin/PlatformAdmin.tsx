@@ -18,6 +18,7 @@ import AdminDashboardWidgets from '@/components/admin/AdminDashboardWidgets';
 import OrganizationDetailsDrawer from '@/components/admin/OrganizationDetailsDrawer';
 import AuditLogsTable from '@/components/admin/AuditLogsTable';
 import AdminBillingTable from '@/components/admin/AdminBillingTable';
+import { AdminAnalyticsDashboard } from '@/components/admin/AdminAnalyticsDashboard';
 
 interface OrganizationWithStats {
   id: string;
@@ -297,6 +298,7 @@ const PlatformAdmin = () => {
         <Tabs defaultValue="organizations" className="space-y-4">
           <TabsList>
             <TabsTrigger value="organizations">Organizations</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="audit">Audit Logs</TabsTrigger>
           </TabsList>
@@ -464,6 +466,10 @@ const PlatformAdmin = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <AdminAnalyticsDashboard />
           </TabsContent>
 
           <TabsContent value="audit">

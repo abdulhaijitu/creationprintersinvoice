@@ -309,6 +309,7 @@ export function AppSidebar() {
     ...(hasPermission(role, 'user_roles', 'view') ? [{ title: 'Role Management', url: '/user-roles', icon: UserCog }] : []),
     ...(hasPermission(role, 'settings', 'view') ? [{ title: 'Organization Settings', url: '/settings', icon: Settings }] : []),
     { title: 'Team Members', url: '/team-members', icon: Users },
+    { title: 'Usage & Limits', url: '/usage', icon: BarChart3 },
     ...(orgRole === 'owner' ? [{ title: 'Billing', url: '/billing', icon: CreditCard }] : []),
     ...(isSuperAdmin ? [{ title: 'Platform Admin', url: '/admin', icon: Building2 }] : []),
   ];
