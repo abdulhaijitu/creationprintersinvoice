@@ -35,23 +35,23 @@ export interface PlanConfig {
   trialDays: number;
 }
 
-// Plan features matrix
+// Plan features matrix - Updated with exact limits per requirement
 export const planConfigs: Record<SubscriptionPlan, PlanConfig> = {
   free: {
     name: 'free',
     displayName: 'Free Trial',
     features: [
       'multi_user',
-      'team_management',
       'notifications',
       'delivery_challans',
       'export_data',
+      'reports', // basic reports only
     ],
     limits: {
-      maxTeamMembers: 3,
-      maxCustomers: 50,
-      maxInvoicesPerMonth: 20,
-      maxQuotationsPerMonth: 20,
+      maxTeamMembers: 1,
+      maxCustomers: -1, // unlimited for trial
+      maxInvoicesPerMonth: -1, // unlimited for trial
+      maxQuotationsPerMonth: -1, // unlimited for trial
       storageGB: 1,
     },
     trialDays: 7,
@@ -66,11 +66,13 @@ export const planConfigs: Record<SubscriptionPlan, PlanConfig> = {
       'delivery_challans',
       'export_data',
       'reports',
+      'custom_branding',
+      'priority_support',
     ],
     limits: {
-      maxTeamMembers: 5,
-      maxCustomers: 200,
-      maxInvoicesPerMonth: 100,
+      maxTeamMembers: 2,
+      maxCustomers: 100,
+      maxInvoicesPerMonth: 500,
       maxQuotationsPerMonth: 100,
       storageGB: 5,
     },
@@ -88,14 +90,16 @@ export const planConfigs: Record<SubscriptionPlan, PlanConfig> = {
       'reports',
       'analytics',
       'audit_logs',
+      'api_access',
       'advanced_invoicing',
       'bulk_operations',
       'priority_support',
+      'custom_branding',
     ],
     limits: {
-      maxTeamMembers: 15,
-      maxCustomers: 1000,
-      maxInvoicesPerMonth: 500,
+      maxTeamMembers: 5,
+      maxCustomers: 200,
+      maxInvoicesPerMonth: 1000,
       maxQuotationsPerMonth: 500,
       storageGB: 25,
     },
@@ -121,11 +125,11 @@ export const planConfigs: Record<SubscriptionPlan, PlanConfig> = {
       'white_label',
     ],
     limits: {
-      maxTeamMembers: 100,
+      maxTeamMembers: -1, // unlimited
       maxCustomers: -1, // unlimited
       maxInvoicesPerMonth: -1, // unlimited
       maxQuotationsPerMonth: -1, // unlimited
-      storageGB: 100,
+      storageGB: -1, // unlimited
     },
     trialDays: 0,
   },

@@ -15,6 +15,7 @@ import {
   Command,
   Users,
   KeyRound,
+  ArrowUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.png';
@@ -49,6 +50,7 @@ const allNavItems: NavItem[] = [
   { id: 'organizations', label: 'Organizations', icon: Building2 },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'role-permissions', label: 'Role Permissions', icon: Shield },
+  { id: 'upgrade-requests', label: 'Upgrade Requests', icon: ArrowUp },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'billing', label: 'Billing', icon: CreditCard },
   { id: 'whitelabel', label: 'White-Label', icon: Palette },
