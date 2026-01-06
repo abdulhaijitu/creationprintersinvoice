@@ -1,8 +1,9 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { PlanFeature, planHasFeature, getPlanLimits, getMinimumPlanForFeature, getPlanDisplayName } from '@/lib/planFeatures';
 import { OrgModule, OrgAction, hasOrgPermission } from '@/lib/orgPermissions';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface FeatureAccessResult {
   hasAccess: boolean;
@@ -17,14 +18,59 @@ export const useFeatureAccess = () => {
   const { 
     subscription, 
     orgRole, 
+    organization,
     isSubscriptionActive, 
     isTrialExpired 
   } = useOrganization();
 
+  const [orgSpecificPerms, setOrgSpecificPerms] = useState<Map<string, boolean>>(new Map());
+  const [useGlobalPerms, setUseGlobalPerms] = useState(true);
+  const [hasCustomPermissions, setHasCustomPermissions] = useState(false);
+
   const currentPlan = subscription?.plan ?? null;
+  const organizationId = organization?.id;
 
   // Super Admin bypasses all checks
   const isSuperAdminUser = isSuperAdmin;
+
+  // Fetch org-specific permission settings
+  useEffect(() => {
+    if (!organizationId || isSuperAdminUser) return;
+
+    const fetchOrgPermissions = async () => {
+      try {
+        // Check if org uses custom permissions
+        const { data: settings } = await supabase
+          .from('org_permission_settings')
+          .select('use_global_permissions')
+          .eq('organization_id', organizationId)
+          .maybeSingle();
+
+        const usesGlobal = settings?.use_global_permissions ?? true;
+        setUseGlobalPerms(usesGlobal);
+        setHasCustomPermissions(!usesGlobal);
+
+        if (!usesGlobal && orgRole) {
+          // Fetch org-specific permissions for the user's role
+          const { data: orgPerms } = await supabase
+            .from('org_specific_permissions')
+            .select('permission_key, is_enabled')
+            .eq('organization_id', organizationId)
+            .eq('role', orgRole);
+
+          const permMap = new Map<string, boolean>();
+          orgPerms?.forEach(p => {
+            permMap.set(p.permission_key, p.is_enabled);
+          });
+          setOrgSpecificPerms(permMap);
+        }
+      } catch (error) {
+        console.error('Error fetching org permissions:', error);
+      }
+    };
+
+    fetchOrgPermissions();
+  }, [organizationId, orgRole, isSuperAdminUser]);
 
   // Check if a plan feature is accessible
   const checkPlanFeature = useCallback((feature: PlanFeature): FeatureAccessResult => {
@@ -72,7 +118,12 @@ export const useFeatureAccess = () => {
     };
   }, [isSuperAdminUser, isSubscriptionActive, isTrialExpired, currentPlan]);
 
-  // Check organization role permission
+  // Convert module/action to permission key
+  const getPermissionKey = useCallback((module: OrgModule, action: OrgAction): string => {
+    return `${module}_${action}`;
+  }, []);
+
+  // Check organization role permission with org-specific override support
   const checkOrgPermission = useCallback((module: OrgModule, action: OrgAction): FeatureAccessResult => {
     // Super Admin has full access
     if (isSuperAdminUser) {
@@ -85,6 +136,31 @@ export const useFeatureAccess = () => {
       };
     }
 
+    // If using org-specific permissions and we have an override
+    if (!useGlobalPerms) {
+      const permKey = getPermissionKey(module, action);
+      if (orgSpecificPerms.has(permKey)) {
+        const hasAccess = orgSpecificPerms.get(permKey) ?? false;
+        if (!hasAccess) {
+          return {
+            hasAccess: false,
+            blockedByPlan: false,
+            blockedByRole: true,
+            requiredPlan: null,
+            message: 'Access restricted by organization permissions.',
+          };
+        }
+        return {
+          hasAccess: true,
+          blockedByPlan: false,
+          blockedByRole: false,
+          requiredPlan: null,
+          message: null,
+        };
+      }
+    }
+
+    // Fallback to global permission check
     const hasPermission = hasOrgPermission(orgRole, module, action);
     if (!hasPermission) {
       return {
@@ -103,7 +179,7 @@ export const useFeatureAccess = () => {
       requiredPlan: null,
       message: null,
     };
-  }, [isSuperAdminUser, orgRole]);
+  }, [isSuperAdminUser, orgRole, useGlobalPerms, orgSpecificPerms, getPermissionKey]);
 
   // Combined check: plan feature + org permission
   const checkAccess = useCallback((
@@ -196,6 +272,7 @@ export const useFeatureAccess = () => {
     orgRole,
     limits,
     isReadOnly,
+    hasCustomPermissions,
     
     // Quick access flags
     canAccessReports,

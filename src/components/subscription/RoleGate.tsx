@@ -2,8 +2,9 @@ import { ReactNode } from 'react';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { OrgModule, OrgAction, getOrgRoleDisplayName } from '@/lib/orgPermissions';
 import { OrgRole } from '@/contexts/OrganizationContext';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface RoleGateProps {
   children: ReactNode;
@@ -35,7 +36,7 @@ export const RoleGate = ({
   className,
   fallback,
 }: RoleGateProps) => {
-  const { checkOrgPermission, orgRole, isSuperAdmin } = useFeatureAccess();
+  const { checkOrgPermission, orgRole, isSuperAdmin, hasCustomPermissions } = useFeatureAccess();
 
   // Super Admin always has access
   if (isSuperAdmin) {
@@ -63,13 +64,21 @@ export const RoleGate = ({
   if (fallback) return <>{fallback}</>;
 
   const requiredRole = minRole ? getOrgRoleDisplayName(minRole) : 'higher';
-  const message = `This requires ${requiredRole} access or above.`;
+  const message = hasCustomPermissions 
+    ? 'Access restricted by organization permissions.'
+    : `This requires ${requiredRole} access or above.`;
 
   if (inline) {
     return (
-      <span className={cn("text-muted-foreground text-sm", className)}>
-        <ShieldAlert className="h-3 w-3 inline mr-1" />
+      <span className={cn("text-muted-foreground text-sm flex items-center gap-1", className)}>
+        <ShieldAlert className="h-3 w-3" />
         {message}
+        {hasCustomPermissions && (
+          <Badge variant="secondary" className="text-[10px] ml-1 gap-0.5 px-1 py-0">
+            <Building2 className="h-2.5 w-2.5" />
+            Custom
+          </Badge>
+        )}
       </span>
     );
   }
@@ -80,7 +89,15 @@ export const RoleGate = ({
       className
     )}>
       <ShieldAlert className="h-4 w-4 shrink-0" />
-      <span>{message}</span>
+      <span className="flex items-center gap-2">
+        {message}
+        {hasCustomPermissions && (
+          <Badge variant="secondary" className="text-[10px] gap-0.5 px-1 py-0">
+            <Building2 className="h-2.5 w-2.5" />
+            Custom
+          </Badge>
+        )}
+      </span>
     </div>
   );
 };

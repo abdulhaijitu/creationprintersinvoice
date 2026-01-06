@@ -1349,6 +1349,38 @@ export type Database = {
           },
         ]
       }
+      org_permission_settings: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          updated_at: string
+          use_global_permissions: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          updated_at?: string
+          use_global_permissions?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          updated_at?: string
+          use_global_permissions?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_permission_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_role_permissions: {
         Row: {
           created_at: string
@@ -1384,6 +1416,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      org_specific_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          organization_id: string
+          permission_key: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          organization_id: string
+          permission_key: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          organization_id?: string
+          permission_key?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_specific_permissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organization_branding: {
         Row: {
