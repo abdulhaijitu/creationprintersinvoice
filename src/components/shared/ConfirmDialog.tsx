@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +15,7 @@ interface ConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description: string;
+  description: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'default' | 'destructive';
