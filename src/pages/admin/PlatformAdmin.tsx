@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
@@ -27,6 +27,7 @@ import { AdminDashboardOverview } from '@/components/admin/AdminDashboardOvervie
 import { AdminCommandPalette } from '@/components/admin/AdminCommandPalette';
 import { CreateOrganizationDialog } from '@/components/admin/CreateOrganizationDialog';
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
+import { AdminGlobalSearch } from '@/components/admin/AdminGlobalSearch';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { 
@@ -106,6 +107,7 @@ const PlatformAdmin = () => {
   const [organizations, setOrganizations] = useState<OrganizationWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedOrg, setSelectedOrg] = useState<OrganizationWithStats | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -121,6 +123,47 @@ const PlatformAdmin = () => {
   
   // Check if current section is read-only for the user's role
   const isCurrentSectionReadOnly = isSectionReadOnly(adminRole, activeSection);
+
+  // Global search results - search organizations by name/owner_email only
+  // (Admin users are fetched via AdminUsersTable and we'll navigate there)
+  const globalSearchResults = useMemo(() => {
+    if (!globalSearchQuery.trim()) return [];
+    
+    const query = globalSearchQuery.toLowerCase();
+    const results: { id: string; type: 'organization' | 'user'; title: string; subtitle: string | null }[] = [];
+    
+    // Search organizations
+    organizations.forEach(org => {
+      if (
+        org.name.toLowerCase().includes(query) ||
+        org.owner_email?.toLowerCase().includes(query)
+      ) {
+        results.push({
+          id: org.id,
+          type: 'organization',
+          title: org.name,
+          subtitle: org.owner_email,
+        });
+      }
+    });
+    
+    return results.slice(0, 10);
+  }, [globalSearchQuery, organizations]);
+
+  const handleGlobalSearchSelect = useCallback((result: { id: string; type: 'organization' | 'user'; title: string; subtitle: string | null }) => {
+    if (result.type === 'organization') {
+      const org = organizations.find(o => o.id === result.id);
+      if (org) {
+        setSelectedOrg(org);
+        setDetailsOpen(true);
+      }
+      setActiveSection('organizations');
+    } else {
+      setActiveSection('users');
+    }
+    setGlobalSearchQuery('');
+  }, [organizations]);
+
 
   // Keyboard shortcut for command palette
   useEffect(() => {
@@ -731,6 +774,14 @@ const PlatformAdmin = () => {
                 <AdminPageHeader
                   title={currentSection.title}
                   description={currentSection.description}
+                  searchComponent={
+                    <AdminGlobalSearch
+                      onSearch={setGlobalSearchQuery}
+                      onResultSelect={handleGlobalSearchSelect}
+                      results={globalSearchResults}
+                      placeholder="Search organizations..."
+                    />
+                  }
                 />
               </div>
             </header>
