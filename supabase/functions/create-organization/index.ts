@@ -595,26 +595,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate temporary password if method is 'temporary'
+    // Validate temporary password if method is 'temporary' - relaxed rules (8+ chars)
+    let passwordStrengthLevel = 'none';
     if (passwordMethod === 'temporary') {
-      if (!temporaryPassword || temporaryPassword.length < 12) {
+      if (!temporaryPassword || temporaryPassword.length < 8) {
         return new Response(
-          JSON.stringify({ error: 'Temporary password must be at least 12 characters' }),
+          JSON.stringify({ error: 'Temporary password must be at least 8 characters' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      // Check password complexity
+      // Check password complexity for audit logging
       const hasLower = /[a-z]/.test(temporaryPassword);
       const hasUpper = /[A-Z]/.test(temporaryPassword);
       const hasNumber = /[0-9]/.test(temporaryPassword);
       const hasSpecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(temporaryPassword);
-      
-      if (!hasLower || !hasUpper || !hasNumber || !hasSpecial) {
-        return new Response(
-          JSON.stringify({ error: 'Temporary password must contain uppercase, lowercase, number, and special character' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      const isStrong = temporaryPassword.length >= 12 && hasLower && hasUpper && hasNumber && hasSpecial;
+      passwordStrengthLevel = isStrong ? 'strong' : 'weak';
     }
 
     console.log('Creating organization:', { 
@@ -624,6 +620,7 @@ Deno.serve(async (req) => {
       status, 
       trialDays,
       passwordMethod,
+      passwordStrengthLevel,
       selectedPlan: plan,
       selectedStatus: status
     });
@@ -881,6 +878,7 @@ Deno.serve(async (req) => {
         branding_used: branding ? 'custom' : 'default',
         password_method: usedPasswordMethod,
         temporary_password_used: usedPasswordMethod === 'temporary', // Logged without the actual value
+        password_strength_level: usedPasswordMethod === 'temporary' ? passwordStrengthLevel : null,
         invite_type: ownerCreated 
           ? (usedPasswordMethod === 'temporary' ? 'temp_password_credential' : 'new_user_invite') 
           : 'existing_user_notification',
