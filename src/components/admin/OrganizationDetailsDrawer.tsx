@@ -78,8 +78,7 @@ const OrganizationDetailsDrawer = ({
   const [selectedUser, setSelectedUser] = useState<OrganizationMember | null>(null);
   const { logAction } = useAdminAudit();
   const { isSuperAdmin } = useAuth();
-  const { startImpersonation, canImpersonate, isImpersonating } = useImpersonation();
-
+  const { startImpersonation, canImpersonate, isImpersonating, isStarting } = useImpersonation();
   // Editable form state
   const [formData, setFormData] = useState({
     name: '',
@@ -749,7 +748,11 @@ const OrganizationDetailsDrawer = ({
       {/* Impersonation Confirmation Dialog */}
       <ConfirmDialog
         open={impersonateDialogOpen}
-        onOpenChange={setImpersonateDialogOpen}
+        onOpenChange={(open) => {
+          if (!isStarting) {
+            setImpersonateDialogOpen(open);
+          }
+        }}
         title="Login as Organization Owner"
         description={
           <div className="space-y-3">
@@ -775,8 +778,9 @@ const OrganizationDetailsDrawer = ({
             </div>
           </div>
         }
-        confirmLabel="Start Impersonation"
+        confirmLabel={isStarting ? "Starting Impersonation..." : "Start Impersonation"}
         onConfirm={confirmImpersonate}
+        loading={isStarting}
       />
     </>
   );
