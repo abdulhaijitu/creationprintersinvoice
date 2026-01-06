@@ -808,6 +808,36 @@ export type Database = {
           },
         ]
       }
+      global_notification_settings: {
+        Row: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          provider_config: Json | null
+          rate_limit_per_minute: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          provider_config?: Json | null
+          rate_limit_per_minute?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          provider_config?: Json | null
+          rate_limit_per_minute?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       invoice_items: {
         Row: {
           created_at: string
@@ -1105,6 +1135,104 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_logs: {
+        Row: {
+          body: string
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string | null
+          external_id: string | null
+          failed_reason: string | null
+          id: string
+          max_retries: number | null
+          metadata: Json | null
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          organization_id: string | null
+          recipient: string
+          retry_count: number | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notification_status"] | null
+          subject: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          body: string
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string | null
+          external_id?: string | null
+          failed_reason?: string | null
+          id?: string
+          max_retries?: number | null
+          metadata?: Json | null
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          organization_id?: string | null
+          recipient: string
+          retry_count?: number | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"] | null
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          body?: string
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string | null
+          external_id?: string | null
+          failed_reason?: string | null
+          id?: string
+          max_retries?: number | null
+          metadata?: Json | null
+          notification_type?: Database["public"]["Enums"]["notification_type"]
+          organization_id?: string | null
+          recipient?: string
+          retry_count?: number | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"] | null
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_templates: {
+        Row: {
+          body_template: string
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          subject: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          body_template: string
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          body_template?: string
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          notification_type?: Database["public"]["Enums"]["notification_type"]
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -1180,6 +1308,85 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_notification_settings: {
+        Row: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          organization_id: string
+          timezone: string | null
+          updated_at: string | null
+          whatsapp_number: string | null
+        }
+        Insert: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          organization_id: string
+          timezone?: string | null
+          updated_at?: string | null
+          whatsapp_number?: string | null
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          organization_id?: string
+          timezone?: string | null
+          updated_at?: string | null
+          whatsapp_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_notification_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_notification_types: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          organization_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          notification_type?: Database["public"]["Enums"]["notification_type"]
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_notification_types_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1883,6 +2090,53 @@ export type Database = {
           },
         ]
       }
+      scheduled_reminders: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_processed: boolean | null
+          metadata: Json | null
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          organization_id: string
+          processed_at: string | null
+          reference_id: string | null
+          reference_type: string | null
+          scheduled_for: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_processed?: boolean | null
+          metadata?: Json | null
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          organization_id: string
+          processed_at?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          scheduled_for: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_processed?: boolean | null
+          metadata?: Json | null
+          notification_type?: Database["public"]["Enums"]["notification_type"]
+          organization_id?: string
+          processed_at?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          scheduled_for?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_reminders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_payments: {
         Row: {
           amount: number
@@ -2366,6 +2620,22 @@ export type Database = {
         }
         Returns: boolean
       }
+      render_notification_template: {
+        Args: { template_text: string; variables: Json }
+        Returns: string
+      }
+      schedule_billing_reminders: {
+        Args: {
+          p_due_date: string
+          p_invoice_id: string
+          p_organization_id: string
+        }
+        Returns: undefined
+      }
+      schedule_trial_reminders: {
+        Args: { p_organization_id: string; p_trial_ends_at: string }
+        Returns: undefined
+      }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
@@ -2385,6 +2655,22 @@ export type Database = {
       invoice_status: "unpaid" | "partial" | "paid"
       leave_status: "pending" | "approved" | "rejected"
       leave_type: "casual" | "sick" | "annual" | "other"
+      notification_channel: "email" | "sms" | "whatsapp"
+      notification_status: "pending" | "sent" | "failed" | "cancelled"
+      notification_type:
+        | "trial_started"
+        | "trial_ending"
+        | "trial_expired"
+        | "invoice_generated"
+        | "payment_due_soon"
+        | "payment_due_today"
+        | "payment_overdue"
+        | "plan_activated"
+        | "plan_expired"
+        | "account_locked"
+        | "account_unlocked"
+        | "payment_success"
+        | "payment_failed"
       org_role: "owner" | "manager" | "accounts" | "staff"
       payment_gateway: "sslcommerz" | "bkash" | "nagad" | "rocket" | "manual"
       payment_status:
@@ -2555,6 +2841,23 @@ export const Constants = {
       invoice_status: ["unpaid", "partial", "paid"],
       leave_status: ["pending", "approved", "rejected"],
       leave_type: ["casual", "sick", "annual", "other"],
+      notification_channel: ["email", "sms", "whatsapp"],
+      notification_status: ["pending", "sent", "failed", "cancelled"],
+      notification_type: [
+        "trial_started",
+        "trial_ending",
+        "trial_expired",
+        "invoice_generated",
+        "payment_due_soon",
+        "payment_due_today",
+        "payment_overdue",
+        "plan_activated",
+        "plan_expired",
+        "account_locked",
+        "account_unlocked",
+        "payment_success",
+        "payment_failed",
+      ],
       org_role: ["owner", "manager", "accounts", "staff"],
       payment_gateway: ["sslcommerz", "bkash", "nagad", "rocket", "manual"],
       payment_status: [
