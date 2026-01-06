@@ -11,12 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { User, FileText, Receipt, Activity, Ban, Save, KeyRound, Loader2, AlertTriangle, UserCheck } from 'lucide-react';
+import { User, FileText, Receipt, Activity, Ban, Save, KeyRound, Loader2, AlertTriangle, UserCheck, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { processEdgeFunctionResponse } from '@/lib/edgeFunctionUtils';
 
 interface OrganizationMember {
   id: string;
@@ -76,6 +77,7 @@ const OrganizationDetailsDrawer = ({
   const [downgradeDialogOpen, setDowngradeDialogOpen] = useState(false);
   const [impersonateDialogOpen, setImpersonateDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<OrganizationMember | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const { logAction } = useAdminAudit();
   const { isSuperAdmin } = useAuth();
   const { startImpersonation, canImpersonate, isImpersonating, isStarting } = useImpersonation();
@@ -199,8 +201,9 @@ const OrganizationDetailsDrawer = ({
     if (!organization || !isDirty) return;
 
     setSaving(true);
+    setSaveError(null);
     try {
-      const { data, error } = await supabase.functions.invoke('update-organization', {
+      const response = await supabase.functions.invoke('update-organization', {
         body: {
           organizationId: organization.id,
           updates: {
@@ -214,16 +217,21 @@ const OrganizationDetailsDrawer = ({
         }
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const result = await processEdgeFunctionResponse(response);
+      
+      if (!result.success || result.error) {
+        throw new Error(result.error || 'Failed to save changes');
+      }
+
+      const data = result.data;
 
       // Update form state from backend response (source of truth)
-      const updatedPlan = (data.subscription?.plan || 'free') as PlanType;
-      const updatedStatus = (data.subscription?.status || 'trial') as StatusType;
-      const updatedTrialEndsAt = data.subscription?.trial_ends_at 
+      const updatedPlan = (data?.subscription?.plan || 'free') as PlanType;
+      const updatedStatus = (data?.subscription?.status || 'trial') as StatusType;
+      const updatedTrialEndsAt = data?.subscription?.trial_ends_at 
         ? format(new Date(data.subscription.trial_ends_at), "yyyy-MM-dd'T'HH:mm")
         : '';
-      const updatedName = data.organization?.name || formData.name;
+      const updatedName = data?.organization?.name || formData.name;
 
       const newFormData = {
         name: updatedName,
@@ -239,7 +247,8 @@ const OrganizationDetailsDrawer = ({
       onRefresh();
     } catch (error) {
       console.error('Error saving organization:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to save changes');
+      const msg = error instanceof Error ? error.message : 'Failed to save changes';
+      setSaveError(msg);
     } finally {
       setSaving(false);
     }

@@ -31,8 +31,10 @@ import {
   Eye,
   EyeOff,
   Shield,
-  CheckCircle2
+  CheckCircle2,
+  Copy
 } from 'lucide-react';
+import { processEdgeFunctionResponse } from '@/lib/edgeFunctionUtils';
 
 interface CreateOrganizationDialogProps {
   open: boolean;
@@ -85,6 +87,7 @@ export function CreateOrganizationDialog({
     id: string;
     name: string;
     ownerEmail: string;
+    ownerPassword: string;
     emailSent: boolean;
     emailError?: string;
     plan: string;
@@ -188,26 +191,20 @@ export function CreateOrganizationDialog({
         console.log('[CreateOrg] Response:', response);
       }
 
-      // Handle edge function errors
-      if (response.error) {
-        const errorMessage = response.error.message || 'Failed to create organization';
-        throw new Error(errorMessage);
+      // Process response with proper error extraction
+      const result = await processEdgeFunctionResponse(response);
+      
+      if (!result.success || result.error) {
+        throw new Error(result.error || 'Failed to create organization');
       }
 
-      if (response.data?.error) {
-        throw new Error(response.data.error);
-      }
-
-      if (!response.data?.success) {
-        throw new Error('Failed to create organization');
-      }
-
-      const data = response.data;
+      const data = result.data;
 
       setCreatedOrg({
         id: data.organization.id,
         name: data.organization.name,
         ownerEmail: ownerEmail.trim().toLowerCase(),
+        ownerPassword: ownerPassword,
         emailSent: data.email?.sent || false,
         emailError: data.email?.error,
         plan: data.subscription?.plan || plan,
@@ -225,10 +222,33 @@ export function CreateOrganizationDialog({
       console.error('Error creating organization:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to create organization';
       setInlineError(errorMessage);
-      toast.error('Creation failed', { description: errorMessage });
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyEmailTemplate = () => {
+    if (!createdOrg) return;
+    const template = `Subject: Your Account Access – ${createdOrg.name}
+
+Hello,
+
+Your account has been created successfully.
+
+Organization: ${createdOrg.name}
+
+Login URL: ${window.location.origin}/login
+
+Email: ${createdOrg.ownerEmail}
+Password: ${createdOrg.ownerPassword}
+
+For security reasons, please change your password immediately after login.
+
+Regards,
+Creation Tech Team`;
+    
+    navigator.clipboard.writeText(template);
+    toast.success('Email template copied to clipboard');
   };
 
   // Success state
@@ -282,6 +302,38 @@ export function CreateOrganizationDialog({
                     {createdOrg.emailError}. Please share credentials securely with the owner.
                   </p>
                 </div>
+              </div>
+            )}
+
+            {/* Manual Email Template */}
+            {!createdOrg.emailSent && (
+              <div className="p-4 rounded-lg bg-muted/50 border">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-medium">Copy-Paste Email Template</Label>
+                  <Button variant="outline" size="sm" onClick={copyEmailTemplate}>
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                </div>
+                <pre className="text-xs text-muted-foreground whitespace-pre-wrap bg-background p-3 rounded border max-h-40 overflow-y-auto">
+{`Subject: Your Account Access – ${createdOrg.name}
+
+Hello,
+
+Your account has been created successfully.
+
+Organization: ${createdOrg.name}
+
+Login URL: ${window.location.origin}/login
+
+Email: ${createdOrg.ownerEmail}
+Password: ${createdOrg.ownerPassword}
+
+For security reasons, please change your password immediately after login.
+
+Regards,
+Creation Tech Team`}
+                </pre>
               </div>
             )}
 
