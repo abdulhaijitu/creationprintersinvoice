@@ -22,6 +22,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { TrialBanner } from '@/components/subscription/TrialBanner';
+import { UsageLimitBanner } from '@/components/usage/UsageLimitBanner';
 
 // Component to handle closing sidebar on route change
 const MobileSidebarHandler = () => {
@@ -106,8 +107,9 @@ const AppLayout = () => {
             
             {/* Main Content */}
             <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-auto">
-              <div className="mx-auto max-w-7xl animate-fade-in">
+              <div className="mx-auto max-w-7xl animate-fade-in space-y-4">
                 <TrialBanner />
+                <UsageLimitBanner />
                 <Outlet />
               </div>
             </main>

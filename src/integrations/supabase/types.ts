@@ -1187,6 +1187,65 @@ export type Database = {
           },
         ]
       }
+      organization_usage_stats: {
+        Row: {
+          created_at: string
+          id: string
+          last_activity_at: string | null
+          login_count: number
+          organization_id: string
+          stat_date: string
+          total_customers: number
+          total_employees: number
+          total_expenses: number
+          total_invoices: number
+          total_payments: number
+          total_quotations: number
+          total_users: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_activity_at?: string | null
+          login_count?: number
+          organization_id: string
+          stat_date?: string
+          total_customers?: number
+          total_employees?: number
+          total_expenses?: number
+          total_invoices?: number
+          total_payments?: number
+          total_quotations?: number
+          total_users?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_activity_at?: string | null
+          login_count?: number
+          organization_id?: string
+          stat_date?: string
+          total_customers?: number
+          total_employees?: number
+          total_expenses?: number
+          total_invoices?: number
+          total_payments?: number
+          total_quotations?: number
+          total_users?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_usage_stats_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           address: string | null
@@ -1292,6 +1351,45 @@ export type Database = {
           note?: string
           rating?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      plan_limits: {
+        Row: {
+          created_at: string
+          customer_limit: number
+          employee_limit: number
+          expense_limit: number
+          id: string
+          invoice_limit: number
+          plan_name: string
+          quotation_limit: number
+          updated_at: string
+          user_limit: number
+        }
+        Insert: {
+          created_at?: string
+          customer_limit?: number
+          employee_limit?: number
+          expense_limit?: number
+          id?: string
+          invoice_limit?: number
+          plan_name: string
+          quotation_limit?: number
+          updated_at?: string
+          user_limit?: number
+        }
+        Update: {
+          created_at?: string
+          customer_limit?: number
+          employee_limit?: number
+          expense_limit?: number
+          id?: string
+          invoice_limit?: number
+          plan_name?: string
+          quotation_limit?: number
+          updated_at?: string
+          user_limit?: number
         }
         Relationships: []
       }
@@ -2087,11 +2185,45 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_org_usage_stats: {
+        Args: { org_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          last_activity_at: string | null
+          login_count: number
+          organization_id: string
+          stat_date: string
+          total_customers: number
+          total_employees: number
+          total_expenses: number
+          total_invoices: number
+          total_payments: number
+          total_quotations: number
+          total_users: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "organization_usage_stats"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       check_overdue_invoices: { Args: never; Returns: undefined }
       generate_billing_invoice_number: { Args: never; Returns: string }
       generate_challan_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
+      get_org_usage_percentage: {
+        Args: { org_id: string }
+        Returns: {
+          current_usage: number
+          feature: string
+          plan_limit: number
+          usage_percentage: number
+        }[]
+      }
       get_org_usage_stats: {
         Args: { _org_id: string }
         Returns: {
