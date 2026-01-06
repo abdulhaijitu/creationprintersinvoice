@@ -1935,6 +1935,62 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_upgrade_requests: {
+        Row: {
+          created_at: string
+          current_plan: string
+          id: string
+          organization_id: string
+          organization_name: string
+          requested_at: string
+          requested_by: string | null
+          requested_plan: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_plan: string
+          id?: string
+          organization_id: string
+          organization_name: string
+          requested_at?: string
+          requested_by?: string | null
+          requested_plan: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_plan?: string
+          id?: string
+          organization_id?: string
+          organization_name?: string
+          requested_at?: string
+          requested_by?: string | null
+          requested_plan?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_upgrade_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_calculations: {
         Row: {
           binding_cost: number | null

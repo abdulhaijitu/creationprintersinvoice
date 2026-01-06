@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.delete-organization]
 verify_jwt = false
+
+[functions.request-plan-upgrade]
+verify_jwt = false
+
+[functions.handle-upgrade-request]
+verify_jwt = false
