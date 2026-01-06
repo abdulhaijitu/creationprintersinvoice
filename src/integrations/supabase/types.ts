@@ -3123,6 +3123,8 @@ export type Database = {
         | "configure"
         | "export"
         | "import"
+        | "impersonate_start"
+        | "impersonate_end"
       audit_source: "ui" | "api" | "system" | "edge_function" | "webhook"
       invoice_status: "unpaid" | "partial" | "paid"
       leave_status: "pending" | "approved" | "rejected"
@@ -3323,6 +3325,8 @@ export const Constants = {
         "configure",
         "export",
         "import",
+        "impersonate_start",
+        "impersonate_end",
       ],
       audit_source: ["ui", "api", "system", "edge_function", "webhook"],
       invoice_status: ["unpaid", "partial", "paid"],
