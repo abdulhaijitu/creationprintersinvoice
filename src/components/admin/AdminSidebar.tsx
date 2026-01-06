@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
@@ -13,10 +14,12 @@ import {
   PanelLeft,
   Command,
   Users,
+  KeyRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.png';
 import logoIcon from '@/assets/logo-icon.jpg';
+import { ChangePasswordDialog } from './ChangePasswordDialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -71,6 +74,10 @@ export const AdminSidebar = ({
 }: AdminSidebarProps) => {
   const { user, role } = useAuth();
   const adminRole = getAdminRole(role);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+
+  // Only Super Admins can change their password via this UI
+  const isSuperAdmin = role === 'super_admin';
 
   // Filter nav items based on role permissions
   const navItems = allNavItems.filter(item => canAccessSection(adminRole, item.id));
@@ -312,6 +319,31 @@ export const AdminSidebar = ({
 
         <Separator className="my-3 bg-sidebar-border" />
 
+        {/* Change Password Button (Super Admin only) */}
+        {isSuperAdmin && (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                onClick={() => setChangePasswordOpen(true)}
+                onKeyDown={(e) => handleKeyDown(e, () => setChangePasswordOpen(true))}
+                className={cn(
+                  'w-full text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-200 mb-1',
+                  collapsed ? 'h-10 p-0 justify-center' : 'justify-start gap-3'
+                )}
+              >
+                <KeyRound className="h-4 w-4 shrink-0" />
+                {!collapsed && <span>Change Password</span>}
+              </Button>
+            </TooltipTrigger>
+            {collapsed && (
+              <TooltipContent side="right" sideOffset={10}>
+                Change Password
+              </TooltipContent>
+            )}
+          </Tooltip>
+        )}
+
         {/* Sign Out Button */}
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
@@ -335,6 +367,12 @@ export const AdminSidebar = ({
           )}
         </Tooltip>
       </div>
+
+      {/* Change Password Dialog */}
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onOpenChange={setChangePasswordOpen}
+      />
     </aside>
   );
 };
