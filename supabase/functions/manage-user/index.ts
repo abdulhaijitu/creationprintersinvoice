@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { Resend } from 'https://esm.sh/resend@2.0.0';
 
 const corsHeaders = {
@@ -121,7 +120,7 @@ const generateCredentialsEmail = (params: {
   `;
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -143,7 +142,7 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Authorization header required' }),
+        JSON.stringify({ success: false, error: 'Authorization header required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -153,7 +152,7 @@ serve(async (req) => {
     
     if (authError || !requestingUser) {
       return new Response(
-        JSON.stringify({ error: 'Invalid authentication' }),
+        JSON.stringify({ success: false, error: 'Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -168,15 +167,37 @@ serve(async (req) => {
     if (roleError || roleData?.role !== 'super_admin') {
       console.log('Access denied: User is not super_admin', { userId: requestingUser.id, role: roleData?.role });
       return new Response(
-        JSON.stringify({ error: 'Access denied. Super Admin privileges required.' }),
+        JSON.stringify({ success: false, error: 'Super Admin privileges required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const body = await req.json();
-    const { action, userId, email, password, fullName, organizationId, role, forcePasswordReset, sendEmail, loginUrl } = body;
+    // Parse body
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    console.log('manage-user action:', action, { userId, email, organizationId, role, sendEmail });
+    const { action, userId, email, password, fullName, organizationId, role, forcePasswordReset, sendEmail, loginUrl, isInternalUser } = body as {
+      action: string;
+      userId?: string;
+      email?: string;
+      password?: string;
+      fullName?: string;
+      organizationId?: string;
+      role?: string;
+      forcePasswordReset?: boolean;
+      sendEmail?: boolean;
+      loginUrl?: string;
+      isInternalUser?: boolean;
+    };
+
+    console.log('manage-user action:', action, { userId, email, role, sendEmail });
 
     // Helper function to send credentials email
     const sendCredentialsEmail = async (params: {
@@ -199,7 +220,7 @@ serve(async (req) => {
         });
 
         const result = await resend.emails.send({
-          from: 'Creation Printers <onboarding@resend.dev>',
+          from: 'PrintoSaas <onboarding@resend.dev>',
           to: [userEmail],
           subject: isReset 
             ? `Password Reset - ${organizationName}` 
@@ -217,21 +238,54 @@ serve(async (req) => {
 
     switch (action) {
       case 'create': {
+        // Validate required fields
+        if (!email?.trim()) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Email is required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (!password || password.length < 8) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Password must be at least 8 characters' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (!fullName?.trim()) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Full name is required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Check if user already exists
+        const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+        const existingUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase().trim());
+
+        if (existingUser) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'A user with this email already exists' }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
         // Create user with Supabase Admin API
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email,
+          email: email.trim().toLowerCase(),
           password,
-          email_confirm: true, // Auto-confirm email
+          email_confirm: true,
           user_metadata: { 
-            full_name: fullName,
-            force_password_reset: forcePasswordReset || false,
+            full_name: fullName.trim(),
+            force_password_reset: forcePasswordReset || true,
           },
         });
 
         if (createError) {
           console.error('Error creating user:', createError);
           return new Response(
-            JSON.stringify({ error: createError.message }),
+            JSON.stringify({ success: false, error: createError.message }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -241,15 +295,15 @@ serve(async (req) => {
           .from('profiles')
           .insert({
             id: newUser.user.id,
-            full_name: fullName,
+            full_name: fullName.trim(),
           });
 
         if (profileError) {
           console.error('Error creating profile:', profileError);
         }
 
-        // Get organization name for email
-        let organizationName = 'Creation Printers';
+        // Determine organization name for email
+        let organizationName = 'PrintoSaas Platform';
         if (organizationId) {
           const { data: orgData } = await supabaseAdmin
             .from('organizations')
@@ -259,8 +313,22 @@ serve(async (req) => {
           if (orgData) organizationName = orgData.name;
         }
 
-        // Add to organization if specified
-        if (organizationId && role) {
+        // For internal users, set up the user_roles record with internal role
+        if (isInternalUser && role) {
+          // Update user_roles with the internal role (admin/service/support)
+          const { error: roleError } = await supabaseAdmin
+            .from('user_roles')
+            .update({ 
+              role: role as 'admin' | 'service' | 'support',
+              must_reset_password: forcePasswordReset || true 
+            })
+            .eq('user_id', newUser.user.id);
+
+          if (roleError) {
+            console.error('Error setting user role:', roleError);
+          }
+        } else if (organizationId && role) {
+          // For organization users, add to organization_members
           const { error: memberError } = await supabaseAdmin
             .from('organization_members')
             .insert({
@@ -278,8 +346,8 @@ serve(async (req) => {
         let emailResult = null;
         if (sendEmail) {
           emailResult = await sendCredentialsEmail({
-            userEmail: email,
-            fullName,
+            userEmail: email.trim().toLowerCase(),
+            fullName: fullName.trim(),
             password,
             organizationName,
             isReset: false,
@@ -295,10 +363,11 @@ serve(async (req) => {
             entity_type: 'user',
             entity_id: newUser.user.id,
             details: { 
-              email, 
-              full_name: fullName,
+              email: email.trim().toLowerCase(), 
+              full_name: fullName.trim(),
               organization_id: organizationId,
               role,
+              is_internal_user: isInternalUser,
               email_sent: sendEmail && emailResult?.success,
             },
           });
@@ -313,14 +382,21 @@ serve(async (req) => {
             emailSent: sendEmail ? emailResult?.success : null,
             emailError: sendEmail && !emailResult?.success ? emailResult?.error : null,
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       case 'update_password': {
-        if (!userId || !password) {
+        if (!userId) {
           return new Response(
-            JSON.stringify({ error: 'User ID and password are required' }),
+            JSON.stringify({ success: false, error: 'User ID is required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (!password || password.length < 8) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Password must be at least 8 characters' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -333,7 +409,7 @@ serve(async (req) => {
         if (updateError) {
           console.error('Error updating password:', updateError);
           return new Response(
-            JSON.stringify({ error: updateError.message }),
+            JSON.stringify({ success: false, error: updateError.message }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -354,7 +430,7 @@ serve(async (req) => {
             .eq('id', userId)
             .single();
 
-          const organizationName = (memberData?.organizations as any)?.name || 'Creation Printers';
+          const organizationName = (memberData?.organizations as unknown as { name: string } | null)?.name || 'PrintoSaas Platform';
           const userName = profileData?.full_name || email;
 
           emailResult = await sendCredentialsEmail({
@@ -391,22 +467,29 @@ serve(async (req) => {
       }
 
       case 'update_email': {
-        if (!userId || !email) {
+        if (!userId) {
           return new Response(
-            JSON.stringify({ error: 'User ID and email are required' }),
+            JSON.stringify({ success: false, error: 'User ID is required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (!email?.trim()) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Email is required' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
         const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-          email,
+          email: email.trim().toLowerCase(),
           email_confirm: true,
         });
 
         if (updateError) {
           console.error('Error updating email:', updateError);
           return new Response(
-            JSON.stringify({ error: updateError.message }),
+            JSON.stringify({ success: false, error: updateError.message }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -419,7 +502,7 @@ serve(async (req) => {
             action: 'update_user_email',
             entity_type: 'user',
             entity_id: userId,
-            details: { new_email: email },
+            details: { new_email: email.trim().toLowerCase() },
           });
 
         return new Response(
@@ -431,7 +514,7 @@ serve(async (req) => {
       case 'disable': {
         if (!userId) {
           return new Response(
-            JSON.stringify({ error: 'User ID is required' }),
+            JSON.stringify({ success: false, error: 'User ID is required' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -443,7 +526,7 @@ serve(async (req) => {
         if (updateError) {
           console.error('Error disabling user:', updateError);
           return new Response(
-            JSON.stringify({ error: updateError.message }),
+            JSON.stringify({ success: false, error: updateError.message }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -467,7 +550,7 @@ serve(async (req) => {
       case 'enable': {
         if (!userId) {
           return new Response(
-            JSON.stringify({ error: 'User ID is required' }),
+            JSON.stringify({ success: false, error: 'User ID is required' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -479,7 +562,7 @@ serve(async (req) => {
         if (updateError) {
           console.error('Error enabling user:', updateError);
           return new Response(
-            JSON.stringify({ error: updateError.message }),
+            JSON.stringify({ success: false, error: updateError.message }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -502,14 +585,17 @@ serve(async (req) => {
 
       default:
         return new Response(
-          JSON.stringify({ error: 'Invalid action' }),
+          JSON.stringify({ success: false, error: `Unknown action: ${action}` }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
     }
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Unexpected error in manage-user:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'An unexpected error occurred' 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
