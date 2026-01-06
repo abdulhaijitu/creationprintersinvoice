@@ -45,15 +45,10 @@ const AdminBillingTable = () => {
         .from('organizations')
         .select(`
           id, name, email, owner_email,
-          subscriptions (plan, status)
+          subscription:subscriptions (plan, status)
         `);
       if (error) throw error;
-      setOrganizations(
-        (data || []).map(org => ({
-          ...org,
-          subscription: (org.subscriptions as unknown as Array<{ plan: string; status: string }>)?.[0]
-        }))
-      );
+      setOrganizations(data || []);
     } catch (error) {
       console.error('Error fetching organizations:', error);
     }
