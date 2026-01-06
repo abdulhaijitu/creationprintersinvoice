@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrganization } from "@/contexts/OrganizationContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,6 +82,7 @@ interface Vendor {
 const Expenses = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { organization } = useOrganization();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -260,6 +262,7 @@ const Expenses = () => {
           payment_method: expenseFormData.payment_method,
           category_id: expenseFormData.category_id || null,
           vendor_id: expenseFormData.vendor_id || null,
+          organization_id: organization?.id,
         });
 
         if (error) throw error;
@@ -329,7 +332,10 @@ const Expenses = () => {
         if (error) throw error;
         toast.success("Vendor updated successfully");
       } else {
-        const { error } = await supabase.from("vendors").insert(vendorFormData);
+        const { error } = await supabase.from("vendors").insert({
+          ...vendorFormData,
+          organization_id: organization?.id,
+        });
         if (error) throw error;
         toast.success("Vendor added successfully");
       }
@@ -363,6 +369,7 @@ const Expenses = () => {
         amount: parseFloat(billFormData.amount),
         description: billFormData.description || null,
         due_date: billFormData.due_date || null,
+        organization_id: organization?.id,
       });
 
       if (error) throw error;
@@ -397,6 +404,7 @@ const Expenses = () => {
         amount: parseFloat(paymentFormData.amount),
         payment_method: paymentFormData.payment_method,
         notes: paymentFormData.notes || null,
+        organization_id: organization?.id,
       });
 
       if (error) throw error;
@@ -497,6 +505,7 @@ const Expenses = () => {
         const { error } = await supabase.from("expense_categories").insert({
           name: categoryFormData.name,
           description: categoryFormData.description || null,
+          organization_id: organization?.id,
         });
         if (error) throw error;
         toast.success("Category added successfully");

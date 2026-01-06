@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -70,6 +71,7 @@ type StatusFilter = 'all' | 'paid' | 'unpaid' | 'partial' | 'overdue';
 const Invoices = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { organization } = useOrganization();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -270,7 +272,7 @@ const Invoices = () => {
           } else {
             const { data: newCustomer, error: customerError } = await supabase
               .from('customers')
-              .insert({ name: customerName })
+              .insert({ name: customerName, organization_id: organization?.id })
               .select('id')
               .single();
 
@@ -294,6 +296,7 @@ const Invoices = () => {
           subtotal: total,
           paid_amount: paidAmount,
           status: status,
+          organization_id: organization?.id,
         });
 
         if (error) {

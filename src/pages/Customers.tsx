@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -74,6 +75,7 @@ interface Customer {
 const Customers = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { organization } = useOrganization();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -143,7 +145,10 @@ const Customers = () => {
         if (error) throw error;
         toast.success('Customer updated successfully');
       } else {
-        const { error } = await supabase.from('customers').insert([formData]);
+        const { error } = await supabase.from('customers').insert([{
+          ...formData,
+          organization_id: organization?.id,
+        }]);
 
         if (error) throw error;
         toast.success('New customer added');
@@ -262,6 +267,7 @@ const Customers = () => {
           company_name: row.company_name || row['Company'] || null,
           address: row.address || row['Address'] || null,
           notes: row.notes || row['Notes'] || null,
+          organization_id: organization?.id,
         };
 
         if (!customerData.name) {

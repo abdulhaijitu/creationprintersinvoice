@@ -27,6 +27,7 @@ import {
 import logo from '@/assets/logo.png';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { hasPermission, getRoleDisplayName } from '@/lib/permissions';
 import {
   Sidebar,
@@ -192,7 +193,8 @@ const SIDEBAR_STATE_KEY = 'erp-sidebar-expanded-group';
 
 export function AppSidebar() {
   const location = useLocation();
-  const { user, signOut, role } = useAuth();
+  const { user, signOut, role, isSuperAdmin } = useAuth();
+  const { organization, orgRole } = useOrganization();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const [pendingChallanCount, setPendingChallanCount] = useState(0);
@@ -305,8 +307,9 @@ export function AppSidebar() {
 
   const settingsItems = [
     ...(hasPermission(role, 'user_roles', 'view') ? [{ title: 'Role Management', url: '/user-roles', icon: UserCog }] : []),
-    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'System Settings', url: '/settings', icon: Settings }] : []),
-    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'Company Profile', url: '/settings?tab=company', icon: Building2 }] : []),
+    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'Organization Settings', url: '/settings', icon: Settings }] : []),
+    { title: 'Team Members', url: '/team-members', icon: Users },
+    ...(isSuperAdmin ? [{ title: 'Platform Admin', url: '/admin', icon: Building2 }] : []),
   ];
 
   return (
@@ -333,10 +336,10 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-semibold text-white truncate">
-                Creation Printers
+                {organization?.name || 'PrintoSaaS'}
               </span>
               <span className="text-[11px] text-slate-400 truncate">
-                {role ? getRoleDisplayName(role) : 'Loading...'}
+                {orgRole ? `${orgRole.charAt(0).toUpperCase() + orgRole.slice(1)}` : (role ? getRoleDisplayName(role) : 'Loading...')}
               </span>
             </div>
           )}
