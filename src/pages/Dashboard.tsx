@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { StatCard, MiniStat } from '@/components/dashboard/StatCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -106,6 +107,7 @@ const PIE_COLORS = [
 
 const Dashboard = () => {
   const { user, isAdmin } = useAuth();
+  const { organization } = useOrganization();
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
     todaySales: 0,
@@ -408,7 +410,9 @@ const Dashboard = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+            {organization?.name || 'Dashboard'}
+          </h1>
           <p className="text-muted-foreground text-sm mt-1">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
           </p>

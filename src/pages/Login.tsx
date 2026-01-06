@@ -42,10 +42,11 @@ const Login = () => {
         <div className="text-center mb-8">
           <img 
             src={logo} 
-            alt="Creation Printers" 
+            alt="PrintoSaaS" 
             className="h-16 w-auto mx-auto mb-4"
           />
-          <p className="text-muted-foreground mt-2">Business Management System</p>
+          <h1 className="text-2xl font-bold text-foreground">PrintoSaaS</h1>
+          <p className="text-muted-foreground mt-2">Business Management Platform</p>
         </div>
 
         <Card className="shadow-soft">

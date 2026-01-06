@@ -1,6 +1,7 @@
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { Breadcrumb } from './Breadcrumb';
@@ -37,7 +38,10 @@ const MobileSidebarHandler = () => {
 };
 
 const AppLayout = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { loading: orgLoading, needsOnboarding } = useOrganization();
+
+  const loading = authLoading || orgLoading;
 
   if (loading) {
     return (
@@ -53,6 +57,11 @@ const AppLayout = () => {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Redirect to onboarding if user has no organization
+  if (needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return (
