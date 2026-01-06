@@ -19,6 +19,7 @@ import {
   ScrollText,
   Clock,
   ArrowRight,
+  Plus,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAdminRole, canAccessSection } from "@/lib/adminPermissions";
@@ -27,6 +28,7 @@ interface AdminCommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNavigate: (page: string) => void;
+  onCreateOrganization?: () => void;
   currentPage: string;
 }
 
@@ -37,6 +39,16 @@ interface CommandItemData {
   icon: React.ComponentType<{ className?: string }>;
   page: string;
   keywords: string[];
+}
+
+interface ActionItemData {
+  id: string;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  action: () => void;
+  keywords: string[];
+  requiresSuperAdmin?: boolean;
 }
 
 const allNavigationCommands: CommandItemData[] = [
@@ -113,6 +125,7 @@ export function AdminCommandPalette({
   open,
   onOpenChange,
   onNavigate,
+  onCreateOrganization,
   currentPage,
 }: AdminCommandPaletteProps) {
   const navigate = useNavigate();
@@ -124,6 +137,28 @@ export function AdminCommandPalette({
   const navigationCommands = useMemo(() => {
     return allNavigationCommands.filter(cmd => canAccessSection(adminRole, cmd.page));
   }, [adminRole]);
+
+  // Action commands (only for super_admin)
+  const actionCommands: ActionItemData[] = useMemo(() => {
+    const actions: ActionItemData[] = [];
+    
+    if (role === 'super_admin' && onCreateOrganization) {
+      actions.push({
+        id: 'create-organization',
+        label: 'Create Organization',
+        description: 'Manually create a new organization',
+        icon: Plus,
+        action: () => {
+          onCreateOrganization();
+          onOpenChange(false);
+        },
+        keywords: ['new', 'add', 'organization', 'tenant', 'company'],
+        requiresSuperAdmin: true,
+      });
+    }
+    
+    return actions;
+  }, [role, onCreateOrganization, onOpenChange]);
 
   // Load recent commands from localStorage
   useEffect(() => {
@@ -236,6 +271,35 @@ export function AdminCommandPalette({
             </CommandItem>
           ))}
         </CommandGroup>
+
+        {actionCommands.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Actions">
+              {actionCommands.map((action) => (
+                <CommandItem
+                  key={action.id}
+                  value={`${action.label} ${action.keywords.join(" ")}`}
+                  onSelect={action.action}
+                  className="group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 group-data-[selected=true]:bg-primary/20">
+                      <action.icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-sm">{action.label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {action.description}
+                      </span>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
       </CommandList>
 
       <div className="border-t border-border/50 px-3 py-2 flex items-center justify-between text-[11px] text-muted-foreground">
