@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Eye, EyeOff, UserPlus, CheckCircle2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff, UserPlus, CheckCircle2, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const userSchema = z.object({
@@ -50,11 +50,13 @@ export const CreateUserDialog = ({
   const [organizationId, setOrganizationId] = useState<string>('');
   const [role, setRole] = useState<string>('staff');
   const [forcePasswordReset, setForcePasswordReset] = useState(true);
+  const [sendEmail, setSendEmail] = useState(true);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -87,8 +89,10 @@ export const CreateUserDialog = ({
     setOrganizationId('');
     setRole('staff');
     setForcePasswordReset(true);
+    setSendEmail(true);
     setErrors({});
     setSuccess(false);
+    setEmailSent(false);
   };
 
   const generatePassword = () => {
@@ -143,6 +147,8 @@ export const CreateUserDialog = ({
           organizationId: validatedData.organizationId,
           role: validatedData.role,
           forcePasswordReset: validatedData.forcePasswordReset,
+          sendEmail,
+          loginUrl: window.location.origin + '/login',
         },
       });
 
@@ -162,7 +168,15 @@ export const CreateUserDialog = ({
       }
 
       setSuccess(true);
-      toast.success('User created successfully');
+      setEmailSent(response.data?.emailSent === true);
+      
+      if (response.data?.emailSent) {
+        toast.success('User created and login credentials sent via email');
+      } else if (sendEmail && response.data?.emailError) {
+        toast.warning(`User created but email failed: ${response.data.emailError}`);
+      } else {
+        toast.success('User created successfully');
+      }
       
       setTimeout(() => {
         onSuccess();
@@ -207,6 +221,12 @@ export const CreateUserDialog = ({
             <p className="text-sm text-muted-foreground">
               {email} has been added to the system.
             </p>
+            {emailSent && (
+              <p className="text-sm text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
+                <Mail className="h-4 w-4" />
+                Login credentials sent via email
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-4 py-2">
@@ -348,6 +368,24 @@ export const CreateUserDialog = ({
               <Label htmlFor="forceReset" className="text-sm cursor-pointer">
                 Force password change on first login
               </Label>
+            </div>
+
+            {/* Send Email */}
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+              <Checkbox
+                id="sendEmail"
+                checked={sendEmail}
+                onCheckedChange={(checked) => setSendEmail(checked as boolean)}
+              />
+              <div className="flex-1">
+                <Label htmlFor="sendEmail" className="text-sm cursor-pointer flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  Send login info via email
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Email will include credentials and login URL
+                </p>
+              </div>
             </div>
           </div>
         )}
