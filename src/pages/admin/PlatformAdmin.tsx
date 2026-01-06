@@ -26,6 +26,12 @@ import { AdminDashboardOverview } from '@/components/admin/AdminDashboardOvervie
 import { AdminCommandPalette } from '@/components/admin/AdminCommandPalette';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { 
+  getAdminRole, 
+  canAccessSection, 
+  hasAdminAccess, 
+  isSectionReadOnly 
+} from '@/lib/adminPermissions';
 
 interface OrganizationWithStats {
   id: string;
@@ -77,8 +83,11 @@ const sectionConfig: Record<string, { title: string; description: string }> = {
 };
 
 const PlatformAdmin = () => {
-  const { isSuperAdmin, loading: authLoading, signOut } = useAuth();
+  const { role, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
+  
+  const adminRole = getAdminRole(role);
+  
   const [activeSection, setActiveSection] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY_EXPORT);
@@ -100,6 +109,9 @@ const PlatformAdmin = () => {
   }>({ open: false, title: '', description: '', action: () => {}, variant: 'default' });
   
   const { logAction } = useAdminAudit();
+  
+  // Check if current section is read-only for the user's role
+  const isCurrentSectionReadOnly = isSectionReadOnly(adminRole, activeSection);
 
   // Keyboard shortcut for command palette
   useEffect(() => {
@@ -114,20 +126,35 @@ const PlatformAdmin = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleCommandNavigate = useCallback((page: string) => {
-    setActiveSection(page);
-  }, []);
+  // Handle section change with permission check
+  const handleSectionChange = useCallback((section: string) => {
+    if (canAccessSection(adminRole, section)) {
+      setActiveSection(section);
+    }
+  }, [adminRole]);
 
+  const handleCommandNavigate = useCallback((page: string) => {
+    if (canAccessSection(adminRole, page)) {
+      setActiveSection(page);
+    }
+  }, [adminRole]);
+
+  // Redirect if user doesn't have admin access or tries to access unauthorized section
   useEffect(() => {
-    if (!authLoading && !isSuperAdmin) {
+    if (!authLoading && !hasAdminAccess(role)) {
       navigate('/admin/login');
       return;
     }
     
-    if (isSuperAdmin) {
+    // Redirect to dashboard if current section is not accessible
+    if (adminRole && !canAccessSection(adminRole, activeSection)) {
+      setActiveSection('dashboard');
+    }
+    
+    if (hasAdminAccess(role)) {
       fetchOrganizations();
     }
-  }, [isSuperAdmin, authLoading]);
+  }, [role, authLoading, adminRole, activeSection]);
 
   const fetchOrganizations = async () => {
     try {
@@ -303,7 +330,7 @@ const PlatformAdmin = () => {
     );
   }
 
-  if (!isSuperAdmin) {
+  if (!hasAdminAccess(role)) {
     return null;
   }
 
@@ -505,7 +532,7 @@ const PlatformAdmin = () => {
         {/* Sidebar */}
         <AdminSidebar
           activeSection={activeSection}
-          onSectionChange={setActiveSection}
+          onSectionChange={handleSectionChange}
           onSignOut={handleSignOut}
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CommandDialog,
@@ -20,6 +20,8 @@ import {
   Clock,
   ArrowRight,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { getAdminRole, canAccessSection } from "@/lib/adminPermissions";
 
 interface AdminCommandPaletteProps {
   open: boolean;
@@ -37,7 +39,7 @@ interface CommandItemData {
   keywords: string[];
 }
 
-const navigationCommands: CommandItemData[] = [
+const allNavigationCommands: CommandItemData[] = [
   {
     id: "dashboard",
     label: "Dashboard",
@@ -114,7 +116,14 @@ export function AdminCommandPalette({
   currentPage,
 }: AdminCommandPaletteProps) {
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const adminRole = getAdminRole(role);
   const [recentCommands, setRecentCommands] = useState<string[]>([]);
+
+  // Filter navigation commands based on role
+  const navigationCommands = useMemo(() => {
+    return allNavigationCommands.filter(cmd => canAccessSection(adminRole, cmd.page));
+  }, [adminRole]);
 
   // Load recent commands from localStorage
   useEffect(() => {

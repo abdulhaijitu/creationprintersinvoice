@@ -24,6 +24,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { 
+  getAdminRole, 
+  canAccessSection, 
+  getAdminRoleDisplayName,
+  type AdminRole 
+} from '@/lib/adminPermissions';
 
 interface NavItem {
   id: string;
@@ -31,7 +37,7 @@ interface NavItem {
   icon: React.ElementType;
 }
 
-const navItems: NavItem[] = [
+const allNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'organizations', label: 'Organizations', icon: Building2 },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -60,11 +66,17 @@ export const AdminSidebar = ({
   onCollapsedChange,
   onCommandPaletteOpen,
 }: AdminSidebarProps) => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const adminRole = getAdminRole(role);
+
+  // Filter nav items based on role permissions
+  const navItems = allNavItems.filter(item => canAccessSection(adminRole, item.id));
 
   const adminInitials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
     : 'SA';
+  
+  const roleDisplayName = getAdminRoleDisplayName(adminRole);
 
   const handleToggle = () => {
     const newState = !collapsed;
@@ -272,7 +284,7 @@ export const AdminSidebar = ({
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={10}>
               <div>
-                <p className="font-medium">Super Admin</p>
+                <p className="font-medium">{roleDisplayName}</p>
                 <p className="text-xs text-muted-foreground">
                   {user?.email || 'admin@printosaas.com'}
                 </p>
@@ -288,7 +300,7 @@ export const AdminSidebar = ({
             </Avatar>
             <div className="flex flex-1 flex-col overflow-hidden">
               <span className="truncate text-sm font-medium text-sidebar-foreground">
-                Super Admin
+                {roleDisplayName}
               </span>
               <span className="truncate text-xs text-sidebar-muted">
                 {user?.email || 'admin@printosaas.com'}
