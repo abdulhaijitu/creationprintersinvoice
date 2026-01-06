@@ -12,6 +12,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Command,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.png';
@@ -41,6 +42,7 @@ interface NavItem {
 const allNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'organizations', label: 'Organizations', icon: Building2 },
+  { id: 'users', label: 'Users', icon: Users },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'billing', label: 'Billing', icon: CreditCard },
   { id: 'whitelabel', label: 'White-Label', icon: Palette },
