@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePasswordResetCheck } from '@/hooks/usePasswordResetCheck';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useFirstLogin } from '@/hooks/useFirstLogin';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { Breadcrumb } from './Breadcrumb';
@@ -47,6 +48,7 @@ const AppLayout = () => {
   const { loading: orgLoading, needsOnboarding } = useOrganization();
   const { mustResetPassword, checking: resetChecking } = usePasswordResetCheck();
   const { showWelcome, loading: welcomeLoading, completeFirstLogin } = useFirstLogin();
+  const { isImpersonating } = useImpersonation();
 
   const loading = authLoading || orgLoading || resetChecking || welcomeLoading;
 
@@ -80,7 +82,8 @@ const AppLayout = () => {
     <TooltipProvider delayDuration={0}>
       {showWelcome && <WelcomeScreen onComplete={completeFirstLogin} />}
       <SidebarProvider>
-        <div className="min-h-screen flex w-full bg-muted/30">
+        {/* Add top padding when impersonating to account for fixed banner */}
+        <div className={cn("min-h-screen flex w-full bg-muted/30", isImpersonating && "pt-12")}>
           <AppSidebar />
           <MobileSidebarHandler />
           <NotificationManager />

@@ -11,10 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { User, FileText, Receipt, Activity, Ban, Save, KeyRound, Loader2, AlertTriangle } from 'lucide-react';
+import { User, FileText, Receipt, Activity, Ban, Save, KeyRound, Loader2, AlertTriangle, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface OrganizationMember {
   id: string;
@@ -72,8 +74,11 @@ const OrganizationDetailsDrawer = ({
   const [disableDialogOpen, setDisableDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [downgradeDialogOpen, setDowngradeDialogOpen] = useState(false);
+  const [impersonateDialogOpen, setImpersonateDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<OrganizationMember | null>(null);
   const { logAction } = useAdminAudit();
+  const { isSuperAdmin } = useAuth();
+  const { startImpersonation, canImpersonate, isImpersonating } = useImpersonation();
 
   // Editable form state
   const [formData, setFormData] = useState({
@@ -301,6 +306,50 @@ const OrganizationDetailsDrawer = ({
     }
   };
 
+  const handleImpersonate = async () => {
+    if (!organization) return;
+
+    const target = {
+      organizationId: organization.id,
+      organizationName: organization.name,
+      ownerId: organization.owner_id || '',
+      ownerEmail: organization.owner_email || organization.email || '',
+      subscriptionStatus: organization.subscription?.status,
+    };
+
+    const check = canImpersonate(target);
+    if (!check.allowed) {
+      toast.error(check.reason || 'Cannot impersonate this user');
+      return;
+    }
+
+    // Confirm before impersonating
+    setImpersonateDialogOpen(true);
+  };
+
+  const confirmImpersonate = async () => {
+    if (!organization) return;
+
+    const target = {
+      organizationId: organization.id,
+      organizationName: organization.name,
+      ownerId: organization.owner_id || '',
+      ownerEmail: organization.owner_email || organization.email || '',
+      subscriptionStatus: organization.subscription?.status,
+    };
+
+    const success = await startImpersonation(target);
+    if (success) {
+      onClose();
+    }
+    setImpersonateDialogOpen(false);
+  };
+
+  const canImpersonateOrg = useMemo(() => {
+    if (!organization || !isSuperAdmin || isImpersonating) return false;
+    return !!organization.owner_id;
+  }, [organization, isSuperAdmin, isImpersonating]);
+
   const getRoleBadge = (role: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'outline'> = {
       owner: 'default',
@@ -465,7 +514,30 @@ const OrganizationDetailsDrawer = ({
                 <CardHeader>
                   <CardTitle className="text-lg">Security Actions</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
+                  {/* Impersonate Owner - Super Admin Only */}
+                  {isSuperAdmin && (
+                    <Button
+                      variant="default"
+                      onClick={handleImpersonate}
+                      disabled={!canImpersonateOrg}
+                      className="w-full"
+                    >
+                      <UserCheck className="h-4 w-4 mr-2" />
+                      Login as Organization Owner
+                    </Button>
+                  )}
+                  {isSuperAdmin && !canImpersonateOrg && organization?.owner_id && (
+                    <p className="text-xs text-muted-foreground">
+                      {isImpersonating ? 'Already impersonating another user' : 'Owner account not available'}
+                    </p>
+                  )}
+                  {isSuperAdmin && !organization?.owner_id && (
+                    <p className="text-xs text-muted-foreground">
+                      No owner assigned to this organization
+                    </p>
+                  )}
+
                   <Button
                     variant="outline"
                     onClick={() => setResetDialogOpen(true)}
@@ -476,7 +548,7 @@ const OrganizationDetailsDrawer = ({
                     Reset Owner Password
                   </Button>
                   {!organization.owner_email && (
-                    <p className="text-xs text-muted-foreground mt-2">
+                    <p className="text-xs text-muted-foreground">
                       Owner email not available
                     </p>
                   )}
@@ -672,6 +744,39 @@ const OrganizationDetailsDrawer = ({
         confirmLabel="Confirm Downgrade"
         variant="destructive"
         onConfirm={confirmDowngrade}
+      />
+
+      {/* Impersonation Confirmation Dialog */}
+      <ConfirmDialog
+        open={impersonateDialogOpen}
+        onOpenChange={setImpersonateDialogOpen}
+        title="Login as Organization Owner"
+        description={
+          <div className="space-y-3">
+            <p>
+              You are about to impersonate the owner of{' '}
+              <strong>{organization?.name}</strong>.
+            </p>
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 text-sm">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-medium text-amber-800 dark:text-amber-200">Important:</p>
+                  <ul className="list-disc list-inside text-amber-700 dark:text-amber-300 space-y-1">
+                    <li>You will act as the organization owner</li>
+                    <li>All actions will be logged for audit</li>
+                    <li>A persistent banner will show your impersonation status</li>
+                    {organization?.subscription?.status === 'suspended' && (
+                      <li className="font-medium">This organization is suspended - you'll have read-only access</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+        confirmLabel="Start Impersonation"
+        onConfirm={confirmImpersonate}
       />
     </>
   );
