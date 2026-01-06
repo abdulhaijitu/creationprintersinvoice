@@ -1,13 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { User, FileText, Receipt, Activity, Ban, RotateCcw, Eye } from 'lucide-react';
+import { User, FileText, Receipt, Activity, Ban, Save, KeyRound, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -38,6 +42,7 @@ interface OrganizationDetailsDrawerProps {
     email: string | null;
     phone: string | null;
     owner_id: string | null;
+    owner_email?: string | null;
     created_at: string;
     subscription?: {
       plan: string;
@@ -50,6 +55,9 @@ interface OrganizationDetailsDrawerProps {
   onRefresh: () => void;
 }
 
+type PlanType = 'free' | 'basic' | 'pro' | 'enterprise';
+type StatusType = 'trial' | 'active' | 'suspended' | 'expired' | 'cancelled';
+
 const OrganizationDetailsDrawer = ({ 
   organization, 
   open, 
@@ -59,14 +67,66 @@ const OrganizationDetailsDrawer = ({
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [usageStats, setUsageStats] = useState<OrgUsageStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const [disableDialogOpen, setDisableDialogOpen] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [downgradeDialogOpen, setDowngradeDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<OrganizationMember | null>(null);
   const { logAction } = useAdminAudit();
+
+  // Editable form state
+  const [formData, setFormData] = useState({
+    name: '',
+    plan: '' as PlanType,
+    status: '' as StatusType,
+    trialEndsAt: '',
+  });
+
+  // Original values for dirty checking
+  const [originalData, setOriginalData] = useState({
+    name: '',
+    plan: '' as PlanType,
+    status: '' as StatusType,
+    trialEndsAt: '',
+  });
+
+  const [pendingPlanChange, setPendingPlanChange] = useState<PlanType | null>(null);
+
+  // Check if form has changes
+  const isDirty = useMemo(() => {
+    return (
+      formData.name !== originalData.name ||
+      formData.plan !== originalData.plan ||
+      formData.status !== originalData.status ||
+      formData.trialEndsAt !== originalData.trialEndsAt
+    );
+  }, [formData, originalData]);
+
+  // Check if it's a plan downgrade
+  const isDowngrade = useMemo(() => {
+    const planOrder = ['free', 'basic', 'pro', 'enterprise'];
+    const oldIndex = planOrder.indexOf(originalData.plan);
+    const newIndex = planOrder.indexOf(formData.plan);
+    return newIndex < oldIndex;
+  }, [formData.plan, originalData.plan]);
 
   useEffect(() => {
     if (open && organization) {
       fetchOrgDetails();
       logAction('view_organization', 'organization', organization.id, { name: organization.name });
+      
+      // Initialize form data
+      const initial = {
+        name: organization.name,
+        plan: (organization.subscription?.plan || 'free') as PlanType,
+        status: (organization.subscription?.status || 'trial') as StatusType,
+        trialEndsAt: organization.subscription?.trial_ends_at 
+          ? format(new Date(organization.subscription.trial_ends_at), "yyyy-MM-dd'T'HH:mm")
+          : '',
+      };
+      setFormData(initial);
+      setOriginalData(initial);
     }
   }, [open, organization]);
 
@@ -75,20 +135,13 @@ const OrganizationDetailsDrawer = ({
     setLoading(true);
 
     try {
-      // Fetch members
       const { data: memberData, error: memberError } = await supabase
         .from('organization_members')
-        .select(`
-          id,
-          user_id,
-          role,
-          created_at
-        `)
+        .select('id, user_id, role, created_at')
         .eq('organization_id', organization.id);
 
       if (memberError) throw memberError;
 
-      // Fetch profiles for members
       const membersWithProfiles = await Promise.all(
         (memberData || []).map(async (member) => {
           const { data: profile } = await supabase
@@ -97,16 +150,12 @@ const OrganizationDetailsDrawer = ({
             .eq('id', member.user_id)
             .single();
           
-          return {
-            ...member,
-            profile: profile || undefined,
-          };
+          return { ...member, profile: profile || undefined };
         })
       );
 
       setMembers(membersWithProfiles);
 
-      // Fetch usage stats using RPC
       const { data: stats, error: statsError } = await supabase.rpc('get_org_usage_stats', {
         _org_id: organization.id
       });
@@ -121,6 +170,88 @@ const OrganizationDetailsDrawer = ({
     }
   };
 
+  const handlePlanChange = (newPlan: PlanType) => {
+    const planOrder = ['free', 'basic', 'pro', 'enterprise'];
+    const oldIndex = planOrder.indexOf(originalData.plan);
+    const newIndex = planOrder.indexOf(newPlan);
+    
+    if (newIndex < oldIndex) {
+      setPendingPlanChange(newPlan);
+      setDowngradeDialogOpen(true);
+    } else {
+      setFormData(prev => ({ ...prev, plan: newPlan }));
+    }
+  };
+
+  const confirmDowngrade = () => {
+    if (pendingPlanChange) {
+      setFormData(prev => ({ ...prev, plan: pendingPlanChange }));
+      setPendingPlanChange(null);
+    }
+    setDowngradeDialogOpen(false);
+  };
+
+  const handleSave = async () => {
+    if (!organization || !isDirty) return;
+
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('update-organization', {
+        body: {
+          organizationId: organization.id,
+          updates: {
+            name: formData.name !== originalData.name ? formData.name : undefined,
+            plan: formData.plan !== originalData.plan ? formData.plan : undefined,
+            status: formData.status !== originalData.status ? formData.status : undefined,
+            trialEndsAt: formData.trialEndsAt !== originalData.trialEndsAt 
+              ? (formData.trialEndsAt ? new Date(formData.trialEndsAt).toISOString() : null)
+              : undefined,
+          }
+        }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success('Organization updated successfully');
+      setOriginalData(formData);
+      onRefresh();
+    } catch (error) {
+      console.error('Error saving organization:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save changes');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!organization?.owner_email) {
+      toast.error('Owner email not found');
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-owner-password', {
+        body: {
+          organizationId: organization.id,
+          ownerEmail: organization.owner_email
+        }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Password reset email sent to ${organization.owner_email}`);
+      setResetDialogOpen(false);
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to send reset email');
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   const handleDisableUser = (member: OrganizationMember) => {
     setSelectedUser(member);
     setDisableDialogOpen(true);
@@ -130,8 +261,6 @@ const OrganizationDetailsDrawer = ({
     if (!selectedUser || !organization) return;
 
     try {
-      // In a real app, you'd call an admin API to disable the user
-      // For now, we'll remove them from the organization
       const { error } = await supabase
         .from('organization_members')
         .delete()
@@ -165,6 +294,15 @@ const OrganizationDetailsDrawer = ({
     return <Badge variant={variants[role] || 'outline'}>{role}</Badge>;
   };
 
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'active': return 'default';
+      case 'trial': return 'secondary';
+      case 'suspended': return 'destructive';
+      default: return 'outline';
+    }
+  };
+
   if (!organization) return null;
 
   return (
@@ -188,26 +326,28 @@ const OrganizationDetailsDrawer = ({
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4 mt-4">
+              {/* Organization Details - Editable */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Organization Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="org-name">Organization Name</Label>
+                    <Input
+                      id="org-name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Organization name"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-sm text-muted-foreground">Slug</p>
+                      <p className="text-muted-foreground">Slug</p>
                       <p className="font-medium">{organization.slug}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Email</p>
-                      <p className="font-medium">{organization.email || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Phone</p>
-                      <p className="font-medium">{organization.phone || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Created</p>
+                      <p className="text-muted-foreground">Created</p>
                       <p className="font-medium">
                         {format(new Date(organization.created_at), 'MMM d, yyyy')}
                       </p>
@@ -216,36 +356,151 @@ const OrganizationDetailsDrawer = ({
                 </CardContent>
               </Card>
 
+              {/* Plan & Subscription - Editable */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Subscription</CardTitle>
+                  <CardTitle className="text-lg">Plan & Subscription</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Plan</p>
-                      <Badge>{organization.subscription?.plan || 'free'}</Badge>
+                    <div className="space-y-2">
+                      <Label>Plan</Label>
+                      <Select 
+                        value={formData.plan} 
+                        onValueChange={(value: PlanType) => handlePlanChange(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select plan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="free">Free</SelectItem>
+                          <SelectItem value="basic">Basic</SelectItem>
+                          <SelectItem value="pro">Pro</SelectItem>
+                          <SelectItem value="enterprise">Enterprise</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Status</p>
-                      <Badge variant={
-                        organization.subscription?.status === 'active' ? 'default' :
-                        organization.subscription?.status === 'trial' ? 'secondary' : 'destructive'
-                      }>
-                        {organization.subscription?.status || 'trial'}
-                      </Badge>
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Select 
+                        value={formData.status} 
+                        onValueChange={(value: StatusType) => setFormData(prev => ({ ...prev, status: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="trial">Trial</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="suspended">Suspended</SelectItem>
+                          <SelectItem value="expired">Expired</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    {organization.subscription?.trial_ends_at && (
-                      <div className="col-span-2">
-                        <p className="text-sm text-muted-foreground">Trial Ends</p>
-                        <p className="font-medium">
-                          {format(new Date(organization.subscription.trial_ends_at), 'MMM d, yyyy HH:mm')}
-                        </p>
-                      </div>
-                    )}
+                  </div>
+                  
+                  {(formData.status === 'trial' || originalData.status === 'trial') && (
+                    <div className="space-y-2">
+                      <Label htmlFor="trial-end">Trial End Date</Label>
+                      <Input
+                        id="trial-end"
+                        type="datetime-local"
+                        value={formData.trialEndsAt}
+                        onChange={(e) => setFormData(prev => ({ ...prev, trialEndsAt: e.target.value }))}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Badge variant={getStatusBadgeVariant(originalData.status)}>
+                      Current: {originalData.status}
+                    </Badge>
+                    <span>→</span>
+                    <Badge variant={getStatusBadgeVariant(formData.status)}>
+                      {formData.status}
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Owner & Access - Read Only */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Owner & Access</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Owner Email</p>
+                      <p className="font-medium">{organization.owner_email || organization.email || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Members</p>
+                      <p className="font-medium">{members.length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Security Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Security Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    variant="outline"
+                    onClick={() => setResetDialogOpen(true)}
+                    disabled={!organization.owner_email}
+                    className="w-full"
+                  >
+                    <KeyRound className="h-4 w-4 mr-2" />
+                    Reset Owner Password
+                  </Button>
+                  {!organization.owner_email && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Owner email not available
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Separator />
+
+              {/* Save Changes Button */}
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={onClose}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={!isDirty || saving}
+                  className="min-w-[120px]"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {isDirty && (
+                <p className="text-xs text-muted-foreground text-center">
+                  You have unsaved changes
+                </p>
+              )}
             </TabsContent>
 
             <TabsContent value="users" className="mt-4">
@@ -355,6 +610,7 @@ const OrganizationDetailsDrawer = ({
         </SheetContent>
       </Sheet>
 
+      {/* Disable User Dialog */}
       <ConfirmDialog
         open={disableDialogOpen}
         onOpenChange={setDisableDialogOpen}
@@ -363,6 +619,42 @@ const OrganizationDetailsDrawer = ({
         confirmLabel="Disable Access"
         variant="destructive"
         onConfirm={confirmDisableUser}
+      />
+
+      {/* Reset Password Dialog */}
+      <ConfirmDialog
+        open={resetDialogOpen}
+        onOpenChange={setResetDialogOpen}
+        title="Reset Owner Password"
+        description={`This will send a password reset email to ${organization?.owner_email || organization?.email}. The owner will receive a secure link to set a new password.`}
+        confirmLabel={resettingPassword ? 'Sending...' : 'Send Reset Email'}
+        onConfirm={handleResetPassword}
+      />
+
+      {/* Downgrade Confirmation Dialog */}
+      <ConfirmDialog
+        open={downgradeDialogOpen}
+        onOpenChange={(open) => {
+          setDowngradeDialogOpen(open);
+          if (!open) setPendingPlanChange(null);
+        }}
+        title="Confirm Plan Downgrade"
+        description={
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-4 w-4" />
+              <span className="font-medium">This is a plan downgrade</span>
+            </div>
+            <p>
+              Downgrading from <strong>{originalData.plan}</strong> to{' '}
+              <strong>{pendingPlanChange}</strong> may result in reduced features
+              and user limits for this organization.
+            </p>
+          </div>
+        }
+        confirmLabel="Confirm Downgrade"
+        variant="destructive"
+        onConfirm={confirmDowngrade}
       />
     </>
   );
