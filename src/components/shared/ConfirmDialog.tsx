@@ -54,7 +54,7 @@ export function ConfirmDialog({
                 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
             )}
           >
-            {loading ? 'Processing...' : confirmLabel}
+            {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

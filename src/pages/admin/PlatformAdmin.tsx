@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -85,6 +86,7 @@ const sectionConfig: Record<string, { title: string; description: string }> = {
 
 const PlatformAdmin = () => {
   const { user, role, loading: authLoading, signOut } = useAuth();
+  const { isImpersonating } = useImpersonation();
   const navigate = useNavigate();
   
   const adminRole = getAdminRole(role);
@@ -147,6 +149,13 @@ const PlatformAdmin = () => {
 
   // Redirect if user doesn't have admin access or tries to access unauthorized section
   useEffect(() => {
+    // Redirect away if impersonating
+    if (isImpersonating) {
+      toast.error('Cannot access admin panel while impersonating');
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+    
     if (!authLoading && !hasAdminAccess(role)) {
       navigate('/admin/login');
       return;
@@ -160,7 +169,7 @@ const PlatformAdmin = () => {
     if (hasAdminAccess(role)) {
       fetchOrganizations();
     }
-  }, [role, authLoading, adminRole, activeSection]);
+  }, [role, authLoading, adminRole, activeSection, isImpersonating, navigate]);
 
   const fetchOrganizations = async () => {
     try {

@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { useEnhancedAudit } from '@/hooks/useEnhancedAudit';
 import { toast } from 'sonner';
@@ -16,14 +16,18 @@ interface ImpersonationState {
   isImpersonating: boolean;
   target: ImpersonationTarget | null;
   originalAdminId: string | null;
+  originalAdminEmail: string | null;
   startedAt: string | null;
 }
 
 interface ImpersonationContextType {
   isImpersonating: boolean;
   impersonationTarget: ImpersonationTarget | null;
+  originalAdminId: string | null;
+  isStarting: boolean;
+  isEnding: boolean;
   startImpersonation: (target: ImpersonationTarget) => Promise<boolean>;
-  endImpersonation: () => void;
+  endImpersonation: () => Promise<void>;
   canImpersonate: (target: ImpersonationTarget) => { allowed: boolean; reason?: string };
 }
 
@@ -35,6 +39,11 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
   const { user, isSuperAdmin } = useAuth();
   const { logAuditEvent } = useEnhancedAudit();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isNavigatingRef = useRef(false);
+
+  const [isStarting, setIsStarting] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
 
   const [state, setState] = useState<ImpersonationState>(() => {
     // Restore from session storage on mount
@@ -54,6 +63,7 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
       isImpersonating: false,
       target: null,
       originalAdminId: null,
+      originalAdminEmail: null,
       startedAt: null,
     };
   });
@@ -74,10 +84,19 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
         isImpersonating: false,
         target: null,
         originalAdminId: null,
+        originalAdminEmail: null,
         startedAt: null,
       });
     }
   }, [user, state.isImpersonating]);
+
+  // Block access to admin routes while impersonating
+  useEffect(() => {
+    if (state.isImpersonating && location.pathname.startsWith('/admin') && !isNavigatingRef.current) {
+      toast.error('Cannot access admin panel while impersonating');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [state.isImpersonating, location.pathname, navigate]);
 
   const canImpersonate = useCallback((target: ImpersonationTarget): { allowed: boolean; reason?: string } => {
     // Only Super Admins can impersonate
@@ -105,6 +124,8 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
       return false;
     }
 
+    setIsStarting(true);
+
     try {
       // Log impersonation start
       await logAuditEvent({
@@ -118,34 +139,46 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
         metadata: {
           target_owner_email: target.ownerEmail,
           subscription_status: target.subscriptionStatus,
+          source: 'Admin Impersonation Modal',
         },
-        source: 'admin_panel',
+        source: 'ui',
       });
 
       setState({
         isImpersonating: true,
         target,
         originalAdminId: user?.id || null,
+        originalAdminEmail: user?.email || null,
         startedAt: new Date().toISOString(),
       });
 
-      toast.success(`Now impersonating ${target.organizationName}`);
+      toast.success(`Now impersonating ${target.organizationName}`, {
+        description: 'You are now viewing as the organization owner',
+      });
       
       // Navigate to dashboard as the impersonated user
+      isNavigatingRef.current = true;
       navigate('/dashboard');
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 100);
       
       return true;
     } catch (error) {
       console.error('Failed to start impersonation:', error);
       toast.error('Failed to start impersonation');
       return false;
+    } finally {
+      setIsStarting(false);
     }
-  }, [canImpersonate, user?.id, logAuditEvent, navigate]);
+  }, [canImpersonate, user?.id, user?.email, logAuditEvent, navigate]);
 
   const endImpersonation = useCallback(async () => {
     if (!state.isImpersonating || !state.target) {
       return;
     }
+
+    setIsEnding(true);
 
     try {
       // Log impersonation end
@@ -161,8 +194,9 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
           duration_seconds: state.startedAt 
             ? Math.round((Date.now() - new Date(state.startedAt).getTime()) / 1000)
             : null,
+          source: 'Impersonation Banner',
         },
-        source: 'admin_panel',
+        source: 'ui',
       });
 
       toast.success('Returned to Super Admin mode');
@@ -174,16 +208,26 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
       isImpersonating: false,
       target: null,
       originalAdminId: null,
+      originalAdminEmail: null,
       startedAt: null,
     });
 
     // Navigate back to admin panel
+    isNavigatingRef.current = true;
     navigate('/admin');
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 100);
+
+    setIsEnding(false);
   }, [state, logAuditEvent, navigate]);
 
   const value: ImpersonationContextType = {
     isImpersonating: state.isImpersonating,
     impersonationTarget: state.target,
+    originalAdminId: state.originalAdminId,
+    isStarting,
+    isEnding,
     startImpersonation,
     endImpersonation,
     canImpersonate,
