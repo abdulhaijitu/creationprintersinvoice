@@ -14,7 +14,7 @@ import { format, addDays, startOfMonth } from 'date-fns';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import OrganizationDetailsDrawer from '@/components/admin/OrganizationDetailsDrawer';
-import AuditLogsTable from '@/components/admin/AuditLogsTable';
+import EnhancedAuditLogsTable from '@/components/admin/EnhancedAuditLogsTable';
 import AdminBillingTable from '@/components/admin/AdminBillingTable';
 import { AdminAnalyticsDashboard } from '@/components/admin/AdminAnalyticsDashboard';
 import { AdminNotificationLogs } from '@/components/admin/AdminNotificationLogs';
@@ -519,7 +519,7 @@ const PlatformAdmin = () => {
         return <AdminNotificationLogs />;
 
       case 'audit':
-        return <AuditLogsTable />;
+        return <EnhancedAuditLogsTable />;
 
       default:
         return null;
