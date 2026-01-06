@@ -31,6 +31,7 @@ import { DeleteOrganizationDialog } from '@/components/admin/DeleteOrganizationD
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { AdminGlobalSearch } from '@/components/admin/AdminGlobalSearch';
 import { OrgRolePermissionsManager } from '@/components/admin/OrgRolePermissionsManager';
+import { PlanPermissionPresetsManager } from '@/components/admin/PlanPermissionPresetsManager';
 import { UpgradeRequestsManager } from '@/components/admin/UpgradeRequestsManager';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -76,6 +77,10 @@ const sectionConfig: Record<string, { title: string; description: string }> = {
   'role-permissions': {
     title: 'Role Permissions',
     description: 'Manage permission matrix for organization roles',
+  },
+  'plan-presets': {
+    title: 'Plan Permission Presets',
+    description: 'Define default permissions for each subscription plan',
   },
   'upgrade-requests': {
     title: 'Upgrade Requests',
@@ -768,6 +773,9 @@ const PlatformAdmin = () => {
 
       case 'role-permissions':
         return <OrgRolePermissionsManager />;
+
+      case 'plan-presets':
+        return <PlanPermissionPresetsManager />;
 
       case 'upgrade-requests':
         return <UpgradeRequestsManager />;

@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Loader2, Shield, Lock, AlertCircle, CheckCircle2, Globe, Building2 } from 'lucide-react';
+import { Loader2, Shield, Lock, AlertCircle, CheckCircle2, Globe, Building2, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useEnhancedAudit } from '@/hooks/useEnhancedAudit';
 
@@ -27,10 +27,18 @@ interface OrgSpecificPermission {
   is_enabled: boolean;
 }
 
+interface PlanPreset {
+  plan_name: string;
+  role: string;
+  permission_key: string;
+  is_enabled: boolean;
+}
+
 interface OrgPermissionSettings {
   id: string;
   organization_id: string;
   use_global_permissions: boolean;
+  override_plan_permissions: boolean;
 }
 
 type OrgRole = 'owner' | 'manager' | 'accounts' | 'staff';
@@ -53,14 +61,17 @@ const CATEGORY_ORDER = [
 interface OrgSpecificPermissionsManagerProps {
   organizationId: string;
   organizationName: string;
+  subscriptionPlan?: string;
 }
 
 export const OrgSpecificPermissionsManager = ({
   organizationId,
   organizationName,
+  subscriptionPlan = 'free',
 }: OrgSpecificPermissionsManagerProps) => {
   const [globalPermissions, setGlobalPermissions] = useState<GlobalPermission[]>([]);
   const [orgPermissions, setOrgPermissions] = useState<OrgSpecificPermission[]>([]);
+  const [planPresets, setPlanPresets] = useState<PlanPreset[]>([]);
   const [settings, setSettings] = useState<OrgPermissionSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -68,6 +79,7 @@ export const OrgSpecificPermissionsManager = ({
   const { logConfigChange } = useEnhancedAudit();
 
   const useGlobalPermissions = settings?.use_global_permissions ?? true;
+  const overridePlanPermissions = settings?.override_plan_permissions ?? false;
 
   useEffect(() => {
     fetchAllData();
@@ -76,34 +88,23 @@ export const OrgSpecificPermissionsManager = ({
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      // Fetch global permissions
-      const { data: globalData, error: globalError } = await supabase
-        .from('org_role_permissions')
-        .select('*')
-        .order('permission_category', { ascending: true })
-        .order('permission_label', { ascending: true });
+      // Fetch global permissions, plan presets, and org-specific data
+      const [globalRes, planRes, orgRes, settingsRes] = await Promise.all([
+        supabase
+          .from('org_role_permissions')
+          .select('*')
+          .order('permission_category', { ascending: true })
+          .order('permission_label', { ascending: true }),
+        supabase.from('plan_permission_presets').select('plan_name, role, permission_key, is_enabled'),
+        supabase.from('org_specific_permissions').select('*').eq('organization_id', organizationId),
+        supabase.from('org_permission_settings').select('*').eq('organization_id', organizationId).maybeSingle(),
+      ]);
 
-      if (globalError) throw globalError;
-      setGlobalPermissions(globalData || []);
-
-      // Fetch org-specific permissions
-      const { data: orgData, error: orgError } = await supabase
-        .from('org_specific_permissions')
-        .select('*')
-        .eq('organization_id', organizationId);
-
-      if (orgError) throw orgError;
-      setOrgPermissions(orgData || []);
-
-      // Fetch org permission settings
-      const { data: settingsData, error: settingsError } = await supabase
-        .from('org_permission_settings')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .maybeSingle();
-
-      if (settingsError) throw settingsError;
-      setSettings(settingsData);
+      if (globalRes.error) throw globalRes.error;
+      setGlobalPermissions(globalRes.data || []);
+      setPlanPresets(planRes.data || []);
+      setOrgPermissions(orgRes.data || []);
+      setSettings(settingsRes.data);
     } catch (error) {
       console.error('Error fetching permissions:', error);
       toast.error('Failed to load permissions');
@@ -113,10 +114,9 @@ export const OrgSpecificPermissionsManager = ({
   };
 
   const handleToggleGlobal = async (useGlobal: boolean) => {
-    setSaving('toggle');
+    setSaving('toggle-global');
     try {
       if (settings) {
-        // Update existing settings
         const { error } = await supabase
           .from('org_permission_settings')
           .update({ use_global_permissions: useGlobal })
@@ -125,7 +125,6 @@ export const OrgSpecificPermissionsManager = ({
         if (error) throw error;
         setSettings({ ...settings, use_global_permissions: useGlobal });
       } else {
-        // Create new settings
         const { data, error } = await supabase
           .from('org_permission_settings')
           .insert({
@@ -149,7 +148,7 @@ export const OrgSpecificPermissionsManager = ({
 
       toast.success(
         useGlobal
-          ? 'Now using global role permissions'
+          ? 'Now using plan-based permissions'
           : 'Now using custom permissions for this organization'
       );
     } catch (error) {
@@ -160,31 +159,78 @@ export const OrgSpecificPermissionsManager = ({
     }
   };
 
+  const handleTogglePlanOverride = async (override: boolean) => {
+    setSaving('toggle-plan');
+    try {
+      if (settings) {
+        const { error } = await supabase
+          .from('org_permission_settings')
+          .update({ override_plan_permissions: override })
+          .eq('id', settings.id);
+
+        if (error) throw error;
+        setSettings({ ...settings, override_plan_permissions: override });
+      } else {
+        const { data, error } = await supabase
+          .from('org_permission_settings')
+          .insert({
+            organization_id: organizationId,
+            override_plan_permissions: override,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        setSettings(data);
+      }
+
+      await logConfigChange(
+        'Organization Plan Override',
+        organizationId,
+        { organization_name: organizationName },
+        { override_plan_permissions: !override },
+        { override_plan_permissions: override }
+      );
+
+      toast.success(
+        override
+          ? 'Plan permissions overridden for this organization'
+          : 'Now using plan-based permissions'
+      );
+    } catch (error) {
+      console.error('Error toggling plan override:', error);
+      toast.error('Failed to update plan override');
+    } finally {
+      setSaving(null);
+    }
+  };
+
   const getEffectivePermission = useCallback(
     (role: string, permissionKey: string): boolean => {
-      // If using global, return global permission
       const globalPerm = globalPermissions.find(
         (p) => p.role === role && p.permission_key === permissionKey
       );
 
-      if (useGlobalPermissions) {
-        return globalPerm?.is_enabled ?? false;
+      // If custom permissions are enabled
+      if (!useGlobalPermissions) {
+        const orgPerm = orgPermissions.find(
+          (p) => p.role === role && p.permission_key === permissionKey
+        );
+        if (orgPerm) return orgPerm.is_enabled;
       }
 
-      // Check org-specific override first
-      const orgPerm = orgPermissions.find(
-        (p) => p.role === role && p.permission_key === permissionKey
-      );
-
-      // If org override exists, use it
-      if (orgPerm) {
-        return orgPerm.is_enabled;
+      // If not overriding plan permissions, check plan preset
+      if (!overridePlanPermissions) {
+        const planPerm = planPresets.find(
+          (p) => p.plan_name === subscriptionPlan && p.role === role && p.permission_key === permissionKey
+        );
+        if (planPerm) return planPerm.is_enabled;
       }
 
       // Fallback to global
       return globalPerm?.is_enabled ?? false;
     },
-    [globalPermissions, orgPermissions, useGlobalPermissions]
+    [globalPermissions, orgPermissions, planPresets, useGlobalPermissions, overridePlanPermissions, subscriptionPlan]
   );
 
   const hasOrgOverride = useCallback(

@@ -43,13 +43,14 @@ interface NavItem {
   icon: React.ElementType;
 }
 
-import { Shield } from 'lucide-react';
+import { Shield, Layers } from 'lucide-react';
 
 const allNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'organizations', label: 'Organizations', icon: Building2 },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'role-permissions', label: 'Role Permissions', icon: Shield },
+  { id: 'plan-presets', label: 'Plan Presets', icon: Layers },
   { id: 'upgrade-requests', label: 'Upgrade Requests', icon: ArrowUp },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'billing', label: 'Billing', icon: CreditCard },
