@@ -1883,6 +1883,99 @@ export type Database = {
           },
         ]
       }
+      subscription_payments: {
+        Row: {
+          amount: number
+          billing_invoice_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          failure_reason: string | null
+          gateway: Database["public"]["Enums"]["payment_gateway"]
+          gateway_response: Json | null
+          gateway_transaction_id: string | null
+          id: string
+          initiated_at: string
+          notes: string | null
+          organization_id: string
+          payer_email: string | null
+          payer_name: string | null
+          payer_phone: string | null
+          payment_method: string | null
+          receipt_number: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount: number
+          billing_invoice_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          failure_reason?: string | null
+          gateway: Database["public"]["Enums"]["payment_gateway"]
+          gateway_response?: Json | null
+          gateway_transaction_id?: string | null
+          id?: string
+          initiated_at?: string
+          notes?: string | null
+          organization_id: string
+          payer_email?: string | null
+          payer_name?: string | null
+          payer_phone?: string | null
+          payment_method?: string | null
+          receipt_number?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount?: number
+          billing_invoice_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          failure_reason?: string | null
+          gateway?: Database["public"]["Enums"]["payment_gateway"]
+          gateway_response?: Json | null
+          gateway_transaction_id?: string | null
+          id?: string
+          initiated_at?: string
+          notes?: string | null
+          organization_id?: string
+          payer_email?: string | null
+          payer_name?: string | null
+          payer_phone?: string | null
+          payment_method?: string | null
+          receipt_number?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_payments_billing_invoice_id_fkey"
+            columns: ["billing_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -2214,6 +2307,7 @@ export type Database = {
       generate_billing_invoice_number: { Args: never; Returns: string }
       generate_challan_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
+      generate_payment_receipt_number: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
       get_org_usage_percentage: {
         Args: { org_id: string }
@@ -2256,6 +2350,22 @@ export type Database = {
       }
       is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       is_subscription_active: { Args: { _org_id: string }; Returns: boolean }
+      process_failed_payment: {
+        Args: {
+          p_failure_reason: string
+          p_gateway_response: Json
+          p_payment_id: string
+        }
+        Returns: boolean
+      }
+      process_successful_payment: {
+        Args: {
+          p_gateway_response: Json
+          p_gateway_tx_id: string
+          p_payment_id: string
+        }
+        Returns: boolean
+      }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
@@ -2276,6 +2386,14 @@ export type Database = {
       leave_status: "pending" | "approved" | "rejected"
       leave_type: "casual" | "sick" | "annual" | "other"
       org_role: "owner" | "manager" | "accounts" | "staff"
+      payment_gateway: "sslcommerz" | "bkash" | "nagad" | "rocket" | "manual"
+      payment_status:
+        | "initiated"
+        | "pending"
+        | "success"
+        | "failed"
+        | "cancelled"
+        | "refunded"
       quotation_status: "pending" | "accepted" | "rejected"
       subscription_plan: "free" | "basic" | "pro" | "enterprise"
       subscription_status:
@@ -2438,6 +2556,15 @@ export const Constants = {
       leave_status: ["pending", "approved", "rejected"],
       leave_type: ["casual", "sick", "annual", "other"],
       org_role: ["owner", "manager", "accounts", "staff"],
+      payment_gateway: ["sslcommerz", "bkash", "nagad", "rocket", "manual"],
+      payment_status: [
+        "initiated",
+        "pending",
+        "success",
+        "failed",
+        "cancelled",
+        "refunded",
+      ],
       quotation_status: ["pending", "accepted", "rejected"],
       subscription_plan: ["free", "basic", "pro", "enterprise"],
       subscription_status: [
