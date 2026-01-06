@@ -1349,6 +1349,42 @@ export type Database = {
           },
         ]
       }
+      org_role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          is_protected: boolean
+          permission_category: string
+          permission_key: string
+          permission_label: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          is_protected?: boolean
+          permission_category: string
+          permission_key: string
+          permission_label: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          is_protected?: boolean
+          permission_category?: string
+          permission_key?: string
+          permission_label?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       organization_branding: {
         Row: {
           accent_color: string | null
