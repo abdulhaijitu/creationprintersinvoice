@@ -15,8 +15,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Eye, EyeOff, Settings, KeyRound, Mail, CheckCircle2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Settings, KeyRound, Mail, CheckCircle2, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { processEdgeFunctionResponse } from '@/lib/edgeFunctionUtils';
 
 const passwordSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters').max(72),
@@ -53,6 +54,7 @@ export const ManageUserDialog = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
+  const [resetCredentials, setResetCredentials] = useState<{ email: string; password: string } | null>(null);
 
   const resetForm = () => {
     setPassword('');
@@ -62,6 +64,7 @@ export const ManageUserDialog = ({
     setErrors({});
     setSuccess(null);
     setEmailSent(false);
+    setResetCredentials(null);
   };
 
   const generatePassword = () => {
@@ -113,34 +116,24 @@ export const ManageUserDialog = ({
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to reset password');
-      }
-
-      if (response.data?.error) {
-        throw new Error(response.data.error);
-      }
-
-      if (!response.data?.success) {
-        throw new Error('Failed to reset password');
+      // Process response with proper error extraction
+      const result = await processEdgeFunctionResponse(response);
+      
+      if (!result.success || result.error) {
+        throw new Error(result.error || 'Failed to reset password');
       }
 
       setSuccess('password');
-      setEmailSent(response.data?.emailSent === true);
+      setEmailSent(result.data?.emailSent === true);
+      setResetCredentials({ email: user.email, password });
       
-      if (response.data?.emailSent) {
+      if (result.data?.emailSent) {
         toast.success('Password reset and credentials sent via email');
-      } else if (sendEmail && response.data?.emailError) {
-        toast.warning(`Password reset but email failed: ${response.data.emailError}`);
+      } else if (sendEmail && result.data?.emailError) {
+        toast.warning(`Password reset but email failed: ${result.data.emailError}`);
       } else {
         toast.success('Password reset successfully');
       }
-      
-      setTimeout(() => {
-        onSuccess();
-        onOpenChange(false);
-        resetForm();
-      }, 1500);
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
@@ -151,11 +144,34 @@ export const ManageUserDialog = ({
         });
         setErrors(fieldErrors);
       } else {
-        toast.error(error instanceof Error ? error.message : 'Failed to reset password');
+        const msg = error instanceof Error ? error.message : 'Failed to reset password';
+        setErrors({ password: msg });
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyEmailTemplate = () => {
+    if (!resetCredentials || !user) return;
+    const template = `Subject: Password Reset – PrintoSaas Platform
+
+Hello ${user.full_name},
+
+Your password has been reset by an administrator.
+
+Login URL: ${window.location.origin}/login
+
+Email: ${resetCredentials.email}
+New Password: ${resetCredentials.password}
+
+For security reasons, please change your password immediately after login.
+
+Regards,
+Creation Tech Team`;
+    
+    navigator.clipboard.writeText(template);
+    toast.success('Email template copied to clipboard');
   };
 
   const handleUpdateEmail = async () => {
@@ -181,12 +197,11 @@ export const ManageUserDialog = ({
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to update email');
-      }
-
-      if (!response.data?.success) {
-        throw new Error(response.data?.error || 'Failed to update email');
+      // Process response with proper error extraction
+      const result = await processEdgeFunctionResponse(response);
+      
+      if (!result.success || result.error) {
+        throw new Error(result.error || 'Failed to update email');
       }
 
       setSuccess('email');
@@ -207,11 +222,18 @@ export const ManageUserDialog = ({
         });
         setErrors(fieldErrors);
       } else {
-        toast.error(error instanceof Error ? error.message : 'Failed to update email');
+        const msg = error instanceof Error ? error.message : 'Failed to update email';
+        setErrors({ email: msg });
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDone = () => {
+    onSuccess();
+    onOpenChange(false);
+    resetForm();
   };
 
   if (!user) return null;
@@ -230,22 +252,58 @@ export const ManageUserDialog = ({
         </DialogHeader>
 
         {success ? (
-          <div className="flex flex-col items-center justify-center py-8 animate-fade-in">
-            <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3 mb-4">
-              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
-            </div>
-            <h3 className="text-lg font-semibold mb-1">
-              {success === 'password' ? 'Password Reset' : 'Email Updated'}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Changes have been applied successfully.
-            </p>
-            {emailSent && success === 'password' && (
-              <p className="text-sm text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
-                <Mail className="h-4 w-4" />
-                New credentials sent via email
+          <div className="space-y-4 py-4 animate-fade-in">
+            <div className="flex flex-col items-center justify-center">
+              <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3 mb-4">
+                <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+              </div>
+              <h3 className="text-lg font-semibold mb-1">
+                {success === 'password' ? 'Password Reset' : 'Email Updated'}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Changes have been applied successfully.
               </p>
+              {emailSent && success === 'password' && (
+                <p className="text-sm text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
+                  <Mail className="h-4 w-4" />
+                  New credentials sent via email
+                </p>
+              )}
+            </div>
+
+            {/* Manual Email Template for Password Reset */}
+            {success === 'password' && resetCredentials && !emailSent && (
+              <div className="mt-4 p-4 rounded-lg bg-muted/50 border">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-medium">Copy-Paste Email Template</Label>
+                  <Button variant="outline" size="sm" onClick={copyEmailTemplate}>
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                </div>
+                <pre className="text-xs text-muted-foreground whitespace-pre-wrap bg-background p-3 rounded border max-h-40 overflow-y-auto">
+{`Subject: Password Reset – PrintoSaas Platform
+
+Hello ${user.full_name},
+
+Your password has been reset by an administrator.
+
+Login URL: ${window.location.origin}/login
+
+Email: ${resetCredentials.email}
+New Password: ${resetCredentials.password}
+
+For security reasons, please change your password immediately after login.
+
+Regards,
+Creation Tech Team`}
+                </pre>
+              </div>
             )}
+
+            <DialogFooter className="pt-2">
+              <Button onClick={handleDone}>Done</Button>
+            </DialogFooter>
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

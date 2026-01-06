@@ -15,8 +15,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Eye, EyeOff, UserPlus, CheckCircle2, Mail, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, Eye, EyeOff, UserPlus, CheckCircle2, Mail, AlertCircle, RefreshCw, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { processEdgeFunctionResponse } from '@/lib/edgeFunctionUtils';
 
 const userSchema = z.object({
   email: z.string().trim().email('Invalid email address').max(255),
@@ -48,6 +49,7 @@ export const CreateUserDialog = ({
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -65,6 +67,7 @@ export const CreateUserDialog = ({
     setInlineError(null);
     setSuccess(false);
     setEmailSent(false);
+    setCreatedCredentials(null);
   };
 
   const generatePassword = () => {
@@ -129,7 +132,7 @@ export const CreateUserDialog = ({
           forcePasswordReset: validatedData.forcePasswordReset,
           sendEmail,
           loginUrl: window.location.origin + '/login',
-          isInternalUser: true, // Flag for internal platform users
+          isInternalUser: true,
         },
       });
 
@@ -138,34 +141,24 @@ export const CreateUserDialog = ({
         console.log('[CreateUser] Response:', response);
       }
 
-      // Handle edge function errors
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to create user');
-      }
-
-      if (response.data?.error) {
-        throw new Error(response.data.error);
-      }
-
-      if (!response.data?.success) {
-        throw new Error('Failed to create user');
+      // Process response with proper error extraction
+      const result = await processEdgeFunctionResponse(response);
+      
+      if (!result.success || result.error) {
+        throw new Error(result.error || 'Failed to create user');
       }
 
       setSuccess(true);
-      setEmailSent(response.data?.emailSent === true);
+      setEmailSent(result.data?.emailSent === true);
+      setCreatedCredentials({ email: validatedData.email, password: validatedData.password });
       
-      if (response.data?.emailSent) {
+      if (result.data?.emailSent) {
         toast.success('User created and login credentials sent via email');
-      } else if (sendEmail && response.data?.emailError) {
-        toast.warning(`User created but email failed: ${response.data.emailError}`);
+      } else if (sendEmail && result.data?.emailError) {
+        toast.warning(`User created but email failed: ${result.data.emailError}`);
       } else {
         toast.success('User created successfully');
       }
-      
-      setTimeout(() => {
-        onSuccess();
-        onOpenChange(false);
-      }, 1500);
     } catch (error) {
       if (error instanceof z.ZodError) {
         const firstError = error.errors[0];
@@ -173,15 +166,48 @@ export const CreateUserDialog = ({
       } else {
         const errorMessage = error instanceof Error ? error.message : 'Failed to create user';
         setInlineError(errorMessage);
-        toast.error(errorMessage);
       }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleClose = () => {
+    if (!loading) {
+      resetForm();
+      onOpenChange(false);
+    }
+  };
+
+  const handleDone = () => {
+    onSuccess();
+    handleClose();
+  };
+
+  const copyEmailTemplate = () => {
+    if (!createdCredentials) return;
+    const template = `Subject: Your Account Access – PrintoSaas Platform
+
+Hello ${fullName},
+
+Your account has been created successfully.
+
+Login URL: ${window.location.origin}/login
+
+Email: ${createdCredentials.email}
+Password: ${createdCredentials.password}
+
+For security reasons, please change your password immediately after login.
+
+Regards,
+Creation Tech Team`;
+    
+    navigator.clipboard.writeText(template);
+    toast.success('Email template copied to clipboard');
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -194,20 +220,56 @@ export const CreateUserDialog = ({
         </DialogHeader>
 
         {success ? (
-          <div className="flex flex-col items-center justify-center py-8 animate-fade-in">
-            <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3 mb-4">
-              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
-            </div>
-            <h3 className="text-lg font-semibold mb-1">User Created Successfully</h3>
-            <p className="text-sm text-muted-foreground">
-              {email} has been added to the system.
-            </p>
-            {emailSent && (
-              <p className="text-sm text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
-                <Mail className="h-4 w-4" />
-                Login credentials sent via email
+          <div className="space-y-4 py-4 animate-fade-in">
+            <div className="flex flex-col items-center justify-center">
+              <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3 mb-4">
+                <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+              </div>
+              <h3 className="text-lg font-semibold mb-1">User Created Successfully</h3>
+              <p className="text-sm text-muted-foreground">
+                {email} has been added to the system.
               </p>
+              {emailSent && (
+                <p className="text-sm text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
+                  <Mail className="h-4 w-4" />
+                  Login credentials sent via email
+                </p>
+              )}
+            </div>
+
+            {/* Manual Email Template */}
+            {createdCredentials && !emailSent && (
+              <div className="mt-4 p-4 rounded-lg bg-muted/50 border">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-medium">Copy-Paste Email Template</Label>
+                  <Button variant="outline" size="sm" onClick={copyEmailTemplate}>
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                </div>
+                <pre className="text-xs text-muted-foreground whitespace-pre-wrap bg-background p-3 rounded border max-h-40 overflow-y-auto">
+{`Subject: Your Account Access – PrintoSaas Platform
+
+Hello ${fullName},
+
+Your account has been created successfully.
+
+Login URL: ${window.location.origin}/login
+
+Email: ${createdCredentials.email}
+Password: ${createdCredentials.password}
+
+For security reasons, please change your password immediately after login.
+
+Regards,
+Creation Tech Team`}
+                </pre>
+              </div>
             )}
+
+            <DialogFooter className="pt-2">
+              <Button onClick={handleDone}>Done</Button>
+            </DialogFooter>
           </div>
         ) : (
           <div className="space-y-4 py-2">
