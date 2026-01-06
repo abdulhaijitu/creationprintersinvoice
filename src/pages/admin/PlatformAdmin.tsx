@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Building2, Search, Shield, Calendar, RotateCcw, Eye, Ban, CheckCircle, LogOut } from 'lucide-react';
+import { Building2, Search, Shield, Calendar, RotateCcw, Eye, Ban, CheckCircle, LogOut, Bell } from 'lucide-react';
 import { format, addDays, startOfMonth } from 'date-fns';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -19,6 +19,7 @@ import OrganizationDetailsDrawer from '@/components/admin/OrganizationDetailsDra
 import AuditLogsTable from '@/components/admin/AuditLogsTable';
 import AdminBillingTable from '@/components/admin/AdminBillingTable';
 import { AdminAnalyticsDashboard } from '@/components/admin/AdminAnalyticsDashboard';
+import { AdminNotificationLogs } from '@/components/admin/AdminNotificationLogs';
 
 interface OrganizationWithStats {
   id: string;
@@ -300,6 +301,7 @@ const PlatformAdmin = () => {
             <TabsTrigger value="organizations">Organizations</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="audit">Audit Logs</TabsTrigger>
           </TabsList>
 
@@ -474,6 +476,10 @@ const PlatformAdmin = () => {
 
           <TabsContent value="audit">
             <AuditLogsTable />
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <AdminNotificationLogs />
           </TabsContent>
 
           <TabsContent value="billing">

@@ -41,6 +41,7 @@ import SuperAdminLogin from "./pages/admin/SuperAdminLogin";
 import Pricing from "./pages/Pricing";
 import Billing from "./pages/Billing";
 import Usage from "./pages/Usage";
+import NotificationSettings from "./pages/NotificationSettings";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,7 @@ const App = () => (
                 <Route path="/delivery-challans" element={<DeliveryChallans />} />
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/usage" element={<Usage />} />
+                <Route path="/notification-settings" element={<NotificationSettings />} />
               </Route>
               
               <Route path="*" element={<NotFound />} />
