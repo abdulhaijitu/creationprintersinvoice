@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import AdminDashboardWidgets from '@/components/admin/AdminDashboardWidgets';
 import OrganizationDetailsDrawer from '@/components/admin/OrganizationDetailsDrawer';
 import AuditLogsTable from '@/components/admin/AuditLogsTable';
+import AdminBillingTable from '@/components/admin/AdminBillingTable';
 
 interface OrganizationWithStats {
   id: string;
@@ -296,6 +297,7 @@ const PlatformAdmin = () => {
         <Tabs defaultValue="organizations" className="space-y-4">
           <TabsList>
             <TabsTrigger value="organizations">Organizations</TabsTrigger>
+            <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="audit">Audit Logs</TabsTrigger>
           </TabsList>
 
@@ -466,6 +468,10 @@ const PlatformAdmin = () => {
 
           <TabsContent value="audit">
             <AuditLogsTable />
+          </TabsContent>
+
+          <TabsContent value="billing">
+            <AdminBillingTable />
           </TabsContent>
         </Tabs>
       </div>

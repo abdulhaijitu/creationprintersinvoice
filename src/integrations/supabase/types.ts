@@ -124,6 +124,83 @@ export type Database = {
           },
         ]
       }
+      billing_invoices: {
+        Row: {
+          amount: number
+          billing_period_end: string
+          billing_period_start: string
+          business_name: string
+          created_at: string
+          due_date: string
+          generated_date: string
+          id: string
+          invoice_number: string
+          notes: string | null
+          organization_id: string
+          owner_email: string | null
+          paid_date: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          plan_name: string
+          status: string
+          tax: number | null
+          total_payable: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          billing_period_end: string
+          billing_period_start: string
+          business_name: string
+          created_at?: string
+          due_date: string
+          generated_date?: string
+          id?: string
+          invoice_number: string
+          notes?: string | null
+          organization_id: string
+          owner_email?: string | null
+          paid_date?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          plan_name?: string
+          status?: string
+          tax?: number | null
+          total_payable?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          billing_period_end?: string
+          billing_period_start?: string
+          business_name?: string
+          created_at?: string
+          due_date?: string
+          generated_date?: string
+          id?: string
+          invoice_number?: string
+          notes?: string | null
+          organization_id?: string
+          owner_email?: string | null
+          paid_date?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          plan_name?: string
+          status?: string
+          tax?: number | null
+          total_payable?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_settings: {
         Row: {
           address: string | null
@@ -2010,6 +2087,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_overdue_invoices: { Args: never; Returns: undefined }
+      generate_billing_invoice_number: { Args: never; Returns: string }
       generate_challan_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
