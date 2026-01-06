@@ -51,7 +51,8 @@ export const usePasswordResetCheck = () => {
             .from('organization_members')
             .select('organization_id')
             .eq('user_id', user.id)
-            .single();
+            .limit(1)
+            .maybeSingle();
 
           if (memberData?.organization_id) {
             await supabase.rpc('log_password_reset_event', {
