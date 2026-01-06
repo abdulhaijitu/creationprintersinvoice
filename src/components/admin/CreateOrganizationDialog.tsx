@@ -70,24 +70,24 @@ function generateStrongPassword(): string {
   return password.split('').sort(() => Math.random() - 0.5).join('');
 }
 
-// Validate password strength
-function validatePassword(password: string): { valid: boolean; message: string } {
-  if (password.length < 12) {
-    return { valid: false, message: 'Password must be at least 12 characters' };
+// Validate temporary password - relaxed rules (8+ chars minimum)
+function validateTemporaryPassword(password: string): { valid: boolean; message: string; isWeak: boolean } {
+  if (password.length < 8) {
+    return { valid: false, message: 'Password must be at least 8 characters', isWeak: true };
   }
-  if (!/[a-z]/.test(password)) {
-    return { valid: false, message: 'Password must contain a lowercase letter' };
-  }
-  if (!/[A-Z]/.test(password)) {
-    return { valid: false, message: 'Password must contain an uppercase letter' };
-  }
-  if (!/[0-9]/.test(password)) {
-    return { valid: false, message: 'Password must contain a number' };
-  }
-  if (!/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) {
-    return { valid: false, message: 'Password must contain a special character' };
-  }
-  return { valid: true, message: 'Strong password' };
+  
+  // Check if it's a strong password
+  const hasLower = /[a-z]/.test(password);
+  const hasUpper = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password);
+  const isStrong = password.length >= 12 && hasLower && hasUpper && hasNumber && hasSpecial;
+  
+  return { 
+    valid: true, 
+    message: isStrong ? 'Strong password' : 'Weak password (user must change on first login)',
+    isWeak: !isStrong
+  };
 }
 
 export function CreateOrganizationDialog({
@@ -122,9 +122,9 @@ export function CreateOrganizationDialog({
 
   const passwordValidation = useMemo(() => {
     if (passwordMethod !== 'temporary' || !temporaryPassword) {
-      return { valid: true, message: '' };
+      return { valid: true, message: '', isWeak: false };
     }
-    return validatePassword(temporaryPassword);
+    return validateTemporaryPassword(temporaryPassword);
   }, [passwordMethod, temporaryPassword]);
 
   const resetForm = () => {
@@ -433,7 +433,7 @@ export function CreateOrganizationDialog({
                 <div className="flex items-start gap-2 p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
                   <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    User will be forced to change this password on first login. Never share passwords via insecure channels.
+                    <strong>This is a temporary password.</strong> User must change it on first login. Never share passwords via insecure channels.
                   </p>
                 </div>
                 
@@ -444,7 +444,7 @@ export function CreateOrganizationDialog({
                       <Input
                         id="tempPassword"
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="Enter or generate password"
+                        placeholder="Enter or generate password (min 8 chars)"
                         value={temporaryPassword}
                         onChange={(e) => setTemporaryPassword(e.target.value)}
                         disabled={loading}
@@ -476,12 +476,18 @@ export function CreateOrganizationDialog({
                     </Button>
                   </div>
                   {temporaryPassword && (
-                    <p className={`text-xs ${passwordValidation.valid ? 'text-green-600' : 'text-destructive'}`}>
+                    <p className={`text-xs ${
+                      !passwordValidation.valid 
+                        ? 'text-destructive' 
+                        : passwordValidation.isWeak 
+                          ? 'text-amber-600 dark:text-amber-400' 
+                          : 'text-green-600'
+                    }`}>
                       {passwordValidation.message}
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Requirements: 12+ characters, uppercase, lowercase, number, special character
+                    Minimum 8 characters. Simple passwords allowed for admin convenience.
                   </p>
                 </div>
               </div>
