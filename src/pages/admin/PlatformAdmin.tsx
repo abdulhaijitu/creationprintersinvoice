@@ -249,12 +249,38 @@ const PlatformAdmin = () => {
   const [changingPlanOrgId, setChangingPlanOrgId] = useState<string | null>(null);
 
   const changePlan = async (orgId: string, newPlan: 'free' | 'basic' | 'pro' | 'enterprise', orgName: string) => {
+    // Find current org to get previous plan for potential rollback
+    const currentOrg = organizations.find(o => o.id === orgId);
+    const previousPlan = currentOrg?.subscription?.plan || 'free';
+    
+    // No-op check: if same plan selected
+    if (previousPlan === newPlan) {
+      toast.info(`${orgName} is already on ${newPlan} plan`);
+      return;
+    }
+
     setChangingPlanOrgId(orgId);
+    
+    // Optimistically update the UI immediately
+    setOrganizations(prev => prev.map(org => {
+      if (org.id === orgId) {
+        return {
+          ...org,
+          subscription: {
+            ...org.subscription,
+            plan: newPlan,
+            status: org.subscription?.status || 'active',
+            trial_ends_at: org.subscription?.trial_ends_at || null,
+          }
+        };
+      }
+      return org;
+    }));
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error('Authentication required');
-        return;
+        throw new Error('Authentication required');
       }
 
       const response = await supabase.functions.invoke('change-organization-plan', {
@@ -275,6 +301,21 @@ const PlatformAdmin = () => {
         throw new Error(data.error || 'Failed to change plan');
       }
 
+      // Update local state with the actual response from backend (source of truth)
+      setOrganizations(prev => prev.map(org => {
+        if (org.id === orgId) {
+          return {
+            ...org,
+            subscription: {
+              plan: data.subscription.plan,
+              status: data.subscription.status,
+              trial_ends_at: data.subscription.trial_ends_at,
+            }
+          };
+        }
+        return org;
+      }));
+
       if (data.noChange) {
         toast.info(`${orgName} is already on ${newPlan} plan`);
       } else {
@@ -283,12 +324,26 @@ const PlatformAdmin = () => {
         });
       }
 
-      // Refresh data
-      fetchOrganizations();
     } catch (error: unknown) {
       console.error('Error changing plan:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to change plan';
       toast.error('Plan change failed', { description: errorMessage });
+      
+      // Rollback: revert to previous plan on failure
+      setOrganizations(prev => prev.map(org => {
+        if (org.id === orgId) {
+          return {
+            ...org,
+            subscription: {
+              ...org.subscription,
+              plan: previousPlan,
+              status: org.subscription?.status || 'active',
+              trial_ends_at: org.subscription?.trial_ends_at || null,
+            }
+          };
+        }
+        return org;
+      }));
     } finally {
       setChangingPlanOrgId(null);
     }
