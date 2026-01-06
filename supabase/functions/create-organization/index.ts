@@ -13,6 +13,8 @@ interface CreateOrganizationRequest {
   trialDays?: number;
   status: 'trial' | 'active' | 'suspended';
   adminEmail?: string;
+  passwordMethod?: 'invite' | 'temporary';
+  temporaryPassword?: string;
 }
 
 interface BrandingData {
@@ -315,6 +317,119 @@ async function getOrganizationBranding(
   }
 }
 
+// Generate temporary password credential email HTML
+function generateTempPasswordEmailHtml(
+  recipientEmail: string,
+  organizationName: string,
+  temporaryPassword: string,
+  appUrl: string,
+  branding: BrandingData | null
+): string {
+  const brandName = branding?.app_name || 'PrintoSaas';
+  const primaryColor = branding?.primary_color || '#6366f1';
+  const gradientEnd = adjustColor(primaryColor, 20);
+  const footerText = branding?.footer_text || `This email was sent by ${brandName}. If you didn't request this account, please contact support immediately.`;
+  const currentYear = new Date().getFullYear();
+  
+  const logoHtml = branding?.logo_url 
+    ? `<img src="${branding.logo_url}" width="180" height="50" alt="${brandName}" style="margin: 0 auto; display: block; object-fit: contain;" />`
+    : `<h1 style="color: #ffffff; font-size: 32px; font-weight: 700; margin: 0; text-align: center;">${brandName}</h1>`;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Login Credentials - ${organizationName}</title>
+</head>
+<body style="margin: 0; padding: 20px; background-color: #f6f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);">
+    <!-- Header with Logo -->
+    <tr>
+      <td style="background: linear-gradient(135deg, ${primaryColor} 0%, ${gradientEnd} 100%); padding: 40px 20px; text-align: center;">
+        ${logoHtml}
+      </td>
+    </tr>
+    
+    <!-- Main Content -->
+    <tr>
+      <td style="padding: 40px 40px 32px;">
+        <h1 style="color: #1a1a2e; font-size: 24px; font-weight: 700; line-height: 1.3; margin: 0 0 24px; text-align: center;">
+          Welcome to ${organizationName}
+        </h1>
+        
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
+          Hello,
+        </p>
+        
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
+          Your account has been created for <strong>${organizationName}</strong>. Below are your login credentials.
+        </p>
+
+        <!-- Credentials Box -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; margin: 24px 0;">
+          <tr>
+            <td style="padding: 24px;">
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px;">Your Email</p>
+              <p style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 16px;">${recipientEmail}</p>
+              
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px;">Temporary Password</p>
+              <p style="color: #1f2937; font-size: 16px; font-weight: 600; font-family: monospace; background-color: #ffffff; padding: 8px 12px; border-radius: 4px; border: 1px dashed #d1d5db; margin: 0;">${temporaryPassword}</p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Security Warning -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; margin: 24px 0;">
+          <tr>
+            <td style="padding: 16px 20px;">
+              <p style="color: #92400e; font-size: 14px; line-height: 1.5; margin: 0;">
+                <strong>⚠️ Important:</strong> You will be required to change this password when you first log in. For security, please do not share these credentials.
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- CTA Button -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0;">
+          <tr>
+            <td style="text-align: center;">
+              <a href="${appUrl}/login" style="display: inline-block; background-color: ${primaryColor}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
+                Log In Now
+              </a>
+            </td>
+          </tr>
+        </table>
+
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.5; text-align: center; margin: 0;">
+          Dashboard URL: <a href="${appUrl}" style="color: ${primaryColor};">${appUrl}</a>
+        </p>
+      </td>
+    </tr>
+
+    <!-- Divider -->
+    <tr>
+      <td style="border-top: 1px solid #e5e7eb;"></td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="padding: 24px 40px; background-color: #f9fafb;">
+        <p style="color: #6b7280; font-size: 12px; line-height: 1.5; text-align: center; margin: 0 0 8px;">
+          ${footerText}
+        </p>
+        <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+          © ${currentYear} ${brandName}. All rights reserved.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
 async function sendInviteEmail(
   resend: Resend,
   email: string,
@@ -323,23 +438,48 @@ async function sendInviteEmail(
   inviteLink: string | null,
   appUrl: string,
   inviterName: string | undefined,
-  branding: BrandingData | null
+  branding: BrandingData | null,
+  passwordMethod: 'invite' | 'temporary' = 'invite',
+  temporaryPassword?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const brandName = branding?.app_name || 'PrintoSaas';
     let htmlContent: string;
     let subject: string;
 
-    if (isNewUser && inviteLink) {
-      subject = `Welcome to ${brandName} - Set Your Password for ${organizationName}`;
-      htmlContent = generateInviteSetPasswordEmailHtml(
-        email,
-        organizationName,
-        inviteLink,
-        '24 hours',
-        appUrl,
-        branding
-      );
+    if (isNewUser) {
+      if (passwordMethod === 'temporary' && temporaryPassword) {
+        // Send temporary password credentials email
+        subject = `Your ${brandName} Login Credentials for ${organizationName}`;
+        htmlContent = generateTempPasswordEmailHtml(
+          email,
+          organizationName,
+          temporaryPassword,
+          appUrl,
+          branding
+        );
+      } else if (inviteLink) {
+        // Send invite email with set password link
+        subject = `Welcome to ${brandName} - Set Your Password for ${organizationName}`;
+        htmlContent = generateInviteSetPasswordEmailHtml(
+          email,
+          organizationName,
+          inviteLink,
+          '24 hours',
+          appUrl,
+          branding
+        );
+      } else {
+        // Fallback - should not happen
+        subject = `Welcome to ${organizationName} on ${brandName}`;
+        htmlContent = generateAccessNotificationEmailHtml(
+          email,
+          organizationName,
+          inviterName,
+          appUrl,
+          branding
+        );
+      }
     } else {
       subject = `You've been added to ${organizationName} on ${brandName}`;
       htmlContent = generateAccessNotificationEmailHtml(
@@ -427,7 +567,16 @@ Deno.serve(async (req) => {
 
     // Parse request
     const body: CreateOrganizationRequest = await req.json();
-    const { organizationName, ownerEmail, plan, trialDays = 14, status, adminEmail } = body;
+    const { 
+      organizationName, 
+      ownerEmail, 
+      plan, 
+      trialDays = 14, 
+      status, 
+      adminEmail,
+      passwordMethod = 'invite',
+      temporaryPassword 
+    } = body;
 
     // Validate required fields
     if (!organizationName || !ownerEmail || !plan || !status) {
@@ -446,12 +595,35 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate temporary password if method is 'temporary'
+    if (passwordMethod === 'temporary') {
+      if (!temporaryPassword || temporaryPassword.length < 12) {
+        return new Response(
+          JSON.stringify({ error: 'Temporary password must be at least 12 characters' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      // Check password complexity
+      const hasLower = /[a-z]/.test(temporaryPassword);
+      const hasUpper = /[A-Z]/.test(temporaryPassword);
+      const hasNumber = /[0-9]/.test(temporaryPassword);
+      const hasSpecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(temporaryPassword);
+      
+      if (!hasLower || !hasUpper || !hasNumber || !hasSpecial) {
+        return new Response(
+          JSON.stringify({ error: 'Temporary password must contain uppercase, lowercase, number, and special character' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     console.log('Creating organization:', { 
       organizationName, 
       ownerEmail, 
       plan, 
       status, 
       trialDays,
+      passwordMethod,
       selectedPlan: plan,
       selectedStatus: status
     });
@@ -477,27 +649,37 @@ Deno.serve(async (req) => {
     let ownerId: string | null = null;
     let ownerCreated = false;
     let inviteToken: string | null = null;
+    const usedPasswordMethod = passwordMethod;
 
     if (existingUser) {
       ownerId = existingUser.id;
       console.log('Found existing user:', ownerId);
     } else {
-      // Generate a secure invite token (NOT a password)
-      inviteToken = generateSecureToken();
+      // Determine password to use
+      let userPassword: string;
       
-      // Generate a random secure password that the user will never know
-      // This is required by Supabase but will be replaced when user sets their password
-      const randomPassword = generateSecureToken();
+      if (passwordMethod === 'temporary' && temporaryPassword) {
+        // Use the provided temporary password
+        userPassword = temporaryPassword;
+        console.log('Using temporary password method');
+      } else {
+        // Generate a random secure password that the user will never know
+        // This is required by Supabase but will be replaced when user sets their password
+        userPassword = generateSecureToken();
+        inviteToken = generateSecureToken();
+        console.log('Using invite method with secure token');
+      }
       
-      // Create a new user with random password (user will set their own via invite link)
+      // Create a new user
       const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
         email: ownerEmail,
-        password: randomPassword, // Random password - user will set their own
+        password: userPassword,
         email_confirm: true,
         user_metadata: {
           full_name: organizationName + ' Owner',
           invited_by: adminEmail || user.email,
-          requires_password_setup: true,
+          requires_password_setup: passwordMethod === 'invite',
+          must_reset_password: true, // Always require password change on first login
         }
       });
 
@@ -511,7 +693,7 @@ Deno.serve(async (req) => {
 
       ownerId = newUser.user.id;
       ownerCreated = true;
-      console.log('Created new user:', ownerId);
+      console.log('Created new user:', ownerId, 'with password method:', passwordMethod);
     }
 
     // Generate unique slug
@@ -558,24 +740,29 @@ Deno.serve(async (req) => {
         console.error('Error adding member:', memberError);
       }
 
-      // If user was newly created, set invite token and must_reset_password flag
-      if (ownerCreated && inviteToken) {
-        // Token expires in 24 hours
-        const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      // If user was newly created, set must_reset_password flag (and invite token if using invite method)
+      if (ownerCreated) {
+        const updateData: Record<string, unknown> = {
+          must_reset_password: true,
+        };
+        
+        // Only set invite token for invite method
+        if (usedPasswordMethod === 'invite' && inviteToken) {
+          const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+          updateData.invite_token = inviteToken;
+          updateData.invite_token_expires_at = tokenExpiresAt;
+          console.log('Set invite token (expires:', tokenExpiresAt, ')');
+        }
         
         const { error: resetFlagError } = await supabaseAdmin
           .from('user_roles')
-          .update({ 
-            must_reset_password: true,
-            invite_token: inviteToken,
-            invite_token_expires_at: tokenExpiresAt,
-          })
+          .update(updateData)
           .eq('user_id', ownerId);
 
         if (resetFlagError) {
-          console.error('Error setting invite token and reset flag:', resetFlagError);
+          console.error('Error setting reset flag:', resetFlagError);
         } else {
-          console.log('Set invite token (expires:', tokenExpiresAt, ') and must_reset_password flag for new user');
+          console.log('Set must_reset_password flag for new user, method:', usedPasswordMethod);
         }
       }
     }
@@ -635,9 +822,9 @@ Deno.serve(async (req) => {
     let emailError: string | null = null;
     const finalAppUrl = 'https://printosaas.lovable.app';
     
-    // Build invite link for new users
+    // Build invite link for new users (only for invite method)
     let inviteLink: string | null = null;
-    if (ownerCreated && inviteToken) {
+    if (ownerCreated && usedPasswordMethod === 'invite' && inviteToken) {
       inviteLink = `${finalAppUrl}/accept-invite?token=${inviteToken}`;
     }
 
@@ -650,12 +837,18 @@ Deno.serve(async (req) => {
         inviteLink,
         finalAppUrl,
         adminEmail || user.email,
-        branding
+        branding,
+        usedPasswordMethod,
+        usedPasswordMethod === 'temporary' ? temporaryPassword : undefined
       );
       emailSent = emailResult.success;
       emailError = emailResult.error || null;
       
-      console.log('Email send result:', { emailSent, emailError, type: ownerCreated ? 'invite' : 'notification' });
+      console.log('Email send result:', { 
+        emailSent, 
+        emailError, 
+        type: ownerCreated ? (usedPasswordMethod === 'temporary' ? 'temp_password' : 'invite') : 'notification' 
+      });
     } else {
       console.warn('RESEND_API_KEY not configured, skipping email');
       emailError = 'Email service not configured';
@@ -686,7 +879,11 @@ Deno.serve(async (req) => {
         previous_plan: null,
         new_plan: subscriptionPlan,
         branding_used: branding ? 'custom' : 'default',
-        invite_type: ownerCreated ? 'new_user_invite' : 'existing_user_notification',
+        password_method: usedPasswordMethod,
+        temporary_password_used: usedPasswordMethod === 'temporary', // Logged without the actual value
+        invite_type: ownerCreated 
+          ? (usedPasswordMethod === 'temporary' ? 'temp_password_credential' : 'new_user_invite') 
+          : 'existing_user_notification',
       },
     });
 
@@ -697,7 +894,11 @@ Deno.serve(async (req) => {
       p_actor_role: 'super_admin',
       p_actor_type: 'user',
       p_action_type: 'create',
-      p_action_label: ownerCreated ? 'Organization owner invited (new user)' : 'Organization owner assigned (existing user)',
+      p_action_label: ownerCreated 
+        ? (usedPasswordMethod === 'temporary' 
+            ? 'Organization owner created with temporary password' 
+            : 'Organization owner invited (new user)')
+        : 'Organization owner assigned (existing user)',
       p_entity_type: 'user',
       p_entity_id: ownerId,
       p_entity_name: ownerEmail,
@@ -707,7 +908,11 @@ Deno.serve(async (req) => {
       p_metadata: {
         target_email: ownerEmail,
         is_new_user: ownerCreated,
-        invite_expires_at: ownerCreated ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null,
+        password_method: usedPasswordMethod,
+        invite_expires_at: ownerCreated && usedPasswordMethod === 'invite' 
+          ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() 
+          : null,
+        must_reset_password: true,
       },
     });
 
