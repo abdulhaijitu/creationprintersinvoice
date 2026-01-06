@@ -31,13 +31,11 @@ function generateSlug(name: string): string {
     .substring(0, 50) + '-' + Date.now().toString(36);
 }
 
-function generateSecurePassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
-  let password = '';
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
+// Generate a cryptographically secure invite token
+function generateSecureToken(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 // Helper function to adjust color brightness for gradient
@@ -54,11 +52,12 @@ function adjustColor(hex: string, percent: number): string {
   }
 }
 
-// Generate branded credential email HTML for new users
-function generateCredentialEmailHtml(
+// Generate branded invite email HTML for new users (with Set Password link)
+function generateInviteSetPasswordEmailHtml(
   recipientEmail: string,
   organizationName: string,
-  temporaryPassword: string,
+  inviteLink: string,
+  expiresIn: string,
   appUrl: string,
   branding: BrandingData | null
 ): string {
@@ -68,7 +67,7 @@ function generateCredentialEmailHtml(
   const footerText = branding?.footer_text || `This email was sent by ${brandName}. If you didn't request this account, please contact support immediately.`;
   const currentYear = new Date().getFullYear();
   
-  // Logo section - use org logo if available, otherwise show brand name
+  // Logo section
   const logoHtml = branding?.logo_url 
     ? `<img src="${branding.logo_url}" width="180" height="50" alt="${brandName}" style="margin: 0 auto; display: block; object-fit: contain;" />`
     : `<h1 style="color: #ffffff; font-size: 32px; font-weight: 700; margin: 0; text-align: center;">${brandName}</h1>`;
@@ -79,7 +78,7 @@ function generateCredentialEmailHtml(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to ${organizationName}</title>
+  <title>Set Your Password - ${organizationName}</title>
 </head>
 <body style="margin: 0; padding: 20px; background-color: #f6f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);">
@@ -102,21 +101,18 @@ function generateCredentialEmailHtml(
         </p>
         
         <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
-          Your organization <strong>${organizationName}</strong> has been created successfully. Below are your login credentials to access your dashboard:
+          Your account has been created for <strong>${organizationName}</strong>. To get started, please set your password by clicking the button below.
         </p>
 
-        <!-- Credentials Box -->
+        <!-- Security Info Box -->
         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; margin: 24px 0;">
           <tr>
             <td style="padding: 24px;">
-              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px;">Login URL</p>
-              <a href="${appUrl}" style="color: ${primaryColor}; font-size: 16px; font-weight: 500; text-decoration: none;">${appUrl}</a>
-              
-              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 4px;">Email</p>
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px;">Your Email</p>
               <p style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0;">${recipientEmail}</p>
               
-              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 4px;">Temporary Password</p>
-              <code style="display: inline-block; background-color: #1f2937; color: #f9fafb; padding: 8px 16px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; font-size: 16px; font-weight: 600; letter-spacing: 0.1em;">${temporaryPassword}</code>
+              <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 4px;">Organization</p>
+              <p style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0;">${organizationName}</p>
             </td>
           </tr>
         </table>
@@ -126,7 +122,7 @@ function generateCredentialEmailHtml(
           <tr>
             <td style="padding: 16px 20px;">
               <p style="color: #92400e; font-size: 14px; line-height: 1.5; margin: 0;">
-                <strong>🔐 Security Notice:</strong> Please change your password immediately after your first login. This temporary password will expire after first use.
+                <strong>🔐 Security Notice:</strong> This link expires in <strong>${expiresIn}</strong> and can only be used once. If you didn't expect this invitation, please ignore this email.
               </p>
             </td>
           </tr>
@@ -136,15 +132,18 @@ function generateCredentialEmailHtml(
         <table width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0;">
           <tr>
             <td style="text-align: center;">
-              <a href="${appUrl}" style="display: inline-block; background-color: ${primaryColor}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
-                Access Your Dashboard
+              <a href="${inviteLink}" style="display: inline-block; background-color: ${primaryColor}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
+                Set Your Password
               </a>
             </td>
           </tr>
         </table>
 
-        <p style="color: #6b7280; font-size: 14px; line-height: 1.5; text-align: center; margin: 0;">
-          If you have any questions or need assistance, please contact our support team.
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.5; text-align: center; margin: 0 0 16px;">
+          If the button doesn't work, copy and paste this link into your browser:
+        </p>
+        <p style="color: ${primaryColor}; font-size: 12px; line-height: 1.5; text-align: center; margin: 0; word-break: break-all;">
+          ${inviteLink}
         </p>
       </td>
     </tr>
@@ -171,8 +170,8 @@ function generateCredentialEmailHtml(
   `;
 }
 
-// Generate branded invite email HTML for existing users
-function generateInviteEmailHtml(
+// Generate branded invite email HTML for existing users (org access notification)
+function generateAccessNotificationEmailHtml(
   recipientEmail: string,
   organizationName: string,
   inviterName: string | undefined,
@@ -316,12 +315,12 @@ async function getOrganizationBranding(
   }
 }
 
-async function sendCredentialEmail(
+async function sendInviteEmail(
   resend: Resend,
   email: string,
   organizationName: string,
   isNewUser: boolean,
-  tempPassword: string | null,
+  inviteLink: string | null,
   appUrl: string,
   inviterName: string | undefined,
   branding: BrandingData | null
@@ -331,18 +330,19 @@ async function sendCredentialEmail(
     let htmlContent: string;
     let subject: string;
 
-    if (isNewUser && tempPassword) {
-      subject = `Welcome to ${brandName} - Your ${organizationName} Account is Ready`;
-      htmlContent = generateCredentialEmailHtml(
+    if (isNewUser && inviteLink) {
+      subject = `Welcome to ${brandName} - Set Your Password for ${organizationName}`;
+      htmlContent = generateInviteSetPasswordEmailHtml(
         email,
         organizationName,
-        tempPassword,
+        inviteLink,
+        '24 hours',
         appUrl,
         branding
       );
     } else {
       subject = `You've been added to ${organizationName} on ${brandName}`;
-      htmlContent = generateInviteEmailHtml(
+      htmlContent = generateAccessNotificationEmailHtml(
         email,
         organizationName,
         inviterName,
@@ -476,24 +476,28 @@ Deno.serve(async (req) => {
 
     let ownerId: string | null = null;
     let ownerCreated = false;
-    let tempPassword: string | null = null;
+    let inviteToken: string | null = null;
 
     if (existingUser) {
       ownerId = existingUser.id;
       console.log('Found existing user:', ownerId);
     } else {
-      // Generate a secure temporary password
-      tempPassword = generateSecurePassword();
+      // Generate a secure invite token (NOT a password)
+      inviteToken = generateSecureToken();
       
-      // Create a new user with the temporary password
+      // Generate a random secure password that the user will never know
+      // This is required by Supabase but will be replaced when user sets their password
+      const randomPassword = generateSecureToken();
+      
+      // Create a new user with random password (user will set their own via invite link)
       const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
         email: ownerEmail,
-        password: tempPassword,
+        password: randomPassword, // Random password - user will set their own
         email_confirm: true,
         user_metadata: {
           full_name: organizationName + ' Owner',
           invited_by: adminEmail || user.email,
-          requires_password_change: true,
+          requires_password_setup: true,
         }
       });
 
@@ -554,19 +558,24 @@ Deno.serve(async (req) => {
         console.error('Error adding member:', memberError);
       }
 
-      // If user was newly created, set must_reset_password flag
-      if (ownerCreated) {
+      // If user was newly created, set invite token and must_reset_password flag
+      if (ownerCreated && inviteToken) {
+        // Token expires in 24 hours
+        const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        
         const { error: resetFlagError } = await supabaseAdmin
           .from('user_roles')
           .update({ 
             must_reset_password: true,
+            invite_token: inviteToken,
+            invite_token_expires_at: tokenExpiresAt,
           })
           .eq('user_id', ownerId);
 
         if (resetFlagError) {
-          console.error('Error setting must_reset_password flag:', resetFlagError);
+          console.error('Error setting invite token and reset flag:', resetFlagError);
         } else {
-          console.log('Set must_reset_password flag for new user');
+          console.log('Set invite token (expires:', tokenExpiresAt, ') and must_reset_password flag for new user');
         }
       }
     }
@@ -621,18 +630,24 @@ Deno.serve(async (req) => {
     const branding = await getOrganizationBranding(supabaseAdmin, newOrg.id);
     console.log('Branding for email:', branding ? 'Custom branding' : 'Default PrintoSaas branding');
 
-    // Send credential email with branded template
+    // Send invite email with secure link (for new users) or notification (for existing users)
     let emailSent = false;
     let emailError: string | null = null;
     const finalAppUrl = 'https://printosaas.lovable.app';
+    
+    // Build invite link for new users
+    let inviteLink: string | null = null;
+    if (ownerCreated && inviteToken) {
+      inviteLink = `${finalAppUrl}/accept-invite?token=${inviteToken}`;
+    }
 
     if (resend) {
-      const emailResult = await sendCredentialEmail(
+      const emailResult = await sendInviteEmail(
         resend,
         ownerEmail,
         organizationName,
         ownerCreated,
-        tempPassword,
+        inviteLink,
         finalAppUrl,
         adminEmail || user.email,
         branding
@@ -640,7 +655,7 @@ Deno.serve(async (req) => {
       emailSent = emailResult.success;
       emailError = emailResult.error || null;
       
-      console.log('Email send result:', { emailSent, emailError });
+      console.log('Email send result:', { emailSent, emailError, type: ownerCreated ? 'invite' : 'notification' });
     } else {
       console.warn('RESEND_API_KEY not configured, skipping email');
       emailError = 'Email service not configured';
@@ -671,27 +686,28 @@ Deno.serve(async (req) => {
         previous_plan: null,
         new_plan: subscriptionPlan,
         branding_used: branding ? 'custom' : 'default',
+        invite_type: ownerCreated ? 'new_user_invite' : 'existing_user_notification',
       },
     });
 
-    // Log plan application separately for tracking
+    // Log owner invited event
     await supabaseAdmin.rpc('insert_audit_log', {
       p_actor_id: user.id,
       p_actor_email: adminEmail || user.email,
       p_actor_role: 'super_admin',
       p_actor_type: 'user',
-      p_action_type: 'update',
-      p_action_label: `Applied ${subscriptionPlan} plan (${subscriptionStatus})`,
-      p_entity_type: 'subscription',
-      p_entity_id: subscription.id,
-      p_entity_name: `${organizationName} subscription`,
+      p_action_type: 'create',
+      p_action_label: ownerCreated ? 'Organization owner invited (new user)' : 'Organization owner assigned (existing user)',
+      p_entity_type: 'user',
+      p_entity_id: ownerId,
+      p_entity_name: ownerEmail,
       p_organization_id: newOrg.id,
       p_organization_name: organizationName,
       p_source: 'ui',
       p_metadata: {
-        previous_plan: null,
-        new_plan: subscriptionPlan,
-        status: subscriptionStatus,
+        target_email: ownerEmail,
+        is_new_user: ownerCreated,
+        invite_expires_at: ownerCreated ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null,
       },
     });
 
@@ -703,20 +719,20 @@ Deno.serve(async (req) => {
       p_actor_type: 'system',
       p_action_type: emailSent ? 'access' : 'update',
       p_action_label: emailSent 
-        ? `${ownerCreated ? 'Credential' : 'Invite'} email sent successfully` 
-        : `${ownerCreated ? 'Credential' : 'Invite'} email failed`,
+        ? `${ownerCreated ? 'Invite' : 'Access notification'} email sent successfully` 
+        : `${ownerCreated ? 'Invite' : 'Access notification'} email failed`,
       p_entity_type: 'notification',
       p_entity_id: newOrg.id,
-      p_entity_name: ownerCreated ? 'Credential email' : 'Invite email',
+      p_entity_name: ownerCreated ? 'Invite email (set password)' : 'Access notification email',
       p_organization_id: newOrg.id,
       p_organization_name: organizationName,
       p_source: 'system',
       p_metadata: {
         recipient: ownerEmail,
-        email_type: ownerCreated ? 'new_user_credentials' : 'existing_user_access',
+        email_type: ownerCreated ? 'new_user_invite' : 'existing_user_access',
         success: emailSent,
         error: emailError,
-        template_used: ownerCreated ? 'credential-email' : 'invite-email',
+        template_used: ownerCreated ? 'invite-set-password' : 'access-notification',
         branding_used: branding ? 'custom' : 'default',
       },
     });
@@ -745,7 +761,7 @@ Deno.serve(async (req) => {
         email: {
           sent: emailSent,
           error: emailError,
-          type: ownerCreated ? 'credential' : 'invite',
+          type: ownerCreated ? 'invite' : 'notification',
           branding: branding ? 'custom' : 'default',
         },
       }),
