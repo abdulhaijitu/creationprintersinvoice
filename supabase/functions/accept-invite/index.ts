@@ -121,6 +121,17 @@ Deno.serve(async (req) => {
       // Don't fail the request, password was already updated
     }
 
+    // Set first_login_completed = false so welcome screen appears
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({ first_login_completed: false })
+      .eq('id', userId);
+
+    if (profileError) {
+      console.error('Error updating first login status:', profileError);
+      // Don't fail the request, password was already updated
+    }
+
     // Get organization for audit log
     const { data: member } = await supabaseAdmin
       .from('organization_members')

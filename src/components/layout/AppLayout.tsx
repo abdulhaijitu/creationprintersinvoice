@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePasswordResetCheck } from '@/hooks/usePasswordResetCheck';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useFirstLogin } from '@/hooks/useFirstLogin';
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { Breadcrumb } from './Breadcrumb';
@@ -24,6 +25,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { TrialBanner } from '@/components/subscription/TrialBanner';
 import { UsageLimitBanner } from '@/components/usage/UsageLimitBanner';
+import WelcomeScreen from '@/components/welcome/WelcomeScreen';
 
 // Component to handle closing sidebar on route change
 const MobileSidebarHandler = () => {
@@ -44,8 +46,9 @@ const AppLayout = () => {
   const { user, loading: authLoading } = useAuth();
   const { loading: orgLoading, needsOnboarding } = useOrganization();
   const { mustResetPassword, checking: resetChecking } = usePasswordResetCheck();
+  const { showWelcome, loading: welcomeLoading, completeFirstLogin } = useFirstLogin();
 
-  const loading = authLoading || orgLoading || resetChecking;
+  const loading = authLoading || orgLoading || resetChecking || welcomeLoading;
 
   if (loading) {
     return (
@@ -75,6 +78,7 @@ const AppLayout = () => {
 
   return (
     <TooltipProvider delayDuration={0}>
+      {showWelcome && <WelcomeScreen onComplete={completeFirstLogin} />}
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-muted/30">
           <AppSidebar />
