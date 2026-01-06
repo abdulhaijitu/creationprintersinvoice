@@ -62,6 +62,42 @@ export const PrintTemplate = ({
     },
   });
 
+  // Fetch organization branding for white-label support
+  const { data: branding } = useQuery({
+    queryKey: ['organization-branding-print'],
+    queryFn: async () => {
+      // Get current user's organization
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data: member } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (!member) return null;
+      
+      // Check if white-label PDF branding is enabled
+      const { data: wlSettings } = await supabase
+        .from('organization_whitelabel_settings')
+        .select('pdf_branding_enabled')
+        .eq('organization_id', member.organization_id)
+        .maybeSingle();
+      
+      if (!wlSettings?.pdf_branding_enabled) return null;
+      
+      // Fetch branding
+      const { data: brandingData } = await supabase
+        .from('organization_branding')
+        .select('*')
+        .eq('organization_id', member.organization_id)
+        .maybeSingle();
+      
+      return brandingData;
+    },
+  });
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-BD', {
       style: 'decimal',
@@ -114,17 +150,19 @@ export const PrintTemplate = ({
   const companyPhone = settings?.phone || '';
   const companyEmail = settings?.email || '';
   const companyWebsite = settings?.website || '';
-  const logoUrl = settings?.logo_url || null;
+  // Use branding logo if available, otherwise fall back to company settings
+  const logoUrl = branding?.logo_url || settings?.logo_url || null;
   const bankName = settings?.bank_name || '';
   const bankAccountNumber = settings?.bank_account_number || '';
   const bankAccountName = settings?.bank_account_name || '';
   const bankBranch = settings?.bank_branch || '';
   const mobileBanking = settings?.mobile_banking || '';
-  const invoiceFooter = settings?.invoice_footer || 'Thank you for your business!';
+  const invoiceFooter = branding?.footer_text || settings?.invoice_footer || 'Thank you for your business!';
   const invoiceTerms = settings?.invoice_terms || '';
 
   const documentTitle = type === 'invoice' ? 'INVOICE' : 'QUOTATION';
-  const primaryColor = '#0284c7'; // Sky-600
+  // Use branding primary color if available
+  const primaryColor = branding?.primary_color || '#0284c7';
 
   return (
     <div className="hidden print:block bg-white text-black" style={{ 
