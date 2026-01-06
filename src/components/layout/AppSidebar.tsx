@@ -27,6 +27,7 @@ import {
   Palette,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
+import logoIcon from '@/assets/logo-icon.jpg';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -329,25 +330,20 @@ export function AppSidebar() {
           "flex items-center",
           collapsed ? "justify-center" : "gap-3"
         )}>
-          <div className={cn(
-            "flex items-center justify-center rounded-xl overflow-hidden flex-shrink-0 bg-white/10 p-1.5",
-            collapsed ? "h-10 w-10" : "h-10 w-10"
-          )}>
+          {collapsed ? (
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden bg-white/10 p-1">
+              <img 
+                src={logoIcon} 
+                alt="PrintoSaas" 
+                className="h-full w-full object-contain rounded-lg"
+              />
+            </div>
+          ) : (
             <img 
               src={logo} 
-              alt="Logo" 
-              className="h-full w-full object-contain"
+              alt="PrintoSaas" 
+              className="h-10 w-auto object-contain"
             />
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-semibold text-white truncate">
-                {organization?.name || 'PrintoSaaS'}
-              </span>
-              <span className="text-[11px] text-slate-400 truncate">
-                {orgRole ? `${orgRole.charAt(0).toUpperCase() + orgRole.slice(1)}` : (role ? getRoleDisplayName(role) : 'Loading...')}
-              </span>
-            </div>
           )}
         </div>
       </SidebarHeader>
