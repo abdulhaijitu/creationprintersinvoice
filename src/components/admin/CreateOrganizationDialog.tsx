@@ -115,12 +115,12 @@ export function CreateOrganizationDialog({
       });
 
       const emailStatus = data.email?.sent 
-        ? 'Credential email sent successfully.'
+        ? 'Invite email sent successfully.'
         : 'Organization created (email not sent).';
 
       toast.success('Organization created successfully', {
         description: data.owner.created 
-          ? `New user account created. ${emailStatus}`
+          ? `New user invited. ${emailStatus}`
           : `Linked to existing user. ${emailStatus}`,
       });
 
@@ -172,10 +172,10 @@ export function CreateOrganizationDialog({
                   <p className="font-medium">New user account created</p>
                   <p className="text-muted-foreground">
                     {createdOrg.emailSent 
-                      ? 'Credential email with login details has been sent.'
+                      ? 'A secure invite email has been sent with a link to set their password. The link expires in 24 hours.'
                       : createdOrg.emailError 
-                        ? `Email failed: ${createdOrg.emailError}`
-                        : 'The owner will need to reset their password to access the account.'}
+                        ? `Email failed: ${createdOrg.emailError}. The user will need to contact support.`
+                        : 'No email was sent. The user will need to contact support for access.'}
                   </p>
                 </div>
               </div>
@@ -188,7 +188,7 @@ export function CreateOrganizationDialog({
                   <p className="font-medium">Existing user linked</p>
                   <p className="text-muted-foreground">
                     {createdOrg.emailSent 
-                      ? 'Access notification email has been sent.'
+                      ? 'An access notification email has been sent. They can log in with their existing credentials.'
                       : 'User can access the organization with their existing credentials.'}
                   </p>
                 </div>
@@ -266,7 +266,8 @@ export function CreateOrganizationDialog({
               required
             />
             <p className="text-xs text-muted-foreground">
-              If the user doesn't exist, an account will be created and an invite sent.
+              If the user doesn't exist, they'll receive a secure invite email to set their password.
+              Existing users will receive a notification email.
             </p>
           </div>
 
