@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Building2, Search, Shield, Calendar, RotateCcw, Eye, Ban, CheckCircle, LogOut, Bell, Palette } from 'lucide-react';
+import { Building2, Search, Shield, Calendar, RotateCcw, Eye, Ban, CheckCircle, LogOut, Bell, Palette, LineChart } from 'lucide-react';
 import { format, addDays, startOfMonth } from 'date-fns';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -21,6 +21,7 @@ import AdminBillingTable from '@/components/admin/AdminBillingTable';
 import { AdminAnalyticsDashboard } from '@/components/admin/AdminAnalyticsDashboard';
 import { AdminNotificationLogs } from '@/components/admin/AdminNotificationLogs';
 import { AdminWhiteLabelManagement } from '@/components/admin/AdminWhiteLabelManagement';
+import { InvestorDashboard } from '@/components/admin/InvestorDashboard';
 
 interface OrganizationWithStats {
   id: string;
@@ -300,12 +301,20 @@ const PlatformAdmin = () => {
         <Tabs defaultValue="organizations" className="space-y-4">
           <TabsList>
             <TabsTrigger value="organizations">Organizations</TabsTrigger>
+            <TabsTrigger value="investor">
+              <LineChart className="h-4 w-4 mr-1" />
+              Investor Metrics
+            </TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="whitelabel">White-Label</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="audit">Audit Logs</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="investor">
+            <InvestorDashboard />
+          </TabsContent>
 
           <TabsContent value="organizations">
             <Card>
