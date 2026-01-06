@@ -8,13 +8,14 @@ import {
   Bell,
   FileText,
   LogOut,
-  Shield,
   ChevronRight,
   PanelLeftClose,
   PanelLeft,
   Command,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import logo from '@/assets/logo.png';
+import logoIcon from '@/assets/logo-icon.jpg';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -108,8 +109,12 @@ export const AdminSidebar = ({
         {collapsed ? (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary/10">
-                <Shield className="h-5 w-5 text-sidebar-primary" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 p-1">
+                <img 
+                  src={logoIcon} 
+                  alt="PrintoSaas" 
+                  className="h-full w-full object-contain rounded-lg"
+                />
               </div>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={10}>
@@ -118,17 +123,11 @@ export const AdminSidebar = ({
           </Tooltip>
         ) : (
           <>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary/10">
-              <Shield className="h-5 w-5 text-sidebar-primary" />
-            </div>
-            <div className="flex flex-col overflow-hidden">
-              <span className="truncate text-sm font-semibold text-sidebar-foreground">
-                PrintoSaas
-              </span>
-              <span className="truncate text-xs text-sidebar-muted">
-                Admin Console
-              </span>
-            </div>
+            <img 
+              src={logo} 
+              alt="PrintoSaas" 
+              className="h-10 w-auto object-contain"
+            />
           </>
         )}
       </div>

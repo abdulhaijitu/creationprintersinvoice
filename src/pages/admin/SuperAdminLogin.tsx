@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Mail, Lock, Shield } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 const SuperAdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -39,9 +40,11 @@ const SuperAdminLogin = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 mb-4">
-            <Shield className="h-8 w-8 text-primary" />
-          </div>
+          <img 
+            src={logo} 
+            alt="PrintoSaas" 
+            className="h-14 w-auto mx-auto mb-4"
+          />
           <h1 className="text-2xl font-bold text-white">Platform Administration</h1>
           <p className="text-slate-400 mt-2">Super Admin Access Only</p>
         </div>
