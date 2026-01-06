@@ -48,16 +48,20 @@ export const ManageUserDialog = ({
   const [showPassword, setShowPassword] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [forcePasswordReset, setForcePasswordReset] = useState(true);
+  const [sendEmail, setSendEmail] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
 
   const resetForm = () => {
     setPassword('');
     setNewEmail('');
     setForcePasswordReset(true);
+    setSendEmail(true);
     setErrors({});
     setSuccess(null);
+    setEmailSent(false);
   };
 
   const generatePassword = () => {
@@ -101,8 +105,11 @@ export const ManageUserDialog = ({
         body: {
           action: 'update_password',
           userId: user.id,
+          email: user.email,
           password,
           forcePasswordReset,
+          sendEmail,
+          loginUrl: window.location.origin + '/login',
         },
       });
 
@@ -110,12 +117,24 @@ export const ManageUserDialog = ({
         throw new Error(response.error.message || 'Failed to reset password');
       }
 
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
       if (!response.data?.success) {
-        throw new Error(response.data?.error || 'Failed to reset password');
+        throw new Error('Failed to reset password');
       }
 
       setSuccess('password');
-      toast.success('Password reset successfully');
+      setEmailSent(response.data?.emailSent === true);
+      
+      if (response.data?.emailSent) {
+        toast.success('Password reset and credentials sent via email');
+      } else if (sendEmail && response.data?.emailError) {
+        toast.warning(`Password reset but email failed: ${response.data.emailError}`);
+      } else {
+        toast.success('Password reset successfully');
+      }
       
       setTimeout(() => {
         onSuccess();
@@ -221,6 +240,12 @@ export const ManageUserDialog = ({
             <p className="text-sm text-muted-foreground">
               Changes have been applied successfully.
             </p>
+            {emailSent && success === 'password' && (
+              <p className="text-sm text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
+                <Mail className="h-4 w-4" />
+                New credentials sent via email
+              </p>
+            )}
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -305,6 +330,24 @@ export const ManageUserDialog = ({
                 <Label htmlFor="forceResetManage" className="text-sm cursor-pointer">
                   Force password change on next login
                 </Label>
+              </div>
+
+              {/* Send Email */}
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                <Checkbox
+                  id="sendEmailReset"
+                  checked={sendEmail}
+                  onCheckedChange={(checked) => setSendEmail(checked as boolean)}
+                />
+                <div className="flex-1">
+                  <Label htmlFor="sendEmailReset" className="text-sm cursor-pointer flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    Send new credentials via email
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    User will receive an email with the new password
+                  </p>
+                </div>
               </div>
 
               <Button onClick={handleResetPassword} disabled={loading || !password} className="w-full">
