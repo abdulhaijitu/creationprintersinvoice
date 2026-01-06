@@ -22,6 +22,7 @@ import {
   TrendingUp,
   CreditCard,
   Briefcase,
+  Bell,
   FileBarChart,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
@@ -310,6 +311,7 @@ export function AppSidebar() {
     ...(hasPermission(role, 'settings', 'view') ? [{ title: 'Organization Settings', url: '/settings', icon: Settings }] : []),
     { title: 'Team Members', url: '/team-members', icon: Users },
     { title: 'Usage & Limits', url: '/usage', icon: BarChart3 },
+    ...(orgRole === 'owner' ? [{ title: 'Notifications', url: '/notification-settings', icon: Bell }] : []),
     ...(orgRole === 'owner' ? [{ title: 'Billing', url: '/billing', icon: CreditCard }] : []),
     ...(isSuperAdmin ? [{ title: 'Platform Admin', url: '/admin', icon: Building2 }] : []),
   ];
