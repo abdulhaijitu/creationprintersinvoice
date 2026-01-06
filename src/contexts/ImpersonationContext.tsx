@@ -94,7 +94,7 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (state.isImpersonating && location.pathname.startsWith('/admin') && !isNavigatingRef.current) {
       toast.error('Cannot access admin panel while impersonating');
-      navigate('/dashboard', { replace: true });
+      navigate('/', { replace: true });
     }
   }, [state.isImpersonating, location.pathname, navigate]);
 
@@ -156,9 +156,12 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
         description: 'You are now viewing as the organization owner',
       });
       
-      // Navigate to dashboard as the impersonated user
+      // Dispatch custom event to notify OrganizationContext to refetch
+      window.dispatchEvent(new CustomEvent('impersonation-changed'));
+      
+      // Navigate to organization dashboard (root route, not /dashboard)
       isNavigatingRef.current = true;
-      navigate('/dashboard');
+      navigate('/');
       setTimeout(() => {
         isNavigatingRef.current = false;
       }, 100);
@@ -211,6 +214,9 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
       originalAdminEmail: null,
       startedAt: null,
     });
+
+    // Dispatch custom event to notify OrganizationContext to refetch
+    window.dispatchEvent(new CustomEvent('impersonation-changed'));
 
     // Navigate back to admin panel
     isNavigatingRef.current = true;

@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+
+// Storage key for impersonation - must match ImpersonationContext
+const IMPERSONATION_STORAGE_KEY = 'printosaas_impersonation';
 
 export type OrgRole = 'owner' | 'manager' | 'accounts' | 'staff';
 export type SubscriptionPlan = 'free' | 'basic' | 'pro' | 'enterprise';
@@ -68,12 +71,28 @@ interface OrganizationContextType {
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
 export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isSuperAdmin } = useAuth();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [membership, setMembership] = useState<OrganizationMember | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+
+  // Check for impersonation state from session storage
+  const getImpersonationState = useCallback(() => {
+    try {
+      const stored = sessionStorage.getItem(IMPERSONATION_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.isImpersonating && parsed.target?.organizationId) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to read impersonation state:', e);
+    }
+    return null;
+  }, []);
 
   const fetchOrganization = async () => {
     if (!user) {
@@ -86,7 +105,54 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
 
     try {
-      // First, get the user's organization membership
+      // Check if Super Admin is impersonating
+      const impersonationState = getImpersonationState();
+      
+      if (isSuperAdmin && impersonationState?.isImpersonating) {
+        // Fetch the impersonated organization directly
+        const targetOrgId = impersonationState.target.organizationId;
+        
+        const { data: orgData, error: orgError } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', targetOrgId)
+          .single();
+
+        if (orgError) {
+          console.error('Error fetching impersonated organization:', orgError);
+          setLoading(false);
+          return;
+        }
+
+        setOrganization(orgData as Organization);
+        setNeedsOnboarding(false);
+
+        // Create a synthetic owner membership for the impersonation
+        setMembership({
+          id: 'impersonation-synthetic',
+          organization_id: targetOrgId,
+          user_id: impersonationState.target.ownerId,
+          role: 'owner' as OrgRole,
+        });
+
+        // Get the subscription
+        const { data: subData } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('organization_id', targetOrgId)
+          .maybeSingle();
+
+        if (subData) {
+          setSubscription(subData as Subscription);
+        } else {
+          setSubscription(null);
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      // Normal flow: Get the user's organization membership
       const { data: membershipData, error: membershipError } = await supabase
         .from('organization_members')
         .select('*')
@@ -208,11 +274,22 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
+  // Listen for impersonation state changes via custom event
+  useEffect(() => {
+    const handleImpersonationChange = () => {
+      fetchOrganization();
+    };
+    
+    window.addEventListener('impersonation-changed', handleImpersonationChange);
+    return () => window.removeEventListener('impersonation-changed', handleImpersonationChange);
+  }, [user, isSuperAdmin]);
+
+  // Fetch organization on mount and when auth changes
   useEffect(() => {
     if (!authLoading) {
       fetchOrganization();
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, isSuperAdmin]);
 
   const orgRole = membership?.role || null;
   const isOrgOwner = orgRole === 'owner';
