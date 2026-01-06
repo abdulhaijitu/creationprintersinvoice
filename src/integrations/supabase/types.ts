@@ -536,6 +536,7 @@ export type Database = {
           payment_method: string | null
           receipt_url: string | null
           updated_at: string
+          updated_by: string | null
           vendor_bill_id: string | null
           vendor_id: string | null
         }
@@ -550,6 +551,7 @@ export type Database = {
           payment_method?: string | null
           receipt_url?: string | null
           updated_at?: string
+          updated_by?: string | null
           vendor_bill_id?: string | null
           vendor_id?: string | null
         }
@@ -564,6 +566,7 @@ export type Database = {
           payment_method?: string | null
           receipt_url?: string | null
           updated_at?: string
+          updated_by?: string | null
           vendor_bill_id?: string | null
           vendor_id?: string | null
         }

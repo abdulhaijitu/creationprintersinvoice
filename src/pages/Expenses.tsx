@@ -99,6 +99,7 @@ const Expenses = () => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({
     name: "",
     description: "",
@@ -221,14 +222,17 @@ const Expenses = () => {
   const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isSubmitting) return; // Prevent double submission
+
     if (!expenseFormData.description || !expenseFormData.amount) {
       toast.error("Please enter description and amount");
       return;
     }
 
+    setIsSubmitting(true);
     try {
       if (editingExpense) {
-        const { error } = await supabase
+        const { error, data } = await supabase
           .from("expenses")
           .update({
             date: expenseFormData.date,
@@ -238,9 +242,15 @@ const Expenses = () => {
             category_id: expenseFormData.category_id || null,
             vendor_id: expenseFormData.vendor_id || null,
           })
-          .eq("id", editingExpense.id);
+          .eq("id", editingExpense.id)
+          .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error("Expense update error:", error);
+          throw error;
+        }
+        
+        console.log("Expense updated successfully:", data);
         toast.success("Expense updated successfully");
       } else {
         const { error } = await supabase.from("expenses").insert({
@@ -258,10 +268,12 @@ const Expenses = () => {
 
       setIsExpenseDialogOpen(false);
       resetExpenseForm();
-      fetchData();
-    } catch (error) {
+      await fetchData(); // Ensure data is refetched
+    } catch (error: any) {
       console.error("Error saving expense:", error);
-      toast.error("Failed to save expense");
+      toast.error(error?.message || "Failed to save expense");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -299,11 +311,14 @@ const Expenses = () => {
   const handleVendorSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
+
     if (!vendorFormData.name) {
       toast.error("Please enter vendor name");
       return;
     }
 
+    setIsSubmitting(true);
     try {
       if (editingVendor) {
         const { error } = await supabase
@@ -321,21 +336,26 @@ const Expenses = () => {
 
       setIsVendorDialogOpen(false);
       resetVendorForm();
-      fetchData();
-    } catch (error) {
+      await fetchData();
+    } catch (error: any) {
       console.error("Error saving vendor:", error);
-      toast.error("Failed to save vendor");
+      toast.error(error?.message || "Failed to save vendor");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleBillSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
+
     if (!billFormData.vendor_id || !billFormData.amount) {
       toast.error("Please select vendor and enter amount");
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const { error } = await supabase.from("vendor_bills").insert({
         vendor_id: billFormData.vendor_id,
@@ -350,21 +370,26 @@ const Expenses = () => {
       toast.success("Bill saved successfully");
       setIsBillDialogOpen(false);
       resetBillForm();
-      fetchData();
-    } catch (error) {
+      await fetchData();
+    } catch (error: any) {
       console.error("Error saving bill:", error);
-      toast.error("Failed to save bill");
+      toast.error(error?.message || "Failed to save bill");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
+
     if (!paymentFormData.vendor_id || !paymentFormData.amount) {
       toast.error("Please select vendor and enter amount");
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const { error } = await supabase.from("vendor_payments").insert({
         vendor_id: paymentFormData.vendor_id,
@@ -379,10 +404,12 @@ const Expenses = () => {
       toast.success("Payment saved successfully");
       setIsPaymentDialogOpen(false);
       resetPaymentForm();
-      fetchData();
-    } catch (error) {
+      await fetchData();
+    } catch (error: any) {
       console.error("Error saving payment:", error);
-      toast.error("Failed to save payment");
+      toast.error(error?.message || "Failed to save payment");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -443,11 +470,14 @@ const Expenses = () => {
   const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isSubmitting) return; // Prevent double submission
+
     if (!categoryFormData.name) {
       toast.error("Please enter category name");
       return;
     }
 
+    setIsSubmitting(true);
     try {
       if (editingCategory) {
         const { error } = await supabase
@@ -458,7 +488,10 @@ const Expenses = () => {
           })
           .eq("id", editingCategory.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Category update error:", error);
+          throw error;
+        }
         toast.success("Category updated successfully");
       } else {
         const { error } = await supabase.from("expense_categories").insert({
@@ -471,10 +504,12 @@ const Expenses = () => {
 
       setIsCategoryDialogOpen(false);
       resetCategoryForm();
-      fetchData();
-    } catch (error) {
+      await fetchData();
+    } catch (error: any) {
       console.error("Error saving category:", error);
-      toast.error("Failed to save category");
+      toast.error(error?.message || "Failed to save category");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1028,6 +1063,7 @@ const Expenses = () => {
                         <Button
                           type="button"
                           variant="outline"
+                          disabled={isSubmitting}
                           onClick={() => {
                             setIsVendorDialogOpen(false);
                             resetVendorForm();
@@ -1035,7 +1071,9 @@ const Expenses = () => {
                         >
                           Cancel
                         </Button>
-                        <Button type="submit">Save</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                          {isSubmitting ? "Saving..." : (editingVendor ? "Update" : "Save")}
+                        </Button>
                       </div>
                     </form>
                   </DialogContent>
@@ -1364,6 +1402,7 @@ const Expenses = () => {
                       <Button
                         type="button"
                         variant="outline"
+                        disabled={isSubmitting}
                         onClick={() => {
                           setIsExpenseDialogOpen(false);
                           resetExpenseForm();
@@ -1371,7 +1410,9 @@ const Expenses = () => {
                       >
                         Cancel
                       </Button>
-                      <Button type="submit">Save</Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? "Saving..." : (editingExpense ? "Update" : "Save")}
+                      </Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -1515,6 +1556,7 @@ const Expenses = () => {
                       <Button
                         type="button"
                         variant="outline"
+                        disabled={isSubmitting}
                         onClick={() => {
                           setIsCategoryDialogOpen(false);
                           resetCategoryForm();
@@ -1522,7 +1564,9 @@ const Expenses = () => {
                       >
                         Cancel
                       </Button>
-                      <Button type="submit">Save</Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? "Saving..." : (editingCategory ? "Update" : "Save")}
+                      </Button>
                     </div>
                   </form>
                 </DialogContent>
