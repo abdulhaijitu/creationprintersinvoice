@@ -50,6 +50,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FavoritePages } from './FavoritePages';
+import { OrganizationSwitcher } from './OrganizationSwitcher';
 
 interface NavItemProps {
   item: { title: string; url: string; icon: React.ElementType; badge?: number };
@@ -347,6 +348,9 @@ export function AppSidebar() {
           )}
         </div>
       </SidebarHeader>
+
+      {/* Organization Switcher (multi-org users only) */}
+      <OrganizationSwitcher />
 
       {/* Navigation */}
       <SidebarContent className="px-2 py-3 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
