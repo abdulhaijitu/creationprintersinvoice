@@ -118,7 +118,7 @@ const Onboarding = () => {
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    14-day free trial
+                    7-day free trial
                   </li>
                 </ul>
               </div>

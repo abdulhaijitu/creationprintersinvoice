@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Building2, Users, CreditCard, TrendingUp, Search, Shield } from 'lucide-react';
-import { format } from 'date-fns';
+import { Building2, Users, CreditCard, TrendingUp, Search, Shield, Calendar, RotateCcw } from 'lucide-react';
+import { format, addDays } from 'date-fns';
 
 interface OrganizationWithStats {
   id: string;
@@ -97,6 +97,27 @@ const PlatformAdmin = () => {
     } catch (error) {
       console.error('Error updating subscription:', error);
       toast.error('Failed to update subscription');
+    }
+  };
+
+  const extendTrial = async (orgId: string, days: number = 7) => {
+    try {
+      const newTrialEnd = addDays(new Date(), days).toISOString();
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({ 
+          trial_ends_at: newTrialEnd,
+          status: 'trial' 
+        })
+        .eq('organization_id', orgId);
+
+      if (error) throw error;
+
+      toast.success(`Trial extended by ${days} days`);
+      fetchOrganizations();
+    } catch (error) {
+      console.error('Error extending trial:', error);
+      toast.error('Failed to extend trial');
     }
   };
 
@@ -259,6 +280,7 @@ const PlatformAdmin = () => {
                       <TableHead>Organization</TableHead>
                       <TableHead>Plan</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Trial Ends</TableHead>
                       <TableHead>Members</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Actions</TableHead>
@@ -267,7 +289,7 @@ const PlatformAdmin = () => {
                   <TableBody>
                     {filteredOrgs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           No organizations found
                         </TableCell>
                       </TableRow>
@@ -284,26 +306,47 @@ const PlatformAdmin = () => {
                           <TableCell>
                             {getStatusBadge(org.subscription?.status || 'trial')}
                           </TableCell>
+                          <TableCell>
+                            {org.subscription?.trial_ends_at ? (
+                              <div className="flex items-center gap-1 text-sm">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(org.subscription.trial_ends_at), 'MMM d, yyyy')}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                           <TableCell>{org.member_count}</TableCell>
                           <TableCell>
                             {format(new Date(org.created_at), 'MMM d, yyyy')}
                           </TableCell>
                           <TableCell>
-                            <Select
-                              value={org.subscription?.status || 'trial'}
-                              onValueChange={(value: 'trial' | 'active' | 'suspended' | 'cancelled' | 'expired') => updateSubscriptionStatus(org.id, value)}
-                            >
-                              <SelectTrigger className="w-[130px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="trial">Trial</SelectItem>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="suspended">Suspended</SelectItem>
-                                <SelectItem value="cancelled">Cancelled</SelectItem>
-                                <SelectItem value="expired">Expired</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div className="flex items-center gap-2">
+                              <Select
+                                value={org.subscription?.status || 'trial'}
+                                onValueChange={(value: 'trial' | 'active' | 'suspended' | 'cancelled' | 'expired') => updateSubscriptionStatus(org.id, value)}
+                              >
+                                <SelectTrigger className="w-[120px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="trial">Trial</SelectItem>
+                                  <SelectItem value="active">Active</SelectItem>
+                                  <SelectItem value="suspended">Suspended</SelectItem>
+                                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                                  <SelectItem value="expired">Expired</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => extendTrial(org.id, 7)}
+                                title="Extend trial by 7 days"
+                              >
+                                <RotateCcw className="h-3 w-3 mr-1" />
+                                +7d
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))

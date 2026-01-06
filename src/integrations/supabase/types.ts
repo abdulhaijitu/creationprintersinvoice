@@ -2000,10 +2000,12 @@ export type Database = {
         Returns: boolean
       }
       is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_subscription_active: { Args: { _org_id: string }; Returns: boolean }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
+      user_has_active_subscription: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role:

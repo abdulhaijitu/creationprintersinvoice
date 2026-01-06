@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useSubscriptionGuard } from '@/hooks/useSubscriptionGuard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,7 +50,8 @@ import {
   Upload, 
   Eye,
   MoreHorizontal,
-  Users
+  Users,
+  Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -76,6 +78,7 @@ const Customers = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { organization } = useOrganization();
+  const { isLocked, checkAccess } = useSubscriptionGuard();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -135,6 +138,8 @@ const Customers = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!checkAccess('create or edit customers')) return;
+
     try {
       if (editingCustomer) {
         const { error } = await supabase
@@ -164,6 +169,7 @@ const Customers = () => {
   };
 
   const handleEdit = (customer: Customer) => {
+    if (!checkAccess('edit customers')) return;
     setEditingCustomer(customer);
     setFormData({
       name: customer.name,
@@ -377,12 +383,13 @@ const Customers = () => {
               </Button>
 
               <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                if (open && !checkAccess('add new customers')) return;
                 setIsDialogOpen(open);
                 if (!open) resetForm();
               }}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="h-10 gap-2 shadow-sm">
-                    <Plus className="h-4 w-4" />
+                  <Button size="sm" className="h-10 gap-2 shadow-sm" disabled={isLocked}>
+                    {isLocked ? <Lock className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                     <span className="hidden sm:inline">New Customer</span>
                   </Button>
                 </DialogTrigger>
