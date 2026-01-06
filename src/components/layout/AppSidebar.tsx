@@ -31,7 +31,9 @@ import logoIcon from '@/assets/logo-icon.jpg';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { hasPermission, getRoleDisplayName } from '@/lib/permissions';
+import { hasPermission } from '@/lib/permissions';
+import { hasOrgPermission } from '@/lib/orgPermissions';
+import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import {
   Sidebar,
   SidebarContent,
@@ -199,6 +201,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { user, signOut, role, isSuperAdmin } = useAuth();
   const { organization, orgRole } = useOrganization();
+  const { canAccessReports, canAccessBilling, canAccessSettings } = useFeatureAccess();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const [pendingChallanCount, setPendingChallanCount] = useState(0);
@@ -304,19 +307,21 @@ export function AppSidebar() {
     ...(hasPermission(role, 'tasks', 'view') ? [{ title: 'Tasks', url: '/tasks', icon: ListTodo }] : []),
   ];
 
-  const reportItems = [
+  // Reports - gated by plan feature
+  const reportItems = canAccessReports ? [
     ...(hasPermission(role, 'reports', 'view') ? [{ title: 'Financial Reports', url: '/reports', icon: BarChart3 }] : []),
     ...(hasPermission(role, 'reports', 'view') ? [{ title: 'HR Reports', url: '/reports?tab=hr', icon: FileBarChart }] : []),
-  ];
+  ] : [];
 
+  // Settings - gated by org role
   const settingsItems = [
     ...(hasPermission(role, 'user_roles', 'view') ? [{ title: 'Role Management', url: '/user-roles', icon: UserCog }] : []),
-    ...(hasPermission(role, 'settings', 'view') ? [{ title: 'Organization Settings', url: '/settings', icon: Settings }] : []),
-    { title: 'Team Members', url: '/team-members', icon: Users },
+    ...(canAccessSettings ? [{ title: 'Organization Settings', url: '/settings', icon: Settings }] : []),
+    ...(hasOrgPermission(orgRole, 'team_members', 'view') ? [{ title: 'Team Members', url: '/team-members', icon: Users }] : []),
     { title: 'Usage & Limits', url: '/usage', icon: BarChart3 },
-    ...(orgRole === 'owner' ? [{ title: 'Notifications', url: '/notification-settings', icon: Bell }] : []),
+    ...(hasOrgPermission(orgRole, 'notifications', 'view') && orgRole === 'owner' ? [{ title: 'Notifications', url: '/notification-settings', icon: Bell }] : []),
     ...(orgRole === 'owner' ? [{ title: 'White-Label', url: '/white-label', icon: Palette }] : []),
-    ...(orgRole === 'owner' ? [{ title: 'Billing', url: '/billing', icon: CreditCard }] : []),
+    ...(canAccessBilling ? [{ title: 'Billing', url: '/billing', icon: CreditCard }] : []),
     ...(isSuperAdmin ? [{ title: 'Platform Admin', url: '/admin', icon: Building2 }] : []),
   ];
 
