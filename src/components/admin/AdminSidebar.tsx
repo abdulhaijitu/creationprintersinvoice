@@ -18,6 +18,8 @@ import {
   ArrowUp,
   Shield,
   Layers,
+  Menu,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.png';
@@ -37,6 +39,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   getAdminRole, 
   canAccessSection, 
@@ -109,6 +118,8 @@ interface AdminSidebarProps {
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   onCommandPaletteOpen: () => void;
+  mobileOpen?: boolean;
+  onMobileOpenChange?: (open: boolean) => void;
 }
 
 export const AdminSidebar = ({
@@ -118,10 +129,13 @@ export const AdminSidebar = ({
   collapsed,
   onCollapsedChange,
   onCommandPaletteOpen,
+  mobileOpen = false,
+  onMobileOpenChange,
 }: AdminSidebarProps) => {
   const { user, role } = useAuth();
   const adminRole = getAdminRole(role);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Initialize group open states from localStorage or defaults
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -192,69 +206,75 @@ export const AdminSidebar = ({
     return group.items.some(item => item.id === activeSection);
   };
 
-  return (
-    <aside
-      className={cn(
-        'fixed left-0 top-0 z-40 flex h-screen flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300 ease-out',
-        collapsed ? 'w-16' : 'w-64'
-      )}
-    >
-      {/* Brand Header with Toggle */}
-      <div
-        className={cn(
-          'flex h-16 items-center border-b border-sidebar-border transition-all duration-300',
-          collapsed ? 'justify-center px-2' : 'justify-between px-4'
-        )}
-      >
-        {collapsed ? (
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <button
-                onClick={handleToggle}
-                className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 p-1 hover:bg-white/20 transition-colors"
-              >
-                <img 
-                  src={logoIcon} 
-                  alt="PrintoSaas" 
-                  className="h-full w-full object-contain rounded-lg"
-                />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={10}>
-              <p className="font-medium">Expand sidebar</p>
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <>
-            <img 
-              src={logo} 
-              alt="PrintoSaas" 
-              className="h-9 w-auto object-contain"
-            />
+  const handleSectionClick = (sectionId: string) => {
+    onSectionChange(sectionId);
+    // Close mobile sidebar on navigation
+    if (isMobile && onMobileOpenChange) {
+      onMobileOpenChange(false);
+    }
+  };
+
+  // Sidebar content component (shared between desktop and mobile)
+  const SidebarContent = ({ isMobileView = false }: { isMobileView?: boolean }) => (
+    <div className="flex h-full flex-col">
+      {/* Brand Header with Toggle - Only for desktop */}
+      {!isMobileView && (
+        <div
+          className={cn(
+            'flex h-16 items-center border-b border-sidebar-border transition-all duration-300',
+            collapsed ? 'justify-center px-2' : 'justify-between px-4'
+          )}
+        >
+          {collapsed ? (
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
                   onClick={handleToggle}
-                  className="h-8 w-8 p-0 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 p-1 hover:bg-white/20 transition-colors"
                 >
-                  <PanelLeftClose className="h-4 w-4" />
-                </Button>
+                  <img 
+                    src={logoIcon} 
+                    alt="PrintoSaas" 
+                    className="h-full w-full object-contain rounded-lg"
+                  />
+                </button>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={10}>
-                Collapse sidebar
+                <p className="font-medium">Expand sidebar</p>
               </TooltipContent>
             </Tooltip>
-          </>
-        )}
-      </div>
+          ) : (
+            <>
+              <img 
+                src={logo} 
+                alt="PrintoSaas" 
+                className="h-9 w-auto object-contain"
+              />
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleToggle}
+                    className="h-8 w-8 p-0 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  >
+                    <PanelLeftClose className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10}>
+                  Collapse sidebar
+                </TooltipContent>
+              </Tooltip>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Command Palette Trigger */}
       <div
         className={cn(
           'border-b border-sidebar-border py-2 transition-all duration-300',
-          collapsed ? 'px-2' : 'px-3'
+          collapsed && !isMobileView ? 'px-2' : 'px-3'
         )}
       >
         <Tooltip delayDuration={0}>
@@ -262,16 +282,21 @@ export const AdminSidebar = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={onCommandPaletteOpen}
+              onClick={() => {
+                onCommandPaletteOpen();
+                if (isMobile && onMobileOpenChange) {
+                  onMobileOpenChange(false);
+                }
+              }}
               onKeyDown={(e) => handleKeyDown(e, onCommandPaletteOpen)}
               className={cn(
                 'w-full text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-200',
-                collapsed ? 'h-9 p-0 justify-center' : 'justify-start gap-2'
+                collapsed && !isMobileView ? 'h-9 p-0 justify-center' : 'justify-start gap-2'
               )}
               aria-label="Open command palette"
             >
               <Command className="h-4 w-4" />
-              {!collapsed && (
+              {(!collapsed || isMobileView) && (
                 <>
                   <span className="text-xs flex-1 text-left">Command...</span>
                   <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
@@ -281,7 +306,7 @@ export const AdminSidebar = ({
               )}
             </Button>
           </TooltipTrigger>
-          {collapsed && (
+          {collapsed && !isMobileView && (
             <TooltipContent side="right" sideOffset={10}>
               <span className="flex items-center gap-2">
                 Command
@@ -299,15 +324,15 @@ export const AdminSidebar = ({
         <nav
           className={cn(
             'space-y-2 transition-all duration-300',
-            collapsed ? 'px-2' : 'px-3'
+            collapsed && !isMobileView ? 'px-2' : 'px-3'
           )}
         >
           {filteredGroups.map((group) => {
             const isOpen = openGroups[group.id] ?? false;
             const groupActive = isGroupActive(group);
 
-            // Collapsed mode: show items with group tooltip
-            if (collapsed) {
+            // Collapsed mode: show items with group tooltip (desktop only)
+            if (collapsed && !isMobileView) {
               return (
                 <div key={group.id} className="space-y-1">
                   {/* Group indicator dot when collapsed */}
@@ -338,8 +363,8 @@ export const AdminSidebar = ({
                       <Tooltip key={item.id} delayDuration={0}>
                         <TooltipTrigger asChild>
                           <button
-                            onClick={() => onSectionChange(item.id)}
-                            onKeyDown={(e) => handleKeyDown(e, () => onSectionChange(item.id))}
+                            onClick={() => handleSectionClick(item.id)}
+                            onKeyDown={(e) => handleKeyDown(e, () => handleSectionClick(item.id))}
                             aria-current={isActive ? 'page' : undefined}
                             className={cn(
                               'group flex w-full h-10 items-center justify-center rounded-lg text-sm font-medium transition-all duration-200',
@@ -405,11 +430,11 @@ export const AdminSidebar = ({
                       return (
                         <button
                           key={item.id}
-                          onClick={() => onSectionChange(item.id)}
-                          onKeyDown={(e) => handleKeyDown(e, () => onSectionChange(item.id))}
+                          onClick={() => handleSectionClick(item.id)}
+                          onKeyDown={(e) => handleKeyDown(e, () => handleSectionClick(item.id))}
                           aria-current={isActive ? 'page' : undefined}
                           className={cn(
-                            'group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                            'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                             isActive
                               ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
                               : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -444,11 +469,11 @@ export const AdminSidebar = ({
       <div
         className={cn(
           'border-t border-sidebar-border transition-all duration-300',
-          collapsed ? 'p-2' : 'p-4'
+          collapsed && !isMobileView ? 'p-2' : 'p-4'
         )}
       >
         {/* Admin Profile */}
-        {collapsed ? (
+        {collapsed && !isMobileView ? (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <div className="flex justify-center py-2">
@@ -488,60 +513,105 @@ export const AdminSidebar = ({
 
         <Separator className="my-3 bg-sidebar-border" />
 
-        {/* Change Password Button (Super Admin only) */}
-        {isSuperAdmin && (
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
+        {/* Actions */}
+        <div className={cn('space-y-1', collapsed && !isMobileView && 'flex flex-col items-center')}>
+          {collapsed && !isMobileView ? (
+            <>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setChangePasswordOpen(true)}
+                    className="h-9 w-9 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  >
+                    <KeyRound className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10}>
+                  Change Password
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onSignOut}
+                    className="h-9 w-9 text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10}>
+                  Sign Out
+                </TooltipContent>
+              </Tooltip>
+            </>
+          ) : (
+            <>
               <Button
                 variant="ghost"
+                size="sm"
                 onClick={() => setChangePasswordOpen(true)}
-                onKeyDown={(e) => handleKeyDown(e, () => setChangePasswordOpen(true))}
-                className={cn(
-                  'w-full text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-200 mb-1',
-                  collapsed ? 'h-10 p-0 justify-center' : 'justify-start gap-3'
-                )}
+                className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               >
-                <KeyRound className="h-4 w-4 shrink-0" />
-                {!collapsed && <span>Change Password</span>}
-              </Button>
-            </TooltipTrigger>
-            {collapsed && (
-              <TooltipContent side="right" sideOffset={10}>
+                <KeyRound className="h-4 w-4" />
                 Change Password
-              </TooltipContent>
-            )}
-          </Tooltip>
-        )}
-
-        {/* Sign Out Button */}
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              onClick={onSignOut}
-              onKeyDown={(e) => handleKeyDown(e, onSignOut)}
-              className={cn(
-                'w-full text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-200',
-                collapsed ? 'h-10 p-0 justify-center' : 'justify-start gap-3'
-              )}
-            >
-              <LogOut className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>Sign Out</span>}
-            </Button>
-          </TooltipTrigger>
-          {collapsed && (
-            <TooltipContent side="right" sideOffset={10}>
-              Sign Out
-            </TooltipContent>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onSignOut}
+                className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </Button>
+            </>
           )}
-        </Tooltip>
+        </div>
       </div>
 
-      {/* Change Password Dialog */}
       <ChangePasswordDialog
         open={changePasswordOpen}
         onOpenChange={setChangePasswordOpen}
       />
+    </div>
+  );
+
+  // Mobile: Render Sheet
+  if (isMobile) {
+    return (
+      <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
+        <SheetContent 
+          side="left" 
+          className="w-[280px] p-0 bg-sidebar text-sidebar-foreground"
+        >
+          <SheetHeader className="h-16 flex-row items-center justify-between border-b border-sidebar-border px-4">
+            <SheetTitle className="flex items-center">
+              <img 
+                src={logo} 
+                alt="PrintoSaas" 
+                className="h-8 w-auto object-contain"
+              />
+            </SheetTitle>
+          </SheetHeader>
+          <SidebarContent isMobileView />
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  // Desktop: Render fixed sidebar
+  return (
+    <aside
+      className={cn(
+        'fixed left-0 top-0 z-40 flex h-screen flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300 ease-out',
+        collapsed ? 'w-16' : 'w-64'
+      )}
+    >
+      <SidebarContent />
     </aside>
   );
 };

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Building2, Search, Calendar, RotateCcw, Eye, Ban, CheckCircle, Plus, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
+import { Building2, Search, Calendar, RotateCcw, Eye, Ban, CheckCircle, Plus, Pencil, Trash2, MoreHorizontal, Users } from 'lucide-react';
 import { format, addDays, startOfMonth } from 'date-fns';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -33,9 +33,11 @@ import { AdminGlobalSearch } from '@/components/admin/AdminGlobalSearch';
 import { OrgRolePermissionsManager } from '@/components/admin/OrgRolePermissionsManager';
 import { PlanPermissionPresetsManager } from '@/components/admin/PlanPermissionPresetsManager';
 import { UpgradeRequestsManager } from '@/components/admin/UpgradeRequestsManager';
+import { AdminMobileCard, CardRow, CardHeaderRow, CardActions } from '@/components/admin/AdminMobileCard';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   getAdminRole, 
   canAccessSection, 
@@ -120,10 +122,12 @@ const PlatformAdmin = () => {
     const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY_EXPORT);
     return saved ? JSON.parse(saved) : false;
   });
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [createOrgDialogOpen, setCreateOrgDialogOpen] = useState(false);
   const [editOrgDialogOpen, setEditOrgDialogOpen] = useState(false);
   const [deleteOrgDialogOpen, setDeleteOrgDialogOpen] = useState(false);
+  const isMobile = useIsMobile();
   const [organizations, setOrganizations] = useState<OrganizationWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -568,27 +572,27 @@ const PlatformAdmin = () => {
       case 'organizations':
         return (
           <Card className="shadow-sm">
-            <CardHeader className="border-b bg-muted/30">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <CardHeader className="border-b bg-muted/30 p-3 md:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search by name, owner, or email..."
+                    placeholder="Search..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
                   />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {role === 'super_admin' && (
                     <Button onClick={() => setCreateOrgDialogOpen(true)} size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Organization
+                      <Plus className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Create Organization</span>
                     </Button>
                   )}
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by status" />
+                    <SelectTrigger className="w-[130px] sm:w-[180px]">
+                      <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
@@ -607,7 +611,63 @@ const PlatformAdmin = () => {
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
+              ) : isMobile ? (
+                /* Mobile: Card-based layout */
+                <div className="p-3 space-y-3">
+                  {filteredOrgs.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No organizations found</p>
+                  ) : (
+                    filteredOrgs.map((org) => (
+                      <AdminMobileCard key={org.id} onClick={() => handleViewDetails(org)}>
+                        <CardHeaderRow
+                          title={org.name}
+                          subtitle={org.owner_email || org.email || '-'}
+                          badge={getStatusBadge(org.subscription?.status || 'trial')}
+                          icon={<Building2 className="h-5 w-5 text-primary" />}
+                        />
+                        <CardRow label="Plan">
+                          <Badge variant="outline" className="capitalize">{org.subscription?.plan || 'free'}</Badge>
+                        </CardRow>
+                        <CardRow label="Members">
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" /> {org.member_count}
+                          </span>
+                        </CardRow>
+                        <CardRow label="Created">
+                          {format(new Date(org.created_at), 'MMM d, yyyy')}
+                        </CardRow>
+                        <CardActions>
+                          <Button variant="outline" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); handleViewDetails(org); }}>
+                            <Eye className="h-4 w-4 mr-1" /> Details
+                          </Button>
+                          {role === 'super_admin' && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setSelectedOrg(org); setEditOrgDialogOpen(true); }}>
+                                  <Pencil className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => extendTrial(org.id, 7, org.name)}>
+                                  <RotateCcw className="mr-2 h-4 w-4" /> Extend Trial
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => { setSelectedOrg(org); setDeleteOrgDialogOpen(true); }} className="text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </CardActions>
+                      </AdminMobileCard>
+                    ))
+                  )}
+                </div>
               ) : (
+                /* Desktop: Table layout */
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -811,56 +871,61 @@ const PlatformAdmin = () => {
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
           onCommandPaletteOpen={() => setCommandPaletteOpen(true)}
+          mobileOpen={mobileSidebarOpen}
+          onMobileOpenChange={setMobileSidebarOpen}
         />
 
         {/* Main Content */}
         <main
           className={cn(
-            'transition-all duration-300 ease-out flex flex-col',
-            sidebarCollapsed ? 'pl-16' : 'pl-64'
+            'transition-all duration-300 ease-out flex flex-col min-h-screen',
+            // Desktop: add left padding for sidebar
+            // Mobile: no padding (sidebar is overlay)
+            !isMobile && (sidebarCollapsed ? 'md:pl-16' : 'md:pl-64'),
+            isMobile && 'pl-0'
           )}
         >
-          <div className="flex-1 flex flex-col min-h-screen">
-            {/* Page Header */}
-            <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-              <div className="px-6 py-4">
-                <AdminPageHeader
-                  title={currentSection.title}
-                  description={currentSection.description}
-                  searchComponent={
-                    <AdminGlobalSearch
-                      onSearch={setGlobalSearchQuery}
-                      onResultSelect={handleGlobalSearchSelect}
-                      results={globalSearchResults}
-                      placeholder="Search organizations..."
-                    />
-                  }
-                />
-              </div>
-            </header>
-
-            {/* Page Content */}
-            <div className="flex-1 p-6">
-              <div className="animate-fade-in">
-                {renderContent()}
-              </div>
+          {/* Page Header */}
+          <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <div className="px-4 md:px-6 py-3 md:py-4">
+              <AdminPageHeader
+                title={currentSection.title}
+                description={currentSection.description}
+                showMenuButton={isMobile}
+                onMenuClick={() => setMobileSidebarOpen(true)}
+                searchComponent={
+                  <AdminGlobalSearch
+                    onSearch={setGlobalSearchQuery}
+                    onResultSelect={handleGlobalSearchSelect}
+                    results={globalSearchResults}
+                    placeholder="Search organizations..."
+                  />
+                }
+              />
             </div>
+          </header>
 
-            {/* Footer */}
-            <footer className="border-t border-border/50 bg-background/50 py-4 px-6">
-              <p className="text-center text-xs text-muted-foreground">
-                © Copyright 2025. Design and develop by{" "}
-                <a
-                  href="http://creationtechbd.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 rounded-sm transition-colors"
-                >
-                  Creation Tech
-                </a>
-              </p>
-            </footer>
+          {/* Page Content */}
+          <div className="flex-1 p-4 md:p-6">
+            <div className="animate-fade-in">
+              {renderContent()}
+            </div>
           </div>
+
+          {/* Footer */}
+          <footer className="border-t border-border/50 bg-background/50 py-3 md:py-4 px-4 md:px-6">
+            <p className="text-center text-xs text-muted-foreground">
+              © Copyright 2025. Design and develop by{" "}
+              <a
+                href="http://creationtechbd.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 rounded-sm transition-colors"
+              >
+                Creation Tech
+              </a>
+            </p>
+          </footer>
         </main>
 
         {/* Command Palette */}
