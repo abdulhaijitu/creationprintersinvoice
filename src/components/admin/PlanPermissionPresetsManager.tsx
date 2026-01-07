@@ -3,8 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Shield, Lock, AlertCircle, CheckCircle2, Crown, Star, Zap, Gift } from 'lucide-react';
+import { Loader2, Shield, CheckCircle2, Crown, Star, Zap, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { useEnhancedAudit } from '@/hooks/useEnhancedAudit';
 
@@ -136,15 +135,8 @@ export const PlanPermissionPresetsManager = () => {
     role: string,
     permissionKey: string,
     currentValue: boolean,
-    permissionLabel: string,
-    isProtected: boolean
+    permissionLabel: string
   ) => {
-    // Prevent disabling protected permissions for owner
-    if (isProtected && currentValue && role === 'owner') {
-      toast.error('Protected permissions cannot be disabled for owners');
-      return;
-    }
-
     const key = `${plan}-${role}-${permissionKey}`;
     setSaving(key);
 
@@ -285,7 +277,6 @@ export const PlanPermissionPresetsManager = () => {
                           {perms.map((perm) => {
                             const currentValue = getPresetValue(plan, perm.role, perm.permission_key);
                             const isSaving = saving === `${plan}-${perm.role}-${perm.permission_key}`;
-                            const isProtectedOwner = perm.is_protected && perm.role === 'owner' && currentValue;
 
                             return (
                               <div
@@ -293,22 +284,9 @@ export const PlanPermissionPresetsManager = () => {
                                 className="flex items-center justify-between py-2.5 gap-3"
                               >
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                                  <div className="flex flex-col min-w-0">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="font-medium text-sm truncate">
-                                        {perm.permission_label}
-                                      </span>
-                                      {perm.is_protected && (
-                                        <Badge
-                                          variant="outline"
-                                          className="text-[10px] gap-0.5 px-1 py-0 shrink-0"
-                                        >
-                                          <Lock className="h-2.5 w-2.5" />
-                                          Protected
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
+                                  <span className="font-medium text-sm truncate">
+                                    {perm.permission_label}
+                                  </span>
                                 </div>
 
                                 <div className="flex items-center gap-2 shrink-0">
@@ -325,12 +303,10 @@ export const PlanPermissionPresetsManager = () => {
                                         perm.role,
                                         perm.permission_key,
                                         currentValue,
-                                        perm.permission_label,
-                                        perm.is_protected
+                                        perm.permission_label
                                       )
                                     }
-                                    disabled={isSaving || isProtectedOwner}
-                                    className={isProtectedOwner ? 'opacity-50 cursor-not-allowed' : ''}
+                                    disabled={isSaving}
                                   />
                                 </div>
                               </div>
