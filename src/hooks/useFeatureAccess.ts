@@ -2,7 +2,7 @@ import { useMemo, useCallback, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { PlanFeature, planHasFeature, getPlanLimits, getMinimumPlanForFeature, getPlanDisplayName } from '@/lib/planFeatures';
-import { OrgModule, OrgAction, hasOrgPermission } from '@/lib/orgPermissions';
+import { OrgModule, OrgAction, hasOrgPermission, PermissionKey, SubMenuPermissionKey, MenuPermissionKey, permissionToMenu } from '@/lib/orgPermissions';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FeatureAccessResult {
@@ -11,6 +11,11 @@ export interface FeatureAccessResult {
   blockedByRole: boolean;
   requiredPlan: string | null;
   message: string | null;
+}
+
+interface Permission {
+  permission_key: string;
+  is_enabled: boolean;
 }
 
 export const useFeatureAccess = () => {
@@ -23,8 +28,13 @@ export const useFeatureAccess = () => {
     isTrialExpired 
   } = useOrganization();
 
-  const [orgSpecificPerms, setOrgSpecificPerms] = useState<Map<string, boolean>>(new Map());
-  const [useGlobalPerms, setUseGlobalPerms] = useState(true);
+  const [globalPermissions, setGlobalPermissions] = useState<Permission[]>([]);
+  const [planPresets, setPlanPresets] = useState<Permission[]>([]);
+  const [orgOverrides, setOrgOverrides] = useState<Permission[]>([]);
+  const [settings, setSettings] = useState<{ useGlobal: boolean; overridePlan: boolean }>({ 
+    useGlobal: true, 
+    overridePlan: false 
+  });
   const [hasCustomPermissions, setHasCustomPermissions] = useState(false);
 
   const currentPlan = subscription?.plan ?? null;
@@ -39,38 +49,44 @@ export const useFeatureAccess = () => {
 
     const fetchOrgPermissions = async () => {
       try {
-        // Check if org uses custom permissions
-        const { data: settings } = await supabase
-          .from('org_permission_settings')
-          .select('use_global_permissions')
-          .eq('organization_id', organizationId)
-          .maybeSingle();
-
-        const usesGlobal = settings?.use_global_permissions ?? true;
-        setUseGlobalPerms(usesGlobal);
-        setHasCustomPermissions(!usesGlobal);
-
-        if (!usesGlobal && orgRole) {
-          // Fetch org-specific permissions for the user's role
-          const { data: orgPerms } = await supabase
+        // Fetch all permissions in parallel
+        const [globalRes, planRes, orgRes, settingsRes] = await Promise.all([
+          supabase
+            .from('org_role_permissions')
+            .select('permission_key, is_enabled')
+            .eq('role', orgRole || 'staff'),
+          supabase
+            .from('plan_permission_presets')
+            .select('permission_key, is_enabled')
+            .eq('plan_name', currentPlan || 'free')
+            .eq('role', orgRole || 'staff'),
+          supabase
             .from('org_specific_permissions')
             .select('permission_key, is_enabled')
             .eq('organization_id', organizationId)
-            .eq('role', orgRole);
+            .eq('role', orgRole || 'staff'),
+          supabase
+            .from('org_permission_settings')
+            .select('use_global_permissions, override_plan_permissions')
+            .eq('organization_id', organizationId)
+            .maybeSingle(),
+        ]);
 
-          const permMap = new Map<string, boolean>();
-          orgPerms?.forEach(p => {
-            permMap.set(p.permission_key, p.is_enabled);
-          });
-          setOrgSpecificPerms(permMap);
-        }
+        setGlobalPermissions(globalRes.data || []);
+        setPlanPresets(planRes.data || []);
+        setOrgOverrides(orgRes.data || []);
+        
+        const usesGlobal = settingsRes.data?.use_global_permissions ?? true;
+        const overridePlan = settingsRes.data?.override_plan_permissions ?? false;
+        setSettings({ useGlobal: usesGlobal, overridePlan });
+        setHasCustomPermissions(!usesGlobal || overridePlan);
       } catch (error) {
         console.error('Error fetching org permissions:', error);
       }
     };
 
     fetchOrgPermissions();
-  }, [organizationId, orgRole, isSuperAdminUser]);
+  }, [organizationId, orgRole, isSuperAdminUser, currentPlan]);
 
   // Check if a plan feature is accessible
   const checkPlanFeature = useCallback((feature: PlanFeature): FeatureAccessResult => {
@@ -118,12 +134,79 @@ export const useFeatureAccess = () => {
     };
   }, [isSuperAdminUser, isSubscriptionActive, isTrialExpired, currentPlan]);
 
-  // Convert module/action to permission key
-  const getPermissionKey = useCallback((module: OrgModule, action: OrgAction): string => {
-    return `${module}_${action}`;
-  }, []);
+  // Resolve permission from the 3-tier hierarchy
+  const resolvePermission = useCallback((permissionKey: PermissionKey): boolean => {
+    if (isSuperAdminUser) return true;
+    if (!orgRole) return false;
 
-  // Check organization role permission with org-specific override support
+    // 1. Organization-specific override (if not using global)
+    if (!settings.useGlobal) {
+      const orgPerm = orgOverrides.find(p => p.permission_key === permissionKey);
+      if (orgPerm) return orgPerm.is_enabled;
+    }
+
+    // 2. Plan preset (if not overriding plan)
+    if (!settings.overridePlan) {
+      const planPerm = planPresets.find(p => p.permission_key === permissionKey);
+      if (planPerm) return planPerm.is_enabled;
+    }
+
+    // 3. Global default
+    const globalPerm = globalPermissions.find(p => p.permission_key === permissionKey);
+    return globalPerm?.is_enabled ?? false;
+  }, [isSuperAdminUser, orgRole, settings, orgOverrides, planPresets, globalPermissions]);
+
+  // Check permission with menu + sub-menu logic
+  const checkPermissionKey = useCallback((permissionKey: PermissionKey): FeatureAccessResult => {
+    if (isSuperAdminUser) {
+      return {
+        hasAccess: true,
+        blockedByPlan: false,
+        blockedByRole: false,
+        requiredPlan: null,
+        message: null,
+      };
+    }
+
+    // For sub-menu permissions, check both menu and sub-menu
+    if (permissionKey in permissionToMenu) {
+      const menuKey = permissionToMenu[permissionKey as SubMenuPermissionKey];
+      const hasMenuAccess = resolvePermission(menuKey);
+      const hasSubMenuAccess = resolvePermission(permissionKey);
+
+      if (!hasMenuAccess || !hasSubMenuAccess) {
+        return {
+          hasAccess: false,
+          blockedByPlan: false,
+          blockedByRole: true,
+          requiredPlan: null,
+          message: 'Access restricted by your role permissions.',
+        };
+      }
+    } else {
+      // Menu-level permission
+      const hasAccess = resolvePermission(permissionKey);
+      if (!hasAccess) {
+        return {
+          hasAccess: false,
+          blockedByPlan: false,
+          blockedByRole: true,
+          requiredPlan: null,
+          message: 'Access restricted by your role permissions.',
+        };
+      }
+    }
+
+    return {
+      hasAccess: true,
+      blockedByPlan: false,
+      blockedByRole: false,
+      requiredPlan: null,
+      message: null,
+    };
+  }, [isSuperAdminUser, resolvePermission]);
+
+  // Check organization role permission (legacy support)
   const checkOrgPermission = useCallback((module: OrgModule, action: OrgAction): FeatureAccessResult => {
     // Super Admin has full access
     if (isSuperAdminUser) {
@@ -136,31 +219,7 @@ export const useFeatureAccess = () => {
       };
     }
 
-    // If using org-specific permissions and we have an override
-    if (!useGlobalPerms) {
-      const permKey = getPermissionKey(module, action);
-      if (orgSpecificPerms.has(permKey)) {
-        const hasAccess = orgSpecificPerms.get(permKey) ?? false;
-        if (!hasAccess) {
-          return {
-            hasAccess: false,
-            blockedByPlan: false,
-            blockedByRole: true,
-            requiredPlan: null,
-            message: 'Access restricted by organization permissions.',
-          };
-        }
-        return {
-          hasAccess: true,
-          blockedByPlan: false,
-          blockedByRole: false,
-          requiredPlan: null,
-          message: null,
-        };
-      }
-    }
-
-    // Fallback to global permission check
+    // Fallback to legacy permission check
     const hasPermission = hasOrgPermission(orgRole, module, action);
     if (!hasPermission) {
       return {
@@ -179,7 +238,7 @@ export const useFeatureAccess = () => {
       requiredPlan: null,
       message: null,
     };
-  }, [isSuperAdminUser, orgRole, useGlobalPerms, orgSpecificPerms, getPermissionKey]);
+  }, [isSuperAdminUser, orgRole]);
 
   // Combined check: plan feature + org permission
   const checkAccess = useCallback((
@@ -226,10 +285,10 @@ export const useFeatureAccess = () => {
   // Get plan limits
   const limits = useMemo(() => getPlanLimits(currentPlan), [currentPlan]);
 
-  // Quick access checks
+  // Quick access checks using new permission keys
   const canAccessReports = useMemo(
-    () => checkPlanFeature('reports').hasAccess && checkOrgPermission('reports', 'view').hasAccess,
-    [checkPlanFeature, checkOrgPermission]
+    () => checkPermissionKey('reports.access').hasAccess,
+    [checkPermissionKey]
   );
 
   const canAccessAnalytics = useMemo(
@@ -243,18 +302,18 @@ export const useFeatureAccess = () => {
   );
 
   const canManageTeam = useMemo(
-    () => checkOrgPermission('team_members', 'view').hasAccess,
-    [checkOrgPermission]
+    () => checkPermissionKey('settings.team_members').hasAccess,
+    [checkPermissionKey]
   );
 
   const canAccessBilling = useMemo(
-    () => checkOrgPermission('billing', 'view').hasAccess,
-    [checkOrgPermission]
+    () => checkPermissionKey('settings.billing').hasAccess,
+    [checkPermissionKey]
   );
 
   const canAccessSettings = useMemo(
-    () => checkOrgPermission('settings', 'view').hasAccess,
-    [checkOrgPermission]
+    () => checkPermissionKey('settings.access').hasAccess,
+    [checkPermissionKey]
   );
 
   // Read-only mode when subscription expired
@@ -264,7 +323,9 @@ export const useFeatureAccess = () => {
     // Core check functions
     checkPlanFeature,
     checkOrgPermission,
+    checkPermissionKey,
     checkAccess,
+    resolvePermission,
     
     // State
     isSuperAdmin: isSuperAdminUser,

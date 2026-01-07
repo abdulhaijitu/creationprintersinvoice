@@ -31,9 +31,7 @@ import logoIcon from '@/assets/logo-icon.jpg';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { hasPermission } from '@/lib/permissions';
-import { hasOrgPermission } from '@/lib/orgPermissions';
-import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import { useOrgPermissions } from '@/hooks/useOrgPermissions';
 import {
   Sidebar,
   SidebarContent,
@@ -199,9 +197,9 @@ const SIDEBAR_STATE_KEY = 'erp-sidebar-expanded-group';
 
 export function AppSidebar() {
   const location = useLocation();
-  const { user, signOut, role, isSuperAdmin } = useAuth();
-  const { organization, orgRole } = useOrganization();
-  const { canAccessReports, canAccessBilling, canAccessSettings } = useFeatureAccess();
+  const { user, signOut, isSuperAdmin } = useAuth();
+  const { organization } = useOrganization();
+  const { permissions, loading } = useOrgPermissions();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const [pendingChallanCount, setPendingChallanCount] = useState(0);
@@ -231,7 +229,7 @@ export function AppSidebar() {
       { id: 'expenses', paths: ['/vendors', '/expenses'] },
       { id: 'hr', paths: ['/employees', '/attendance', '/leave', '/salary', '/performance', '/tasks'] },
       { id: 'reports', paths: ['/reports'] },
-      { id: 'settings', paths: ['/user-roles', '/settings'] },
+      { id: 'settings', paths: ['/user-roles', '/settings', '/team-members', '/usage', '/notification-settings', '/white-label', '/billing'] },
     ];
 
     for (const group of groups) {
@@ -280,50 +278,68 @@ export function AppSidebar() {
     };
   }, []);
 
-  // Build navigation items based on permissions
-  const mainNavItems = [
+  // Dashboard - Always visible if permission granted
+  const mainNavItems = permissions.dashboard ? [
     { title: 'Dashboard', url: '/', icon: LayoutDashboard },
-  ];
+  ] : [];
 
+  // Build navigation items based on permissions
   const salesItems = [
-    ...(hasPermission(role, 'customers', 'view') ? [{ title: 'Customers', url: '/customers', icon: Users }] : []),
-    ...(hasPermission(role, 'invoices', 'view') ? [{ title: 'Invoices', url: '/invoices', icon: FileText }] : []),
-    ...(hasPermission(role, 'quotations', 'view') ? [{ title: 'Quotations', url: '/quotations', icon: FileCheck }] : []),
-    ...(hasPermission(role, 'invoices', 'view') ? [{ title: 'Delivery Challans', url: '/delivery-challans', icon: Truck, badge: pendingChallanCount }] : []),
-    ...(hasPermission(role, 'price_calculations', 'view') ? [{ title: 'Price Calculations', url: '/price-calculation', icon: Calculator }] : []),
+    ...(permissions.customers ? [{ title: 'Customers', url: '/customers', icon: Users }] : []),
+    ...(permissions.invoices ? [{ title: 'Invoices', url: '/invoices', icon: FileText }] : []),
+    ...(permissions.quotations ? [{ title: 'Quotations', url: '/quotations', icon: FileCheck }] : []),
+    ...(permissions.deliveryChallans ? [{ title: 'Delivery Challans', url: '/delivery-challans', icon: Truck, badge: pendingChallanCount }] : []),
+    ...(permissions.priceCalculations ? [{ title: 'Price Calculations', url: '/price-calculation', icon: Calculator }] : []),
   ];
 
   const expenseItems = [
-    ...(hasPermission(role, 'vendors', 'view') ? [{ title: 'Vendors', url: '/vendors', icon: Building2 }] : []),
-    ...(hasPermission(role, 'expenses', 'view') ? [{ title: 'Expenses', url: '/expenses', icon: Wallet }] : []),
+    ...(permissions.vendors ? [{ title: 'Vendors', url: '/vendors', icon: Building2 }] : []),
+    ...(permissions.expensesList ? [{ title: 'Expenses', url: '/expenses', icon: Wallet }] : []),
   ];
 
   const hrItems = [
-    ...(hasPermission(role, 'employees', 'view') ? [{ title: 'Employees', url: '/employees', icon: Users }] : []),
-    ...(hasPermission(role, 'attendance', 'view') ? [{ title: 'Attendance', url: '/attendance', icon: CalendarCheck }] : []),
-    ...(hasPermission(role, 'leave', 'view') ? [{ title: 'Leave Management', url: '/leave', icon: ClipboardList }] : []),
-    ...(hasPermission(role, 'salary', 'view') ? [{ title: 'Payroll', url: '/salary', icon: Receipt }] : []),
-    ...(hasPermission(role, 'performance', 'view') ? [{ title: 'Performance', url: '/performance', icon: Award }] : []),
-    ...(hasPermission(role, 'tasks', 'view') ? [{ title: 'Tasks', url: '/tasks', icon: ListTodo }] : []),
+    ...(permissions.employees ? [{ title: 'Employees', url: '/employees', icon: Users }] : []),
+    ...(permissions.attendance ? [{ title: 'Attendance', url: '/attendance', icon: CalendarCheck }] : []),
+    ...(permissions.leaveManagement ? [{ title: 'Leave Management', url: '/leave', icon: ClipboardList }] : []),
+    ...(permissions.payroll ? [{ title: 'Payroll', url: '/salary', icon: Receipt }] : []),
+    ...(permissions.performance ? [{ title: 'Performance', url: '/performance', icon: Award }] : []),
+    ...(permissions.tasks ? [{ title: 'Tasks', url: '/tasks', icon: ListTodo }] : []),
   ];
 
-  // Reports - gated by plan feature
-  const reportItems = canAccessReports ? [
-    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'Financial Reports', url: '/reports', icon: BarChart3 }] : []),
-    ...(hasPermission(role, 'reports', 'view') ? [{ title: 'HR Reports', url: '/reports?tab=hr', icon: FileBarChart }] : []),
-  ] : [];
+  const reportItems = [
+    ...(permissions.financialReports ? [{ title: 'Financial Reports', url: '/reports', icon: BarChart3 }] : []),
+    ...(permissions.hrReports ? [{ title: 'HR Reports', url: '/reports?tab=hr', icon: FileBarChart }] : []),
+  ];
 
-  // Settings - gated by org role
   const settingsItems = [
-    ...(hasPermission(role, 'user_roles', 'view') ? [{ title: 'Role Management', url: '/user-roles', icon: UserCog }] : []),
-    ...(canAccessSettings ? [{ title: 'Organization Settings', url: '/settings', icon: Settings }] : []),
-    ...(hasOrgPermission(orgRole, 'team_members', 'view') ? [{ title: 'Team Members', url: '/team-members', icon: Users }] : []),
-    { title: 'Usage & Limits', url: '/usage', icon: BarChart3 },
-    ...(hasOrgPermission(orgRole, 'notifications', 'view') && orgRole === 'owner' ? [{ title: 'Notifications', url: '/notification-settings', icon: Bell }] : []),
-    ...(orgRole === 'owner' ? [{ title: 'White-Label', url: '/white-label', icon: Palette }] : []),
-    ...(canAccessBilling ? [{ title: 'Billing', url: '/billing', icon: CreditCard }] : []),
+    ...(permissions.roleManagement ? [{ title: 'Role Management', url: '/user-roles', icon: UserCog }] : []),
+    ...(permissions.organizationSettings ? [{ title: 'Organization Settings', url: '/settings', icon: Settings }] : []),
+    ...(permissions.teamMembers ? [{ title: 'Team Members', url: '/team-members', icon: Users }] : []),
+    ...(permissions.usageLimits ? [{ title: 'Usage & Limits', url: '/usage', icon: BarChart3 }] : []),
+    ...(permissions.notifications ? [{ title: 'Notifications', url: '/notification-settings', icon: Bell }] : []),
+    ...(permissions.whiteLabel ? [{ title: 'White-Label', url: '/white-label', icon: Palette }] : []),
+    ...(permissions.billing ? [{ title: 'Billing', url: '/billing', icon: CreditCard }] : []),
     ...(isSuperAdmin ? [{ title: 'Platform Admin', url: '/admin', icon: Building2 }] : []),
   ];
+
+  // Show skeleton while loading
+  if (loading && !isSuperAdmin) {
+    return (
+      <Sidebar 
+        collapsible="icon" 
+        className="border-r border-slate-800 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950"
+      >
+        <SidebarHeader className="p-4 border-b border-slate-800">
+          <div className="h-10 w-24 bg-slate-800 rounded animate-pulse" />
+        </SidebarHeader>
+        <SidebarContent className="px-2 py-3">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="h-10 mx-1 mb-2 bg-slate-800/50 rounded animate-pulse" />
+          ))}
+        </SidebarContent>
+      </Sidebar>
+    );
+  }
 
   return (
     <Sidebar 
@@ -359,20 +375,22 @@ export function AppSidebar() {
 
       {/* Navigation */}
       <SidebarContent className="px-2 py-3 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-        {/* Dashboard - Always visible */}
-        <SidebarGroup className="py-1">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainNavItems.map((item) => (
-                <NavItem
-                  key={item.url}
-                  item={item}
-                  isActive={location.pathname === item.url}
-                />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Dashboard - Always visible if permitted */}
+        {mainNavItems.length > 0 && (
+          <SidebarGroup className="py-1">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {mainNavItems.map((item) => (
+                  <NavItem
+                    key={item.url}
+                    item={item}
+                    isActive={location.pathname === item.url}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Favorites */}
         <FavoritePages />
@@ -380,8 +398,8 @@ export function AppSidebar() {
         {/* Divider */}
         {!collapsed && <div className="mx-3 my-3 border-t border-slate-800" />}
 
-        {/* Navigation Groups */}
-        {salesItems.length > 0 && (
+        {/* Navigation Groups - Only show if menu access is granted */}
+        {permissions.salesBilling && salesItems.length > 0 && (
           <NavGroup 
             id="sales"
             label="Sales & Billing" 
@@ -391,7 +409,7 @@ export function AppSidebar() {
             onToggle={handleToggleGroup}
           />
         )}
-        {expenseItems.length > 0 && (
+        {permissions.expenses && expenseItems.length > 0 && (
           <NavGroup 
             id="expenses"
             label="Expenses" 
@@ -401,7 +419,7 @@ export function AppSidebar() {
             onToggle={handleToggleGroup}
           />
         )}
-        {hrItems.length > 0 && (
+        {permissions.hrWorkforce && hrItems.length > 0 && (
           <NavGroup 
             id="hr"
             label="HR & Workforce" 
@@ -411,7 +429,7 @@ export function AppSidebar() {
             onToggle={handleToggleGroup}
           />
         )}
-        {reportItems.length > 0 && (
+        {permissions.reports && reportItems.length > 0 && (
           <NavGroup 
             id="reports"
             label="Reports" 
@@ -421,7 +439,7 @@ export function AppSidebar() {
             onToggle={handleToggleGroup}
           />
         )}
-        {settingsItems.length > 0 && (
+        {(permissions.settings || isSuperAdmin) && settingsItems.length > 0 && (
           <NavGroup 
             id="settings"
             label="Settings" 

@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
-import { OrgModule, OrgAction, getOrgRoleDisplayName } from '@/lib/orgPermissions';
+import { OrgModule, OrgAction, getOrgRoleDisplayName, PermissionKey } from '@/lib/orgPermissions';
 import { OrgRole } from '@/contexts/OrganizationContext';
 import { ShieldAlert, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 
 interface RoleGateProps {
   children: ReactNode;
-  /** Organization module for permission check */
-  module: OrgModule;
+  /** Permission key for new permission system */
+  permissionKey?: PermissionKey;
+  /** Organization module for legacy permission check */
+  module?: OrgModule;
   /** Action type for permission check */
   action?: OrgAction;
   /** Minimum org role required (alternative to module/action) */
@@ -28,6 +30,7 @@ const roleHierarchy: OrgRole[] = ['staff', 'accounts', 'manager', 'owner'];
 
 export const RoleGate = ({
   children,
+  permissionKey,
   module,
   action = 'view',
   minRole,
@@ -36,23 +39,29 @@ export const RoleGate = ({
   className,
   fallback,
 }: RoleGateProps) => {
-  const { checkOrgPermission, orgRole, isSuperAdmin, hasCustomPermissions } = useFeatureAccess();
+  const { checkOrgPermission, checkPermissionKey, orgRole, isSuperAdmin, hasCustomPermissions } = useFeatureAccess();
 
   // Super Admin always has access
   if (isSuperAdmin) {
     return <>{children}</>;
   }
 
-  // Check minimum role if specified
-  if (minRole && orgRole) {
+  // Check using new permission key if provided
+  if (permissionKey) {
+    const result = checkPermissionKey(permissionKey);
+    if (result.hasAccess) {
+      return <>{children}</>;
+    }
+  } else if (minRole && orgRole) {
+    // Check minimum role if specified
     const currentRoleIndex = roleHierarchy.indexOf(orgRole);
     const requiredRoleIndex = roleHierarchy.indexOf(minRole);
     
     if (currentRoleIndex >= requiredRoleIndex) {
       return <>{children}</>;
     }
-  } else {
-    // Check module permission
+  } else if (module) {
+    // Check legacy module permission
     const result = checkOrgPermission(module, action);
     if (result.hasAccess) {
       return <>{children}</>;
@@ -103,10 +112,18 @@ export const RoleGate = ({
 };
 
 // Simple hook alternative for conditional rendering
-export const useRoleCheck = (module: OrgModule, action: OrgAction = 'view'): boolean => {
-  const { checkOrgPermission, isSuperAdmin } = useFeatureAccess();
+export const useRoleCheck = (permissionKey?: PermissionKey, module?: OrgModule, action: OrgAction = 'view'): boolean => {
+  const { checkOrgPermission, checkPermissionKey, isSuperAdmin } = useFeatureAccess();
   
   if (isSuperAdmin) return true;
   
-  return checkOrgPermission(module, action).hasAccess;
+  if (permissionKey) {
+    return checkPermissionKey(permissionKey).hasAccess;
+  }
+  
+  if (module) {
+    return checkOrgPermission(module, action).hasAccess;
+  }
+  
+  return false;
 };
