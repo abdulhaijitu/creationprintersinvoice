@@ -1,7 +1,12 @@
 import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Menu } from 'lucide-react';
+import { ExternalLink, Menu, Command } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface AdminPageHeaderProps {
   title: string;
@@ -10,6 +15,7 @@ interface AdminPageHeaderProps {
   searchComponent?: ReactNode;
   onMenuClick?: () => void;
   showMenuButton?: boolean;
+  onCommandPaletteOpen?: () => void;
 }
 
 export const AdminPageHeader = ({
@@ -19,6 +25,7 @@ export const AdminPageHeader = ({
   searchComponent,
   onMenuClick,
   showMenuButton = false,
+  onCommandPaletteOpen,
 }: AdminPageHeaderProps) => {
   const isMobile = useIsMobile();
 
@@ -41,6 +48,40 @@ export const AdminPageHeader = ({
             <span className="sr-only">Open menu</span>
           </Button>
         )}
+
+        {/* Command Palette Trigger */}
+        {onCommandPaletteOpen && (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size={isMobile ? 'icon' : 'sm'}
+                onClick={onCommandPaletteOpen}
+                className="gap-2 shrink-0 h-9"
+                aria-label="Open command palette"
+              >
+                <Command className="h-4 w-4" />
+                {!isMobile && (
+                  <>
+                    <span className="text-xs text-muted-foreground">Search...</span>
+                    <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:inline-flex">
+                      <span className="text-xs">⌘</span>K
+                    </kbd>
+                  </>
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <span className="flex items-center gap-2">
+                Command palette
+                <kbd className="pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium inline-flex">
+                  <span className="text-xs">⌘</span>K
+                </kbd>
+              </span>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground truncate">
             {title}

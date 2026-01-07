@@ -878,7 +878,6 @@ const PlatformAdmin = () => {
           onSignOut={handleSignOut}
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
-          onCommandPaletteOpen={() => setCommandPaletteOpen(true)}
           mobileOpen={mobileSidebarOpen}
           onMobileOpenChange={setMobileSidebarOpen}
         />
@@ -901,6 +900,7 @@ const PlatformAdmin = () => {
                 description={currentSection.description}
                 showMenuButton={isMobile}
                 onMenuClick={() => setMobileSidebarOpen(true)}
+                onCommandPaletteOpen={() => setCommandPaletteOpen(true)}
                 searchComponent={
                   <AdminGlobalSearch
                     onSearch={setGlobalSearchQuery}
