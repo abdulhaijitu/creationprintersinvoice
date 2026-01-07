@@ -35,11 +35,12 @@ const ROLE_DESCRIPTIONS: Record<OrgRole, string> = {
 };
 
 const CATEGORY_ORDER = [
-  'Dashboard & Data',
-  'Operations',
-  'User Management',
-  'Settings & Billing',
-  'Advanced',
+  'Core',
+  'Sales & Billing',
+  'Expenses',
+  'HR & Workforce',
+  'Reports',
+  'Settings',
 ];
 
 export const OrgRolePermissionsManager = () => {

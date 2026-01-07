@@ -1,6 +1,47 @@
 import { OrgRole } from '@/contexts/OrganizationContext';
 
-// Organization-level permission modules (Main App)
+// Permission key types
+export type MenuPermissionKey = 
+  | 'dashboard.access'
+  | 'sales_billing.access'
+  | 'expenses.access'
+  | 'hr_workforce.access'
+  | 'reports.access'
+  | 'settings.access';
+
+export type SubMenuPermissionKey = 
+  // Sales & Billing
+  | 'sales.customers'
+  | 'sales.invoices'
+  | 'sales.quotations'
+  | 'sales.delivery_challans'
+  | 'sales.price_calculations'
+  // Expenses
+  | 'expenses.vendors'
+  | 'expenses.expenses'
+  // HR & Workforce
+  | 'hr.employees'
+  | 'hr.attendance'
+  | 'hr.leave_management'
+  | 'hr.payroll'
+  | 'hr.performance'
+  | 'hr.tasks'
+  // Reports
+  | 'reports.financial'
+  | 'reports.hr'
+  // Settings
+  | 'settings.role_management'
+  | 'settings.organization_settings'
+  | 'settings.team_members'
+  | 'settings.usage_limits'
+  | 'settings.notifications'
+  | 'settings.white_label'
+  | 'settings.billing'
+  | 'settings.platform_admin';
+
+export type PermissionKey = MenuPermissionKey | SubMenuPermissionKey;
+
+// Legacy module types for backward compatibility
 export type OrgModule = 
   | 'dashboard'
   | 'customers'
@@ -23,129 +64,92 @@ export type OrgModule =
 
 export type OrgAction = 'view' | 'create' | 'edit' | 'delete';
 
-// Organization role permission matrix
-// This is for Main App panel ONLY (not Super Admin)
-const orgPermissions: Record<OrgModule, Record<OrgAction, OrgRole[]>> = {
-  dashboard: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: [],
-    edit: [],
-    delete: [],
-  },
-  customers: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager', 'staff'],
-    edit: ['owner', 'manager', 'staff'],
-    delete: ['owner', 'manager'],
-  },
-  quotations: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager', 'staff'],
-    edit: ['owner', 'manager', 'staff'],
-    delete: ['owner', 'manager'],
-  },
-  invoices: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager', 'accounts'],
-    edit: ['owner', 'manager', 'accounts'],
-    delete: ['owner'],
-  },
-  price_calculations: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager', 'staff'],
-    edit: ['owner', 'manager', 'staff'],
-    delete: ['owner', 'manager'],
-  },
-  expenses: {
-    view: ['owner', 'manager', 'accounts'],
-    create: ['owner', 'manager', 'accounts'],
-    edit: ['owner', 'manager', 'accounts'],
-    delete: ['owner'],
-  },
-  vendors: {
-    view: ['owner', 'manager', 'accounts'],
-    create: ['owner', 'manager', 'accounts'],
-    edit: ['owner', 'manager', 'accounts'],
-    delete: ['owner'],
-  },
-  delivery_challans: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager', 'staff'],
-    edit: ['owner', 'manager', 'staff'],
-    delete: ['owner', 'manager'],
-  },
-  employees: {
-    view: ['owner', 'manager'],
-    create: ['owner'],
-    edit: ['owner', 'manager'],
-    delete: ['owner'],
-  },
-  attendance: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager'],
-    edit: ['owner', 'manager'],
-    delete: ['owner'],
-  },
-  salary: {
-    view: ['owner', 'accounts'],
-    create: ['owner', 'accounts'],
-    edit: ['owner', 'accounts'],
-    delete: ['owner'],
-  },
-  leave: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager', 'accounts', 'staff'],
-    edit: ['owner', 'manager'],
-    delete: ['owner'],
-  },
-  tasks: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager'],
-    edit: ['owner', 'manager', 'accounts', 'staff'],
-    delete: ['owner', 'manager'],
-  },
-  reports: {
-    view: ['owner', 'manager', 'accounts'],
-    create: ['owner', 'manager'],
-    edit: ['owner'],
-    delete: ['owner'],
-  },
-  settings: {
-    view: ['owner'],
-    create: ['owner'],
-    edit: ['owner'],
-    delete: ['owner'],
-  },
-  team_members: {
-    view: ['owner', 'manager'],
-    create: ['owner'],
-    edit: ['owner'],
-    delete: ['owner'],
-  },
-  billing: {
-    view: ['owner'],
-    create: ['owner'],
-    edit: ['owner'],
-    delete: ['owner'],
-  },
-  notifications: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager'],
-    edit: ['owner', 'manager'],
-    delete: ['owner', 'manager'],
-  },
+// Map legacy module names to new permission keys
+const moduleToPermissionKey: Record<OrgModule, SubMenuPermissionKey | MenuPermissionKey> = {
+  dashboard: 'dashboard.access',
+  customers: 'sales.customers',
+  quotations: 'sales.quotations',
+  invoices: 'sales.invoices',
+  price_calculations: 'sales.price_calculations',
+  expenses: 'expenses.expenses',
+  vendors: 'expenses.vendors',
+  delivery_challans: 'sales.delivery_challans',
+  employees: 'hr.employees',
+  attendance: 'hr.attendance',
+  salary: 'hr.payroll',
+  leave: 'hr.leave_management',
+  tasks: 'hr.tasks',
+  reports: 'reports.financial',
+  settings: 'settings.organization_settings',
+  team_members: 'settings.team_members',
+  billing: 'settings.billing',
+  notifications: 'settings.notifications',
 };
 
-// Check if org role has permission for module action
+// Map permission keys to their parent menu access keys
+export const permissionToMenu: Record<SubMenuPermissionKey, MenuPermissionKey> = {
+  'sales.customers': 'sales_billing.access',
+  'sales.invoices': 'sales_billing.access',
+  'sales.quotations': 'sales_billing.access',
+  'sales.delivery_challans': 'sales_billing.access',
+  'sales.price_calculations': 'sales_billing.access',
+  'expenses.vendors': 'expenses.access',
+  'expenses.expenses': 'expenses.access',
+  'hr.employees': 'hr_workforce.access',
+  'hr.attendance': 'hr_workforce.access',
+  'hr.leave_management': 'hr_workforce.access',
+  'hr.payroll': 'hr_workforce.access',
+  'hr.performance': 'hr_workforce.access',
+  'hr.tasks': 'hr_workforce.access',
+  'reports.financial': 'reports.access',
+  'reports.hr': 'reports.access',
+  'settings.role_management': 'settings.access',
+  'settings.organization_settings': 'settings.access',
+  'settings.team_members': 'settings.access',
+  'settings.usage_limits': 'settings.access',
+  'settings.notifications': 'settings.access',
+  'settings.white_label': 'settings.access',
+  'settings.billing': 'settings.access',
+  'settings.platform_admin': 'settings.access',
+};
+
+// Get permission key from module
+export const getPermissionKey = (module: OrgModule): PermissionKey => {
+  return moduleToPermissionKey[module] || 'dashboard.access';
+};
+
+// Check if org role has permission for module action (legacy support)
+// This is now deprecated - use useOrgPermissionResolver instead
 export const hasOrgPermission = (
   role: OrgRole | null,
   module: OrgModule,
   action: OrgAction
 ): boolean => {
   if (!role) return false;
-  const modulePerms = orgPermissions[module];
-  if (!modulePerms) return false;
-  return modulePerms[action]?.includes(role) ?? false;
+  
+  // For view action, check if role typically has access
+  // This is a fallback for when dynamic permissions aren't loaded
+  const roleDefaults: Record<OrgRole, OrgModule[]> = {
+    owner: ['dashboard', 'customers', 'quotations', 'invoices', 'price_calculations', 'expenses', 'vendors', 'delivery_challans', 'employees', 'attendance', 'salary', 'leave', 'tasks', 'reports', 'settings', 'team_members', 'billing', 'notifications'],
+    manager: ['dashboard', 'customers', 'quotations', 'invoices', 'price_calculations', 'expenses', 'vendors', 'delivery_challans', 'employees', 'attendance', 'leave', 'tasks', 'reports', 'team_members'],
+    accounts: ['dashboard', 'customers', 'quotations', 'invoices', 'price_calculations', 'expenses', 'vendors', 'delivery_challans', 'attendance', 'salary', 'leave', 'tasks', 'reports'],
+    staff: ['dashboard', 'customers', 'quotations', 'invoices', 'delivery_challans', 'price_calculations', 'attendance', 'leave', 'tasks'],
+  };
+
+  if (action === 'view') {
+    return roleDefaults[role]?.includes(module) ?? false;
+  }
+
+  // For other actions, only owner and manager typically have access
+  if (action === 'delete') {
+    return role === 'owner';
+  }
+
+  if (action === 'edit' || action === 'create') {
+    return ['owner', 'manager', 'accounts'].includes(role);
+  }
+
+  return false;
 };
 
 // Get display name for org role
@@ -162,13 +166,17 @@ export const getOrgRoleDisplayName = (role: OrgRole | null): string => {
 // All org roles for UI
 export const allOrgRoles: OrgRole[] = ['owner', 'manager', 'accounts', 'staff'];
 
-// Get modules accessible by a role
+// Get modules accessible by a role (legacy)
 export const getAccessibleModules = (role: OrgRole | null): OrgModule[] => {
   if (!role) return [];
   
-  return (Object.keys(orgPermissions) as OrgModule[]).filter(
-    (module) => orgPermissions[module].view.includes(role)
-  );
+  const allModules: OrgModule[] = [
+    'dashboard', 'customers', 'quotations', 'invoices', 'price_calculations',
+    'expenses', 'vendors', 'delivery_challans', 'employees', 'attendance',
+    'salary', 'leave', 'tasks', 'reports', 'settings', 'team_members', 'billing', 'notifications'
+  ];
+
+  return allModules.filter(module => hasOrgPermission(role, module, 'view'));
 };
 
 // Get role capabilities description
@@ -210,3 +218,15 @@ export const getRoleCapabilities = (role: OrgRole): string[] => {
       return [];
   }
 };
+
+// Permission categories for UI grouping
+export const PERMISSION_CATEGORIES = [
+  'Core',
+  'Sales & Billing',
+  'Expenses',
+  'HR & Workforce',
+  'Reports',
+  'Settings',
+] as const;
+
+export type PermissionCategory = typeof PERMISSION_CATEGORIES[number];
