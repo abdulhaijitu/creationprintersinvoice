@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { User, FileText, Receipt, Activity, Ban, Save, KeyRound, Loader2, AlertTriangle, UserCheck, AlertCircle, Shield } from 'lucide-react';
 import { OrgSpecificPermissionsManager } from './OrgSpecificPermissionsManager';
+import { UsageLimitCard } from './UsageLimitCard';
 import { toast } from 'sonner';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -668,7 +669,42 @@ const OrganizationDetailsDrawer = ({
               />
             </TabsContent>
 
-            <TabsContent value="usage" className="mt-4">
+            <TabsContent value="usage" className="mt-4 space-y-4">
+              {/* Plan Limits Usage */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Plan Limits Usage
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <UsageLimitCard
+                      label="Users"
+                      icon={<User className="h-4 w-4" />}
+                      current={members.length}
+                      plan={formData.plan}
+                    />
+                    <UsageLimitCard
+                      label="Clients"
+                      icon={<User className="h-4 w-4" />}
+                      current={0}
+                      plan={formData.plan}
+                      type="customer_limit"
+                    />
+                    <UsageLimitCard
+                      label="Invoices"
+                      icon={<FileText className="h-4 w-4" />}
+                      current={usageStats?.invoice_count || 0}
+                      plan={formData.plan}
+                      type="invoice_limit"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Activity Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card>
                   <CardHeader className="pb-2">
