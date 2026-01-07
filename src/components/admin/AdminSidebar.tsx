@@ -85,6 +85,7 @@ const navGroups: NavGroup[] = [
       { id: 'users', label: 'Users', icon: Users },
       { id: 'role-permissions', label: 'Role Permissions', icon: Shield },
       { id: 'plan-presets', label: 'Plan Presets', icon: Layers },
+      { id: 'plan-limits', label: 'Plan Limits', icon: Users },
     ],
   },
   {

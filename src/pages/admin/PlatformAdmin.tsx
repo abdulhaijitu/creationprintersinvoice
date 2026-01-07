@@ -32,6 +32,7 @@ import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { AdminGlobalSearch } from '@/components/admin/AdminGlobalSearch';
 import { OrgRolePermissionsManager } from '@/components/admin/OrgRolePermissionsManager';
 import { PlanPermissionPresetsManager } from '@/components/admin/PlanPermissionPresetsManager';
+import { PlanLimitsManager } from '@/components/admin/PlanLimitsManager';
 import { UpgradeRequestsManager } from '@/components/admin/UpgradeRequestsManager';
 import { AdminMobileCard, CardRow, CardHeaderRow, CardActions } from '@/components/admin/AdminMobileCard';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -83,6 +84,10 @@ const sectionConfig: Record<string, { title: string; description: string }> = {
   'plan-presets': {
     title: 'Plan Permission Presets',
     description: 'Define default permissions for each subscription plan',
+  },
+  'plan-limits': {
+    title: 'Plan Quantity Limits',
+    description: 'Configure maximum users, clients, and invoices for each plan',
   },
   'upgrade-requests': {
     title: 'Upgrade Requests',
@@ -836,6 +841,9 @@ const PlatformAdmin = () => {
 
       case 'plan-presets':
         return <PlanPermissionPresetsManager />;
+
+      case 'plan-limits':
+        return <PlanLimitsManager />;
 
       case 'upgrade-requests':
         return <UpgradeRequestsManager />;

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useSubscriptionGuard } from '@/hooks/useSubscriptionGuard';
+import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,7 +52,8 @@ import {
   Eye,
   MoreHorizontal,
   Users,
-  Lock
+  Lock,
+  AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -59,6 +61,7 @@ import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 import CSVImportDialog from '@/components/import/CSVImportDialog';
 import { ImportResult } from '@/lib/importUtils';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { LimitReachedAlert } from '@/components/shared/LimitReachedAlert';
 
 interface Customer {
   id: string;
@@ -79,6 +82,7 @@ const Customers = () => {
   const { isAdmin } = useAuth();
   const { organization } = useOrganization();
   const { isLocked, checkAccess } = useSubscriptionGuard();
+  const { checkLimit, canCreate, getLimitMessage, refetch: refetchLimits } = usePlanLimits();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,6 +99,7 @@ const Customers = () => {
     notes: '',
   });
 
+  const clientLimit = checkLimit('clients');
   useEffect(() => {
     fetchCustomers();
   }, []);
@@ -150,6 +155,12 @@ const Customers = () => {
         if (error) throw error;
         toast.success('Customer updated successfully');
       } else {
+        // Check plan limit before creating
+        if (!canCreate('clients')) {
+          toast.error(getLimitMessage('clients') || 'You have reached your client limit');
+          return;
+        }
+
         const { error } = await supabase.from('customers').insert([{
           ...formData,
           organization_id: organization?.id,
@@ -157,6 +168,7 @@ const Customers = () => {
 
         if (error) throw error;
         toast.success('New customer added');
+        refetchLimits(); // Refresh limits after adding
       }
 
       setIsDialogOpen(false);
@@ -312,11 +324,21 @@ const Customers = () => {
   return (
     <TooltipProvider>
       <div className="space-y-6 animate-fade-in">
+        {/* Plan Limit Alert */}
+        {!clientLimit.allowed && clientLimit.limit !== null && (
+          <LimitReachedAlert type="clients" current={clientLimit.current} limit={clientLimit.limit} />
+        )}
+
         {/* Header */}
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold text-foreground">Customer List</h1>
           <p className="text-sm text-muted-foreground">
             Manage all customer information and view their ledger
+            {clientLimit.limit !== null && (
+              <span className="ml-2 text-muted-foreground">
+                ({clientLimit.current}/{clientLimit.limit} used)
+              </span>
+            )}
           </p>
         </div>
 
@@ -384,12 +406,24 @@ const Customers = () => {
 
               <Dialog open={isDialogOpen} onOpenChange={(open) => {
                 if (open && !checkAccess('add new customers')) return;
+                if (open && !editingCustomer && !canCreate('clients')) {
+                  toast.error(getLimitMessage('clients') || 'You have reached your client limit');
+                  return;
+                }
                 setIsDialogOpen(open);
                 if (!open) resetForm();
               }}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="h-10 gap-2 shadow-sm" disabled={isLocked}>
-                    {isLocked ? <Lock className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  <Button 
+                    size="sm" 
+                    className="h-10 gap-2 shadow-sm" 
+                    disabled={isLocked || (!editingCustomer && !clientLimit.allowed)}
+                  >
+                    {isLocked || (!editingCustomer && !clientLimit.allowed) ? (
+                      <Lock className="h-4 w-4" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
                     <span className="hidden sm:inline">New Customer</span>
                   </Button>
                 </DialogTrigger>
