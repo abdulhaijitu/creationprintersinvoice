@@ -252,31 +252,85 @@ const Vendors = () => {
   ): Promise<ImportResult> => {
     let success = 0;
     let failed = 0;
+    let duplicates = 0;
     const errors: string[] = [];
+
+    // Pre-fetch existing vendors for duplicate detection
+    const { data: existingVendors } = await supabase
+      .from('vendors')
+      .select('email, phone, name');
+
+    const existingEmails = new Set(
+      existingVendors?.filter(v => v.email).map(v => v.email!.toLowerCase()) || []
+    );
+    const existingPhones = new Set(
+      existingVendors?.filter(v => v.phone).map(v => v.phone!.replace(/\D/g, '')) || []
+    );
+    const existingNames = new Set(
+      existingVendors?.map(v => v.name.toLowerCase()) || []
+    );
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       onProgress?.(i + 1, data.length);
       
       try {
+        const name = (row.name || row['Name'] || '').trim();
+        const phone = (row.phone || row['Phone'] || '').trim();
+        const email = (row.email || row['Email'] || '').trim().toLowerCase();
+        const address = (row.address || row['Address'] || '').trim();
+        const bankInfo = (row.bank_info || row['Bank Info'] || row['bank'] || '').trim();
+        const notes = (row.notes || row['Notes'] || '').trim();
+
+        // Validate required field
+        if (!name) {
+          failed++;
+          errors.push(`Row ${i + 2}: Name is required`);
+          continue;
+        }
+
+        // Check for duplicates
+        if (existingNames.has(name.toLowerCase())) {
+          duplicates++;
+          errors.push(`Row ${i + 2}: Vendor "${name}" already exists`);
+          continue;
+        }
+
+        if (email && existingEmails.has(email)) {
+          duplicates++;
+          errors.push(`Row ${i + 2}: Email "${email}" already exists`);
+          continue;
+        }
+        
+        const normalizedPhone = phone.replace(/\D/g, '');
+        if (normalizedPhone && existingPhones.has(normalizedPhone)) {
+          duplicates++;
+          errors.push(`Row ${i + 2}: Phone "${phone}" already exists`);
+          continue;
+        }
+
         const { error } = await supabase.from('vendors').insert({
-          name: row.name,
-          phone: row.phone || null,
-          email: row.email || null,
-          address: row.address || null,
-          bank_info: row.bank_info || null,
-          notes: row.notes || null,
+          name,
+          phone: phone || null,
+          email: email || null,
+          address: address || null,
+          bank_info: bankInfo || null,
+          notes: notes || null,
         });
 
         if (error) {
           failed++;
-          errors.push(`Row ${i + 1}: ${error.message}`);
+          errors.push(`Row ${i + 2}: ${error.message}`);
         } else {
           success++;
+          // Add to existing sets to prevent duplicates within batch
+          existingNames.add(name.toLowerCase());
+          if (email) existingEmails.add(email);
+          if (normalizedPhone) existingPhones.add(normalizedPhone);
         }
       } catch (err) {
         failed++;
-        errors.push(`Row ${i + 1}: Unknown error`);
+        errors.push(`Row ${i + 2}: Unknown error`);
       }
     }
 
@@ -284,7 +338,7 @@ const Vendors = () => {
       fetchVendors();
     }
 
-    return { success, failed, errors };
+    return { success, failed, errors, duplicates };
   };
 
   return (

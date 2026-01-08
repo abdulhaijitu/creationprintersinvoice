@@ -1,6 +1,89 @@
 import { format } from 'date-fns';
 
-export const exportToCSV = (data: Record<string, unknown>[], filename: string, headers: Record<string, string>) => {
+// Status labels for human-readable export
+export const STATUS_LABELS: Record<string, string> = {
+  paid: 'Paid',
+  unpaid: 'Due',
+  partial: 'Partial',
+  overdue: 'Overdue',
+  due: 'Due',
+  pending: 'Pending',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  active: 'Active',
+  inactive: 'Inactive',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
+// Format value for export (handles dates, numbers, status)
+export const formatExportValue = (value: unknown, key?: string): string => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  
+  // Handle status fields
+  if (key?.includes('status') && typeof value === 'string') {
+    return STATUS_LABELS[value.toLowerCase()] || value;
+  }
+  
+  // Handle dates
+  if (value instanceof Date) {
+    return format(value, 'dd/MM/yyyy');
+  }
+  
+  // Handle date strings
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    try {
+      return format(new Date(value), 'dd/MM/yyyy');
+    } catch {
+      return value;
+    }
+  }
+  
+  // Handle numbers (format with proper decimal places)
+  if (typeof value === 'number') {
+    if (key?.includes('amount') || key?.includes('total') || key?.includes('price') || key?.includes('paid') || key?.includes('due')) {
+      return value.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return String(value);
+  }
+  
+  return String(value);
+};
+
+// Escape HTML for Excel export
+const escapeHtml = (str: string): string => {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
+// Escape CSV value (handle quotes, newlines)
+const escapeCSVValue = (value: string): string => {
+  // If contains comma, newline, or quote, wrap in quotes and escape quotes
+  if (value.includes(',') || value.includes('\n') || value.includes('"')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return `"${value}"`;
+};
+
+export interface ExportOptions {
+  filename: string;
+  headers: Record<string, string>;
+  formatters?: Record<string, (value: unknown) => string>;
+  dateFormat?: string;
+}
+
+export const exportToCSV = (
+  data: Record<string, unknown>[], 
+  filename: string, 
+  headers: Record<string, string>,
+  formatters?: Record<string, (value: unknown) => string>
+) => {
   if (data.length === 0) {
     return;
   }
@@ -12,17 +95,22 @@ export const exportToCSV = (data: Record<string, unknown>[], filename: string, h
   const csvRows: string[] = [];
   
   // Add header row
-  csvRows.push(headerLabels.map(h => `"${h}"`).join(','));
+  csvRows.push(headerLabels.map(h => escapeCSVValue(h)).join(','));
   
   // Add data rows
   data.forEach(row => {
     const values = headerKeys.map(key => {
-      const value = row[key];
-      if (value === null || value === undefined) {
-        return '""';
+      const rawValue = row[key];
+      let displayValue: string;
+      
+      // Use custom formatter if provided
+      if (formatters?.[key]) {
+        displayValue = formatters[key](rawValue);
+      } else {
+        displayValue = formatExportValue(rawValue, key);
       }
-      // Escape quotes and wrap in quotes
-      return `"${String(value).replace(/"/g, '""')}"`;
+      
+      return escapeCSVValue(displayValue);
     });
     csvRows.push(values.join(','));
   });
@@ -41,7 +129,12 @@ export const exportToCSV = (data: Record<string, unknown>[], filename: string, h
   URL.revokeObjectURL(url);
 };
 
-export const exportToExcel = (data: Record<string, unknown>[], filename: string, headers: Record<string, string>) => {
+export const exportToExcel = (
+  data: Record<string, unknown>[], 
+  filename: string, 
+  headers: Record<string, string>,
+  formatters?: Record<string, (value: unknown) => string>
+) => {
   if (data.length === 0) {
     return;
   }
@@ -50,7 +143,32 @@ export const exportToExcel = (data: Record<string, unknown>[], filename: string,
   const headerLabels = Object.values(headers);
 
   // Create HTML table for Excel
-  let tableHtml = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sheet1</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table border="1">';
+  let tableHtml = `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!--[if gte mso 9]>
+<xml>
+<x:ExcelWorkbook>
+<x:ExcelWorksheets>
+<x:ExcelWorksheet>
+<x:Name>Sheet1</x:Name>
+<x:WorksheetOptions>
+<x:DisplayGridlines/>
+</x:WorksheetOptions>
+</x:ExcelWorksheet>
+</x:ExcelWorksheets>
+</x:ExcelWorkbook>
+</xml>
+<![endif]-->
+<style>
+  td, th { mso-number-format: "\\@"; white-space: nowrap; }
+  .number { mso-number-format: "#,##0.00"; text-align: right; }
+</style>
+</head>
+<body>
+<table border="1">`;
   
   // Add header row
   tableHtml += '<tr>';
@@ -64,9 +182,21 @@ export const exportToExcel = (data: Record<string, unknown>[], filename: string,
     const bgColor = index % 2 === 0 ? '#ffffff' : '#f2f2f2';
     tableHtml += `<tr style="background-color:${bgColor}">`;
     headerKeys.forEach(key => {
-      const value = row[key];
-      const displayValue = value === null || value === undefined ? '' : String(value);
-      tableHtml += `<td style="padding:6px;">${escapeHtml(displayValue)}</td>`;
+      const rawValue = row[key];
+      let displayValue: string;
+      
+      // Use custom formatter if provided
+      if (formatters?.[key]) {
+        displayValue = formatters[key](rawValue);
+      } else {
+        displayValue = formatExportValue(rawValue, key);
+      }
+      
+      // Add number class for amount/total columns
+      const isNumber = key.includes('amount') || key.includes('total') || key.includes('price') || key.includes('paid') || key.includes('due');
+      const cellClass = isNumber ? ' class="number"' : '';
+      
+      tableHtml += `<td style="padding:6px;"${cellClass}>${escapeHtml(displayValue)}</td>`;
     });
     tableHtml += '</tr>';
   });
@@ -85,11 +215,32 @@ export const exportToExcel = (data: Record<string, unknown>[], filename: string,
   URL.revokeObjectURL(url);
 };
 
-const escapeHtml = (str: string): string => {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+// Export large datasets in chunks (for performance)
+export const exportLargeDataset = async (
+  fetchData: (offset: number, limit: number) => Promise<Record<string, unknown>[]>,
+  filename: string,
+  headers: Record<string, string>,
+  format: 'csv' | 'excel',
+  onProgress?: (current: number, total: number) => void,
+  chunkSize = 500
+): Promise<void> => {
+  const allData: Record<string, unknown>[] = [];
+  let offset = 0;
+  let hasMore = true;
+  
+  // Fetch all data in chunks
+  while (hasMore) {
+    const chunk = await fetchData(offset, chunkSize);
+    allData.push(...chunk);
+    offset += chunkSize;
+    hasMore = chunk.length === chunkSize;
+    onProgress?.(allData.length, -1);
+  }
+  
+  // Export using appropriate method
+  if (format === 'csv') {
+    exportToCSV(allData, filename, headers);
+  } else {
+    exportToExcel(allData, filename, headers);
+  }
 };
