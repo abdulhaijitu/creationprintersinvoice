@@ -133,12 +133,21 @@ const InvoiceForm = () => {
 
   const generateInvoiceNumber = async () => {
     try {
-      const { data, error } = await supabase.rpc('generate_invoice_number');
+      // Use org-based invoice number generation to avoid duplicates
+      const { data, error } = await supabase.rpc('generate_org_invoice_number', {
+        p_org_id: organization?.id
+      });
       if (error) throw error;
       setInvoiceNumber(data);
     } catch (error) {
-      const year = new Date().getFullYear();
-      setInvoiceNumber(`${year}0001`);
+      // Fallback to old method if org-based fails
+      const { data, error: oldError } = await supabase.rpc('generate_invoice_number');
+      if (!oldError && data) {
+        setInvoiceNumber(data);
+      } else {
+        const year = new Date().getFullYear();
+        setInvoiceNumber(`${year}0001`);
+      }
     }
   };
 

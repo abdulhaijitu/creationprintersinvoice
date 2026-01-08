@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -46,13 +46,17 @@ import {
   Trash2, 
   Upload,
   MoreHorizontal,
-  Filter
+  Filter,
+  Send
 } from 'lucide-react';
 import { format, isPast, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 import CSVImportDialog from '@/components/import/CSVImportDialog';
 import { ImportResult } from '@/lib/importUtils';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { BulkActionsBar } from '@/components/shared/BulkActionsBar';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 
 interface Invoice {
   id: string;
@@ -66,7 +70,7 @@ interface Invoice {
   customers: { name: string } | null;
 }
 
-type StatusFilter = 'all' | 'paid' | 'unpaid' | 'partial' | 'overdue';
+type StatusFilter = 'all' | 'paid' | 'unpaid' | 'partial' | 'overdue' | 'due';
 
 const Invoices = () => {
   const navigate = useNavigate();
@@ -77,6 +81,20 @@ const Invoices = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [importOpen, setImportOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bulkAction, setBulkAction] = useState<'delete' | 'markPaid' | null>(null);
+
+  const {
+    selectedIds,
+    selectedItems,
+    selectedCount,
+    isAllSelected,
+    isSomeSelected,
+    toggleAll,
+    toggleItem,
+    isSelected,
+    clearSelection,
+  } = useBulkSelection(invoices);
 
   useEffect(() => {
     fetchInvoices();
@@ -116,8 +134,64 @@ const Invoices = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    try {
+      for (const item of selectedItems) {
+        await supabase.from('invoice_items').delete().eq('invoice_id', item.id);
+        await supabase.from('invoice_payments').delete().eq('invoice_id', item.id);
+        await supabase.from('invoices').delete().eq('id', item.id);
+      }
+      toast.success(`${selectedCount} invoices deleted`);
+      clearSelection();
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error deleting invoices:', error);
+      toast.error('Failed to delete some invoices');
+    } finally {
+      setBulkAction(null);
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const handleBulkMarkPaid = async () => {
+    try {
+      for (const item of selectedItems) {
+        const dueAmount = Number(item.total) - Number(item.paid_amount);
+        if (dueAmount > 0) {
+          // Add payment
+          await supabase.from('invoice_payments').insert({
+            invoice_id: item.id,
+            amount: dueAmount,
+            payment_date: new Date().toISOString().split('T')[0],
+            organization_id: organization?.id,
+          });
+          // Update invoice
+          await supabase.from('invoices').update({
+            paid_amount: item.total,
+            status: 'paid',
+          }).eq('id', item.id);
+        }
+      }
+      toast.success(`${selectedCount} invoices marked as paid`);
+      clearSelection();
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error marking invoices as paid:', error);
+      toast.error('Failed to update some invoices');
+    }
+  };
+
+  const handleBulkSendReminder = () => {
+    toast.info(`Reminder emails would be sent to ${selectedCount} customers`);
+    clearSelection();
+  };
+
   const formatCurrency = (amount: number) => {
     return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const getDueAmount = (invoice: Invoice) => {
+    return Number(invoice.total) - Number(invoice.paid_amount);
   };
 
   const isOverdue = (invoice: Invoice) => {
@@ -126,46 +200,45 @@ const Invoices = () => {
     return isPast(parseISO(invoice.due_date));
   };
 
-  const getDisplayStatus = (invoice: Invoice): 'paid' | 'unpaid' | 'partial' | 'overdue' => {
+  const getDisplayStatus = (invoice: Invoice): 'paid' | 'unpaid' | 'partial' | 'overdue' | 'due' => {
+    const dueAmount = getDueAmount(invoice);
+    if (dueAmount <= 0) return 'paid';
     if (isOverdue(invoice)) return 'overdue';
-    return invoice.status;
+    if (Number(invoice.paid_amount) > 0) return 'partial';
+    return 'due';
   };
 
   const getStatusBadge = (invoice: Invoice) => {
     const displayStatus = getDisplayStatus(invoice);
     
-    switch (displayStatus) {
-      case 'paid':
-        return (
-          <Badge className="bg-success/10 text-success border-0 rounded-full px-3 py-1 font-medium text-xs gap-1.5">
-            <CheckCircle className="w-3.5 h-3.5" />
-            Paid
-          </Badge>
-        );
-      case 'partial':
-        return (
-          <Badge className="bg-warning/10 text-warning border-0 rounded-full px-3 py-1 font-medium text-xs gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
-            Partial
-          </Badge>
-        );
-      case 'overdue':
-        return (
-          <Badge className="bg-destructive/10 text-destructive border-0 rounded-full px-3 py-1 font-medium text-xs gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5" />
-            Overdue
-          </Badge>
-        );
-      case 'unpaid':
-        return (
-          <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-0 rounded-full px-3 py-1 font-medium text-xs gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
-            Unpaid
-          </Badge>
-        );
-      default:
-        return null;
-    }
+    const badges = {
+      paid: (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
+          <CheckCircle className="w-3.5 h-3.5" />
+          Paid
+        </span>
+      ),
+      partial: (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
+          <Clock className="w-3.5 h-3.5" />
+          Partial
+        </span>
+      ),
+      overdue: (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
+          <AlertCircle className="w-3.5 h-3.5" />
+          Overdue
+        </span>
+      ),
+      due: (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <Clock className="w-3.5 h-3.5" />
+          Due
+        </span>
+      ),
+    };
+
+    return badges[displayStatus];
   };
 
   const filteredInvoices = invoices.filter((invoice) => {
@@ -176,12 +249,10 @@ const Invoices = () => {
     if (!matchesSearch) return false;
 
     if (statusFilter === 'all') return true;
-    if (statusFilter === 'overdue') return isOverdue(invoice);
-    if (statusFilter === 'paid') return invoice.status === 'paid';
-    if (statusFilter === 'unpaid') return invoice.status === 'unpaid' && !isOverdue(invoice);
-    if (statusFilter === 'partial') return invoice.status === 'partial' && !isOverdue(invoice);
-
-    return true;
+    
+    const displayStatus = getDisplayStatus(invoice);
+    if (statusFilter === 'due') return displayStatus === 'due';
+    return displayStatus === statusFilter;
   });
 
   const invoiceHeaders = {
@@ -190,22 +261,25 @@ const Invoices = () => {
     invoice_date: 'Date',
     total: 'Total',
     paid_amount: 'Paid',
+    due_amount: 'Due',
     status: 'Status',
   };
 
   const handleExport = (exportFormat: 'csv' | 'excel') => {
-    if (filteredInvoices.length === 0) {
+    const dataToExport = selectedCount > 0 ? selectedItems : filteredInvoices;
+    if (dataToExport.length === 0) {
       toast.error('No data to export');
       return;
     }
     
-    const exportData = filteredInvoices.map(inv => ({
+    const exportData = dataToExport.map(inv => ({
       invoice_number: inv.invoice_number,
       customer_name: inv.customers?.name || '',
       invoice_date: format(new Date(inv.invoice_date), 'dd/MM/yyyy'),
       total: inv.total,
       paid_amount: inv.paid_amount,
-      status: inv.status === 'paid' ? 'Paid' : inv.status === 'partial' ? 'Partial' : 'Unpaid',
+      due_amount: getDueAmount(inv),
+      status: getDisplayStatus(inv),
     }));
 
     if (exportFormat === 'csv') {
@@ -238,17 +312,17 @@ const Invoices = () => {
       onProgress?.(i + 1, data.length);
 
       try {
-        const invoiceNumber = row.invoice_number || row['Invoice Number'] || '';
         const customerName = row.customer_name || row['Customer Name'] || '';
         const invoiceDateStr = row.invoice_date || row['Invoice Date'] || '';
         const totalStr = row.total || row['Total Amount'] || '0';
         const statusStr = (row.status || row['Status'] || 'unpaid').toLowerCase();
 
-        if (!invoiceNumber) {
-          failed++;
-          errors.push(`Row ${i + 1}: Invoice number not provided`);
-          continue;
-        }
+        // Generate invoice number using new org-based function
+        const { data: invoiceNumber, error: numError } = await supabase.rpc(
+          'generate_org_invoice_number',
+          { p_org_id: organization?.id }
+        );
+        if (numError) throw numError;
 
         let invoiceDate = new Date().toISOString().split('T')[0];
         if (invoiceDateStr) {
@@ -320,9 +394,39 @@ const Invoices = () => {
 
   // Stats
   const totalInvoices = invoices.length;
-  const paidCount = invoices.filter(i => i.status === 'paid').length;
-  const unpaidCount = invoices.filter(i => i.status === 'unpaid').length;
-  const overdueCount = invoices.filter(i => isOverdue(i)).length;
+  const paidCount = invoices.filter(i => getDisplayStatus(i) === 'paid').length;
+  const dueCount = invoices.filter(i => getDisplayStatus(i) === 'due').length;
+  const overdueCount = invoices.filter(i => getDisplayStatus(i) === 'overdue').length;
+  const totalDueAmount = invoices.reduce((sum, inv) => sum + getDueAmount(inv), 0);
+
+  const bulkActions = [
+    {
+      id: 'mark-paid',
+      label: 'Mark Paid',
+      icon: CheckCircle,
+      onClick: handleBulkMarkPaid,
+    },
+    {
+      id: 'send-reminder',
+      label: 'Send Reminder',
+      icon: Send,
+      onClick: handleBulkSendReminder,
+    },
+    ...(isAdmin
+      ? [
+          {
+            id: 'delete',
+            label: 'Delete',
+            icon: Trash2,
+            variant: 'destructive' as const,
+            onClick: () => {
+              setBulkAction('delete');
+              setDeleteDialogOpen(true);
+            },
+          },
+        ]
+      : []),
+  ];
 
   return (
     <TooltipProvider>
@@ -336,7 +440,7 @@ const Invoices = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</p>
             <p className="text-2xl font-semibold text-foreground mt-1">{totalInvoices}</p>
@@ -346,12 +450,16 @@ const Invoices = () => {
             <p className="text-2xl font-semibold text-foreground mt-1">{paidCount}</p>
           </div>
           <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
-            <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Unpaid</p>
-            <p className="text-2xl font-semibold text-foreground mt-1">{unpaidCount}</p>
+            <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Due</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{dueCount}</p>
           </div>
           <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-destructive uppercase tracking-wide">Overdue</p>
             <p className="text-2xl font-semibold text-foreground mt-1">{overdueCount}</p>
+          </div>
+          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Due</p>
+            <p className="text-xl font-semibold text-foreground mt-1">{formatCurrency(totalDueAmount)}</p>
           </div>
         </div>
 
@@ -378,7 +486,7 @@ const Invoices = () => {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="unpaid">Unpaid</SelectItem>
+                <SelectItem value="due">Due</SelectItem>
                 <SelectItem value="partial">Partial</SelectItem>
                 <SelectItem value="overdue">Overdue</SelectItem>
               </SelectContent>
@@ -458,6 +566,14 @@ const Invoices = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="w-[40px] sticky top-0 bg-muted/30">
+                        <Checkbox
+                          checked={isAllSelected}
+                          onCheckedChange={toggleAll}
+                          aria-label="Select all"
+                          className={isSomeSelected ? 'data-[state=checked]:bg-primary' : ''}
+                        />
+                      </TableHead>
                       <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
                         Invoice No
                       </TableHead>
@@ -473,6 +589,9 @@ const Invoices = () => {
                       <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap">
                         Paid
                       </TableHead>
+                      <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap">
+                        Due
+                      </TableHead>
                       <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
                         Status
                       </TableHead>
@@ -482,107 +601,122 @@ const Invoices = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredInvoices.map((invoice, index) => (
-                      <TableRow 
-                        key={invoice.id}
-                        className={`
-                          transition-colors duration-150 cursor-pointer
-                          ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
-                          hover:bg-primary/5
-                        `}
-                        onClick={() => navigate(`/invoices/${invoice.id}`)}
-                      >
-                        <TableCell className="font-semibold text-foreground whitespace-nowrap">
-                          {invoice.invoice_number}
-                        </TableCell>
-                        <TableCell className="text-foreground whitespace-nowrap">
-                          {invoice.customers?.name || '—'}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">
-                          {format(new Date(invoice.invoice_date), 'dd MMM yyyy')}
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-foreground whitespace-nowrap tabular-nums">
-                          {formatCurrency(Number(invoice.total))}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground whitespace-nowrap tabular-nums">
-                          {formatCurrency(Number(invoice.paid_amount))}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          {getStatusBadge(invoice)}
-                        </TableCell>
-                        <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                  onClick={() => navigate(`/invoices/${invoice.id}`)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>View Invoice</TooltipContent>
-                            </Tooltip>
-
-                            {isAdmin && (
+                    {filteredInvoices.map((invoice, index) => {
+                      const dueAmount = getDueAmount(invoice);
+                      const displayStatus = getDisplayStatus(invoice);
+                      return (
+                        <TableRow 
+                          key={invoice.id}
+                          className={`
+                            transition-colors duration-150 cursor-pointer
+                            ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
+                            ${displayStatus === 'overdue' ? 'bg-destructive/5' : ''}
+                            hover:bg-primary/5
+                          `}
+                          onClick={() => navigate(`/invoices/${invoice.id}`)}
+                        >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={isSelected(invoice.id)}
+                              onCheckedChange={() => toggleItem(invoice.id)}
+                              aria-label={`Select ${invoice.invoice_number}`}
+                            />
+                          </TableCell>
+                          <TableCell className="font-semibold text-foreground whitespace-nowrap">
+                            {invoice.invoice_number}
+                          </TableCell>
+                          <TableCell className="text-foreground whitespace-nowrap">
+                            {invoice.customers?.name || '—'}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {format(new Date(invoice.invoice_date), 'dd MMM yyyy')}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-foreground whitespace-nowrap tabular-nums">
+                            {formatCurrency(Number(invoice.total))}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground whitespace-nowrap tabular-nums">
+                            {formatCurrency(Number(invoice.paid_amount))}
+                          </TableCell>
+                          <TableCell className={`text-right font-medium whitespace-nowrap tabular-nums ${dueAmount > 0 ? 'text-destructive' : 'text-success'}`}>
+                            {formatCurrency(dueAmount)}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            {getStatusBadge(invoice)}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1">
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                    onClick={() => handleDelete(invoice.id)}
+                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                    onClick={() => navigate(`/invoices/${invoice.id}`)}
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Eye className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Delete Invoice</TooltipContent>
+                                <TooltipContent>View Invoice</TooltipContent>
                               </Tooltip>
-                            )}
 
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onClick={() => navigate(`/invoices/${invoice.id}`)}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                  onClick={() => handleExport('csv')}
-                                  className="text-muted-foreground"
-                                >
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Export
-                                </DropdownMenuItem>
-                                {isAdmin && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem 
+                              {isAdmin && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                       onClick={() => handleDelete(invoice.id)}
-                                      className="text-destructive focus:text-destructive"
                                     >
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete Invoice</TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem onClick={() => navigate(`/invoices/${invoice.id}`)}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleExport('csv')}
+                                    className="text-muted-foreground"
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Export
+                                  </DropdownMenuItem>
+                                  {isAdmin && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem 
+                                        onClick={() => handleDelete(invoice.id)}
+                                        className="text-destructive focus:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -608,6 +742,24 @@ const Invoices = () => {
           fieldMapping={invoiceFieldMapping}
           onImport={handleImport}
           templateFilename="invoices"
+        />
+
+        {/* Bulk Actions Bar */}
+        <BulkActionsBar
+          selectedCount={selectedCount}
+          onClearSelection={clearSelection}
+          actions={bulkActions}
+        />
+
+        {/* Bulk Delete Confirmation */}
+        <ConfirmDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          title="Delete Selected Invoices"
+          description={`Are you sure you want to delete ${selectedCount} invoice(s)? This action cannot be undone.`}
+          confirmLabel="Delete"
+          variant="destructive"
+          onConfirm={handleBulkDelete}
         />
       </div>
     </TooltipProvider>

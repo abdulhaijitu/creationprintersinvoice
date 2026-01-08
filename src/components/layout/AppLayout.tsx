@@ -17,6 +17,7 @@ import { NotificationManager } from '@/components/notifications/NotificationMana
 import { PushNotificationToggle } from '@/components/notifications/PushNotificationToggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { SupportChatButton } from '@/components/support/SupportChatButton';
 import { ThemeToggle } from './ThemeToggle';
 import { RecentActivity } from './RecentActivity';
 import { QuickActions } from './QuickActions';
@@ -115,6 +116,7 @@ const AppLayout = () => {
                 </div>
                 <PushNotificationToggle />
                 <NotificationBell />
+                <SupportChatButton />
                 <div className="w-px h-6 bg-border mx-1 hidden md:block" />
                 <UserDropdown />
               </div>
