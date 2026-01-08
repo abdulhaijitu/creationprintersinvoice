@@ -71,13 +71,34 @@ export function CustomerSelect({
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .insert([{ name: formData.name, phone: formData.phone || null }])
-        .select()
-        .single();
+      // Get session for auth header
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to add customers');
+        return;
+      }
 
-      if (error) throw error;
+      // Call Edge Function to create customer
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-customer`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            phone: formData.phone || null,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add customer');
+      }
 
       toast.success('Customer added successfully');
       setIsAddDialogOpen(false);
@@ -85,8 +106,8 @@ export function CustomerSelect({
       onCustomerAdded();
       
       // Select the newly created customer
-      if (data) {
-        onValueChange(data.id);
+      if (result.data) {
+        onValueChange(result.data.id);
       }
     } catch (error: any) {
       console.error('Error adding customer:', error);
