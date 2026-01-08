@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Lock, Eye, EyeOff, CheckCircle, XCircle, Shield } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
+import { APP_CONFIG } from '@/lib/appConfig';
 
 interface PasswordRequirement {
   label: string;
@@ -166,10 +167,10 @@ const ResetPassword = () => {
         <div className="text-center mb-8">
           <img
             src={logo}
-            alt="PrintoSaaS"
+            alt={APP_CONFIG.name}
             className="h-16 w-auto mx-auto mb-4"
           />
-          <h1 className="text-2xl font-bold text-foreground">PrintoSaaS</h1>
+          <h1 className="text-2xl font-bold text-foreground">{APP_CONFIG.name}</h1>
         </div>
 
         <Card className="shadow-soft">

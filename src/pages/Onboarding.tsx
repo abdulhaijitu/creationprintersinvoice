@@ -45,7 +45,7 @@ const Onboarding = () => {
         return;
       }
 
-      toast.success('Welcome to PrintoSaaS!', {
+      toast.success('Welcome to PrintoSaas!', {
         description: `${organization?.name} has been created successfully.`
       });
       
@@ -64,7 +64,7 @@ const Onboarding = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
             <Sparkles className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Welcome to PrintoSaaS</h1>
+          <h1 className="text-3xl font-bold text-foreground">Welcome to PrintoSaas</h1>
           <p className="text-muted-foreground mt-2">
             Printing Business Accounting - Let's set up your business in just a few seconds
           </p>
