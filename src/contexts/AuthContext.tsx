@@ -2,7 +2,9 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export type AppRole = 'super_admin' | 'admin' | 'manager' | 'accounts' | 'sales_staff' | 'graphic_designer' | 'employee';
+// System-level role for platform administration
+// Note: Organization roles are defined in src/lib/permissions/constants.ts as OrgRole
+export type AppRole = 'super_admin' | 'owner' | 'manager' | 'accounts' | 'sales_staff' | 'designer' | 'employee';
 
 interface AuthContextType {
   user: User | null;
@@ -14,7 +16,7 @@ interface AuthContextType {
   isManager: boolean;
   isAccounts: boolean;
   isSalesStaff: boolean;
-  isGraphicDesigner: boolean;
+  isDesigner: boolean;
   hasPrivilegedAccess: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string, phone?: string) => Promise<{ error: Error | null }>;
@@ -116,11 +118,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isSuperAdmin = role === 'super_admin';
-  const isAdmin = role === 'admin' || role === 'super_admin';
+  const isAdmin = role === 'owner' || role === 'super_admin';
   const isManager = role === 'manager';
   const isAccounts = role === 'accounts';
   const isSalesStaff = role === 'sales_staff';
-  const isGraphicDesigner = role === 'graphic_designer';
+  const isDesigner = role === 'designer';
   const hasPrivilegedAccess = isSuperAdmin || isAdmin || isManager || isAccounts;
 
   const value = {
@@ -133,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isManager,
     isAccounts,
     isSalesStaff,
-    isGraphicDesigner,
+    isDesigner,
     hasPrivilegedAccess,
     signIn,
     signUp,

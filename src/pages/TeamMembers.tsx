@@ -3,7 +3,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useOrganization, OrgRole } from '@/contexts/OrganizationContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { OrgRole, ORG_ROLE_DISPLAY, ALL_ORG_ROLES } from '@/lib/permissions/constants';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { Users, UserPlus, Mail, Shield, Crown, Briefcase, Calculator, ShieldAlert } from 'lucide-react';
+import { Users, UserPlus, Mail, Shield, Crown, Briefcase, Calculator, ShieldAlert, Palette, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface TeamMember {
@@ -30,18 +31,21 @@ const roleIcons: Record<OrgRole, React.ReactNode> = {
   owner: <Crown className="h-3 w-3" />,
   manager: <Shield className="h-3 w-3" />,
   accounts: <Calculator className="h-3 w-3" />,
-  staff: <Briefcase className="h-3 w-3" />,
+  sales_staff: <UserCheck className="h-3 w-3" />,
+  designer: <Palette className="h-3 w-3" />,
+  employee: <Briefcase className="h-3 w-3" />,
 };
 
 const roleColors: Record<OrgRole, string> = {
   owner: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100',
   manager: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
   accounts: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
-  staff: 'bg-muted text-muted-foreground',
+  sales_staff: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
+  designer: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-100',
+  employee: 'bg-muted text-muted-foreground',
 };
 
-const roleDisplay: Record<OrgRole, string> = { owner: 'Owner', manager: 'Manager', accounts: 'Accounts', staff: 'Staff' };
-const ASSIGNABLE_ROLES: OrgRole[] = ['manager', 'accounts', 'staff'];
+const ASSIGNABLE_ROLES: OrgRole[] = ['manager', 'accounts', 'sales_staff', 'designer', 'employee'];
 
 const TeamMembers = () => {
   const { organization, isOrgOwner, isOrgAdmin, subscription } = useOrganization();
@@ -49,7 +53,7 @@ const TeamMembers = () => {
   const [loading, setLoading] = useState(true);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<OrgRole>('staff');
+  const [inviteRole, setInviteRole] = useState<OrgRole>('employee');
 
   useEffect(() => { if (organization) fetchMembers(); }, [organization]);
 
@@ -66,7 +70,6 @@ const TeamMembers = () => {
   };
 
   const updateMemberRole = async (memberId: string, currentRole: OrgRole, newRole: OrgRole) => {
-    // Prevent owner role changes at frontend level (backend also enforces this)
     if (currentRole === 'owner') {
       toast.error('Owner role cannot be changed. Contact super admin to reassign ownership.');
       return;
@@ -124,7 +127,7 @@ const TeamMembers = () => {
                 <div><Label>Role</Label>
                   <Select value={inviteRole} onValueChange={v => setInviteRole(v as OrgRole)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{ASSIGNABLE_ROLES.map(r => <SelectItem key={r} value={r}>{roleDisplay[r]}</SelectItem>)}</SelectContent>
+                    <SelectContent>{ASSIGNABLE_ROLES.map(r => <SelectItem key={r} value={r}>{ORG_ROLE_DISPLAY[r]}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
@@ -143,7 +146,7 @@ const TeamMembers = () => {
                 {members.map(m => (
                   <TableRow key={m.id}>
                     <TableCell><div className="flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarFallback>{getInitials(m.profile?.full_name || 'U')}</AvatarFallback></Avatar><span className="font-medium">{m.profile?.full_name || 'Unknown'}</span></div></TableCell>
-                    <TableCell><Badge className={`${roleColors[m.role]} gap-1`}>{roleIcons[m.role]}{roleDisplay[m.role]}</Badge></TableCell>
+                    <TableCell><Badge className={`${roleColors[m.role]} gap-1`}>{roleIcons[m.role]}{ORG_ROLE_DISPLAY[m.role]}</Badge></TableCell>
                     <TableCell>{format(new Date(m.created_at), 'MMM d, yyyy')}</TableCell>
                     {canManageTeam && <TableCell>
                       {m.role === 'owner' ? (
@@ -152,7 +155,7 @@ const TeamMembers = () => {
                         <div className="flex gap-2">
                           <Select value={m.role} onValueChange={v => updateMemberRole(m.id, m.role, v as OrgRole)}>
                             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-                            <SelectContent>{ASSIGNABLE_ROLES.map(r => <SelectItem key={r} value={r}>{roleDisplay[r]}</SelectItem>)}</SelectContent>
+                            <SelectContent>{ASSIGNABLE_ROLES.map(r => <SelectItem key={r} value={r}>{ORG_ROLE_DISPLAY[r]}</SelectItem>)}</SelectContent>
                           </Select>
                           <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeMember(m.id, m.role)}>Remove</Button>
                         </div>

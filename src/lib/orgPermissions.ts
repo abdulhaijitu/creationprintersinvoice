@@ -1,4 +1,4 @@
-import { OrgRole } from '@/contexts/OrganizationContext';
+import { OrgRole } from '@/lib/permissions/constants';
 
 // Permission key types
 export type MenuPermissionKey = 
@@ -133,7 +133,9 @@ export const hasOrgPermission = (
     owner: ['dashboard', 'customers', 'quotations', 'invoices', 'price_calculations', 'expenses', 'vendors', 'delivery_challans', 'employees', 'attendance', 'salary', 'leave', 'tasks', 'reports', 'settings', 'team_members', 'billing', 'notifications'],
     manager: ['dashboard', 'customers', 'quotations', 'invoices', 'price_calculations', 'expenses', 'vendors', 'delivery_challans', 'employees', 'attendance', 'leave', 'tasks', 'reports', 'team_members'],
     accounts: ['dashboard', 'customers', 'quotations', 'invoices', 'price_calculations', 'expenses', 'vendors', 'delivery_challans', 'attendance', 'salary', 'leave', 'tasks', 'reports'],
-    staff: ['dashboard', 'customers', 'quotations', 'invoices', 'delivery_challans', 'price_calculations', 'attendance', 'leave', 'tasks'],
+    sales_staff: ['dashboard', 'customers', 'quotations', 'invoices', 'delivery_challans', 'price_calculations', 'attendance', 'leave', 'tasks'],
+    designer: ['dashboard', 'quotations', 'price_calculations', 'attendance', 'leave', 'tasks'],
+    employee: ['dashboard', 'attendance', 'leave', 'tasks'],
   };
 
   if (action === 'view') {
@@ -158,13 +160,15 @@ export const getOrgRoleDisplayName = (role: OrgRole | null): string => {
     owner: 'Owner',
     manager: 'Manager',
     accounts: 'Accounts',
-    staff: 'Staff',
+    sales_staff: 'Sales Staff',
+    designer: 'Designer',
+    employee: 'Employee',
   };
   return role ? names[role] ?? role : 'Unknown';
 };
 
 // All org roles for UI
-export const allOrgRoles: OrgRole[] = ['owner', 'manager', 'accounts', 'staff'];
+export const allOrgRoles: OrgRole[] = ['owner', 'manager', 'accounts', 'sales_staff', 'designer', 'employee'];
 
 // Get modules accessible by a role (legacy)
 export const getAccessibleModules = (role: OrgRole | null): OrgModule[] => {
@@ -206,10 +210,26 @@ export const getRoleCapabilities = (role: OrgRole): string[] => {
         'No user management',
         'No settings access',
       ];
-    case 'staff':
+    case 'sales_staff':
+      return [
+        'Customer & quotation access',
+        'Invoice creation',
+        'Price calculations',
+        'No admin features',
+        'No billing access',
+      ];
+    case 'designer':
+      return [
+        'Quotation viewing',
+        'Task management',
+        'Price calculations',
+        'No admin features',
+        'No billing access',
+      ];
+    case 'employee':
       return [
         'Operational features only',
-        'Customer & quotation access',
+        'Attendance & leave',
         'Task management',
         'No admin features',
         'No billing access',

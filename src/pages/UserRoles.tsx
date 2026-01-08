@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, AppRole } from "@/contexts/AuthContext";
-import { hasPermission, getRoleDisplayName, allRoles } from "@/lib/permissions";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/lib/permissions/hooks";
+import { OrgRole, ORG_ROLE_DISPLAY, ALL_ORG_ROLES, PermissionModule, PERMISSION_MATRIX, MODULE_DISPLAY } from "@/lib/permissions/constants";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -23,6 +24,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Search, 
   Users, 
@@ -30,11 +32,14 @@ import {
   Loader2,
   UserCog,
   Save,
-  Shield
+  Shield,
+  Eye,
+  Plus,
+  Edit,
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import PermissionMatrix from "@/components/permissions/PermissionMatrix";
 import { EmptyState } from "@/components/shared/EmptyState";
 
 interface UserWithRole {
@@ -44,23 +49,26 @@ interface UserWithRole {
   designation: string | null;
   department: string | null;
   joining_date: string | null;
-  role: AppRole;
+  role: OrgRole;
   created_at: string;
 }
 
 const UserRoles = () => {
-  const { isAdmin, user, role, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isSuperAdmin } = useAuth();
+  const { isOrgOwner } = usePermissions();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [pendingChanges, setPendingChanges] = useState<Record<string, AppRole>>({});
+  const [pendingChanges, setPendingChanges] = useState<Record<string, OrgRole>>({});
   const [saving, setSaving] = useState<string | null>(null);
 
+  const canManageRoles = isSuperAdmin || isOrgOwner;
+
   useEffect(() => {
-    if (hasPermission(role, 'user_roles', 'view')) {
+    if (canManageRoles) {
       fetchUsers();
     }
-  }, [role]);
+  }, [canManageRoles]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -83,7 +91,7 @@ const UserRoles = () => {
 
             return {
               ...profile,
-              role: (roleData?.role || "employee") as AppRole,
+              role: (roleData?.role || "employee") as OrgRole,
             };
           })
         );
@@ -97,7 +105,7 @@ const UserRoles = () => {
     }
   };
 
-  const handleRoleChange = (userId: string, newRole: AppRole) => {
+  const handleRoleChange = (userId: string, newRole: OrgRole) => {
     setPendingChanges((prev) => ({
       ...prev,
       [userId]: newRole,
@@ -108,7 +116,6 @@ const UserRoles = () => {
     const newRole = pendingChanges[userId];
     if (!newRole) return;
 
-    // Prevent self-demotion
     if (userId === user?.id) {
       toast.error("You cannot change your own role");
       setPendingChanges((prev) => {
@@ -128,12 +135,10 @@ const UserRoles = () => {
 
       if (error) throw error;
 
-      // Update local state
       setUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
       );
 
-      // Clear pending change
       setPendingChanges((prev) => {
         const updated = { ...prev };
         delete updated[userId];
@@ -166,10 +171,9 @@ const UserRoles = () => {
       u.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getRoleBadgeVariant = (userRole: AppRole): "default" | "secondary" | "outline" => {
+  const getRoleBadgeVariant = (userRole: OrgRole): "default" | "secondary" | "outline" => {
     switch (userRole) {
-      case 'super_admin':
-      case 'admin':
+      case 'owner':
         return 'default';
       case 'manager':
         return 'secondary';
@@ -178,8 +182,7 @@ const UserRoles = () => {
     }
   };
 
-  // Calculate role stats
-  const roleStats = allRoles.map((r) => ({
+  const roleStats = ALL_ORG_ROLES.map((r) => ({
     role: r,
     count: users.filter((u) => u.role === r).length,
   })).filter(stat => stat.count > 0);
@@ -192,15 +195,12 @@ const UserRoles = () => {
     );
   }
 
-  // Show access denied message for users without permission
-  if (!hasPermission(role, 'user_roles', 'view')) {
+  if (!canManageRoles) {
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Role Management</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage user roles
-          </p>
+          <p className="text-muted-foreground mt-1">Manage user roles</p>
         </div>
         
         <Card className="border-destructive/50 bg-destructive/5">
@@ -212,7 +212,7 @@ const UserRoles = () => {
               <div className="space-y-2">
                 <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
                 <p className="text-muted-foreground max-w-md">
-                  Only Super Admin/Admin users can view role management.
+                  Only Super Admin/Owner users can view role management.
                 </p>
               </div>
             </div>
@@ -234,7 +234,6 @@ const UserRoles = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
@@ -252,7 +251,7 @@ const UserRoles = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Shield className="h-4 w-4" />
-                {getRoleDisplayName(stat.role)}
+                {ORG_ROLE_DISPLAY[stat.role]}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -269,7 +268,6 @@ const UserRoles = () => {
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
-          {/* Search */}
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
@@ -280,7 +278,6 @@ const UserRoles = () => {
             />
           </div>
 
-          {/* Users Table */}
           <div className="border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
@@ -348,24 +345,24 @@ const UserRoles = () => {
                         <TableCell>{userItem.phone || "-"}</TableCell>
                         <TableCell>
                           <Badge variant={getRoleBadgeVariant(userItem.role)}>
-                            {getRoleDisplayName(userItem.role)}
+                            {ORG_ROLE_DISPLAY[userItem.role]}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Select
                             value={displayRole}
-                            onValueChange={(value) => handleRoleChange(userItem.id, value as AppRole)}
+                            onValueChange={(value) => handleRoleChange(userItem.id, value as OrgRole)}
                             disabled={isCurrentUser}
                           >
                             <SelectTrigger className="w-[160px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {allRoles.map((r) => (
+                              {ALL_ORG_ROLES.map((r) => (
                                 <SelectItem key={r} value={r}>
                                   <div className="flex items-center gap-2">
                                     <Shield className="h-4 w-4" />
-                                    {getRoleDisplayName(r)}
+                                    {ORG_ROLE_DISPLAY[r]}
                                   </div>
                                 </SelectItem>
                               ))}
@@ -404,7 +401,60 @@ const UserRoles = () => {
         </TabsContent>
 
         <TabsContent value="permissions" className="space-y-4">
-          <PermissionMatrix />
+          <Card>
+            <CardHeader>
+              <CardTitle>Permission Matrix</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="sticky left-0 bg-background z-10">Module</TableHead>
+                      <TableHead className="text-center">Action</TableHead>
+                      {ALL_ORG_ROLES.map((r) => (
+                        <TableHead key={r} className="text-center min-w-[100px]">
+                          {ORG_ROLE_DISPLAY[r]}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(Object.keys(PERMISSION_MATRIX) as PermissionModule[]).map((module) => {
+                      const actions = PERMISSION_MATRIX[module];
+                      return (['view', 'create', 'edit', 'delete'] as const).map((action, idx) => (
+                        <TableRow key={`${module}-${action}`}>
+                          {idx === 0 && (
+                            <TableCell rowSpan={4} className="font-medium sticky left-0 bg-background border-r">
+                              {MODULE_DISPLAY[module]}
+                            </TableCell>
+                          )}
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              {action === 'view' && <Eye className="h-3 w-3" />}
+                              {action === 'create' && <Plus className="h-3 w-3" />}
+                              {action === 'edit' && <Edit className="h-3 w-3" />}
+                              {action === 'delete' && <Trash2 className="h-3 w-3" />}
+                              <span className="text-xs capitalize">{action}</span>
+                            </div>
+                          </TableCell>
+                          {ALL_ORG_ROLES.map((role) => (
+                            <TableCell key={role} className="text-center">
+                              <Checkbox
+                                checked={actions[action]?.includes(role) ?? false}
+                                disabled
+                                className="mx-auto"
+                              />
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ));
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

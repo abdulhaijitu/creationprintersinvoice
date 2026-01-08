@@ -1,170 +1,133 @@
-import { AppRole } from '@/contexts/AuthContext';
+/**
+ * LEGACY PERMISSIONS - For backward compatibility with old system role-based code
+ * 
+ * NOTE: This file is being deprecated. Use src/lib/permissions/constants.ts instead.
+ * The organization-level role system (OrgRole) is the primary permission system.
+ * 
+ * This file maps the old AppRole-based permissions to the new system.
+ */
 
-// Permission matrix for different modules
-export const permissions = {
-  // Module: customers
-  customers: {
-    view: ['super_admin', 'admin', 'manager', 'accounts', 'sales_staff'],
-    create: ['super_admin', 'admin', 'manager', 'sales_staff'],
-    edit: ['super_admin', 'admin', 'manager', 'sales_staff'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: quotations
-  quotations: {
-    view: ['super_admin', 'admin', 'manager', 'accounts', 'sales_staff', 'graphic_designer'],
-    create: ['super_admin', 'admin', 'manager', 'sales_staff'],
-    edit: ['super_admin', 'admin', 'manager', 'sales_staff'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: invoices
-  invoices: {
-    view: ['super_admin', 'admin', 'manager', 'accounts', 'sales_staff'],
-    create: ['super_admin', 'admin', 'manager', 'accounts'],
-    edit: ['super_admin', 'admin', 'manager', 'accounts'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: price_calculations
-  price_calculations: {
-    view: ['super_admin', 'admin', 'manager', 'accounts', 'sales_staff', 'graphic_designer'],
-    create: ['super_admin', 'admin', 'manager', 'sales_staff', 'graphic_designer'],
-    edit: ['super_admin', 'admin', 'manager', 'sales_staff'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: expenses
-  expenses: {
-    view: ['super_admin', 'admin', 'manager', 'accounts'],
-    create: ['super_admin', 'admin', 'manager', 'accounts'],
-    edit: ['super_admin', 'admin', 'accounts'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: vendors
-  vendors: {
-    view: ['super_admin', 'admin', 'manager', 'accounts'],
-    create: ['super_admin', 'admin', 'manager', 'accounts'],
-    edit: ['super_admin', 'admin', 'accounts'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: employees (HR)
-  employees: {
-    view: ['super_admin', 'admin', 'manager'],
-    create: ['super_admin', 'admin'],
-    edit: ['super_admin', 'admin'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: attendance
-  attendance: {
-    view: ['super_admin', 'admin', 'manager', 'employee', 'graphic_designer', 'accounts', 'sales_staff'],
-    create: ['super_admin', 'admin', 'manager'],
-    edit: ['super_admin', 'admin'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: salary
-  salary: {
-    view: ['super_admin', 'admin', 'accounts'],
-    create: ['super_admin', 'admin', 'accounts'],
-    edit: ['super_admin', 'admin', 'accounts'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: leave
-  leave: {
-    view: ['super_admin', 'admin', 'manager', 'employee', 'graphic_designer', 'accounts', 'sales_staff'],
-    create: ['super_admin', 'admin', 'manager', 'employee', 'graphic_designer', 'accounts', 'sales_staff'],
-    edit: ['super_admin', 'admin', 'manager'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: performance
-  performance: {
-    view: ['super_admin', 'admin', 'manager'],
-    create: ['super_admin', 'admin', 'manager'],
-    edit: ['super_admin', 'admin', 'manager'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: tasks
-  tasks: {
-    view: ['super_admin', 'admin', 'manager', 'employee', 'graphic_designer', 'accounts', 'sales_staff'],
-    create: ['super_admin', 'admin', 'manager'],
-    edit: ['super_admin', 'admin', 'manager', 'employee', 'graphic_designer', 'accounts', 'sales_staff'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: reports
-  reports: {
-    view: ['super_admin', 'admin', 'manager', 'accounts'],
-    create: ['super_admin', 'admin'],
-    edit: ['super_admin', 'admin'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: settings
-  settings: {
-    view: ['super_admin', 'admin'],
-    create: ['super_admin', 'admin'],
-    edit: ['super_admin', 'admin'],
-    delete: ['super_admin', 'admin'],
-  },
-  // Module: user_roles
-  user_roles: {
-    view: ['super_admin', 'admin'],
-    create: ['super_admin', 'admin'],
-    edit: ['super_admin', 'admin'],
-    delete: ['super_admin', 'admin'],
-  },
-};
+import { OrgRole, PermissionModule, PermissionAction, canRolePerform, PERMISSION_MATRIX, ORG_ROLE_DISPLAY, ALL_ORG_ROLES, MODULE_DISPLAY } from './permissions/constants';
+import type { AppRole } from '@/contexts/AuthContext';
 
-export type Module = keyof typeof permissions;
+// Re-export types for backward compatibility
+export type Module = PermissionModule | 'performance' | 'user_roles';
 export type Action = 'view' | 'create' | 'edit' | 'delete';
 
+// Map legacy AppRole to OrgRole
+function mapAppRoleToOrgRole(role: AppRole | null): OrgRole | null {
+  if (!role) return null;
+  if (role === 'super_admin') return 'owner'; // Super admin gets owner-level permissions when checking
+  return role as OrgRole;
+}
+
+// Legacy permission matrix for modules not in the new system
+const legacyPermissions: Record<string, Partial<Record<Action, AppRole[]>>> = {
+  performance: {
+    view: ['super_admin', 'owner', 'manager'],
+    create: ['super_admin', 'owner', 'manager'],
+    edit: ['super_admin', 'owner', 'manager'],
+    delete: ['super_admin', 'owner'],
+  },
+  user_roles: {
+    view: ['super_admin', 'owner'],
+    create: ['super_admin', 'owner'],
+    edit: ['super_admin', 'owner'],
+    delete: ['super_admin', 'owner'],
+  },
+};
+
+/**
+ * Check if a role has permission for a module/action
+ * @deprecated Use canRolePerform from src/lib/permissions/constants.ts instead
+ */
 export const hasPermission = (role: AppRole | null, module: Module, action: Action): boolean => {
   if (!role) return false;
-  const modulePermissions = permissions[module];
-  if (!modulePermissions) return false;
-  return modulePermissions[action]?.includes(role) ?? false;
+  
+  // Super admin has all permissions
+  if (role === 'super_admin') return true;
+  
+  // Check legacy modules first
+  if (module in legacyPermissions) {
+    return legacyPermissions[module]?.[action]?.includes(role) ?? false;
+  }
+  
+  // Map to new system
+  const orgRole = mapAppRoleToOrgRole(role);
+  if (!orgRole) return false;
+  
+  // Check if module exists in new permission matrix
+  if (module in PERMISSION_MATRIX) {
+    return canRolePerform(orgRole, module as PermissionModule, action);
+  }
+  
+  return false;
 };
 
+/**
+ * Get display name for a role
+ * @deprecated Use ORG_ROLE_DISPLAY from src/lib/permissions/constants.ts instead
+ */
 export const getRoleDisplayName = (role: AppRole): string => {
-  const roleNames: Record<AppRole, string> = {
-    super_admin: 'Super Admin',
-    admin: 'Admin',
-    manager: 'Manager',
-    accounts: 'Accounts',
-    sales_staff: 'Sales Staff',
-    graphic_designer: 'Graphic Designer',
-    employee: 'Employee',
-  };
-  return roleNames[role] || role;
+  if (role === 'super_admin') return 'Super Admin';
+  if (role in ORG_ROLE_DISPLAY) {
+    return ORG_ROLE_DISPLAY[role as OrgRole];
+  }
+  return role;
 };
 
-export const allRoles: AppRole[] = ['super_admin', 'admin', 'manager', 'accounts', 'sales_staff', 'graphic_designer', 'employee'];
+/**
+ * All available roles for role management UI
+ * @deprecated Use ALL_ORG_ROLES from src/lib/permissions/constants.ts instead
+ */
+export const allRoles: AppRole[] = ['super_admin', 'owner', 'manager', 'accounts', 'sales_staff', 'designer', 'employee'];
 
-// Get all modules with their permissions for role management UI
-export const getModulesWithPermissions = () => {
-  return Object.entries(permissions).map(([module, actions]) => ({
-    module: module as Module,
-    moduleName: getModuleDisplayName(module as Module),
-    actions: {
-      view: actions.view,
-      create: actions.create,
-      edit: actions.edit,
-      delete: actions.delete,
-    },
-  }));
-};
-
+/**
+ * Get module display name
+ */
 export const getModuleDisplayName = (module: Module): string => {
-  const moduleNames: Record<Module, string> = {
-    customers: 'Customers',
-    quotations: 'Quotations',
-    invoices: 'Invoices',
-    price_calculations: 'Price Calculations',
-    expenses: 'Expenses',
-    vendors: 'Vendors',
-    employees: 'Employees',
-    attendance: 'Attendance',
-    salary: 'Salary',
-    leave: 'Leave',
+  if (module in MODULE_DISPLAY) {
+    return MODULE_DISPLAY[module as PermissionModule];
+  }
+  const legacyModuleNames: Record<string, string> = {
     performance: 'Performance',
-    tasks: 'Tasks',
-    reports: 'Reports',
-    settings: 'Settings',
     user_roles: 'User Roles',
   };
-  return moduleNames[module] || module;
+  return legacyModuleNames[module] || module;
 };
+
+/**
+ * Get all modules with their permissions for role management UI
+ */
+export const getModulesWithPermissions = () => {
+  const modules = Object.entries(PERMISSION_MATRIX).map(([module, actions]) => ({
+    module: module as Module,
+    moduleName: MODULE_DISPLAY[module as PermissionModule],
+    actions: {
+      view: (actions.view || []) as string[],
+      create: (actions.create || []) as string[],
+      edit: (actions.edit || []) as string[],
+      delete: (actions.delete || []) as string[],
+    },
+  }));
+  
+  // Add legacy modules
+  Object.entries(legacyPermissions).forEach(([module, actions]) => {
+    modules.push({
+      module: module as Module,
+      moduleName: getModuleDisplayName(module as Module),
+      actions: {
+        view: (actions.view || []) as string[],
+        create: (actions.create || []) as string[],
+        edit: (actions.edit || []) as string[],
+        delete: (actions.delete || []) as string[],
+      },
+    });
+  });
+  
+  return modules;
+};
+
+// Re-export from new system for convenience
+export { PERMISSION_MATRIX, ORG_ROLE_DISPLAY, ALL_ORG_ROLES, canRolePerform };
+export type { AppRole };
