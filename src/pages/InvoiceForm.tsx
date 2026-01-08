@@ -66,9 +66,8 @@ const InvoiceForm = () => {
     fetchCustomers();
     if (isEditing) {
       fetchInvoice();
-    } else {
-      generateInvoiceNumber();
     }
+    // Invoice number is generated only on successful save, not on form open
   }, [id]);
 
   const fetchCustomers = async () => {
@@ -131,25 +130,7 @@ const InvoiceForm = () => {
     }
   };
 
-  const generateInvoiceNumber = async () => {
-    try {
-      // Use org-based invoice number generation to avoid duplicates
-      const { data, error } = await supabase.rpc('generate_org_invoice_number', {
-        p_org_id: organization?.id
-      });
-      if (error) throw error;
-      setInvoiceNumber(data);
-    } catch (error) {
-      // Fallback to old method if org-based fails
-      const { data, error: oldError } = await supabase.rpc('generate_invoice_number');
-      if (!oldError && data) {
-        setInvoiceNumber(data);
-      } else {
-        const year = new Date().getFullYear();
-        setInvoiceNumber(`${year}0001`);
-      }
-    }
-  };
+  // Invoice number generation moved to handleSubmit to prevent gaps
 
   const updateItem = (id: string, field: keyof InvoiceItem, value: string | number) => {
     setItems((prev) =>
@@ -248,12 +229,33 @@ const InvoiceForm = () => {
         toast.success('Invoice updated');
         navigate(`/invoices/${id}`);
       } else {
-        // Create invoice
+        // Generate invoice number only at save time
+        let newInvoiceNumber: string;
+        try {
+          const { data, error } = await supabase.rpc('generate_org_invoice_number', {
+            p_org_id: organization?.id
+          });
+          if (error) throw error;
+          newInvoiceNumber = data;
+        } catch (error) {
+          // Fallback to old method if org-based fails
+          const { data, error: oldError } = await supabase.rpc('generate_invoice_number');
+          if (!oldError && data) {
+            newInvoiceNumber = data;
+          } else {
+            const year = new Date().getFullYear();
+            const timestamp = Date.now().toString().slice(-4);
+            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            newInvoiceNumber = `${year}${timestamp}${random}`;
+          }
+        }
+
+        // Create invoice with generated number
         const { data: invoice, error: invoiceError } = await supabase
           .from('invoices')
           .insert([
             {
-              invoice_number: invoiceNumber,
+              invoice_number: newInvoiceNumber,
               customer_id: formData.customer_id,
               invoice_date: formData.invoice_date,
               due_date: formData.due_date || null,
@@ -322,7 +324,9 @@ const InvoiceForm = () => {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">{isEditing ? 'Edit Invoice' : 'New Invoice'}</h1>
-          <p className="text-muted-foreground">Invoice No: {invoiceNumber}</p>
+          <p className="text-muted-foreground">
+            {isEditing ? `Invoice No: ${invoiceNumber}` : 'Invoice number will be generated on save'}
+          </p>
         </div>
       </div>
 
