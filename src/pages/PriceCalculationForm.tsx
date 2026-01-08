@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { hasPermission } from '@/lib/permissions';
+import { usePermissions } from '@/lib/permissions/hooks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -59,7 +59,8 @@ const initialCostItem: CostLineItem = { qty: 0, price: 0 };
 const PriceCalculationForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, role, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { canPerform, showCreate, showDelete } = usePermissions();
   const isEditing = Boolean(id);
   
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -394,13 +395,14 @@ const PriceCalculationForm = () => {
     }
   };
 
-  // Check permission
-  if (!hasPermission(role, 'price_calculations', 'view')) {
+  // Check permission using resolved org role
+  const viewPermission = canPerform('price_calculations', 'view');
+  if (!viewPermission.hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
         <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
         <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-        <p className="text-muted-foreground">You don't have permission to view this page.</p>
+        <p className="text-muted-foreground">{viewPermission.reason || "You don't have permission to view this page."}</p>
       </div>
     );
   }
@@ -468,13 +470,13 @@ const PriceCalculationForm = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          {hasPermission(role, 'price_calculations', 'create') && !isEditing && (
+          {showCreate('price_calculations') && !isEditing && (
             <Button variant="outline" onClick={() => navigate('/price-calculation/new')}>
               <Plus className="h-4 w-4 mr-2" />
               Add Job
             </Button>
           )}
-          {isEditing && hasPermission(role, 'price_calculations', 'delete') && (
+          {isEditing && showDelete('price_calculations') && (
             <Button variant="destructive" size="icon" onClick={handleDelete}>
               <Trash2 className="h-4 w-4" />
             </Button>
