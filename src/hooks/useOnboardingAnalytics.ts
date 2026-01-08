@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -92,60 +92,97 @@ export const useOnboardingAnalytics = () => {
   const [progress, setProgress] = useState<OnboardingProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [availableSteps, setAvailableSteps] = useState<OnboardingStep[]>([]);
+  const initRef = useRef(false);
 
   // Get steps available for current role
   const getStepsForRole = useCallback(() => {
     const userRole = membership?.role || 'member';
+    // Viewer role or no role has no onboarding
+    const noOnboardingRoles = ['viewer', 'member'];
+    if (noOnboardingRoles.includes(userRole as string)) {
+      return [];
+    }
     return ONBOARDING_STEPS.filter(step => step.roles.includes(userRole));
   }, [membership?.role]);
 
   // Initialize onboarding for user
   const initializeOnboarding = useCallback(async () => {
-    if (!user?.id || !organization?.id || !membership?.role) return;
+    if (!user?.id || !organization?.id || !membership?.role || initRef.current) return;
 
     const roleSteps = getStepsForRole();
     setAvailableSteps(roleSteps);
 
-    // Check if progress exists
-    const { data: existingProgress } = await supabase
-      .from('onboarding_progress')
-      .select('*')
-      .eq('organization_id', organization.id)
-      .eq('user_id', user.id)
-      .single();
-
-    if (!existingProgress) {
-      // Create initial progress record
-      await supabase.from('onboarding_progress').insert({
-        organization_id: organization.id,
-        user_id: user.id,
-        user_role: membership.role,
-        total_steps: roleSteps.length,
+    // Viewer role - no onboarding needed
+    if (roleSteps.length === 0) {
+      setProgress({
+        total_steps: 0,
         completed_steps: 0,
         skipped_steps: 0,
-        is_completed: false,
-        started_at: new Date().toISOString(),
+        is_completed: true,
+        started_at: null,
+        completed_at: null,
       });
-
-      // Create initial step records
-      const stepRecords = roleSteps.map(step => ({
-        organization_id: organization.id,
-        user_id: user.id,
-        user_role: membership.role,
-        step_key: step.key,
-        step_name: step.name,
-        status: 'pending' as OnboardingStepStatus,
-      }));
-
-      await supabase.from('onboarding_analytics').insert(stepRecords);
+      setLoading(false);
+      return;
     }
 
-    await fetchProgress();
+    initRef.current = true;
+
+    try {
+      // Check if progress exists
+      const { data: existingProgress } = await supabase
+        .from('onboarding_progress')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existingProgress) {
+        // Create initial progress record
+        const { error: progressError } = await supabase.from('onboarding_progress').insert({
+          organization_id: organization.id,
+          user_id: user.id,
+          user_role: membership.role,
+          total_steps: roleSteps.length,
+          completed_steps: 0,
+          skipped_steps: 0,
+          is_completed: false,
+          started_at: new Date().toISOString(),
+        });
+
+        if (progressError) {
+          console.error('Error creating onboarding progress:', progressError);
+        }
+
+        // Create initial step records
+        const stepRecords = roleSteps.map(step => ({
+          organization_id: organization.id,
+          user_id: user.id,
+          user_role: membership.role,
+          step_key: step.key,
+          step_name: step.name,
+          status: 'pending' as OnboardingStepStatus,
+        }));
+
+        const { error: stepsError } = await supabase.from('onboarding_analytics').insert(stepRecords);
+        if (stepsError) {
+          console.error('Error creating onboarding steps:', stepsError);
+        }
+      }
+
+      await fetchProgress();
+    } catch (error) {
+      console.error('Error initializing onboarding:', error);
+      setLoading(false);
+    }
   }, [user?.id, organization?.id, membership?.role, getStepsForRole]);
 
   // Fetch current progress
   const fetchProgress = useCallback(async () => {
-    if (!user?.id || !organization?.id) return;
+    if (!user?.id || !organization?.id) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -155,7 +192,7 @@ export const useOnboardingAnalytics = () => {
           .select('*')
           .eq('organization_id', organization.id)
           .eq('user_id', user.id)
-          .single(),
+          .maybeSingle(),
         supabase
           .from('onboarding_analytics')
           .select('*')
@@ -189,18 +226,22 @@ export const useOnboardingAnalytics = () => {
   const startStep = useCallback(async (stepKey: string) => {
     if (!user?.id || !organization?.id) return;
 
-    await supabase
-      .from('onboarding_analytics')
-      .update({
-        status: 'started',
-        started_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('organization_id', organization.id)
-      .eq('user_id', user.id)
-      .eq('step_key', stepKey);
+    try {
+      await supabase
+        .from('onboarding_analytics')
+        .update({
+          status: 'started',
+          started_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('organization_id', organization.id)
+        .eq('user_id', user.id)
+        .eq('step_key', stepKey);
 
-    await fetchProgress();
+      await fetchProgress();
+    } catch (error) {
+      console.error('Error starting step:', error);
+    }
   }, [user?.id, organization?.id, fetchProgress]);
 
   // Complete a step
@@ -209,43 +250,47 @@ export const useOnboardingAnalytics = () => {
 
     const now = new Date().toISOString();
 
-    // Update step status
-    await supabase
-      .from('onboarding_analytics')
-      .update({
-        status: 'completed',
-        completed_at: now,
-        updated_at: now,
-      })
-      .eq('organization_id', organization.id)
-      .eq('user_id', user.id)
-      .eq('step_key', stepKey);
-
-    // Update progress
-    const { data: currentProgress } = await supabase
-      .from('onboarding_progress')
-      .select('*')
-      .eq('organization_id', organization.id)
-      .eq('user_id', user.id)
-      .single();
-
-    if (currentProgress) {
-      const newCompletedSteps = currentProgress.completed_steps + 1;
-      const isCompleted = newCompletedSteps + currentProgress.skipped_steps >= currentProgress.total_steps;
-
+    try {
+      // Update step status
       await supabase
-        .from('onboarding_progress')
+        .from('onboarding_analytics')
         .update({
-          completed_steps: newCompletedSteps,
-          is_completed: isCompleted,
-          completed_at: isCompleted ? now : null,
+          status: 'completed',
+          completed_at: now,
           updated_at: now,
         })
         .eq('organization_id', organization.id)
-        .eq('user_id', user.id);
-    }
+        .eq('user_id', user.id)
+        .eq('step_key', stepKey);
 
-    await fetchProgress();
+      // Update progress
+      const { data: currentProgress } = await supabase
+        .from('onboarding_progress')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (currentProgress) {
+        const newCompletedSteps = currentProgress.completed_steps + 1;
+        const isCompleted = newCompletedSteps + currentProgress.skipped_steps >= currentProgress.total_steps;
+
+        await supabase
+          .from('onboarding_progress')
+          .update({
+            completed_steps: newCompletedSteps,
+            is_completed: isCompleted,
+            completed_at: isCompleted ? now : null,
+            updated_at: now,
+          })
+          .eq('organization_id', organization.id)
+          .eq('user_id', user.id);
+      }
+
+      await fetchProgress();
+    } catch (error) {
+      console.error('Error completing step:', error);
+    }
   }, [user?.id, organization?.id, fetchProgress]);
 
   // Skip a step
@@ -254,42 +299,69 @@ export const useOnboardingAnalytics = () => {
 
     const now = new Date().toISOString();
 
-    await supabase
-      .from('onboarding_analytics')
-      .update({
-        status: 'skipped',
-        skipped_at: now,
-        updated_at: now,
-      })
-      .eq('organization_id', organization.id)
-      .eq('user_id', user.id)
-      .eq('step_key', stepKey);
+    try {
+      await supabase
+        .from('onboarding_analytics')
+        .update({
+          status: 'skipped',
+          skipped_at: now,
+          updated_at: now,
+        })
+        .eq('organization_id', organization.id)
+        .eq('user_id', user.id)
+        .eq('step_key', stepKey);
 
-    // Update progress
-    const { data: currentProgress } = await supabase
-      .from('onboarding_progress')
-      .select('*')
-      .eq('organization_id', organization.id)
-      .eq('user_id', user.id)
-      .single();
+      // Update progress
+      const { data: currentProgress } = await supabase
+        .from('onboarding_progress')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .eq('user_id', user.id)
+        .single();
 
-    if (currentProgress) {
-      const newSkippedSteps = currentProgress.skipped_steps + 1;
-      const isCompleted = currentProgress.completed_steps + newSkippedSteps >= currentProgress.total_steps;
+      if (currentProgress) {
+        const newSkippedSteps = currentProgress.skipped_steps + 1;
+        const isCompleted = currentProgress.completed_steps + newSkippedSteps >= currentProgress.total_steps;
 
+        await supabase
+          .from('onboarding_progress')
+          .update({
+            skipped_steps: newSkippedSteps,
+            is_completed: isCompleted,
+            completed_at: isCompleted ? now : null,
+            updated_at: now,
+          })
+          .eq('organization_id', organization.id)
+          .eq('user_id', user.id);
+      }
+
+      await fetchProgress();
+    } catch (error) {
+      console.error('Error skipping step:', error);
+    }
+  }, [user?.id, organization?.id, fetchProgress]);
+
+  // Dismiss onboarding (mark all as completed)
+  const dismissOnboarding = useCallback(async () => {
+    if (!user?.id || !organization?.id) return;
+
+    const now = new Date().toISOString();
+
+    try {
       await supabase
         .from('onboarding_progress')
         .update({
-          skipped_steps: newSkippedSteps,
-          is_completed: isCompleted,
-          completed_at: isCompleted ? now : null,
+          is_completed: true,
+          completed_at: now,
           updated_at: now,
         })
         .eq('organization_id', organization.id)
         .eq('user_id', user.id);
-    }
 
-    await fetchProgress();
+      await fetchProgress();
+    } catch (error) {
+      console.error('Error dismissing onboarding:', error);
+    }
   }, [user?.id, organization?.id, fetchProgress]);
 
   // Auto-complete step based on action
@@ -343,6 +415,7 @@ export const useOnboardingAnalytics = () => {
     startStep,
     completeStep,
     skipStep,
+    dismissOnboarding,
     autoCompleteByAction,
     refetch: fetchProgress,
   };

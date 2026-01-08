@@ -6,6 +6,7 @@ export interface ImportResult {
   failed: number;
   errors: string[];
   duplicates?: number;
+  warnings?: string[];
 }
 
 export interface ValidationRule {
@@ -49,19 +50,31 @@ export const parseDate = (dateStr: string): string | null => {
   const ddmmyyyy = sanitized.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (ddmmyyyy) {
     const [, day, month, year] = ddmmyyyy;
-    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    if (!isNaN(date.getTime())) {
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    const dayNum = parseInt(day, 10);
+    const monthNum = parseInt(month, 10);
+    
+    // Validate day and month ranges
+    if (dayNum >= 1 && dayNum <= 31 && monthNum >= 1 && monthNum <= 12) {
+      const date = new Date(parseInt(year), monthNum - 1, dayNum);
+      if (!isNaN(date.getTime()) && date.getDate() === dayNum) {
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
     }
   }
   
-  // Try MM/DD/YYYY
-  const mmddyyyy = sanitized.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if (mmddyyyy) {
-    const [, month, day, year] = mmddyyyy;
-    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    if (!isNaN(date.getTime())) {
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  // Try MM/DD/YYYY (US format) - only if day > 12 or explicitly looks like US date
+  const usFormat = sanitized.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (usFormat) {
+    const [, month, day, year] = usFormat;
+    const dayNum = parseInt(day, 10);
+    const monthNum = parseInt(month, 10);
+    
+    // Only use US format if day > 12 (can't be month)
+    if (dayNum > 12 && monthNum >= 1 && monthNum <= 12) {
+      const date = new Date(parseInt(year), monthNum - 1, dayNum);
+      if (!isNaN(date.getTime()) && date.getDate() === dayNum) {
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
     }
   }
   
@@ -103,8 +116,9 @@ export const validateRow = (
   const errors: string[] = [];
   
   for (const rule of rules) {
+    // Try both lowercase and original case for field lookup
     const value = row[rule.field.toLowerCase()] || row[rule.field] || '';
-    const displayName = rule.field.charAt(0).toUpperCase() + rule.field.slice(1);
+    const displayName = rule.field.charAt(0).toUpperCase() + rule.field.slice(1).replace(/_/g, ' ');
     
     // Required check
     if (rule.required && !value.trim()) {
@@ -133,7 +147,7 @@ export const validateRow = (
         break;
       case 'date':
         if (!parseDate(value)) {
-          errors.push(`Row ${rowIndex}: Invalid date format for ${displayName}`);
+          errors.push(`Row ${rowIndex}: Invalid date format for ${displayName} (use DD/MM/YYYY)`);
         }
         break;
     }
@@ -198,8 +212,9 @@ export const parseCSV = <T extends Record<string, string>>(
   csvText: string,
   requiredFields: string[],
   validationRules?: ValidationRule[]
-): { data: T[]; errors: string[] } => {
+): { data: T[]; errors: string[]; warnings: string[] } => {
   const errors: string[] = [];
+  const warnings: string[] = [];
   
   // Handle BOM and normalize line endings
   const cleanText = csvText
@@ -210,7 +225,7 @@ export const parseCSV = <T extends Record<string, string>>(
   const lines = cleanText.trim().split('\n');
   
   if (lines.length < 2) {
-    return { data: [], errors: ['CSV file does not contain enough data (needs header + at least 1 row)'] };
+    return { data: [], errors: ['CSV file does not contain enough data (needs header + at least 1 row)'], warnings };
   }
 
   // Parse header
@@ -218,7 +233,7 @@ export const parseCSV = <T extends Record<string, string>>(
   
   // Check for empty headers
   if (header.some(h => !h)) {
-    errors.push('Warning: Some columns have empty headers');
+    warnings.push('Some columns have empty headers - they will be ignored');
   }
   
   // Validate required fields (case-insensitive)
@@ -230,33 +245,43 @@ export const parseCSV = <T extends Record<string, string>>(
   if (missingFields.length > 0) {
     return { 
       data: [], 
-      errors: [`Missing required columns: ${missingFields.join(', ')}`] 
+      errors: [`Missing required columns: ${missingFields.join(', ')}`],
+      warnings
     };
   }
 
   const data: T[] = [];
+  let emptyRowCount = 0;
   
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (!line) continue; // Skip empty rows
+    if (!line) {
+      emptyRowCount++;
+      continue; // Skip empty rows
+    }
     
     const values = parseCSVLine(line);
     
     // Check for column count mismatch
     if (values.length !== header.length) {
-      errors.push(`Row ${i + 1}: Column count mismatch (expected ${header.length}, got ${values.length})`);
-      continue;
+      warnings.push(`Row ${i + 1}: Column count mismatch (expected ${header.length}, got ${values.length})`);
+      // Pad or truncate to match header length
+      while (values.length < header.length) values.push('');
+      values.length = header.length;
     }
 
     // Check if row is completely empty
     const hasData = values.some(v => v.trim() !== '');
     if (!hasData) {
+      emptyRowCount++;
       continue; // Skip completely empty rows silently
     }
 
     const row: Record<string, string> = {};
     header.forEach((h, index) => {
-      row[h] = sanitizeValue(values[index] || '');
+      if (h) { // Skip empty headers
+        row[h] = sanitizeValue(values[index] || '');
+      }
     });
     
     // Apply validation rules if provided
@@ -271,7 +296,11 @@ export const parseCSV = <T extends Record<string, string>>(
     data.push(row as T);
   }
 
-  return { data, errors };
+  if (emptyRowCount > 0) {
+    warnings.push(`${emptyRowCount} empty row(s) were skipped`);
+  }
+
+  return { data, errors, warnings };
 };
 
 // Parse XLSX file
@@ -279,10 +308,16 @@ export const parseXLSX = async (
   file: File,
   requiredFields: string[],
   validationRules?: ValidationRule[]
-): Promise<{ data: Record<string, string>[]; errors: string[] }> => {
+): Promise<{ data: Record<string, string>[]; errors: string[]; warnings: string[] }> => {
+  const warnings: string[] = [];
+  
   try {
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+    
+    if (workbook.SheetNames.length === 0) {
+      return { data: [], errors: ['Excel file has no sheets'], warnings };
+    }
     
     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
     const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { 
@@ -291,7 +326,7 @@ export const parseXLSX = async (
     });
     
     if (jsonData.length === 0) {
-      return { data: [], errors: ['Excel file is empty or has no data rows'] };
+      return { data: [], errors: ['Excel file is empty or has no data rows'], warnings };
     }
     
     // Convert to string record and normalize headers
@@ -313,7 +348,8 @@ export const parseXLSX = async (
     if (missingFields.length > 0) {
       return { 
         data: [], 
-        errors: [`Missing required columns: ${missingFields.join(', ')}`] 
+        errors: [`Missing required columns: ${missingFields.join(', ')}`],
+        warnings
       };
     }
     
@@ -339,10 +375,10 @@ export const parseXLSX = async (
       validData.push(row);
     }
     
-    return { data: validData, errors };
+    return { data: validData, errors, warnings };
   } catch (error) {
     console.error('XLSX parse error:', error);
-    return { data: [], errors: ['Failed to parse Excel file. Please ensure it is a valid .xlsx file.'] };
+    return { data: [], errors: ['Failed to parse Excel file. Please ensure it is a valid .xlsx file.'], warnings };
   }
 };
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useOnboardingAnalytics } from '@/hooks/useOnboardingAnalytics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,17 +27,19 @@ export const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({
   compact = false,
 }) => {
   const navigate = useNavigate();
+  const [dismissed, setDismissed] = useState(false);
   const {
     steps,
     progress,
     loading,
     availableSteps,
     startStep,
-    completeStep,
     skipStep,
+    dismissOnboarding,
   } = useOnboardingAnalytics();
 
-  if (loading || !progress || progress.is_completed) {
+  // Don't show if loading, completed, no steps, or manually dismissed
+  if (loading || !progress || progress.is_completed || availableSteps.length === 0 || dismissed) {
     return null;
   }
 
@@ -66,6 +68,12 @@ export const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({
     await skipStep(stepKey);
   };
 
+  const handleDismissAll = async () => {
+    await dismissOnboarding();
+    setDismissed(true);
+    onDismiss?.();
+  };
+
   if (compact) {
     return (
       <Card className="border-primary/20 bg-primary/5">
@@ -81,7 +89,7 @@ export const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({
               </div>
             </div>
             <Progress value={progressPercentage} className="w-24 h-2" />
-            <Button variant="ghost" size="sm" onClick={onDismiss}>
+            <Button variant="ghost" size="sm" onClick={handleDismissAll}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -98,11 +106,9 @@ export const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({
             <Sparkles className="h-5 w-5 text-primary" />
             <CardTitle className="text-lg">Getting Started</CardTitle>
           </div>
-          {onDismiss && (
-            <Button variant="ghost" size="icon" onClick={onDismiss}>
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+          <Button variant="ghost" size="icon" onClick={handleDismissAll} title="Dismiss onboarding">
+            <X className="h-4 w-4" />
+          </Button>
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -131,11 +137,11 @@ export const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({
             >
               <div className="flex items-center gap-3">
                 {isCompleted ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
                 ) : isSkipped ? (
-                  <SkipForward className="h-5 w-5 text-muted-foreground" />
+                  <SkipForward className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                 ) : (
-                  <Circle className="h-5 w-5 text-muted-foreground" />
+                  <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                 )}
                 <div>
                   <p className={cn(

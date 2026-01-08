@@ -23,6 +23,21 @@ export interface CleanupLog {
   created_at: string;
 }
 
+// Tables that can have demo data
+const DEMO_DATA_TABLES = [
+  'customers',
+  'invoices',
+  'invoice_items',
+  'quotations',
+  'quotation_items',
+  'employees',
+  'expenses',
+  'vendors',
+  'vendor_bills',
+] as const;
+
+type DemoDataTable = typeof DEMO_DATA_TABLES[number];
+
 export const useDemoData = (organizationId?: string) => {
   const { user, isSuperAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -81,6 +96,12 @@ export const useDemoData = (organizationId?: string) => {
   ) => {
     if (!isSuperAdmin) return;
 
+    // Validate table name
+    if (!DEMO_DATA_TABLES.includes(tableName as DemoDataTable)) {
+      console.error(`Invalid table name for demo data: ${tableName}`);
+      return;
+    }
+
     try {
       const cleanupAfter = options?.cleanupAfterDays
         ? new Date(Date.now() + options.cleanupAfterDays * 24 * 60 * 60 * 1000).toISOString()
@@ -100,7 +121,7 @@ export const useDemoData = (organizationId?: string) => {
     }
   }, [isSuperAdmin]);
 
-  // Cleanup demo data for an organization
+  // Cleanup demo data for an organization - safe and idempotent
   const cleanupDemoData = useCallback(async (
     orgId: string,
     reason: 'manual' | 'time_based' | 'first_real_data'
@@ -127,6 +148,7 @@ export const useDemoData = (organizationId?: string) => {
 
       let deletedCount = 0;
       const deletedDetails: Record<string, number> = {};
+      const failedTables: string[] = [];
 
       // Group by table and delete
       const recordsByTable = records.reduce((acc, record) => {
@@ -137,23 +159,44 @@ export const useDemoData = (organizationId?: string) => {
         return acc;
       }, {} as Record<string, string[]>);
 
-      for (const [tableName, recordIds] of Object.entries(recordsByTable)) {
+      // Delete in order (child tables first to avoid FK constraints)
+      const deleteOrder: DemoDataTable[] = [
+        'invoice_items',
+        'quotation_items',
+        'vendor_bills',
+        'invoices',
+        'quotations',
+        'expenses',
+        'employees',
+        'vendors',
+        'customers',
+      ];
+
+      for (const tableName of deleteOrder) {
+        const recordIds = recordsByTable[tableName];
+        if (!recordIds || recordIds.length === 0) continue;
+
         try {
+          // Use type assertion for dynamic table name
           const { error: deleteError } = await supabase
-            .from(tableName as keyof Database['public']['Tables'])
+            .from(tableName)
             .delete()
             .in('id', recordIds);
 
           if (!deleteError) {
             deletedCount += recordIds.length;
             deletedDetails[tableName] = recordIds.length;
+          } else {
+            console.error(`Error deleting from ${tableName}:`, deleteError);
+            failedTables.push(tableName);
           }
         } catch (err) {
           console.error(`Error deleting from ${tableName}:`, err);
+          failedTables.push(tableName);
         }
       }
 
-      // Remove tracking records
+      // Remove tracking records (always safe to do)
       await supabase
         .from('demo_data_records')
         .delete()
@@ -165,10 +208,15 @@ export const useDemoData = (organizationId?: string) => {
         cleaned_by: user.id,
         records_deleted: deletedCount,
         cleanup_reason: reason,
-        details: deletedDetails,
+        details: { ...deletedDetails, failed_tables: failedTables },
       });
 
-      toast.success(`Cleaned up ${deletedCount} demo records`);
+      if (failedTables.length > 0) {
+        toast.warning(`Cleaned up ${deletedCount} records. Some tables had errors: ${failedTables.join(', ')}`);
+      } else {
+        toast.success(`Cleaned up ${deletedCount} demo records`);
+      }
+      
       return { success: true, deletedCount };
     } catch (error) {
       console.error('Error cleaning up demo data:', error);
@@ -181,29 +229,54 @@ export const useDemoData = (organizationId?: string) => {
 
   // Check if org has demo data
   const hasDemoData = useCallback(async (orgId: string): Promise<boolean> => {
-    const { data, error } = await supabase
-      .from('demo_data_records')
-      .select('id')
-      .eq('organization_id', orgId)
-      .limit(1);
+    try {
+      const { data, error } = await supabase
+        .from('demo_data_records')
+        .select('id')
+        .eq('organization_id', orgId)
+        .limit(1);
 
-    if (error) return false;
-    return (data?.length || 0) > 0;
+      if (error) return false;
+      return (data?.length || 0) > 0;
+    } catch {
+      return false;
+    }
   }, []);
 
   // Trigger cleanup on first real data (call this when real data is created)
   const checkAndCleanupOnRealData = useCallback(async (orgId: string) => {
-    const { data: records } = await supabase
-      .from('demo_data_records')
-      .select('*')
-      .eq('organization_id', orgId)
-      .eq('cleanup_on_first_real_data', true);
+    if (!isSuperAdmin) return; // Only super admin can trigger this
 
-    if (records && records.length > 0) {
-      // There's demo data that should be cleaned on first real data
-      await cleanupDemoData(orgId, 'first_real_data');
+    try {
+      const { data: records } = await supabase
+        .from('demo_data_records')
+        .select('*')
+        .eq('organization_id', orgId)
+        .eq('cleanup_on_first_real_data', true);
+
+      if (records && records.length > 0) {
+        // There's demo data that should be cleaned on first real data
+        await cleanupDemoData(orgId, 'first_real_data');
+      }
+    } catch (error) {
+      console.error('Error checking for demo data cleanup:', error);
     }
-  }, [cleanupDemoData]);
+  }, [cleanupDemoData, isSuperAdmin]);
+
+  // Get demo data count for an organization
+  const getDemoDataCount = useCallback(async (orgId: string): Promise<number> => {
+    try {
+      const { data, error } = await supabase
+        .from('demo_data_records')
+        .select('id')
+        .eq('organization_id', orgId);
+
+      if (error) return 0;
+      return data?.length || 0;
+    } catch {
+      return 0;
+    }
+  }, []);
 
   return {
     loading,
@@ -214,20 +287,7 @@ export const useDemoData = (organizationId?: string) => {
     trackDemoRecord,
     cleanupDemoData,
     hasDemoData,
+    getDemoDataCount,
     checkAndCleanupOnRealData,
-  };
-};
-
-// Type helper for database tables
-type Database = {
-  public: {
-    Tables: {
-      customers: unknown;
-      invoices: unknown;
-      quotations: unknown;
-      employees: unknown;
-      expenses: unknown;
-      vendors: unknown;
-    };
   };
 };
