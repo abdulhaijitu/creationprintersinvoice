@@ -451,6 +451,82 @@ export type Database = {
           },
         ]
       }
+      demo_cleanup_logs: {
+        Row: {
+          cleaned_by: string | null
+          cleanup_reason: string
+          created_at: string
+          details: Json | null
+          id: string
+          organization_id: string
+          records_deleted: number
+        }
+        Insert: {
+          cleaned_by?: string | null
+          cleanup_reason: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          organization_id: string
+          records_deleted?: number
+        }
+        Update: {
+          cleaned_by?: string | null
+          cleanup_reason?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          organization_id?: string
+          records_deleted?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demo_cleanup_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demo_data_records: {
+        Row: {
+          cleanup_after: string | null
+          cleanup_on_first_real_data: boolean
+          created_at: string
+          id: string
+          organization_id: string
+          record_id: string
+          table_name: string
+        }
+        Insert: {
+          cleanup_after?: string | null
+          cleanup_on_first_real_data?: boolean
+          created_at?: string
+          id?: string
+          organization_id: string
+          record_id: string
+          table_name: string
+        }
+        Update: {
+          cleanup_after?: string | null
+          cleanup_on_first_real_data?: boolean
+          created_at?: string
+          id?: string
+          organization_id?: string
+          record_id?: string
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demo_data_records_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_advances: {
         Row: {
           amount: number
@@ -1377,6 +1453,112 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_analytics: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          organization_id: string
+          skipped_at: string | null
+          started_at: string | null
+          status: string
+          step_key: string
+          step_name: string
+          updated_at: string
+          user_id: string
+          user_role: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          organization_id: string
+          skipped_at?: string | null
+          started_at?: string | null
+          status?: string
+          step_key: string
+          step_name: string
+          updated_at?: string
+          user_id: string
+          user_role: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          organization_id?: string
+          skipped_at?: string | null
+          started_at?: string | null
+          status?: string
+          step_key?: string
+          step_name?: string
+          updated_at?: string
+          user_id?: string
+          user_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_analytics_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_progress: {
+        Row: {
+          completed_at: string | null
+          completed_steps: number
+          created_at: string
+          id: string
+          is_completed: boolean
+          organization_id: string
+          skipped_steps: number
+          started_at: string | null
+          total_steps: number
+          updated_at: string
+          user_id: string
+          user_role: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_steps?: number
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          organization_id: string
+          skipped_steps?: number
+          started_at?: string | null
+          total_steps?: number
+          updated_at?: string
+          user_id: string
+          user_role: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_steps?: number
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          organization_id?: string
+          skipped_steps?: number
+          started_at?: string | null
+          total_steps?: number
+          updated_at?: string
+          user_id?: string
+          user_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_progress_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -3256,6 +3438,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      walkthrough_dismissals: {
+        Row: {
+          dismissed_at: string
+          id: string
+          user_id: string
+          walkthrough_key: string
+        }
+        Insert: {
+          dismissed_at?: string
+          id?: string
+          user_id: string
+          walkthrough_key: string
+        }
+        Update: {
+          dismissed_at?: string
+          id?: string
+          user_id?: string
+          walkthrough_key?: string
+        }
+        Relationships: []
       }
     }
     Views: {
