@@ -61,6 +61,7 @@ export type PermissionModule =
   | 'invoices' 
   | 'quotations' 
   | 'expenses'
+  | 'expense_categories'
   | 'vendors' 
   | 'delivery_challans' 
   | 'employees' 
@@ -82,6 +83,7 @@ export const MODULE_DISPLAY: Record<PermissionModule, string> = {
   invoices: 'Invoices',
   quotations: 'Quotations',
   expenses: 'Expenses',
+  expense_categories: 'Expense Categories',
   vendors: 'Vendors',
   delivery_challans: 'Delivery Challans',
   employees: 'Employees',
@@ -140,6 +142,12 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     bulk: ['owner', 'manager'],
     import: ['owner', 'manager'],
     export: ['owner', 'manager'],
+  },
+  expense_categories: {
+    view: ['owner', 'manager', 'accounts'],
+    create: ['owner', 'manager'],
+    edit: ['owner', 'manager'],
+    delete: ['owner', 'manager'],
   },
   vendors: {
     view: ['owner', 'manager', 'accounts'],

@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrganization } from "@/contexts/OrganizationContext";
+import { canRolePerform, OrgRole } from "@/lib/permissions/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,13 +41,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Plus, Search, Wallet, Calendar, Filter, Download, 
   Building2, Eye, Edit2, Phone, Mail, AlertCircle,
-  FileText, CreditCard, Receipt, Tag, Trash2, Users
+  FileText, CreditCard, Receipt, Tag, Trash2, Users, Pencil
 } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface Expense {
   id: string;
@@ -65,6 +68,7 @@ interface Category {
   id: string;
   name: string;
   description?: string | null;
+  expense_count?: number;
 }
 
 interface Vendor {
@@ -82,8 +86,27 @@ interface Vendor {
 
 const Expenses = () => {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
-  const { organization } = useOrganization();
+  const { isSuperAdmin } = useAuth();
+  const { organization, orgRole } = useOrganization();
+  
+  // Expense permissions
+  const canViewExpenses = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'expenses', 'view');
+  const canCreateExpenses = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'expenses', 'create');
+  const canEditExpenses = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'expenses', 'edit');
+  const canDeleteExpenses = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'expenses', 'delete');
+  const canExportExpenses = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'expenses', 'export');
+  
+  // Category permissions
+  const canViewCategories = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'expense_categories', 'view');
+  const canCreateCategories = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'expense_categories', 'create');
+  const canEditCategories = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'expense_categories', 'edit');
+  const canDeleteCategories = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'expense_categories', 'delete');
+  
+  // Vendor permissions (for quick access from this page)
+  const canCreateVendors = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'create');
+  const canEditVendors = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'edit');
+  const canDeleteVendors = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'delete');
+  
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -103,6 +126,10 @@ const Expenses = () => {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<{ open: boolean; category: Category | null }>({
+    open: false,
+    category: null,
+  });
   const [categoryFormData, setCategoryFormData] = useState({
     name: "",
     description: "",
@@ -523,8 +550,17 @@ const Expenses = () => {
     }
   };
 
-  const handleDeleteCategory = async (categoryId: string) => {
-    if (!confirm("Are you sure you want to delete this category?")) return;
+  const handleDeleteCategory = async () => {
+    if (!deleteCategoryConfirm.category) return;
+    
+    const categoryId = deleteCategoryConfirm.category.id;
+    const expenseCount = expenses.filter(e => e.category_id === categoryId).length;
+    
+    if (expenseCount > 0) {
+      toast.error(`Cannot delete: This category is used by ${expenseCount} expense(s)`);
+      setDeleteCategoryConfirm({ open: false, category: null });
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -534,6 +570,7 @@ const Expenses = () => {
 
       if (error) throw error;
       toast.success("Category deleted successfully");
+      setDeleteCategoryConfirm({ open: false, category: null });
       fetchData();
     } catch (error) {
       console.error("Error deleting category:", error);
@@ -767,7 +804,7 @@ const Expenses = () => {
                 className="pl-10"
               />
             </div>
-            {isAdmin && (
+            {canCreateVendors && (
               <div className="flex gap-2">
                 {/* Bill Dialog */}
                 <Dialog open={isBillDialogOpen} onOpenChange={(open) => {
@@ -1121,7 +1158,7 @@ const Expenses = () => {
                         description={vendorSearchTerm 
                           ? "Try adjusting your search criteria" 
                           : "Add your first vendor to start tracking purchases"}
-                        action={isAdmin && !vendorSearchTerm ? {
+                        action={canCreateVendors && !vendorSearchTerm ? {
                           label: "Add Vendor",
                           onClick: () => setIsVendorDialogOpen(true),
                           icon: Plus,
@@ -1184,7 +1221,7 @@ const Expenses = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {isAdmin && (
+                          {canEditVendors && (
                             <>
                               <Button
                                 variant="ghost"
@@ -1194,15 +1231,17 @@ const Expenses = () => {
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteVendor(vendor.id)}
-                                title="Delete"
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              {canDeleteVendors && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteVendor(vendor.id)}
+                                  title="Delete"
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="outline" size="sm">
@@ -1452,26 +1491,26 @@ const Expenses = () => {
                   <TableHead>Category</TableHead>
                   <TableHead>Payment</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                  {(canEditExpenses || canDeleteExpenses) && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">
+                    <TableCell colSpan={(canEditExpenses || canDeleteExpenses) ? 7 : 6} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredExpenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 7 : 6} className="py-0">
+                    <TableCell colSpan={(canEditExpenses || canDeleteExpenses) ? 7 : 6} className="py-0">
                       <EmptyState
                         illustration="expense"
                         title="No expenses found"
                         description={searchTerm || filterCategory !== "all" || filterVendor !== "all" 
                           ? "Try adjusting your search or filter criteria" 
                           : "Record your first expense to start tracking"}
-                        action={isAdmin && !searchTerm && filterCategory === "all" && filterVendor === "all" ? {
+                        action={canCreateExpenses && !searchTerm && filterCategory === "all" && filterVendor === "all" ? {
                           label: "Add Expense",
                           onClick: () => setIsExpenseDialogOpen(true),
                           icon: Plus,
@@ -1506,7 +1545,7 @@ const Expenses = () => {
                       <TableCell className="text-right font-medium">
                         {formatCurrency(expense.amount)}
                       </TableCell>
-                      {isAdmin && (
+                      {(canEditExpenses || canDeleteExpenses) && (
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button
@@ -1542,7 +1581,7 @@ const Expenses = () => {
               <h2 className="text-lg font-semibold">Expense Categories</h2>
               <p className="text-sm text-muted-foreground">Create categories by expense type</p>
             </div>
-            {isAdmin && (
+            {canCreateCategories && (
               <Dialog open={isCategoryDialogOpen} onOpenChange={(open) => {
                 setIsCategoryDialogOpen(open);
                 if (!open) resetCategoryForm();
@@ -1618,7 +1657,7 @@ const Expenses = () => {
                   icon={Tag}
                   title="No categories yet"
                   description="Create expense categories to organize your spending"
-                  action={isAdmin ? {
+                  action={canCreateCategories ? {
                     label: "Add Category",
                     onClick: () => setIsCategoryDialogOpen(true),
                     icon: Plus,
@@ -1626,51 +1665,90 @@ const Expenses = () => {
                 />
               </div>
             ) : (
-              categories.map((category) => (
-                <Card key={category.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <Tag className="h-5 w-5 text-primary" />
-                        <CardTitle className="text-lg">{category.name}</CardTitle>
-                      </div>
-                      {isAdmin && (
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditCategoryDialog(category)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteCategory(category.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+              categories.map((category) => {
+                const expenseCount = expenses.filter(e => e.category_id === category.id).length;
+                const hasLinkedExpenses = expenseCount > 0;
+                
+                return (
+                  <Card key={category.id}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <Tag className="h-5 w-5 text-primary" />
+                          <CardTitle className="text-lg">{category.name}</CardTitle>
                         </div>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      {category.description || "No description"}
-                    </p>
-                    <div className="mt-3 text-sm">
-                      <Badge variant="outline">
-                        {expenses.filter(e => e.category_id === category.id).length} expenses
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                        {(canEditCategories || canDeleteCategories) && (
+                          <div className="flex gap-1">
+                            {canEditCategories && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => openEditCategoryDialog(category)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit Category</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {canDeleteCategories && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                      disabled={hasLinkedExpenses}
+                                      onClick={() => setDeleteCategoryConfirm({ open: true, category })}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {hasLinkedExpenses 
+                                    ? `Cannot delete: ${expenseCount} expense(s) linked` 
+                                    : "Delete Category"}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        {category.description || "No description"}
+                      </p>
+                      <div className="mt-3 text-sm">
+                        <Badge variant="outline">
+                          {expenseCount} expense{expenseCount !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
             )}
           </div>
         </TabsContent>
       </Tabs>
+      
+      {/* Category Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteCategoryConfirm.open}
+        onOpenChange={(open) => setDeleteCategoryConfirm({ open, category: open ? deleteCategoryConfirm.category : null })}
+        title="Delete Category"
+        description={`Are you sure you want to delete "${deleteCategoryConfirm.category?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={handleDeleteCategory}
+      />
     </div>
   );
 };
