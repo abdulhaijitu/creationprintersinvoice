@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { usePermissions } from '@/lib/permissions/hooks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -12,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, Calculator } from 'lucide-react';
+import { Plus, Search, Eye, Calculator, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,9 +29,22 @@ interface PriceCalculation {
 
 const PriceCalculations = () => {
   const navigate = useNavigate();
+  const { canPerform, showCreate } = usePermissions();
   const [calculations, setCalculations] = useState<PriceCalculation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Check permission using resolved org role
+  const viewPermission = canPerform('price_calculations', 'view');
+  if (!viewPermission.hasAccess) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center">
+        <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+        <p className="text-muted-foreground">{viewPermission.reason || "You don't have permission to view this page."}</p>
+      </div>
+    );
+  }
 
   useEffect(() => {
     fetchCalculations();
@@ -77,10 +91,12 @@ const PriceCalculations = () => {
         </div>
 
         <div className="flex gap-2">
-          <Button className="gap-2" onClick={() => navigate('/price-calculation/new')}>
-            <Plus className="h-4 w-4" />
-            Add Job
-          </Button>
+          {showCreate('price_calculations') && (
+            <Button className="gap-2" onClick={() => navigate('/price-calculation/new')}>
+              <Plus className="h-4 w-4" />
+              Add Job
+            </Button>
+          )}
         </div>
       </div>
 

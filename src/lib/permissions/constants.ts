@@ -62,7 +62,8 @@ export type PermissionModule =
   | 'team_members' 
   | 'billing'
   | 'white_label'
-  | 'analytics';
+  | 'analytics'
+  | 'price_calculations';
 
 export const MODULE_DISPLAY: Record<PermissionModule, string> = {
   dashboard: 'Dashboard',
@@ -83,6 +84,7 @@ export const MODULE_DISPLAY: Record<PermissionModule, string> = {
   billing: 'Billing',
   white_label: 'White-Label',
   analytics: 'Analytics',
+  price_calculations: 'Price Calculations',
 };
 
 // ============= EDGE-ENFORCED PERMISSION MATRIX =============
@@ -205,6 +207,13 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
   },
   analytics: {
     view: ['owner', 'manager'],
+    export: ['owner', 'manager'],
+  },
+  price_calculations: {
+    view: ['owner', 'manager'],
+    create: ['owner', 'manager'],
+    edit: ['owner', 'manager'],
+    delete: ['owner', 'manager'],
     export: ['owner', 'manager'],
   },
 };
