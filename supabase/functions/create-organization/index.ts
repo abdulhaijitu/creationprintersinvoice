@@ -10,6 +10,7 @@ interface CreateOrganizationRequest {
   organizationName: string;
   ownerEmail: string;
   ownerPassword: string;
+  ownerRole?: 'owner' | 'manager';  // Explicit role selection
   plan: 'free' | 'basic' | 'pro' | 'enterprise';
   trialDays?: number;
   status: 'trial' | 'active' | 'suspended';
@@ -198,12 +199,21 @@ Deno.serve(async (req) => {
       organizationName, 
       ownerEmail, 
       ownerPassword,
+      ownerRole = 'owner',  // Default to owner if not specified
       plan, 
       trialDays = 14, 
       status, 
       adminEmail,
       sendEmail = true
     } = body;
+
+    // Validate ownerRole
+    if (!['owner', 'manager'].includes(ownerRole)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid owner role. Must be "owner" or "manager"' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Validate required fields
     if (!organizationName?.trim()) {
@@ -297,13 +307,14 @@ Deno.serve(async (req) => {
     const slug = generateSlug(organizationName.trim());
 
     // Create organization
+    // If role is 'manager', we don't set owner_id (org has no owner yet)
     const { data: newOrg, error: orgError } = await supabaseAdmin
       .from('organizations')
       .insert({
         name: organizationName.trim(),
         slug,
-        owner_id: ownerId,
-        owner_email: ownerEmail.toLowerCase().trim(),
+        owner_id: ownerRole === 'owner' ? ownerId : null,
+        owner_email: ownerRole === 'owner' ? ownerEmail.toLowerCase().trim() : null,
       })
       .select()
       .single();
@@ -321,14 +332,16 @@ Deno.serve(async (req) => {
 
     console.log('Created organization:', newOrg.id);
 
-    // Add owner as organization member with 'owner' role
+    // Add user as organization member with selected role
     const { error: memberError } = await supabaseAdmin
       .from('organization_members')
       .insert({
         organization_id: newOrg.id,
         user_id: ownerId,
-        role: 'owner',
+        role: ownerRole,  // Use the selected role
       });
+
+    console.log('Created member with role:', ownerRole);
 
     if (memberError) {
       console.error('Error adding member:', memberError);
@@ -432,10 +445,12 @@ Deno.serve(async (req) => {
         p_source: 'ui',
         p_metadata: {
           owner_email: ownerEmail.toLowerCase().trim(),
+          owner_role: ownerRole,
           plan,
           status,
           trial_days: status === 'trial' ? trialDays : null,
           email_sent: emailSent,
+          has_owner: ownerRole === 'owner',
         },
       });
     } catch (auditErr) {
@@ -450,10 +465,12 @@ Deno.serve(async (req) => {
           id: newOrg.id,
           name: newOrg.name,
           slug: newOrg.slug,
+          has_owner: ownerRole === 'owner',
         },
-        owner: {
+        member: {
           id: ownerId,
           email: ownerEmail.toLowerCase().trim(),
+          role: ownerRole,
           created: true,
         },
         subscription: {

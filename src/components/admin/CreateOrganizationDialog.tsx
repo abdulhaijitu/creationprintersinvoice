@@ -45,6 +45,7 @@ interface CreateOrganizationDialogProps {
 
 type PlanType = 'free' | 'basic' | 'pro' | 'enterprise';
 type StatusType = 'trial' | 'active' | 'suspended';
+type OwnerRoleType = 'owner' | 'manager';
 
 // Generate a strong password
 function generateStrongPassword(): string {
@@ -103,6 +104,7 @@ export function CreateOrganizationDialog({
   const [plan, setPlan] = useState<PlanType>('basic');
   const [status, setStatus] = useState<StatusType>('trial');
   const [trialDays, setTrialDays] = useState(14);
+  const [ownerRole, setOwnerRole] = useState<OwnerRoleType>('owner');
   const [inlineError, setInlineError] = useState<string | null>(null);
 
   const passwordValidation = useMemo(() => {
@@ -119,6 +121,7 @@ export function CreateOrganizationDialog({
     setPlan('basic');
     setStatus('trial');
     setTrialDays(14);
+    setOwnerRole('owner');
     setCreatedOrg(null);
     setInlineError(null);
   };
@@ -178,6 +181,7 @@ export function CreateOrganizationDialog({
           organizationName: organizationName.trim(),
           ownerEmail: ownerEmail.trim().toLowerCase(),
           ownerPassword,
+          ownerRole,
           plan,
           status,
           trialDays: status === 'trial' ? trialDays : undefined,
@@ -494,6 +498,35 @@ Creation Tech Team`}
                 Email will include organization name, email, password, and login URL
               </p>
             </div>
+          </div>
+
+          {/* Owner Role */}
+          <div className="space-y-2">
+            <Label htmlFor="ownerRole">Owner Role *</Label>
+            <Select value={ownerRole} onValueChange={(v: OwnerRoleType) => setOwnerRole(v)} disabled={loading}>
+              <SelectTrigger id="ownerRole">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="owner">
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Owner (Recommended)</span>
+                    <span className="text-xs text-muted-foreground">Full control, billing, team management</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="manager">
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Manager</span>
+                    <span className="text-xs text-muted-foreground">Operations only, no ownership yet</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {ownerRole === 'manager' && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                ⚠️ Organization will be created without an owner. You'll need to assign an owner later.
+              </p>
+            )}
           </div>
 
           {/* Plan and Status */}
