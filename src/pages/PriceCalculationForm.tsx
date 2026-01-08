@@ -435,12 +435,12 @@ const PriceCalculationForm = () => {
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Quantity</Label>
-          <Input
-            type="number"
-            defaultValue={item.qty === 0 ? '' : item.qty}
-            key={`${field}-qty-${item.qty}`}
-            onBlur={(e) => handleItemChange(field, 'qty', e.target.value === '' ? 0 : Number(e.target.value))}
-            min={0}
+          <CurrencyInput
+            value={item.qty}
+            onChange={(val) => handleItemChange(field, 'qty', val)}
+            decimals={0}
+            formatOnBlur={false}
+            placeholder="0"
           />
         </div>
         <div className="space-y-1">
@@ -484,7 +484,7 @@ const PriceCalculationForm = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} autoComplete="off">
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             {/* Basic Info */}
@@ -505,11 +505,12 @@ const PriceCalculationForm = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Quantity (pcs)</Label>
-                  <Input
-                    type="number"
+                  <CurrencyInput
                     value={formData.quantity}
-                    onChange={(e) => handleChange('quantity', Number(e.target.value))}
-                    min={1}
+                    onChange={(val) => handleChange('quantity', val)}
+                    decimals={0}
+                    formatOnBlur={false}
+                    placeholder="1"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-3">
@@ -563,12 +564,12 @@ const PriceCalculationForm = () => {
 
                 <div className="space-y-2">
                   <Label>Margin/Profit (%)</Label>
-                  <Input
-                    type="number"
+                  <CurrencyInput
                     value={formData.margin_percent}
-                    onChange={(e) => handleChange('margin_percent', Number(e.target.value))}
-                    min={0}
-                    max={100}
+                    onChange={(val) => handleChange('margin_percent', val)}
+                    decimals={2}
+                    formatOnBlur={false}
+                    placeholder="25"
                   />
                 </div>
 

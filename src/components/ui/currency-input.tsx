@@ -2,7 +2,8 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Input } from "./input";
 
-interface CurrencyInputProps extends Omit<React.ComponentProps<"input">, "onChange" | "value" | "type"> {
+interface CurrencyInputProps
+  extends Omit<React.ComponentProps<"input">, "onChange" | "value" | "type"> {
   value: number;
   onChange: (value: number) => void;
   /** Number of decimal places (default: 2) */
@@ -12,80 +13,76 @@ interface CurrencyInputProps extends Omit<React.ComponentProps<"input">, "onChan
 }
 
 /**
- * CurrencyInput - A specialized input for handling decimal currency values
- * 
- * CRITICAL FIX: This component uses completely isolated string state during typing
- * to prevent cursor jumps. The parent onChange is ONLY called on blur.
+ * CurrencyInput
+ *
+ * Cursor-safe numeric input:
+ * - Uses isolated string state while typing (no number conversion, no formatting)
+ * - Calls parent onChange ONLY on blur
+ * - Never syncs from parent value while focused (prevents focus/caret jumps)
+ * - Disables browser autocomplete/suggestions for amount fields
  */
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
-  ({ className, value, onChange, decimals = 2, formatOnBlur = true, onBlur, onFocus, ...props }, ref) => {
-    // Completely isolated string state - parent value is IGNORED during focus
+  (
+    { className, value, onChange, decimals = 2, formatOnBlur = true, onBlur, onFocus, ...props },
+    ref,
+  ) => {
     const [displayValue, setDisplayValue] = React.useState<string>("");
-    const [isFocused, setIsFocused] = React.useState(false);
-    const hasInitialized = React.useRef(false);
 
-    // Initialize display value from prop ONLY on mount or when not focused
+    // Use a ref (not state) so "focused" is updated synchronously and cannot lag
+    const isFocusedRef = React.useRef(false);
+
+    // Sync from numeric prop ONLY when not focused (never while typing)
     React.useEffect(() => {
-      if (!isFocused) {
-        if (value === 0 || value === null || value === undefined) {
-          setDisplayValue("");
-        } else {
-          setDisplayValue(formatOnBlur ? value.toFixed(decimals) : String(value));
-        }
-        hasInitialized.current = true;
-      }
-    }, [value, isFocused, formatOnBlur, decimals]);
+      if (isFocusedRef.current) return;
 
-    // Handle typing - NO parent updates, NO formatting, just raw string storage
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const inputValue = e.target.value;
-      
-      // Allow empty
-      if (inputValue === "") {
+      if (value === 0 || value === null || value === undefined) {
         setDisplayValue("");
         return;
       }
 
-      // Allow only valid numeric characters (digits, single decimal, optional minus)
-      if (!/^-?\d*\.?\d*$/.test(inputValue)) {
+      setDisplayValue(formatOnBlur ? value.toFixed(decimals) : String(value));
+    }, [value, decimals, formatOnBlur]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const next = e.target.value;
+
+      // Allow empty
+      if (next === "") {
+        setDisplayValue("");
         return;
       }
 
-      // Check decimal places limit
-      const decimalIndex = inputValue.indexOf('.');
-      if (decimalIndex !== -1) {
-        const decimalPlaces = inputValue.length - decimalIndex - 1;
-        if (decimalPlaces > decimals) {
-          return;
-        }
+      // Allow only valid numeric characters: digits, one decimal point, optional leading minus
+      if (!/^-?\d*\.?\d*$/.test(next)) return;
+
+      // Enforce decimal places limit
+      const dotIndex = next.indexOf(".");
+      if (dotIndex !== -1) {
+        const decimalPlaces = next.length - dotIndex - 1;
+        if (decimalPlaces > decimals) return;
       }
 
-      // Store raw string - NO CONVERSION, NO PARENT UPDATE
-      setDisplayValue(inputValue);
+      // Store raw string only (NO conversion, NO formatting)
+      setDisplayValue(next);
     };
 
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-      setIsFocused(true);
-      // Keep current display value as-is, no reformatting
+      isFocusedRef.current = true;
       onFocus?.(e);
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-      setIsFocused(false);
-      
-      // NOW parse and send to parent
-      const numValue = parseFloat(displayValue) || 0;
-      onChange(numValue);
-      
-      // Format for display
+      isFocusedRef.current = false;
+
+      // Convert only on blur (commit)
+      const committed = parseFloat(displayValue) || 0;
+      onChange(committed);
+
+      // Optional display formatting on blur only
       if (formatOnBlur) {
-        if (numValue === 0) {
-          setDisplayValue("");
-        } else {
-          setDisplayValue(numValue.toFixed(decimals));
-        }
+        setDisplayValue(committed === 0 ? "" : committed.toFixed(decimals));
       }
-      
+
       onBlur?.(e);
     };
 
@@ -95,6 +92,9 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
         type="text"
         inputMode="decimal"
         autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="none"
+        spellCheck={false}
         className={cn("text-right", className)}
         value={displayValue}
         onChange={handleChange}
@@ -103,7 +103,7 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
         {...props}
       />
     );
-  }
+  },
 );
 
 CurrencyInput.displayName = "CurrencyInput";
