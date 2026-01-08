@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.create-customer]
 verify_jwt = false
+
+[functions.record-invoice-payment]
+verify_jwt = false

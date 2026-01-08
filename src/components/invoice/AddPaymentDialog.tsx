@@ -4,6 +4,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { processEdgeFunctionResponse } from '@/lib/edgeFunctionUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -152,52 +153,23 @@ export function AddPaymentDialog({
     setIsSubmitting(true);
 
     try {
-      // Add payment
-      const { error: paymentError } = await supabase.from('invoice_payments').insert([
-        {
+      // Call Edge Function to record payment
+      const response = await supabase.functions.invoke('record-invoice-payment', {
+        body: {
           invoice_id: invoice.id,
           amount: formData.amount,
           payment_method: formData.payment_method,
           payment_date: formData.payment_date,
           reference: formData.reference || null,
           notes: formData.notes || null,
-          created_by: user?.id,
         },
-      ]);
+      });
 
-      if (paymentError) throw paymentError;
+      const result = await processEdgeFunctionResponse(response);
 
-      // Update invoice
-      const newPaidAmount = Number(invoice.paid_amount) + formData.amount;
-      const newStatus = newPaidAmount >= Number(invoice.total) ? 'paid' : 'partial';
-
-      const { error: updateError } = await supabase
-        .from('invoices')
-        .update({
-          paid_amount: newPaidAmount,
-          status: newStatus,
-        })
-        .eq('id', invoice.id);
-
-      if (updateError) throw updateError;
-
-      // Log to audit
-      await supabase.from('audit_logs').insert([
-        {
-          action: 'payment_added',
-          entity_type: 'invoice',
-          entity_id: invoice.id,
-          user_id: user?.id,
-          details: {
-            invoice_number: invoice.invoice_number,
-            amount: formData.amount,
-            payment_method: formData.payment_method,
-            reference: formData.reference || null,
-            new_paid_amount: newPaidAmount,
-            new_status: newStatus,
-          },
-        },
-      ]);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to record payment');
+      }
 
       // Show success state
       setShowSuccess(true);
