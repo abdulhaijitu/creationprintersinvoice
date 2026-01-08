@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.uddoktapay-verify]
 verify_jwt = false
+
+[functions.create-customer]
+verify_jwt = false
