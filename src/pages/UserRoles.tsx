@@ -128,9 +128,12 @@ const UserRoles = () => {
 
     setSaving(userId);
     try {
+      // Map frontend role to database role
+      const dbRole = newRole === 'designer' ? 'graphic_designer' : newRole;
+      
       const { error } = await supabase
         .from("user_roles")
-        .update({ role: newRole })
+        .update({ role: dbRole as any })
         .eq("user_id", userId);
 
       if (error) throw error;

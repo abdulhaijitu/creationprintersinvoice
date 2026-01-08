@@ -13,9 +13,8 @@ export const getAdminRole = (role: AppRole | null): AdminRole | null => {
   switch (role) {
     case 'super_admin':
       return 'super_admin';
-    case 'admin':
-      return 'admin';
     case 'manager':
+      return 'admin';
     case 'accounts':
       return 'support'; // Treat as read-only/support role
     default:
