@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { hasPermission, getRoleDisplayName, allRoles } from "@/lib/permissions";
+import { useOrganization } from "@/contexts/OrganizationContext";
+import { canRolePerform, OrgRole } from "@/lib/permissions/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,7 +56,15 @@ interface Employee {
 }
 
 const Employees = () => {
-  const { isAdmin, user, role, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isSuperAdmin } = useAuth();
+  const { orgRole } = useOrganization();
+  
+  // Permission checks using proper role system
+  const canView = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'view');
+  const canCreate = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'create');
+  const canEdit = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'edit');
+  const canDelete = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'delete');
+  const canExport = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'export');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -85,8 +94,8 @@ const Employees = () => {
   });
 
   useEffect(() => {
-    fetchEmployees();
-  }, [isAdmin]);
+    if (canView) fetchEmployees();
+  }, [canView]);
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -241,7 +250,7 @@ const Employees = () => {
   }
 
   // Show access denied message for users without permission
-  if (!hasPermission(role, 'employees', 'view')) {
+  if (!canView) {
     return (
       <div className="space-y-6">
         <div>
@@ -260,8 +269,8 @@ const Employees = () => {
               <div className="space-y-2">
                 <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
                 <p className="text-muted-foreground max-w-md">
-                  Only admin users can view the employee list. 
-                  Contact your system administrator if you need admin access.
+                  You don't have permission to view the employee list.
+                  Contact your organization owner or manager if you need access.
                 </p>
               </div>
             </div>
@@ -278,7 +287,7 @@ const Employees = () => {
           <h1 className="text-3xl font-bold">Employees</h1>
           <p className="text-muted-foreground">List of all employees</p>
         </div>
-        {isAdmin && (
+        {canCreate && (
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -403,7 +412,7 @@ const Employees = () => {
               <TableHead className="whitespace-nowrap">Phone</TableHead>
               <TableHead className="whitespace-nowrap">Joining Date</TableHead>
               <TableHead className="text-right whitespace-nowrap">Salary</TableHead>
-              {isAdmin && <TableHead className="text-center whitespace-nowrap">Action</TableHead>}
+              {(canEdit || canDelete) && <TableHead className="text-center whitespace-nowrap">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -422,7 +431,7 @@ const Employees = () => {
                     description={searchTerm 
                       ? "Try adjusting your search criteria" 
                       : "Add your first employee to manage your workforce"}
-                    action={isAdmin && !searchTerm ? {
+                    action={canCreate && !searchTerm ? {
                       label: "Add Employee",
                       onClick: () => setIsDialogOpen(true),
                       icon: UserPlus,
@@ -477,15 +486,19 @@ const Employees = () => {
                   <TableCell className="text-right font-medium whitespace-nowrap">
                     {formatCurrency(employee.basic_salary || 0)}
                   </TableCell>
-                  {isAdmin && (
+                  {(canEdit || canDelete) && (
                     <TableCell className="text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(employee)}>
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setDeleteId(employee.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {canEdit && (
+                          <Button variant="ghost" size="sm" onClick={() => openEditDialog(employee)}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button variant="ghost" size="sm" onClick={() => setDeleteId(employee.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   )}
