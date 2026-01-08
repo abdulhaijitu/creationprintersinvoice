@@ -583,6 +583,217 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Super Admin: Reassign organization owner
+      case 'reassign_owner': {
+        if (!organizationId) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Organization ID is required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (!userId) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'New owner user ID is required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Verify the new owner is a member of the organization
+        const { data: memberCheck, error: memberCheckError } = await supabaseAdmin
+          .from('organization_members')
+          .select('id, role')
+          .eq('organization_id', organizationId)
+          .eq('user_id', userId)
+          .single();
+
+        if (memberCheckError || !memberCheck) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'User is not a member of this organization' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Get current owner
+        const { data: currentOwner, error: currentOwnerError } = await supabaseAdmin
+          .from('organization_members')
+          .select('id, user_id')
+          .eq('organization_id', organizationId)
+          .eq('role', 'owner')
+          .single();
+
+        if (currentOwnerError && currentOwnerError.code !== 'PGRST116') {
+          console.error('Error finding current owner:', currentOwnerError);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to verify current owner' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Cannot reassign to same user
+        if (currentOwner && currentOwner.user_id === userId) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'User is already the owner' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Transaction: demote old owner, promote new owner
+        // Step 1: Demote current owner to manager
+        if (currentOwner) {
+          const { error: demoteError } = await supabaseAdmin
+            .from('organization_members')
+            .update({ role: 'manager' })
+            .eq('id', currentOwner.id);
+
+          if (demoteError) {
+            console.error('Error demoting current owner:', demoteError);
+            return new Response(
+              JSON.stringify({ success: false, error: 'Failed to demote current owner' }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+
+        // Step 2: Promote new owner
+        const { error: promoteError } = await supabaseAdmin
+          .from('organization_members')
+          .update({ role: 'owner' })
+          .eq('id', memberCheck.id);
+
+        if (promoteError) {
+          // Rollback: restore old owner
+          if (currentOwner) {
+            await supabaseAdmin
+              .from('organization_members')
+              .update({ role: 'owner' })
+              .eq('id', currentOwner.id);
+          }
+          console.error('Error promoting new owner:', promoteError);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to promote new owner' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Step 3: Update organization.owner_id and owner_email
+        const { data: newOwnerProfile } = await supabaseAdmin.auth.admin.getUserById(userId);
+        const newOwnerEmail = newOwnerProfile?.user?.email;
+
+        const { error: orgUpdateError } = await supabaseAdmin
+          .from('organizations')
+          .update({ 
+            owner_id: userId,
+            owner_email: newOwnerEmail || null
+          })
+          .eq('id', organizationId);
+
+        if (orgUpdateError) {
+          console.error('Error updating organization owner:', orgUpdateError);
+          // Continue anyway - member role is the source of truth
+        }
+
+        // Log the action
+        await supabaseAdmin
+          .from('admin_audit_logs')
+          .insert({
+            admin_user_id: requestingUser.id,
+            action: 'reassign_organization_owner',
+            entity_type: 'organization',
+            entity_id: organizationId,
+            details: { 
+              previous_owner_id: currentOwner?.user_id || null,
+              new_owner_id: userId,
+              new_owner_email: newOwnerEmail,
+            },
+          });
+
+        return new Response(
+          JSON.stringify({ 
+            success: true,
+            previousOwnerId: currentOwner?.user_id || null,
+            newOwnerId: userId,
+            newOwnerEmail,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Validate role change - prevent unauthorized owner assignment
+      case 'update_role': {
+        if (!userId || !organizationId || !role) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'User ID, organization ID, and role are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Cannot assign owner role through this action
+        if (role === 'owner') {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Owner role can only be assigned via reassign_owner action' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Check if user is current owner - cannot demote owner through this action
+        const { data: memberData, error: memberError } = await supabaseAdmin
+          .from('organization_members')
+          .select('id, role')
+          .eq('organization_id', organizationId)
+          .eq('user_id', userId)
+          .single();
+
+        if (memberError || !memberData) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'User is not a member of this organization' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (memberData.role === 'owner') {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Cannot change owner role. Use reassign_owner action instead.' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Update role
+        const { error: updateError } = await supabaseAdmin
+          .from('organization_members')
+          .update({ role })
+          .eq('id', memberData.id);
+
+        if (updateError) {
+          console.error('Error updating role:', updateError);
+          return new Response(
+            JSON.stringify({ success: false, error: updateError.message }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Log the action
+        await supabaseAdmin
+          .from('admin_audit_logs')
+          .insert({
+            admin_user_id: requestingUser.id,
+            action: 'update_member_role',
+            entity_type: 'organization_member',
+            entity_id: memberData.id,
+            details: { 
+              organization_id: organizationId,
+              user_id: userId,
+              old_role: memberData.role,
+              new_role: role,
+            },
+          });
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ success: false, error: `Unknown action: ${action}` }),

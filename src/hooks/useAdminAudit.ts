@@ -12,7 +12,8 @@ export type AuditAction =
   | 'disable_user'
   | 'reset_password'
   | 'impersonate_user'
-  | 'update_user_organizations';
+  | 'update_user_organizations'
+  | 'reassign_owner';
 
 export const useAdminAudit = () => {
   const { user } = useAuth();

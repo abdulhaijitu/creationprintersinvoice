@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { User, FileText, Receipt, Activity, Ban, Save, KeyRound, Loader2, AlertTriangle, UserCheck, AlertCircle, Shield } from 'lucide-react';
+import { User, FileText, Receipt, Activity, Ban, Save, KeyRound, Loader2, AlertTriangle, UserCheck, AlertCircle, Shield, Crown, RefreshCw } from 'lucide-react';
 import { OrgSpecificPermissionsManager } from './OrgSpecificPermissionsManager';
 import { UsageLimitCard } from './UsageLimitCard';
 import { toast } from 'sonner';
@@ -74,10 +74,13 @@ const OrganizationDetailsDrawer = ({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [reassigningOwner, setReassigningOwner] = useState(false);
   const [disableDialogOpen, setDisableDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [downgradeDialogOpen, setDowngradeDialogOpen] = useState(false);
   const [impersonateDialogOpen, setImpersonateDialogOpen] = useState(false);
+  const [reassignOwnerDialogOpen, setReassignOwnerDialogOpen] = useState(false);
+  const [selectedNewOwner, setSelectedNewOwner] = useState<string>('');
   const [selectedUser, setSelectedUser] = useState<OrganizationMember | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const { logAction } = useAdminAudit();
@@ -355,6 +358,41 @@ const OrganizationDetailsDrawer = ({
     setImpersonateDialogOpen(false);
   };
 
+  const handleReassignOwner = async () => {
+    if (!organization || !selectedNewOwner) return;
+
+    setReassigningOwner(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-user', {
+        body: {
+          action: 'reassign_owner',
+          organizationId: organization.id,
+          userId: selectedNewOwner,
+        }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      await logAction('reassign_owner', 'organization', organization.id, {
+        previous_owner_id: data.previousOwnerId,
+        new_owner_id: data.newOwnerId,
+        new_owner_email: data.newOwnerEmail,
+      });
+
+      toast.success('Organization owner reassigned successfully');
+      setReassignOwnerDialogOpen(false);
+      setSelectedNewOwner('');
+      fetchOrgDetails();
+      onRefresh();
+    } catch (error) {
+      console.error('Error reassigning owner:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to reassign owner');
+    } finally {
+      setReassigningOwner(false);
+    }
+  };
+
   const canImpersonateOrg = useMemo(() => {
     if (!organization || !isSuperAdmin || isImpersonating) return false;
     return !!organization.owner_id;
@@ -504,22 +542,49 @@ const OrganizationDetailsDrawer = ({
                 </CardContent>
               </Card>
 
-              {/* Owner & Access - Read Only */}
+              {/* Owner & Access */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Owner & Access</CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Crown className="h-4 w-4 text-amber-500" />
+                    Owner & Access
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-muted-foreground">Owner Email</p>
-                      <p className="font-medium">{organization.owner_email || organization.email || '-'}</p>
+                      <p className="text-muted-foreground">Current Owner</p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100">
+                          <Crown className="h-3 w-3 mr-1" />
+                          Owner
+                        </Badge>
+                        <span className="font-medium text-sm">{organization.owner_email || organization.email || '-'}</span>
+                      </div>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Members</p>
                       <p className="font-medium">{members.length}</p>
                     </div>
                   </div>
+                  
+                  {/* Super Admin: Reassign Owner */}
+                  {isSuperAdmin && members.length > 1 && (
+                    <div className="pt-2 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setReassignOwnerDialogOpen(true)}
+                        className="w-full"
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Reassign Owner
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Transfer ownership to another team member. The current owner will be demoted to Manager.
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -838,6 +903,63 @@ const OrganizationDetailsDrawer = ({
         confirmLabel={isStarting ? "Starting Impersonation..." : "Start Impersonation"}
         onConfirm={confirmImpersonate}
         loading={isStarting}
+      />
+
+      {/* Reassign Owner Dialog */}
+      <ConfirmDialog
+        open={reassignOwnerDialogOpen}
+        onOpenChange={(open) => {
+          if (!reassigningOwner) {
+            setReassignOwnerDialogOpen(open);
+            if (!open) setSelectedNewOwner('');
+          }
+        }}
+        title="Reassign Organization Owner"
+        description={
+          <div className="space-y-4">
+            <p>
+              Transfer ownership of <strong>{organization?.name}</strong> to another team member.
+            </p>
+            
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 text-sm">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-medium text-amber-800 dark:text-amber-200">Warning:</p>
+                  <ul className="list-disc list-inside text-amber-700 dark:text-amber-300 space-y-1">
+                    <li>The current owner will be demoted to Manager</li>
+                    <li>The new owner will have full billing & permissions access</li>
+                    <li>This action is logged for audit purposes</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Select New Owner</Label>
+              <Select value={selectedNewOwner} onValueChange={setSelectedNewOwner}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a team member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {members
+                    .filter(m => m.role !== 'owner')
+                    .map(m => (
+                      <SelectItem key={m.user_id} value={m.user_id}>
+                        {m.profile?.full_name || 'Unknown'} ({m.role})
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        }
+        confirmLabel={reassigningOwner ? "Reassigning..." : "Confirm Reassignment"}
+        variant="destructive"
+        onConfirm={handleReassignOwner}
+        loading={reassigningOwner}
+        disabled={!selectedNewOwner}
       />
     </>
   );

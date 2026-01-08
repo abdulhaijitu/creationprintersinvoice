@@ -65,7 +65,17 @@ const TeamMembers = () => {
     finally { setLoading(false); }
   };
 
-  const updateMemberRole = async (memberId: string, newRole: OrgRole) => {
+  const updateMemberRole = async (memberId: string, currentRole: OrgRole, newRole: OrgRole) => {
+    // Prevent owner role changes at frontend level (backend also enforces this)
+    if (currentRole === 'owner') {
+      toast.error('Owner role cannot be changed. Contact super admin to reassign ownership.');
+      return;
+    }
+    if (newRole === 'owner') {
+      toast.error('Cannot assign owner role. Contact super admin to reassign ownership.');
+      return;
+    }
+    
     const { error } = await supabase.from('organization_members').update({ role: newRole }).eq('id', memberId);
     if (error) toast.error('Failed to update role');
     else { toast.success('Role updated'); fetchMembers(); }
@@ -135,12 +145,19 @@ const TeamMembers = () => {
                     <TableCell><div className="flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarFallback>{getInitials(m.profile?.full_name || 'U')}</AvatarFallback></Avatar><span className="font-medium">{m.profile?.full_name || 'Unknown'}</span></div></TableCell>
                     <TableCell><Badge className={`${roleColors[m.role]} gap-1`}>{roleIcons[m.role]}{roleDisplay[m.role]}</Badge></TableCell>
                     <TableCell>{format(new Date(m.created_at), 'MMM d, yyyy')}</TableCell>
-                    {canManageTeam && <TableCell>{m.role !== 'owner' && (
-                      <div className="flex gap-2">
-                        <Select value={m.role} onValueChange={v => updateMemberRole(m.id, v as OrgRole)}><SelectTrigger className="w-28"><SelectValue /></SelectTrigger><SelectContent>{ASSIGNABLE_ROLES.map(r => <SelectItem key={r} value={r}>{roleDisplay[r]}</SelectItem>)}</SelectContent></Select>
-                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeMember(m.id, m.role)}>Remove</Button>
-                      </div>
-                    )}</TableCell>}
+                    {canManageTeam && <TableCell>
+                      {m.role === 'owner' ? (
+                        <span className="text-xs text-muted-foreground">Owner (protected)</span>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Select value={m.role} onValueChange={v => updateMemberRole(m.id, m.role, v as OrgRole)}>
+                            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                            <SelectContent>{ASSIGNABLE_ROLES.map(r => <SelectItem key={r} value={r}>{roleDisplay[r]}</SelectItem>)}</SelectContent>
+                          </Select>
+                          <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeMember(m.id, m.role)}>Remove</Button>
+                        </div>
+                      )}
+                    </TableCell>}
                   </TableRow>
                 ))}
               </TableBody>

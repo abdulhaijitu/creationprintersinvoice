@@ -21,6 +21,7 @@ interface ConfirmDialogProps {
   variant?: 'default' | 'destructive';
   onConfirm: () => void;
   loading?: boolean;
+  disabled?: boolean;
 }
 
 export function ConfirmDialog({
@@ -33,6 +34,7 @@ export function ConfirmDialog({
   variant = 'default',
   onConfirm,
   loading = false,
+  disabled = false,
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -48,7 +50,7 @@ export function ConfirmDialog({
               e.preventDefault();
               onConfirm();
             }}
-            disabled={loading}
+            disabled={loading || disabled}
             className={cn(
               variant === 'destructive' &&
                 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
