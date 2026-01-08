@@ -32,6 +32,62 @@ interface CostLineItem {
   price: number;
 }
 
+// Stable component - defined OUTSIDE PriceCalculationForm to prevent re-creation
+interface CostLineItemRowProps {
+  label: string;
+  item: CostLineItem;
+  onQtyChange: (val: number) => void;
+  onPriceChange: (val: number) => void;
+  showDivider?: boolean;
+}
+
+const formatCurrencyStatic = (amount: number) => {
+  return new Intl.NumberFormat('en-BD', {
+    style: 'currency',
+    currency: 'BDT',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
+const CostLineItemRow = ({
+  label,
+  item,
+  onQtyChange,
+  onPriceChange,
+  showDivider = true,
+}: CostLineItemRowProps) => {
+  const total = item.qty * item.price;
+
+  return (
+    <div className={`grid gap-4 sm:grid-cols-4 items-end ${showDivider ? 'pb-4 border-b' : ''}`}>
+      <div>
+        <Label className="text-base font-semibold">{label}</Label>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs text-muted-foreground">Quantity</Label>
+        <CurrencyInput
+          value={item.qty}
+          onChange={onQtyChange}
+          decimals={0}
+          formatOnBlur={false}
+          placeholder="0"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs text-muted-foreground">Price</Label>
+        <CurrencyInput
+          value={item.price}
+          onChange={onPriceChange}
+        />
+      </div>
+      <div className="text-right font-medium">
+        {formatCurrencyStatic(total)}
+      </div>
+    </div>
+  );
+};
+
 interface CostingData {
   job_description: string;
   quantity: number;
@@ -416,46 +472,7 @@ const PriceCalculationForm = () => {
     );
   }
 
-  const CostLineItemRow = ({
-    label,
-    field,
-    showDivider = true,
-  }: {
-    label: string;
-    field: keyof CostingData;
-    showDivider?: boolean;
-  }) => {
-    const item = formData[field] as CostLineItem;
-    const total = calcTotal(item);
-    
-    return (
-      <div className={`grid gap-4 sm:grid-cols-4 items-end ${showDivider ? 'pb-4 border-b' : ''}`}>
-        <div>
-          <Label className="text-base font-semibold">{label}</Label>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Quantity</Label>
-          <CurrencyInput
-            value={item.qty}
-            onChange={(val) => handleItemChange(field, 'qty', val)}
-            decimals={0}
-            formatOnBlur={false}
-            placeholder="0"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Price</Label>
-          <CurrencyInput
-            value={item.price}
-            onChange={(val) => handleItemChange(field, 'price', val)}
-          />
-        </div>
-        <div className="text-right font-medium">
-          {formatCurrency(total)}
-        </div>
-      </div>
-    );
-  };
+  // CostLineItemRow is now defined outside the component for stability
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -531,21 +548,21 @@ const PriceCalculationForm = () => {
                 <CardTitle>Cost Breakdown</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <CostLineItemRow label="Design" field="design" />
-                <CostLineItemRow label="Plate-01" field="plate1" />
-                <CostLineItemRow label="Plate-02" field="plate2" />
-                <CostLineItemRow label="Plate-03" field="plate3" />
-                <CostLineItemRow label="Paper-1" field="paper1" />
-                <CostLineItemRow label="Paper-2" field="paper2" />
-                <CostLineItemRow label="Paper-3" field="paper3" />
-                <CostLineItemRow label="Printing-1" field="print1" />
-                <CostLineItemRow label="Printing-2" field="print2" />
-                <CostLineItemRow label="Printing-3" field="print3" />
-                <CostLineItemRow label="Lamination" field="lamination" />
-                <CostLineItemRow label="Die Cutting" field="die_cutting" />
-                <CostLineItemRow label="Foil Printing" field="foil_printing" />
-                <CostLineItemRow label="Binding" field="binding" />
-                <CostLineItemRow label="Others" field="others" showDivider={false} />
+                <CostLineItemRow label="Design" item={formData.design} onQtyChange={(v) => handleItemChange('design', 'qty', v)} onPriceChange={(v) => handleItemChange('design', 'price', v)} />
+                <CostLineItemRow label="Plate-01" item={formData.plate1} onQtyChange={(v) => handleItemChange('plate1', 'qty', v)} onPriceChange={(v) => handleItemChange('plate1', 'price', v)} />
+                <CostLineItemRow label="Plate-02" item={formData.plate2} onQtyChange={(v) => handleItemChange('plate2', 'qty', v)} onPriceChange={(v) => handleItemChange('plate2', 'price', v)} />
+                <CostLineItemRow label="Plate-03" item={formData.plate3} onQtyChange={(v) => handleItemChange('plate3', 'qty', v)} onPriceChange={(v) => handleItemChange('plate3', 'price', v)} />
+                <CostLineItemRow label="Paper-1" item={formData.paper1} onQtyChange={(v) => handleItemChange('paper1', 'qty', v)} onPriceChange={(v) => handleItemChange('paper1', 'price', v)} />
+                <CostLineItemRow label="Paper-2" item={formData.paper2} onQtyChange={(v) => handleItemChange('paper2', 'qty', v)} onPriceChange={(v) => handleItemChange('paper2', 'price', v)} />
+                <CostLineItemRow label="Paper-3" item={formData.paper3} onQtyChange={(v) => handleItemChange('paper3', 'qty', v)} onPriceChange={(v) => handleItemChange('paper3', 'price', v)} />
+                <CostLineItemRow label="Printing-1" item={formData.print1} onQtyChange={(v) => handleItemChange('print1', 'qty', v)} onPriceChange={(v) => handleItemChange('print1', 'price', v)} />
+                <CostLineItemRow label="Printing-2" item={formData.print2} onQtyChange={(v) => handleItemChange('print2', 'qty', v)} onPriceChange={(v) => handleItemChange('print2', 'price', v)} />
+                <CostLineItemRow label="Printing-3" item={formData.print3} onQtyChange={(v) => handleItemChange('print3', 'qty', v)} onPriceChange={(v) => handleItemChange('print3', 'price', v)} />
+                <CostLineItemRow label="Lamination" item={formData.lamination} onQtyChange={(v) => handleItemChange('lamination', 'qty', v)} onPriceChange={(v) => handleItemChange('lamination', 'price', v)} />
+                <CostLineItemRow label="Die Cutting" item={formData.die_cutting} onQtyChange={(v) => handleItemChange('die_cutting', 'qty', v)} onPriceChange={(v) => handleItemChange('die_cutting', 'price', v)} />
+                <CostLineItemRow label="Foil Printing" item={formData.foil_printing} onQtyChange={(v) => handleItemChange('foil_printing', 'qty', v)} onPriceChange={(v) => handleItemChange('foil_printing', 'price', v)} />
+                <CostLineItemRow label="Binding" item={formData.binding} onQtyChange={(v) => handleItemChange('binding', 'qty', v)} onPriceChange={(v) => handleItemChange('binding', 'price', v)} />
+                <CostLineItemRow label="Others" item={formData.others} onQtyChange={(v) => handleItemChange('others', 'qty', v)} onPriceChange={(v) => handleItemChange('others', 'price', v)} showDivider={false} />
               </CardContent>
             </Card>
           </div>
