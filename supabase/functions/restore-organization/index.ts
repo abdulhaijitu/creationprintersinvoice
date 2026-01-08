@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
         
         try {
           // Ensure organization_id is set correctly
-          const preparedBatch = batch.map((record: Record<string, unknown>) => ({
+          const preparedBatch = (batch as Record<string, unknown>[]).map((record) => ({
             ...record,
             organization_id,
           }));

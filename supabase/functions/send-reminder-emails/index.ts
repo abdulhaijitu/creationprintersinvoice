@@ -120,20 +120,31 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Process each invoice
-      for (const invoice of invoices as Invoice[]) {
-        const customer = invoice.customer;
-        const org = invoice.organization;
+      // Process each invoice - Supabase returns relations as arrays
+      for (const rawInvoice of invoices) {
+        const inv = rawInvoice as {
+          id: string;
+          invoice_number: string;
+          total: number;
+          paid_amount: number | null;
+          due_date: string;
+          organization_id: string;
+          status: string;
+          customer: { name: string; email: string | null }[] | null;
+          organization: { name: string; email: string | null }[] | null;
+        };
+        const customer = inv.customer?.[0];
+        const org = inv.organization?.[0];
         
         if (!customer?.email) continue;
 
-        const dueAmount = invoice.total - (invoice.paid_amount || 0);
-        const subject = getEmailSubject(config.type, invoice.invoice_number);
+        const dueAmount = inv.total - (inv.paid_amount || 0);
+        const subject = getEmailSubject(config.type, inv.invoice_number);
         const html = getEmailHtml(config.type, {
           customerName: customer.name,
-          invoiceNumber: invoice.invoice_number,
+          invoiceNumber: inv.invoice_number,
           dueAmount,
-          dueDate: invoice.due_date,
+          dueDate: inv.due_date,
           orgName: org?.name || 'Our Company',
         });
 
@@ -142,7 +153,7 @@ Deno.serve(async (req) => {
           const { data: existingLog } = await supabaseAdmin
             .from('notification_logs')
             .select('id')
-            .eq('organization_id', invoice.organization_id)
+            .eq('organization_id', inv.organization_id)
             .eq('notification_type', config.type === 'due_soon' ? 'payment_due_soon' : 
                                      config.type === 'due_today' ? 'payment_due_today' : 'payment_overdue')
             .eq('recipient', customer.email)
@@ -164,7 +175,7 @@ Deno.serve(async (req) => {
 
           // Log the notification
           await supabaseAdmin.from('notification_logs').insert({
-            organization_id: invoice.organization_id,
+            organization_id: inv.organization_id,
             notification_type: config.type === 'due_soon' ? 'payment_due_soon' : 
                               config.type === 'due_today' ? 'payment_due_today' : 'payment_overdue',
             channel: 'email',
@@ -174,7 +185,7 @@ Deno.serve(async (req) => {
             status: 'sent',
             sent_at: new Date().toISOString(),
             external_id: emailResult.data?.id || null,
-            metadata: { invoice_id: invoice.id, invoice_number: invoice.invoice_number },
+            metadata: { invoice_id: inv.id, invoice_number: inv.invoice_number },
           });
 
           typeResult.sent++;
@@ -184,7 +195,7 @@ Deno.serve(async (req) => {
           
           // Log failed notification
           await supabaseAdmin.from('notification_logs').insert({
-            organization_id: invoice.organization_id,
+            organization_id: inv.organization_id,
             notification_type: config.type === 'due_soon' ? 'payment_due_soon' : 
                               config.type === 'due_today' ? 'payment_due_today' : 'payment_overdue',
             channel: 'email',
@@ -193,7 +204,7 @@ Deno.serve(async (req) => {
             body: html,
             status: 'failed',
             failed_reason: errMsg,
-            metadata: { invoice_id: invoice.id },
+            metadata: { invoice_id: inv.id },
           });
         }
       }
