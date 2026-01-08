@@ -167,7 +167,7 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     export: ['owner', 'manager'],
   },
   employees: {
-    view: ['owner', 'manager'],
+    view: ['owner', 'manager', 'accounts'],
     create: ['owner', 'manager'],
     edit: ['owner', 'manager'],
     delete: ['owner'],
