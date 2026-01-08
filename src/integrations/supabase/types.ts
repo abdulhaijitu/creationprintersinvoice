@@ -1015,6 +1015,41 @@ export type Database = {
           },
         ]
       }
+      invoice_sequences: {
+        Row: {
+          created_at: string
+          current_sequence: number
+          id: string
+          organization_id: string
+          prefix: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_sequence?: number
+          id?: string
+          organization_id: string
+          prefix?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_sequence?: number
+          id?: string
+          organization_id?: string
+          prefix?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_sequences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           created_at: string
@@ -2863,6 +2898,100 @@ export type Database = {
           },
         ]
       }
+      support_messages: {
+        Row: {
+          attachment_name: string | null
+          attachment_url: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          sender_id: string
+          sender_type: string
+          ticket_id: string
+        }
+        Insert: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          sender_id: string
+          sender_type: string
+          ticket_id: string
+        }
+        Update: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          sender_id?: string
+          sender_type?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          organization_id: string | null
+          priority: string
+          status: string
+          subject: string
+          ticket_number: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          priority?: string
+          status?: string
+          subject: string
+          ticket_number: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          priority?: string
+          status?: string
+          subject?: string
+          ticket_number?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assigned_by: string | null
@@ -3166,8 +3295,13 @@ export type Database = {
       generate_billing_invoice_number: { Args: never; Returns: string }
       generate_challan_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
+      generate_org_invoice_number: {
+        Args: { p_org_id: string }
+        Returns: string
+      }
       generate_payment_receipt_number: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
+      generate_ticket_number: { Args: never; Returns: string }
       get_mrr_trend: {
         Args: { days_back?: number }
         Returns: {
