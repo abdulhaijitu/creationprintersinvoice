@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { OrgRole } from '@/lib/roles';
 
 // Storage key for impersonation - must match ImpersonationContext
 const IMPERSONATION_STORAGE_KEY = 'printosaas_impersonation';
@@ -8,7 +9,8 @@ const IMPERSONATION_STORAGE_KEY = 'printosaas_impersonation';
 // Storage key for active org selection (multi-org users)
 const ACTIVE_ORG_STORAGE_KEY = 'printosaas_active_organization_id';
 
-export type OrgRole = 'owner' | 'manager' | 'accounts' | 'staff';
+// Re-export OrgRole for backward compatibility
+export type { OrgRole } from '@/lib/roles';
 export type SubscriptionPlan = 'free' | 'basic' | 'pro' | 'enterprise';
 export type SubscriptionStatus = 'trial' | 'active' | 'suspended' | 'cancelled' | 'expired';
 

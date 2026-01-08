@@ -5,7 +5,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Plan features configuration (must match frontend)
+/**
+ * ROLE SYSTEM ARCHITECTURE
+ * 
+ * 1. System Role (super_admin) - Platform-level, stored in user_roles table
+ *    - Can manage organizations, plans, etc.
+ *    - CANNOT perform organization business operations unless impersonating
+ * 
+ * 2. Organization Roles (owner, admin, staff, viewer) - Stored in organization_members table
+ *    - Apply ONLY within their organization context
+ */
+
+// Organization role hierarchy
+const ORG_ROLE_HIERARCHY: Record<string, number> = {
+  owner: 100,
+  admin: 75,
+  staff: 50,
+  viewer: 25,
+};
+
+// Plan features configuration
 const planFeatures: Record<string, string[]> = {
   free: ['multi_user', 'team_management', 'notifications', 'delivery_challans', 'export_data'],
   basic: ['multi_user', 'team_management', 'notifications', 'delivery_challans', 'export_data', 'reports'],
@@ -13,19 +32,99 @@ const planFeatures: Record<string, string[]> = {
   enterprise: ['multi_user', 'team_management', 'notifications', 'delivery_challans', 'export_data', 'reports', 'analytics', 'audit_logs', 'advanced_invoicing', 'bulk_operations', 'priority_support', 'api_access', 'custom_branding', 'white_label'],
 };
 
-// Organization role permissions
-const orgPermissions: Record<string, Record<string, string[]>> = {
-  dashboard: { view: ['owner', 'manager', 'accounts', 'staff'] },
-  customers: { view: ['owner', 'manager', 'accounts', 'staff'], create: ['owner', 'manager', 'staff'], edit: ['owner', 'manager', 'staff'], delete: ['owner', 'manager'] },
-  invoices: { view: ['owner', 'manager', 'accounts', 'staff'], create: ['owner', 'manager', 'accounts'], edit: ['owner', 'manager', 'accounts'], delete: ['owner'] },
-  quotations: { view: ['owner', 'manager', 'accounts', 'staff'], create: ['owner', 'manager', 'staff'], edit: ['owner', 'manager', 'staff'], delete: ['owner', 'manager'] },
-  expenses: { view: ['owner', 'manager', 'accounts'], create: ['owner', 'manager', 'accounts'], edit: ['owner', 'manager', 'accounts'], delete: ['owner'] },
-  vendors: { view: ['owner', 'manager', 'accounts'], create: ['owner', 'manager', 'accounts'], edit: ['owner', 'manager', 'accounts'], delete: ['owner'] },
-  employees: { view: ['owner', 'manager'], create: ['owner'], edit: ['owner', 'manager'], delete: ['owner'] },
-  salary: { view: ['owner', 'accounts'], create: ['owner', 'accounts'], edit: ['owner', 'accounts'], delete: ['owner'] },
-  settings: { view: ['owner'], edit: ['owner'] },
-  billing: { view: ['owner'], edit: ['owner'] },
-  team_members: { view: ['owner', 'manager'], create: ['owner'], edit: ['owner'], delete: ['owner'] },
+// Organization permission matrix - single source of truth for server-side enforcement
+const ORG_PERMISSION_MATRIX: Record<string, Record<string, string[]>> = {
+  dashboard: { view: ['owner', 'admin', 'staff', 'viewer'], create: [], edit: [], delete: [] },
+  customers: { 
+    view: ['owner', 'admin', 'staff', 'viewer'], 
+    create: ['owner', 'admin', 'staff'], 
+    edit: ['owner', 'admin', 'staff'], 
+    delete: ['owner', 'admin'] 
+  },
+  invoices: { 
+    view: ['owner', 'admin', 'staff', 'viewer'], 
+    create: ['owner', 'admin', 'staff'], 
+    edit: ['owner', 'admin', 'staff'], 
+    delete: ['owner'] 
+  },
+  quotations: { 
+    view: ['owner', 'admin', 'staff', 'viewer'], 
+    create: ['owner', 'admin', 'staff'], 
+    edit: ['owner', 'admin', 'staff'], 
+    delete: ['owner', 'admin'] 
+  },
+  expenses: { 
+    view: ['owner', 'admin', 'staff'], 
+    create: ['owner', 'admin', 'staff'], 
+    edit: ['owner', 'admin'], 
+    delete: ['owner'] 
+  },
+  vendors: { 
+    view: ['owner', 'admin', 'staff'], 
+    create: ['owner', 'admin', 'staff'], 
+    edit: ['owner', 'admin'], 
+    delete: ['owner'] 
+  },
+  delivery_challans: { 
+    view: ['owner', 'admin', 'staff', 'viewer'], 
+    create: ['owner', 'admin', 'staff'], 
+    edit: ['owner', 'admin', 'staff'], 
+    delete: ['owner', 'admin'] 
+  },
+  employees: { 
+    view: ['owner', 'admin'], 
+    create: ['owner', 'admin'], 
+    edit: ['owner', 'admin'], 
+    delete: ['owner'] 
+  },
+  attendance: { 
+    view: ['owner', 'admin', 'staff'], 
+    create: ['owner', 'admin'], 
+    edit: ['owner', 'admin'], 
+    delete: ['owner'] 
+  },
+  salary: { 
+    view: ['owner', 'admin'], 
+    create: ['owner'], 
+    edit: ['owner'], 
+    delete: ['owner'] 
+  },
+  leave: { 
+    view: ['owner', 'admin', 'staff'], 
+    create: ['owner', 'admin', 'staff'], 
+    edit: ['owner', 'admin'], 
+    delete: ['owner'] 
+  },
+  tasks: { 
+    view: ['owner', 'admin', 'staff'], 
+    create: ['owner', 'admin', 'staff'], 
+    edit: ['owner', 'admin', 'staff'], 
+    delete: ['owner', 'admin'] 
+  },
+  reports: { 
+    view: ['owner', 'admin'], 
+    create: ['owner', 'admin'], 
+    edit: [], 
+    delete: [] 
+  },
+  settings: { 
+    view: ['owner', 'admin'], 
+    create: ['owner'], 
+    edit: ['owner'], 
+    delete: ['owner'] 
+  },
+  team_members: { 
+    view: ['owner', 'admin'], 
+    create: ['owner'], 
+    edit: ['owner'], 
+    delete: ['owner'] 
+  },
+  billing: { 
+    view: ['owner'], 
+    create: ['owner'], 
+    edit: ['owner'], 
+    delete: ['owner'] 
+  },
 };
 
 interface AccessCheckRequest {
@@ -33,6 +132,20 @@ interface AccessCheckRequest {
   module?: string;
   action?: string;
   organizationId: string;
+  isImpersonating?: boolean;
+}
+
+interface AccessCheckResponse {
+  hasAccess: boolean;
+  isSuperAdmin?: boolean;
+  isImpersonating?: boolean;
+  orgRole?: string;
+  plan?: string;
+  blockedByPlan?: boolean;
+  blockedByRole?: boolean;
+  requiredPlan?: string;
+  error?: string;
+  message?: string;
 }
 
 Deno.serve(async (req) => {
@@ -55,34 +168,45 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    // Get user from token
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (claimsError || !claimsData?.claims) {
+    if (userError || !user) {
       return new Response(
         JSON.stringify({ error: 'Invalid token', hasAccess: false }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claimsData.claims.sub;
-    const { feature, module, action = 'view', organizationId }: AccessCheckRequest = await req.json();
+    const userId = user.id;
+    const { feature, module, action = 'view', organizationId, isImpersonating }: AccessCheckRequest = await req.json();
 
-    // Check if user is super_admin (bypasses all checks)
+    // Step 1: Check if user is super_admin (system-level role)
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
       .single();
 
-    if (roleData?.role === 'super_admin') {
+    const isSuperAdmin = roleData?.role === 'super_admin';
+
+    // Super Admin Logic:
+    // - If impersonating, allow access to org operations
+    // - If NOT impersonating, only allow system-level operations
+    if (isSuperAdmin && !isImpersonating) {
+      // Super admin without impersonation can only access system-level features
+      // They should NOT be able to perform org-level operations directly
       return new Response(
-        JSON.stringify({ hasAccess: true, isSuperAdmin: true }),
+        JSON.stringify({ 
+          hasAccess: true, 
+          isSuperAdmin: true,
+          message: 'Super admin access (system level only)'
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get organization membership
+    // Step 2: For organization-level access, check membership
     const { data: membership, error: membershipError } = await supabase
       .from('organization_members')
       .select('role')
@@ -90,47 +214,48 @@ Deno.serve(async (req) => {
       .eq('organization_id', organizationId)
       .single();
 
-    if (membershipError || !membership) {
+    // If super admin is impersonating, use synthetic owner role
+    const orgRole = isSuperAdmin && isImpersonating ? 'owner' : membership?.role;
+
+    if (!orgRole && !isSuperAdmin) {
       return new Response(
         JSON.stringify({ 
           error: 'Not a member of this organization', 
           hasAccess: false,
-          blockedByRole: true 
+          blockedByRole: true,
+          message: 'You are not a member of this organization.'
         }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const orgRole = membership.role;
-
-    // Get subscription
+    // Step 3: Check subscription status
     const { data: subscription } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('organization_id', organizationId)
       .single();
 
-    // Check subscription status
     const isTrialExpired = subscription?.status === 'expired' || 
       (subscription?.status === 'trial' && subscription?.trial_ends_at && new Date(subscription.trial_ends_at) < new Date());
     
     const isSubscriptionActive = subscription?.status === 'active' || 
       (subscription?.status === 'trial' && !isTrialExpired);
 
-    // If subscription is not active, block write operations
+    // Block write operations if subscription is not active
     if (!isSubscriptionActive && action !== 'view') {
       return new Response(
         JSON.stringify({ 
           error: 'Subscription expired', 
           hasAccess: false,
           blockedByPlan: true,
-          message: 'Your subscription has expired. Please upgrade to continue.'
+          message: 'Your subscription has expired. Please renew to continue.'
         }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check plan feature if specified
+    // Step 4: Check plan feature if specified
     if (feature) {
       const plan = subscription?.plan || 'free';
       const allowedFeatures = planFeatures[plan] || planFeatures.free;
@@ -149,9 +274,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Check module permission if specified
-    if (module) {
-      const modulePerms = orgPermissions[module];
+    // Step 5: Check module permission if specified
+    if (module && orgRole) {
+      const modulePerms = ORG_PERMISSION_MATRIX[module];
       if (modulePerms) {
         const allowedRoles = modulePerms[action] || [];
         if (!allowedRoles.includes(orgRole)) {
@@ -160,7 +285,7 @@ Deno.serve(async (req) => {
               error: 'Permission denied', 
               hasAccess: false,
               blockedByRole: true,
-              message: `You don't have permission to ${action} ${module}.`
+              message: `You don't have permission to ${action} ${module.replace('_', ' ')}.`
             }),
             { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
@@ -168,8 +293,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Success response
+    const response: AccessCheckResponse = {
+      hasAccess: true,
+      orgRole,
+      plan: subscription?.plan,
+    };
+
+    if (isSuperAdmin && isImpersonating) {
+      response.isSuperAdmin = true;
+      response.isImpersonating = true;
+    }
+
     return new Response(
-      JSON.stringify({ hasAccess: true, orgRole, plan: subscription?.plan }),
+      JSON.stringify(response),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
