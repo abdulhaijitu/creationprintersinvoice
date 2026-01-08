@@ -8,6 +8,12 @@ interface BrandingContextType {
   isLoaded: boolean;
   applyBranding: () => void;
   resetBranding: () => void;
+  /** Resolved app name: org-specific if white-label enabled, otherwise fallback to PrintoSaas */
+  appName: string;
+  /** Resolved app tagline */
+  appTagline: string;
+  /** Full app title (name + tagline) */
+  fullAppTitle: string;
 }
 
 const defaultBranding: BrandingSettings = {
@@ -121,7 +127,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // Update document title
     if (branding.app_name) {
-      document.title = branding.app_name;
+      document.title = `${branding.app_name} - ${APP_CONFIG.tagline}`;
     }
   };
 
@@ -153,8 +159,21 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [branding, isLoaded, isWhiteLabelEnabled]);
 
+  // Resolved app name: use org-specific name if white-label enabled and configured
+  const appName = (isWhiteLabelEnabled && branding.app_name) ? branding.app_name : APP_CONFIG.name;
+  const appTagline = APP_CONFIG.tagline;
+  const fullAppTitle = `${appName} - ${appTagline}`;
+
   return (
-    <BrandingContext.Provider value={{ branding, isLoaded, applyBranding, resetBranding }}>
+    <BrandingContext.Provider value={{ 
+      branding, 
+      isLoaded, 
+      applyBranding, 
+      resetBranding,
+      appName,
+      appTagline,
+      fullAppTitle,
+    }}>
       {children}
     </BrandingContext.Provider>
   );

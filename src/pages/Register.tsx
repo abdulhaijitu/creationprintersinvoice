@@ -7,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Mail, Lock, User, Phone } from 'lucide-react';
-import logo from '@/assets/logo.png';
-import { APP_CONFIG } from '@/lib/appConfig';
+import { useAuthPageBranding } from '@/hooks/useAuthPageBranding';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -18,6 +17,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const { appName, appTagline, logoUrl } = useAuthPageBranding();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,12 +44,12 @@ const Register = () => {
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
           <img 
-            src={logo} 
-            alt={APP_CONFIG.name}
+            src={logoUrl} 
+            alt={appName}
             className="h-16 w-auto mx-auto mb-4"
           />
-          <h1 className="text-2xl font-bold text-foreground">{APP_CONFIG.name}</h1>
-          <p className="text-muted-foreground mt-2">{APP_CONFIG.tagline}</p>
+          <h1 className="text-2xl font-bold text-foreground">{appName}</h1>
+          <p className="text-muted-foreground mt-2">{appTagline}</p>
         </div>
 
         <Card className="shadow-soft">

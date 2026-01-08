@@ -7,12 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Building2, ArrowRight, Sparkles } from 'lucide-react';
+import { useAuthPageBranding } from '@/hooks/useAuthPageBranding';
 
 const Onboarding = () => {
   const [businessName, setBusinessName] = useState('');
   const [loading, setLoading] = useState(false);
   const { createOrganization } = useOrganization();
   const navigate = useNavigate();
+  const { appName, appTagline } = useAuthPageBranding();
 
   const generateSlug = (name: string) => {
     return name
@@ -45,7 +47,7 @@ const Onboarding = () => {
         return;
       }
 
-      toast.success('Welcome to PrintoSaas!', {
+      toast.success(`Welcome to ${appName}!`, {
         description: `${organization?.name} has been created successfully.`
       });
       
@@ -64,9 +66,9 @@ const Onboarding = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
             <Sparkles className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Welcome to PrintoSaas</h1>
+          <h1 className="text-3xl font-bold text-foreground">Welcome to {appName}</h1>
           <p className="text-muted-foreground mt-2">
-            Printing Business Accounting - Let's set up your business in just a few seconds
+            {appTagline} - Let's set up your business in just a few seconds
           </p>
         </div>
 
