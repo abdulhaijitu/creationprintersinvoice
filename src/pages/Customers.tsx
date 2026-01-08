@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useSubscriptionGuard } from '@/hooks/useSubscriptionGuard';
 import { usePlanLimits } from '@/hooks/usePlanLimits';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -62,6 +64,8 @@ import CSVImportDialog from '@/components/import/CSVImportDialog';
 import { ImportResult } from '@/lib/importUtils';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { LimitReachedAlert } from '@/components/shared/LimitReachedAlert';
+import { BulkActionsBar } from '@/components/shared/BulkActionsBar';
+import { canRolePerform, OrgRole } from '@/lib/permissions/constants';
 
 interface Customer {
   id: string;
@@ -79,8 +83,8 @@ interface Customer {
 
 const Customers = () => {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
-  const { organization } = useOrganization();
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const { organization, orgRole } = useOrganization();
   const { isLocked, checkAccess } = useSubscriptionGuard();
   const { checkLimit, canCreate, getLimitMessage, refetch: refetchLimits } = usePlanLimits();
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -90,6 +94,8 @@ const Customers = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -99,7 +105,25 @@ const Customers = () => {
     notes: '',
   });
 
+  // Permission checks
+  const canBulkDelete = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'customers', 'delete');
+  const canBulkExport = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'customers', 'export');
+
   const clientLimit = checkLimit('clients');
+
+  // Bulk selection
+  const {
+    selectedIds,
+    selectedCount,
+    isAllSelected,
+    isSomeSelected,
+    toggleAll,
+    toggleItem,
+    isSelected,
+    clearSelection,
+    selectedItems,
+  } = useBulkSelection(customers);
+
   useEffect(() => {
     fetchCustomers();
   }, []);
@@ -208,6 +232,55 @@ const Customers = () => {
       console.error('Error deleting customer:', error);
       toast.error(error.message || 'Failed to delete');
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCount === 0) return;
+    
+    setBulkDeleting(true);
+    try {
+      const idsToDelete = Array.from(selectedIds);
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .in('id', idsToDelete);
+
+      if (error) throw error;
+      
+      toast.success(`${selectedCount} customer(s) deleted`);
+      clearSelection();
+      setBulkDeleteOpen(false);
+      fetchCustomers();
+    } catch (error: any) {
+      console.error('Error bulk deleting:', error);
+      toast.error(error.message || 'Failed to delete customers');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleBulkExport = (format: 'csv' | 'excel') => {
+    if (selectedCount === 0) {
+      toast.error('No customers selected');
+      return;
+    }
+    
+    const exportData = selectedItems.map(c => ({
+      name: c.name,
+      phone: c.phone || '',
+      email: c.email || '',
+      company_name: c.company_name || '',
+      address: c.address || '',
+      notes: c.notes || '',
+    }));
+
+    if (format === 'csv') {
+      exportToCSV(exportData, 'customers-selected', customerHeaders);
+    } else {
+      exportToExcel(exportData, 'customers-selected', customerHeaders);
+    }
+    toast.success(`Exported ${selectedCount} customer(s)`);
+    clearSelection();
   };
 
   const resetForm = () => {
@@ -591,10 +664,22 @@ const Customers = () => {
                   {filteredCustomers.map((customer) => (
                     <div
                       key={customer.id}
-                      className="p-4 hover:bg-muted/30 transition-colors duration-150 cursor-pointer"
+                      className={cn(
+                        "p-4 hover:bg-muted/30 transition-colors duration-150 cursor-pointer",
+                        isSelected(customer.id) && "bg-primary/10"
+                      )}
                       onClick={() => navigate(`/customers/${customer.id}`)}
                     >
                       <div className="flex items-start justify-between gap-3 mb-2">
+                        {(canBulkDelete || canBulkExport) && (
+                          <div onClick={(e) => e.stopPropagation()} className="pt-1">
+                            <Checkbox
+                              checked={isSelected(customer.id)}
+                              onCheckedChange={() => toggleItem(customer.id)}
+                              aria-label={`Select ${customer.name}`}
+                            />
+                          </div>
+                        )}
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-foreground truncate">{customer.name}</p>
                           <p className="text-sm text-muted-foreground truncate">
@@ -655,6 +740,16 @@ const Customers = () => {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        {(canBulkDelete || canBulkExport) && (
+                          <TableHead className="w-[40px] sticky top-0 bg-muted/30">
+                            <Checkbox
+                              checked={isAllSelected}
+                              onCheckedChange={toggleAll}
+                              aria-label="Select all"
+                              className={isSomeSelected ? 'data-[state=checked]:bg-primary/50' : ''}
+                            />
+                          </TableHead>
+                        )}
                         <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
                           Name
                         </TableHead>
@@ -685,10 +780,20 @@ const Customers = () => {
                           className={cn(
                             'transition-colors duration-150 cursor-pointer',
                             index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20',
-                            'hover:bg-primary/5'
+                            'hover:bg-primary/5',
+                            isSelected(customer.id) && 'bg-primary/10'
                           )}
                           onClick={() => navigate(`/customers/${customer.id}`)}
                         >
+                          {(canBulkDelete || canBulkExport) && (
+                            <TableCell className="w-[40px]" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={isSelected(customer.id)}
+                                onCheckedChange={() => toggleItem(customer.id)}
+                                aria-label={`Select ${customer.name}`}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell className="whitespace-nowrap">
                             <span className="font-semibold text-foreground">{customer.name}</span>
                           </TableCell>
@@ -850,6 +955,46 @@ const Customers = () => {
           variant="destructive"
           onConfirm={handleDelete}
         />
+
+        <ConfirmDialog
+          open={bulkDeleteOpen}
+          onOpenChange={setBulkDeleteOpen}
+          title="Delete Selected Customers"
+          description={`Are you sure you want to delete ${selectedCount} customer(s)? This action cannot be undone.`}
+          confirmLabel="Delete All"
+          variant="destructive"
+          onConfirm={handleBulkDelete}
+          loading={bulkDeleting}
+        />
+
+        {/* Bulk Actions Bar */}
+        {(canBulkDelete || canBulkExport) && (
+          <BulkActionsBar
+            selectedCount={selectedCount}
+            onClearSelection={clearSelection}
+            actions={[
+              ...(canBulkExport ? [{
+                id: 'export-csv',
+                label: 'Export CSV',
+                icon: Download,
+                onClick: () => handleBulkExport('csv'),
+              },
+              {
+                id: 'export-excel',
+                label: 'Export Excel',
+                icon: Download,
+                onClick: () => handleBulkExport('excel'),
+              }] : []),
+              ...(canBulkDelete ? [{
+                id: 'delete',
+                label: 'Delete',
+                icon: Trash2,
+                variant: 'destructive' as const,
+                onClick: () => setBulkDeleteOpen(true),
+              }] : []),
+            ]}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
