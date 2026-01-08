@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/lib/permissions/hooks";
-import { OrgRole, ORG_ROLE_DISPLAY, ALL_ORG_ROLES, PermissionModule, PERMISSION_MATRIX, MODULE_DISPLAY } from "@/lib/permissions/constants";
+import { OrgRole, ORG_ROLE_DISPLAY, ALL_ORG_ROLES } from "@/lib/permissions/constants";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -24,7 +24,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Search, 
   Users, 
@@ -33,14 +32,11 @@ import {
   UserCog,
   Save,
   Shield,
-  Eye,
-  Plus,
-  Edit,
-  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { EditablePermissionMatrix } from "@/components/permissions/EditablePermissionMatrix";
 
 interface UserWithRole {
   id: string;
@@ -404,60 +400,7 @@ const UserRoles = () => {
         </TabsContent>
 
         <TabsContent value="permissions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Permission Matrix</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="border rounded-lg overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="sticky left-0 bg-background z-10">Module</TableHead>
-                      <TableHead className="text-center">Action</TableHead>
-                      {ALL_ORG_ROLES.map((r) => (
-                        <TableHead key={r} className="text-center min-w-[100px]">
-                          {ORG_ROLE_DISPLAY[r]}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(Object.keys(PERMISSION_MATRIX) as PermissionModule[]).map((module) => {
-                      const actions = PERMISSION_MATRIX[module];
-                      return (['view', 'create', 'edit', 'delete'] as const).map((action, idx) => (
-                        <TableRow key={`${module}-${action}`}>
-                          {idx === 0 && (
-                            <TableCell rowSpan={4} className="font-medium sticky left-0 bg-background border-r">
-                              {MODULE_DISPLAY[module]}
-                            </TableCell>
-                          )}
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              {action === 'view' && <Eye className="h-3 w-3" />}
-                              {action === 'create' && <Plus className="h-3 w-3" />}
-                              {action === 'edit' && <Edit className="h-3 w-3" />}
-                              {action === 'delete' && <Trash2 className="h-3 w-3" />}
-                              <span className="text-xs capitalize">{action}</span>
-                            </div>
-                          </TableCell>
-                          {ALL_ORG_ROLES.map((role) => (
-                            <TableCell key={role} className="text-center">
-                              <Checkbox
-                                checked={actions[action]?.includes(role) ?? false}
-                                disabled
-                                className="mx-auto"
-                              />
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ));
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          <EditablePermissionMatrix />
         </TabsContent>
       </Tabs>
     </div>
