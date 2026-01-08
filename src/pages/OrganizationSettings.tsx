@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Building2, Upload, Save, Loader2, CreditCard, Crown, Users } from 'lucide-react';
 import { format } from 'date-fns';
+import { OwnershipTransferRequest } from '@/components/ownership/OwnershipTransferRequest';
+import { OwnershipHistory } from '@/components/ownership/OwnershipHistory';
 
 interface OrganizationSettings {
   name: string;
@@ -440,6 +442,10 @@ const OrganizationSettings = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Ownership Management - Only visible to org owners */}
+      <OwnershipTransferRequest />
+      <OwnershipHistory />
     </div>
   );
 };
