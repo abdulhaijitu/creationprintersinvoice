@@ -133,6 +133,7 @@ const Customers = () => {
       const { data: customersData, error } = await supabase
         .from('customers')
         .select('*')
+        .eq('is_deleted', false) // Exclude soft-deleted customers
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -240,14 +241,34 @@ const Customers = () => {
     setBulkDeleting(true);
     try {
       const idsToDelete = Array.from(selectedIds);
-      const { error } = await supabase
-        .from('customers')
-        .delete()
-        .in('id', idsToDelete);
+      
+      // Call edge function for safe bulk deletion
+      const { data, error } = await supabase.functions.invoke('bulk-delete-customers', {
+        body: { customerIds: idsToDelete },
+      });
 
       if (error) throw error;
       
-      toast.success(`${selectedCount} customer(s) deleted`);
+      const { summary } = data;
+      
+      // Build success message
+      const messages: string[] = [];
+      if (summary.archived > 0) {
+        messages.push(`${summary.archived} customer(s) archived (have linked invoices/challans)`);
+      }
+      if (summary.deleted > 0) {
+        messages.push(`${summary.deleted} customer(s) permanently deleted`);
+      }
+      if (summary.failed > 0) {
+        messages.push(`${summary.failed} failed`);
+      }
+      
+      if (summary.archived > 0 || summary.deleted > 0) {
+        toast.success(messages.join(', '));
+      } else if (summary.failed > 0) {
+        toast.error('Failed to delete customers');
+      }
+      
       clearSelection();
       setBulkDeleteOpen(false);
       fetchCustomers();
