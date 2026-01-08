@@ -415,8 +415,19 @@ const Employees = () => {
               </TableRow>
             ) : filteredEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  No employees found
+                <TableCell colSpan={7} className="py-0">
+                  <EmptyState
+                    icon={Users}
+                    title="No employees found"
+                    description={searchTerm 
+                      ? "Try adjusting your search criteria" 
+                      : "Add your first employee to manage your workforce"}
+                    action={isAdmin && !searchTerm ? {
+                      label: "Add Employee",
+                      onClick: () => setIsDialogOpen(true),
+                      icon: UserPlus,
+                    } : undefined}
+                  />
                 </TableCell>
               </TableRow>
             ) : (

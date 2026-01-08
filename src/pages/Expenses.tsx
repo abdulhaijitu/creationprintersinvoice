@@ -40,8 +40,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Plus, Search, Wallet, Calendar, Filter, Download, 
   Building2, Eye, Edit2, Phone, Mail, AlertCircle,
-  FileText, CreditCard, Receipt, Tag, Trash2
+  FileText, CreditCard, Receipt, Tag, Trash2, Users
 } from "lucide-react";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -1113,8 +1114,19 @@ const Expenses = () => {
                   </TableRow>
                 ) : filteredVendors.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No vendors found
+                    <TableCell colSpan={6} className="py-0">
+                      <EmptyState
+                        icon={Building2}
+                        title="No vendors found"
+                        description={vendorSearchTerm 
+                          ? "Try adjusting your search criteria" 
+                          : "Add your first vendor to start tracking purchases"}
+                        action={isAdmin && !vendorSearchTerm ? {
+                          label: "Add Vendor",
+                          onClick: () => setIsVendorDialogOpen(true),
+                          icon: Plus,
+                        } : undefined}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -1452,8 +1464,19 @@ const Expenses = () => {
                   </TableRow>
                 ) : filteredExpenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-muted-foreground">
-                      No expenses found
+                    <TableCell colSpan={isAdmin ? 7 : 6} className="py-0">
+                      <EmptyState
+                        illustration="expense"
+                        title="No expenses found"
+                        description={searchTerm || filterCategory !== "all" || filterVendor !== "all" 
+                          ? "Try adjusting your search or filter criteria" 
+                          : "Record your first expense to start tracking"}
+                        action={isAdmin && !searchTerm && filterCategory === "all" && filterVendor === "all" ? {
+                          label: "Add Expense",
+                          onClick: () => setIsExpenseDialogOpen(true),
+                          icon: Plus,
+                        } : undefined}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -1590,8 +1613,17 @@ const Expenses = () => {
                 Loading...
               </div>
             ) : categories.length === 0 ? (
-              <div className="col-span-full text-center py-8 text-muted-foreground">
-                No categories found
+              <div className="col-span-full">
+                <EmptyState
+                  icon={Tag}
+                  title="No categories yet"
+                  description="Create expense categories to organize your spending"
+                  action={isAdmin ? {
+                    label: "Add Category",
+                    onClick: () => setIsCategoryDialogOpen(true),
+                    icon: Plus,
+                  } : undefined}
+                />
               </div>
             ) : (
               categories.map((category) => (

@@ -35,6 +35,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import PermissionMatrix from "@/components/permissions/PermissionMatrix";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface UserWithRole {
   id: string;
@@ -302,8 +303,14 @@ const UserRoles = () => {
                   </TableRow>
                 ) : filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No users found
+                    <TableCell colSpan={7} className="py-0">
+                      <EmptyState
+                        icon={Users}
+                        title="No users found"
+                        description={searchTerm 
+                          ? "Try adjusting your search criteria" 
+                          : "Users will appear here when they join your organization"}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (
