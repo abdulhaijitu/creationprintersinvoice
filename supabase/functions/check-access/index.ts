@@ -6,18 +6,17 @@ const corsHeaders = {
 };
 
 /**
- * ROLE SYSTEM ARCHITECTURE
+ * EDGE-ENFORCED PERMISSION CHECK
  * 
+ * This is the AUTHORITATIVE permission check for all operations.
+ * Frontend checks are UX-only - this function enforces actual security.
+ * 
+ * ROLE SYSTEM:
  * 1. System Role (super_admin) - Platform-level, stored in user_roles table
- *    - Can manage organizations, plans, etc.
- *    - CANNOT perform organization business operations unless impersonating
- * 
- * 2. Organization Roles (owner, manager, accounts, staff) - Stored in organization_members table
- *    - Apply ONLY within their organization context
+ * 2. Organization Roles (owner, manager, accounts, staff) - Per-org, in organization_members table
  */
 
-// Organization role hierarchy - MUST match database enum 'org_role'
-// Values: owner, manager, accounts, staff
+// Organization role hierarchy - MUST match frontend constants
 const ORG_ROLE_HIERARCHY: Record<string, number> = {
   owner: 100,
   manager: 75,
@@ -33,99 +32,129 @@ const planFeatures: Record<string, string[]> = {
   enterprise: ['multi_user', 'team_management', 'notifications', 'delivery_challans', 'export_data', 'reports', 'analytics', 'audit_logs', 'advanced_invoicing', 'bulk_operations', 'priority_support', 'api_access', 'custom_branding', 'white_label'],
 };
 
-// Organization permission matrix - MUST match database enum 'org_role'
-// Available roles: owner, manager, accounts, staff
-const ORG_PERMISSION_MATRIX: Record<string, Record<string, string[]>> = {
-  dashboard: { view: ['owner', 'manager', 'accounts', 'staff'], create: [], edit: [], delete: [] },
+/**
+ * EDGE-ENFORCED PERMISSION MATRIX
+ * This MUST be the single source of truth for permissions.
+ * Frontend permission matrix must mirror this exactly.
+ */
+const PERMISSION_MATRIX: Record<string, Record<string, string[]>> = {
+  dashboard: { 
+    view: ['owner', 'manager', 'accounts', 'staff'] 
+  },
   customers: { 
     view: ['owner', 'manager', 'accounts', 'staff'], 
     create: ['owner', 'manager', 'staff'], 
     edit: ['owner', 'manager', 'staff'], 
-    delete: ['owner', 'manager'] 
+    delete: ['owner', 'manager'],
+    bulk: ['owner', 'manager'],
+    import: ['owner', 'manager'],
+    export: ['owner', 'manager'],
   },
   invoices: { 
     view: ['owner', 'manager', 'accounts', 'staff'], 
-    create: ['owner', 'manager', 'accounts'], 
-    edit: ['owner', 'manager', 'accounts'], 
-    delete: ['owner'] 
+    create: ['owner', 'manager', 'accounts', 'staff'], 
+    edit: ['owner', 'manager', 'accounts', 'staff'], 
+    delete: ['owner', 'manager'],
+    bulk: ['owner', 'manager'],
+    import: ['owner', 'manager'],
+    export: ['owner', 'manager'],
   },
   quotations: { 
     view: ['owner', 'manager', 'accounts', 'staff'], 
     create: ['owner', 'manager', 'staff'], 
     edit: ['owner', 'manager', 'staff'], 
-    delete: ['owner', 'manager'] 
+    delete: ['owner', 'manager'],
+    bulk: ['owner', 'manager'],
+    import: ['owner', 'manager'],
+    export: ['owner', 'manager'],
   },
   expenses: { 
     view: ['owner', 'manager', 'accounts'], 
     create: ['owner', 'manager', 'accounts'], 
     edit: ['owner', 'manager'], 
-    delete: ['owner'] 
+    delete: ['owner'],
+    bulk: ['owner', 'manager'],
+    import: ['owner', 'manager'],
+    export: ['owner', 'manager'],
   },
   vendors: { 
     view: ['owner', 'manager', 'accounts'], 
     create: ['owner', 'manager', 'accounts'], 
     edit: ['owner', 'manager'], 
-    delete: ['owner'] 
+    delete: ['owner'],
+    bulk: ['owner', 'manager'],
+    import: ['owner', 'manager'],
+    export: ['owner', 'manager'],
   },
   delivery_challans: { 
     view: ['owner', 'manager', 'accounts', 'staff'], 
     create: ['owner', 'manager', 'staff'], 
     edit: ['owner', 'manager', 'staff'], 
-    delete: ['owner', 'manager'] 
+    delete: ['owner', 'manager'],
+    bulk: ['owner', 'manager'],
+    export: ['owner', 'manager'],
   },
   employees: { 
     view: ['owner', 'manager'], 
     create: ['owner', 'manager'], 
     edit: ['owner', 'manager'], 
-    delete: ['owner'] 
+    delete: ['owner'],
+    bulk: ['owner'],
+    import: ['owner'],
+    export: ['owner', 'manager'],
   },
   attendance: { 
     view: ['owner', 'manager', 'staff'], 
     create: ['owner', 'manager'], 
     edit: ['owner', 'manager'], 
-    delete: ['owner'] 
+    delete: ['owner'],
+    bulk: ['owner'],
+    export: ['owner', 'manager'],
   },
   salary: { 
     view: ['owner', 'accounts'], 
     create: ['owner'], 
     edit: ['owner'], 
-    delete: ['owner'] 
+    delete: ['owner'],
+    export: ['owner'],
   },
   leave: { 
     view: ['owner', 'manager', 'staff'], 
     create: ['owner', 'manager', 'staff'], 
     edit: ['owner', 'manager'], 
-    delete: ['owner'] 
+    delete: ['owner'],
   },
   tasks: { 
     view: ['owner', 'manager', 'staff'], 
     create: ['owner', 'manager', 'staff'], 
     edit: ['owner', 'manager', 'staff'], 
-    delete: ['owner', 'manager'] 
+    delete: ['owner', 'manager'],
   },
   reports: { 
     view: ['owner', 'manager'], 
-    create: ['owner', 'manager'], 
-    edit: [], 
-    delete: [] 
+    export: ['owner', 'manager'],
   },
   settings: { 
     view: ['owner', 'manager'], 
-    create: ['owner'], 
-    edit: ['owner'], 
-    delete: ['owner'] 
+    edit: ['owner'],
   },
   team_members: { 
     view: ['owner', 'manager'], 
     create: ['owner'], 
     edit: ['owner'], 
-    delete: ['owner'] 
+    delete: ['owner'],
   },
   billing: { 
     view: ['owner'], 
-    create: ['owner'], 
-    edit: ['owner'], 
-    delete: ['owner'] 
+    edit: ['owner'],
+  },
+  white_label: { 
+    view: ['owner'], 
+    edit: ['owner'],
+  },
+  analytics: { 
+    view: ['owner', 'manager'], 
+    export: ['owner', 'manager'],
   },
 };
 
@@ -193,11 +222,26 @@ Deno.serve(async (req) => {
     const isSuperAdmin = roleData?.role === 'super_admin';
 
     // Super Admin Logic:
-    // - If impersonating, allow access to org operations
-    // - If NOT impersonating, only allow system-level operations
+    // - Super admin can ONLY perform system-level operations
+    // - They CANNOT perform org-level operations unless impersonating
+    // - When impersonating, they get 'owner' role for that org
     if (isSuperAdmin && !isImpersonating) {
-      // Super admin without impersonation can only access system-level features
-      // They should NOT be able to perform org-level operations directly
+      // Super admin without impersonation - only system-level access
+      // Block org-level operations (like invoice create/edit/delete)
+      if (module && PERMISSION_MATRIX[module]) {
+        console.log(`Super admin blocked from org operation: ${module}/${action} without impersonation`);
+        return new Response(
+          JSON.stringify({ 
+            hasAccess: false, 
+            isSuperAdmin: true,
+            blockedByRole: true,
+            message: 'Super admins must impersonate to perform organization operations'
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Allow system-level operations
       return new Response(
         JSON.stringify({ 
           hasAccess: true, 
@@ -208,8 +252,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 2: For organization-level access, check membership
-    // CRITICAL: This is the SINGLE SOURCE OF TRUTH for org role
+    // Step 2: Get organization membership (SINGLE SOURCE OF TRUTH for org role)
     const { data: membership, error: membershipError } = await supabase
       .from('organization_members')
       .select('role')
@@ -225,8 +268,8 @@ Deno.serve(async (req) => {
     // Otherwise, use the role from organization_members (SINGLE SOURCE OF TRUTH)
     const orgRole = isSuperAdmin && isImpersonating ? 'owner' : membership?.role;
 
-    // Log role resolution for debugging
-    console.log(`Role resolution: userId=${userId}, orgId=${organizationId}, isSuperAdmin=${isSuperAdmin}, isImpersonating=${isImpersonating}, resolvedRole=${orgRole}`);
+    // Log for debugging
+    console.log(`[check-access] userId=${userId}, orgId=${organizationId}, module=${module}, action=${action}, isSuperAdmin=${isSuperAdmin}, isImpersonating=${isImpersonating}, resolvedRole=${orgRole}`);
 
     if (!orgRole && !isSuperAdmin) {
       return new Response(
@@ -287,10 +330,11 @@ Deno.serve(async (req) => {
 
     // Step 5: Check module permission if specified
     if (module && orgRole) {
-      const modulePerms = ORG_PERMISSION_MATRIX[module];
+      const modulePerms = PERMISSION_MATRIX[module];
       if (modulePerms) {
         const allowedRoles = modulePerms[action] || [];
         if (!allowedRoles.includes(orgRole)) {
+          console.log(`[check-access] DENIED: role=${orgRole} cannot ${action} on ${module}. Allowed: ${allowedRoles.join(', ')}`);
           return new Response(
             JSON.stringify({ 
               error: 'Permission denied', 
