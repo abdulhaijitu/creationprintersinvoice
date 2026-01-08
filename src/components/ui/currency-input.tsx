@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { NumericInput, parseNumericValue, formatNumericDisplay } from "./numeric-input";
 
-interface CurrencyInputProps
+export interface CurrencyInputProps
   extends Omit<React.ComponentProps<"input">, "onChange" | "value" | "type"> {
   /** Numeric value (stored as number in parent) */
   value: number;
