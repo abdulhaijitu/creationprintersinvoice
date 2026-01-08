@@ -4,6 +4,20 @@ import { useAuth } from './AuthContext';
 import { useEnhancedAudit } from '@/hooks/useEnhancedAudit';
 import { toast } from 'sonner';
 
+/**
+ * IMPERSONATION SECURITY RULES:
+ * 
+ * 1. Only Super Admins can impersonate
+ * 2. Impersonation is TEMPORARY and session-based only
+ * 3. Impersonation NEVER modifies database roles
+ * 4. All impersonation actions are logged
+ * 5. Impersonation ends automatically on:
+ *    - Logout
+ *    - Session timeout
+ *    - Browser close (session storage)
+ *    - Explicit exit
+ */
+
 interface ImpersonationTarget {
   organizationId: string;
   organizationName: string;
@@ -32,6 +46,7 @@ interface ImpersonationContextType {
 }
 
 const STORAGE_KEY = 'printosaas_impersonation';
+const MAX_IMPERSONATION_DURATION_MS = 4 * 60 * 60 * 1000; // 4 hours max
 
 const ImpersonationContext = createContext<ImpersonationContextType | undefined>(undefined);
 
@@ -52,7 +67,21 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
       if (stored) {
         const parsed = JSON.parse(stored);
         // Validate stored state
-        if (parsed.originalAdminId && parsed.target) {
+        if (parsed.originalAdminId && parsed.target && parsed.startedAt) {
+          // Check if impersonation has exceeded max duration
+          const startedAt = new Date(parsed.startedAt).getTime();
+          const now = Date.now();
+          if (now - startedAt > MAX_IMPERSONATION_DURATION_MS) {
+            console.warn('Impersonation session expired, clearing state');
+            sessionStorage.removeItem(STORAGE_KEY);
+            return {
+              isImpersonating: false,
+              target: null,
+              originalAdminId: null,
+              originalAdminEmail: null,
+              startedAt: null,
+            };
+          }
           return parsed;
         }
       }
@@ -78,17 +107,61 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [state]);
 
   // Security check: Clear impersonation if user changes (session timeout, logout)
+  // or if user is no longer a super admin
   useEffect(() => {
-    if (!user && state.isImpersonating) {
-      setState({
-        isImpersonating: false,
-        target: null,
-        originalAdminId: null,
-        originalAdminEmail: null,
-        startedAt: null,
-      });
+    if (state.isImpersonating) {
+      // Clear if user logged out
+      if (!user) {
+        console.log('Clearing impersonation: user logged out');
+        setState({
+          isImpersonating: false,
+          target: null,
+          originalAdminId: null,
+          originalAdminEmail: null,
+          startedAt: null,
+        });
+        return;
+      }
+      
+      // Clear if user is no longer super admin
+      if (!isSuperAdmin) {
+        console.log('Clearing impersonation: user is no longer super admin');
+        setState({
+          isImpersonating: false,
+          target: null,
+          originalAdminId: null,
+          originalAdminEmail: null,
+          startedAt: null,
+        });
+        return;
+      }
     }
-  }, [user, state.isImpersonating]);
+  }, [user, isSuperAdmin, state.isImpersonating]);
+
+  // Periodic check for max duration
+  useEffect(() => {
+    if (!state.isImpersonating || !state.startedAt) return;
+    
+    const checkDuration = () => {
+      const startedAt = new Date(state.startedAt!).getTime();
+      const now = Date.now();
+      if (now - startedAt > MAX_IMPERSONATION_DURATION_MS) {
+        console.log('Impersonation session expired');
+        toast.warning('Impersonation session has expired');
+        setState({
+          isImpersonating: false,
+          target: null,
+          originalAdminId: null,
+          originalAdminEmail: null,
+          startedAt: null,
+        });
+      }
+    };
+    
+    // Check every 5 minutes
+    const interval = setInterval(checkDuration, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [state.isImpersonating, state.startedAt]);
 
   // Block access to admin routes while impersonating
   useEffect(() => {
