@@ -305,44 +305,66 @@ const Invoices = () => {
   ): Promise<ImportResult> => {
     let success = 0;
     let failed = 0;
+    let duplicates = 0;
     const errors: string[] = [];
+
+    // Pre-fetch existing customers for matching
+    const { data: existingCustomers } = await supabase
+      .from('customers')
+      .select('id, name')
+      .eq('organization_id', organization?.id);
+
+    const customerMap = new Map(
+      existingCustomers?.map(c => [c.name.toLowerCase(), c.id]) || []
+    );
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       onProgress?.(i + 1, data.length);
 
       try {
-        const customerName = row.customer_name || row['Customer Name'] || '';
-        const invoiceDateStr = row.invoice_date || row['Invoice Date'] || '';
-        const totalStr = row.total || row['Total Amount'] || '0';
-        const statusStr = (row.status || row['Status'] || 'unpaid').toLowerCase();
+        const customerName = (row.customer_name || row['Customer Name'] || row['customer'] || '').trim();
+        const invoiceDateStr = (row.invoice_date || row['Invoice Date'] || row['date'] || '').trim();
+        const totalStr = (row.total || row['Total Amount'] || row['amount'] || '0').trim();
+        const statusStr = (row.status || row['Status'] || 'unpaid').toLowerCase().trim();
 
-        // Generate invoice number using new org-based function
+        // Validate total amount
+        const total = parseFloat(totalStr.replace(/[৳$€£¥,\s]/g, '')) || 0;
+        if (total <= 0) {
+          failed++;
+          errors.push(`Row ${i + 2}: Invalid or zero total amount`);
+          continue;
+        }
+
+        // Generate invoice number using org-based function
         const { data: invoiceNumber, error: numError } = await supabase.rpc(
           'generate_org_invoice_number',
           { p_org_id: organization?.id }
         );
-        if (numError) throw numError;
+        if (numError) {
+          failed++;
+          errors.push(`Row ${i + 2}: Failed to generate invoice number`);
+          continue;
+        }
 
+        // Parse invoice date
         let invoiceDate = new Date().toISOString().split('T')[0];
         if (invoiceDateStr) {
-          const parts = invoiceDateStr.split('/');
-          if (parts.length === 3) {
-            invoiceDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          // Try DD/MM/YYYY format
+          const parts = invoiceDateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+          if (parts) {
+            invoiceDate = `${parts[3]}-${parts[2].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+          } else if (/^\d{4}-\d{2}-\d{2}$/.test(invoiceDateStr)) {
+            invoiceDate = invoiceDateStr;
           }
         }
 
+        // Find or create customer
         let customerId: string | null = null;
         if (customerName) {
-          const { data: existingCustomer } = await supabase
-            .from('customers')
-            .select('id')
-            .ilike('name', customerName)
-            .limit(1)
-            .single();
-
-          if (existingCustomer) {
-            customerId = existingCustomer.id;
+          const existingId = customerMap.get(customerName.toLowerCase());
+          if (existingId) {
+            customerId = existingId;
           } else {
             const { data: newCustomer, error: customerError } = await supabase
               .from('customers')
@@ -352,12 +374,14 @@ const Invoices = () => {
 
             if (!customerError && newCustomer) {
               customerId = newCustomer.id;
+              customerMap.set(customerName.toLowerCase(), newCustomer.id);
             }
           }
         }
 
-        const total = parseFloat(totalStr) || 0;
-        const status = ['unpaid', 'partial', 'paid'].includes(statusStr) 
+        // Validate and normalize status
+        const validStatuses = ['unpaid', 'partial', 'paid'];
+        const status = validStatuses.includes(statusStr) 
           ? statusStr as 'unpaid' | 'partial' | 'paid' 
           : 'unpaid';
         const paidAmount = status === 'paid' ? total : status === 'partial' ? total / 2 : 0;
@@ -375,13 +399,13 @@ const Invoices = () => {
 
         if (error) {
           failed++;
-          errors.push(`Row ${i + 1}: ${error.message}`);
+          errors.push(`Row ${i + 2}: ${error.message}`);
         } else {
           success++;
         }
       } catch (err) {
         failed++;
-        errors.push(`Row ${i + 1}: Unexpected error`);
+        errors.push(`Row ${i + 2}: Unexpected error`);
       }
     }
 
@@ -389,7 +413,7 @@ const Invoices = () => {
       fetchInvoices();
     }
 
-    return { success, failed, errors };
+    return { success, failed, errors, duplicates };
   };
 
   // Stats
