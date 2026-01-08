@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useOrganization } from './OrganizationContext';
 import { useWhiteLabel, BrandingSettings } from '@/hooks/useWhiteLabel';
+import { APP_CONFIG } from '@/lib/appConfig';
 
 interface BrandingContextType {
   branding: BrandingSettings;
@@ -140,7 +141,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
     
     // Reset title
-    document.title = 'Lovable App';
+    document.title = APP_CONFIG.fullTitle;
   };
 
   // Apply branding when it changes

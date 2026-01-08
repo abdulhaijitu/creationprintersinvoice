@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from 'sonner';
 import { Mail, Lock } from 'lucide-react';
 import logo from '@/assets/logo.png';
+import { APP_CONFIG } from '@/lib/appConfig';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -206,11 +207,11 @@ const Login = () => {
         <div className="text-center mb-8">
           <img 
             src={logo} 
-            alt="PrintoSaaS" 
+            alt={APP_CONFIG.name}
             className="h-16 w-auto mx-auto mb-4"
           />
-          <h1 className="text-2xl font-bold text-foreground">PrintoSaaS</h1>
-          <p className="text-muted-foreground mt-2">Printing Business Accounting</p>
+          <h1 className="text-2xl font-bold text-foreground">{APP_CONFIG.name}</h1>
+          <p className="text-muted-foreground mt-2">{APP_CONFIG.tagline}</p>
         </div>
 
         <Card className="shadow-soft">

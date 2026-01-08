@@ -55,7 +55,7 @@ const WelcomeScreen = ({ onComplete }: WelcomeScreenProps) => {
             <Sparkles className="h-10 w-10 text-primary" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-            Welcome to PrintoSaaS 👋
+            Welcome to PrintoSaas 👋
           </h1>
           <p className="text-lg text-muted-foreground">
             Great to have you here, <span className="font-medium text-foreground">{user?.user_metadata?.full_name || user?.email?.split('@')[0]}</span>!

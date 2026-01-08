@@ -187,7 +187,7 @@ const AcceptInvite = () => {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="w-full max-w-md animate-fade-in">
           <div className="text-center mb-8">
-            <img src={logo} alt="PrintoSaaS" className="h-16 w-auto mx-auto mb-4" />
+            <img src={logo} alt="PrintoSaas" className="h-16 w-auto mx-auto mb-4" />
           </div>
           
           <Card className="shadow-soft">
@@ -232,7 +232,7 @@ const AcceptInvite = () => {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="w-full max-w-md animate-fade-in">
           <div className="text-center mb-8">
-            <img src={logo} alt="PrintoSaaS" className="h-16 w-auto mx-auto mb-4" />
+            <img src={logo} alt="PrintoSaas" className="h-16 w-auto mx-auto mb-4" />
           </div>
           
           <Card className="shadow-soft">
@@ -259,8 +259,8 @@ const AcceptInvite = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <img src={logo} alt="PrintoSaaS" className="h-16 w-auto mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-foreground">PrintoSaaS</h1>
+          <img src={logo} alt="PrintoSaas" className="h-16 w-auto mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-foreground">PrintoSaas</h1>
         </div>
 
         <Card className="shadow-soft">

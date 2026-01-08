@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { format } from 'date-fns';
 import type { BillingInvoice } from '@/hooks/useBillingInvoices';
+import { APP_CONFIG } from '@/lib/appConfig';
 
 interface BillingInvoicePDFProps {
   invoice: BillingInvoice;
@@ -24,8 +25,8 @@ const BillingInvoicePDF = forwardRef<HTMLDivElement, BillingInvoicePDFProps>(
         {/* Header */}
         <div className="flex justify-between items-start border-b-2 border-primary pb-6 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-primary">PrintoSaaS</h1>
-            <p className="text-gray-600 mt-1">Business Management Platform</p>
+            <h1 className="text-3xl font-bold text-primary">{APP_CONFIG.name}</h1>
+            <p className="text-gray-600 mt-1">{APP_CONFIG.tagline}</p>
             <div className="mt-4 text-sm text-gray-600">
               <p>support@printosaas.com</p>
               <p>www.printosaas.com</p>
@@ -136,7 +137,7 @@ const BillingInvoicePDF = forwardRef<HTMLDivElement, BillingInvoicePDFProps>(
 
         {/* Footer */}
         <div className="border-t pt-6 text-center text-sm text-gray-500">
-          <p>Thank you for choosing PrintoSaaS!</p>
+          <p>Thank you for choosing {APP_CONFIG.name}!</p>
           <p className="mt-1">If you have any questions, please contact support@printosaas.com</p>
           <p className="mt-4 text-xs">
             This is a computer-generated invoice. No signature is required.
