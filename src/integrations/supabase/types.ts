@@ -2126,6 +2126,110 @@ export type Database = {
         }
         Relationships: []
       }
+      ownership_history: {
+        Row: {
+          action_type: string
+          actor_id: string
+          actor_type: string
+          created_at: string
+          id: string
+          new_owner_id: string | null
+          note: string | null
+          organization_id: string
+          previous_owner_id: string | null
+          transfer_request_id: string | null
+        }
+        Insert: {
+          action_type: string
+          actor_id: string
+          actor_type: string
+          created_at?: string
+          id?: string
+          new_owner_id?: string | null
+          note?: string | null
+          organization_id: string
+          previous_owner_id?: string | null
+          transfer_request_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          actor_id?: string
+          actor_type?: string
+          created_at?: string
+          id?: string
+          new_owner_id?: string | null
+          note?: string | null
+          organization_id?: string
+          previous_owner_id?: string | null
+          transfer_request_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ownership_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ownership_history_transfer_request_id_fkey"
+            columns: ["transfer_request_id"]
+            isOneToOne: false
+            referencedRelation: "ownership_transfer_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ownership_transfer_requests: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          organization_id: string
+          rejection_reason: string | null
+          requester_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          target_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id: string
+          rejection_reason?: string | null
+          requester_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id?: string
+          rejection_reason?: string | null
+          requester_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ownership_transfer_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       performance_notes: {
         Row: {
           created_at: string
