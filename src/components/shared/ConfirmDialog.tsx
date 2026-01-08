@@ -9,6 +9,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Progress } from '@/components/ui/progress';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ConfirmDialogProps {
@@ -22,6 +24,12 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   loading?: boolean;
   disabled?: boolean;
+  /** Progress state for bulk operations */
+  progress?: {
+    current: number;
+    total: number;
+    message?: string;
+  };
 }
 
 export function ConfirmDialog({
@@ -35,28 +43,60 @@ export function ConfirmDialog({
   onConfirm,
   loading = false,
   disabled = false,
+  progress,
 }: ConfirmDialogProps) {
+  const isProcessing = loading || (progress && progress.current > 0);
+  const progressPercent = progress ? Math.round((progress.current / progress.total) * 100) : 0;
+  
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={isProcessing ? undefined : onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3">
+              <span>{description}</span>
+              
+              {/* Progress indicator */}
+              {isProcessing && progress && (
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>
+                      {progress.message || `Deleting ${progress.current} of ${progress.total}...`}
+                    </span>
+                  </div>
+                  <Progress value={progressPercent} className="h-2" />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {progressPercent}% complete
+                  </p>
+                </div>
+              )}
+            </div>
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel disabled={isProcessing}>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
               onConfirm();
             }}
-            disabled={loading || disabled}
+            disabled={isProcessing || disabled}
             className={cn(
+              'gap-2',
               variant === 'destructive' &&
                 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
             )}
           >
-            {confirmLabel}
+            {isProcessing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              confirmLabel
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

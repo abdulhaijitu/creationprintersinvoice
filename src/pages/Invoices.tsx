@@ -83,6 +83,7 @@ const Invoices = () => {
   const [importOpen, setImportOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'delete' | 'markPaid' | null>(null);
+  const [deleteProgress, setDeleteProgress] = useState<{ current: number; total: number } | null>(null);
 
   const {
     selectedIds,
@@ -135,21 +136,57 @@ const Invoices = () => {
   };
 
   const handleBulkDelete = async () => {
+    const total = selectedItems.length;
+    let successCount = 0;
+    let failedCount = 0;
+    
+    setDeleteProgress({ current: 0, total });
+    
     try {
-      for (const item of selectedItems) {
-        await supabase.from('invoice_items').delete().eq('invoice_id', item.id);
-        await supabase.from('invoice_payments').delete().eq('invoice_id', item.id);
-        await supabase.from('invoices').delete().eq('id', item.id);
+      for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+        
+        try {
+          // Delete related records first
+          await supabase.from('invoice_items').delete().eq('invoice_id', item.id);
+          await supabase.from('invoice_payments').delete().eq('invoice_id', item.id);
+          
+          // Delete the invoice
+          const { error } = await supabase.from('invoices').delete().eq('id', item.id);
+          
+          if (error) {
+            failedCount++;
+            console.error(`Failed to delete invoice ${item.invoice_number}:`, error);
+          } else {
+            successCount++;
+          }
+        } catch (err) {
+          failedCount++;
+          console.error(`Error deleting invoice ${item.invoice_number}:`, err);
+        }
+        
+        // Update progress after each item
+        setDeleteProgress({ current: i + 1, total });
       }
-      toast.success(`${selectedCount} invoices deleted`);
+      
+      // Show appropriate toast based on results
+      if (failedCount === 0) {
+        toast.success(`${successCount} invoice${successCount !== 1 ? 's' : ''} deleted successfully`);
+      } else if (successCount > 0) {
+        toast.warning(`Deleted ${successCount} invoice(s). ${failedCount} failed.`);
+      } else {
+        toast.error('Failed to delete invoices. Please try again.');
+      }
+      
       clearSelection();
       fetchInvoices();
-    } catch (error) {
-      console.error('Error deleting invoices:', error);
-      toast.error('Failed to delete some invoices');
-    } finally {
-      setBulkAction(null);
       setDeleteDialogOpen(false);
+    } catch (error) {
+      console.error('Error during bulk delete:', error);
+      toast.error('Failed to delete invoices. Please try again.');
+    } finally {
+      setDeleteProgress(null);
+      setBulkAction(null);
     }
   };
 
@@ -784,6 +821,8 @@ const Invoices = () => {
           confirmLabel="Delete"
           variant="destructive"
           onConfirm={handleBulkDelete}
+          loading={deleteProgress !== null}
+          progress={deleteProgress ?? undefined}
         />
       </div>
     </TooltipProvider>
