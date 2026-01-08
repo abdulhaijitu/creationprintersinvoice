@@ -12,16 +12,17 @@ const corsHeaders = {
  *    - Can manage organizations, plans, etc.
  *    - CANNOT perform organization business operations unless impersonating
  * 
- * 2. Organization Roles (owner, admin, staff, viewer) - Stored in organization_members table
+ * 2. Organization Roles (owner, manager, accounts, staff) - Stored in organization_members table
  *    - Apply ONLY within their organization context
  */
 
-// Organization role hierarchy
+// Organization role hierarchy - MUST match database enum 'org_role'
+// Values: owner, manager, accounts, staff
 const ORG_ROLE_HIERARCHY: Record<string, number> = {
   owner: 100,
-  admin: 75,
-  staff: 50,
-  viewer: 25,
+  manager: 75,
+  accounts: 50,
+  staff: 25,
 };
 
 // Plan features configuration
@@ -32,89 +33,90 @@ const planFeatures: Record<string, string[]> = {
   enterprise: ['multi_user', 'team_management', 'notifications', 'delivery_challans', 'export_data', 'reports', 'analytics', 'audit_logs', 'advanced_invoicing', 'bulk_operations', 'priority_support', 'api_access', 'custom_branding', 'white_label'],
 };
 
-// Organization permission matrix - single source of truth for server-side enforcement
+// Organization permission matrix - MUST match database enum 'org_role'
+// Available roles: owner, manager, accounts, staff
 const ORG_PERMISSION_MATRIX: Record<string, Record<string, string[]>> = {
-  dashboard: { view: ['owner', 'admin', 'staff', 'viewer'], create: [], edit: [], delete: [] },
+  dashboard: { view: ['owner', 'manager', 'accounts', 'staff'], create: [], edit: [], delete: [] },
   customers: { 
-    view: ['owner', 'admin', 'staff', 'viewer'], 
-    create: ['owner', 'admin', 'staff'], 
-    edit: ['owner', 'admin', 'staff'], 
-    delete: ['owner', 'admin'] 
+    view: ['owner', 'manager', 'accounts', 'staff'], 
+    create: ['owner', 'manager', 'staff'], 
+    edit: ['owner', 'manager', 'staff'], 
+    delete: ['owner', 'manager'] 
   },
   invoices: { 
-    view: ['owner', 'admin', 'staff', 'viewer'], 
-    create: ['owner', 'admin', 'staff'], 
-    edit: ['owner', 'admin', 'staff'], 
+    view: ['owner', 'manager', 'accounts', 'staff'], 
+    create: ['owner', 'manager', 'accounts'], 
+    edit: ['owner', 'manager', 'accounts'], 
     delete: ['owner'] 
   },
   quotations: { 
-    view: ['owner', 'admin', 'staff', 'viewer'], 
-    create: ['owner', 'admin', 'staff'], 
-    edit: ['owner', 'admin', 'staff'], 
-    delete: ['owner', 'admin'] 
+    view: ['owner', 'manager', 'accounts', 'staff'], 
+    create: ['owner', 'manager', 'staff'], 
+    edit: ['owner', 'manager', 'staff'], 
+    delete: ['owner', 'manager'] 
   },
   expenses: { 
-    view: ['owner', 'admin', 'staff'], 
-    create: ['owner', 'admin', 'staff'], 
-    edit: ['owner', 'admin'], 
+    view: ['owner', 'manager', 'accounts'], 
+    create: ['owner', 'manager', 'accounts'], 
+    edit: ['owner', 'manager'], 
     delete: ['owner'] 
   },
   vendors: { 
-    view: ['owner', 'admin', 'staff'], 
-    create: ['owner', 'admin', 'staff'], 
-    edit: ['owner', 'admin'], 
+    view: ['owner', 'manager', 'accounts'], 
+    create: ['owner', 'manager', 'accounts'], 
+    edit: ['owner', 'manager'], 
     delete: ['owner'] 
   },
   delivery_challans: { 
-    view: ['owner', 'admin', 'staff', 'viewer'], 
-    create: ['owner', 'admin', 'staff'], 
-    edit: ['owner', 'admin', 'staff'], 
-    delete: ['owner', 'admin'] 
+    view: ['owner', 'manager', 'accounts', 'staff'], 
+    create: ['owner', 'manager', 'staff'], 
+    edit: ['owner', 'manager', 'staff'], 
+    delete: ['owner', 'manager'] 
   },
   employees: { 
-    view: ['owner', 'admin'], 
-    create: ['owner', 'admin'], 
-    edit: ['owner', 'admin'], 
+    view: ['owner', 'manager'], 
+    create: ['owner', 'manager'], 
+    edit: ['owner', 'manager'], 
     delete: ['owner'] 
   },
   attendance: { 
-    view: ['owner', 'admin', 'staff'], 
-    create: ['owner', 'admin'], 
-    edit: ['owner', 'admin'], 
+    view: ['owner', 'manager', 'staff'], 
+    create: ['owner', 'manager'], 
+    edit: ['owner', 'manager'], 
     delete: ['owner'] 
   },
   salary: { 
-    view: ['owner', 'admin'], 
+    view: ['owner', 'accounts'], 
     create: ['owner'], 
     edit: ['owner'], 
     delete: ['owner'] 
   },
   leave: { 
-    view: ['owner', 'admin', 'staff'], 
-    create: ['owner', 'admin', 'staff'], 
-    edit: ['owner', 'admin'], 
+    view: ['owner', 'manager', 'staff'], 
+    create: ['owner', 'manager', 'staff'], 
+    edit: ['owner', 'manager'], 
     delete: ['owner'] 
   },
   tasks: { 
-    view: ['owner', 'admin', 'staff'], 
-    create: ['owner', 'admin', 'staff'], 
-    edit: ['owner', 'admin', 'staff'], 
-    delete: ['owner', 'admin'] 
+    view: ['owner', 'manager', 'staff'], 
+    create: ['owner', 'manager', 'staff'], 
+    edit: ['owner', 'manager', 'staff'], 
+    delete: ['owner', 'manager'] 
   },
   reports: { 
-    view: ['owner', 'admin'], 
-    create: ['owner', 'admin'], 
+    view: ['owner', 'manager'], 
+    create: ['owner', 'manager'], 
     edit: [], 
     delete: [] 
   },
   settings: { 
-    view: ['owner', 'admin'], 
+    view: ['owner', 'manager'], 
     create: ['owner'], 
     edit: ['owner'], 
     delete: ['owner'] 
   },
   team_members: { 
-    view: ['owner', 'admin'], 
+    view: ['owner', 'manager'], 
     create: ['owner'], 
     edit: ['owner'], 
     delete: ['owner'] 
