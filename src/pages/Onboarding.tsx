@@ -66,7 +66,7 @@ const Onboarding = () => {
           </div>
           <h1 className="text-3xl font-bold text-foreground">Welcome to PrintoSaaS</h1>
           <p className="text-muted-foreground mt-2">
-            Let's set up your business in just a few seconds
+            Printing Business Accounting - Let's set up your business in just a few seconds
           </p>
         </div>
 

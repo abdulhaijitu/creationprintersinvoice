@@ -21,8 +21,8 @@ const PAGE_WALKTHROUGHS: Record<string, WalkthroughStep[]> = {
   dashboard: [
     {
       key: 'dashboard_intro',
-      title: 'Welcome to Your Dashboard',
-      description: 'This is your central hub for monitoring business performance. View key metrics, recent activities, and quick actions all in one place.',
+      title: 'Welcome to PrintoSaaS',
+      description: 'Your printing business accounting hub. View key metrics, recent activities, and quick actions all in one place.',
       position: 'bottom',
     },
     {
