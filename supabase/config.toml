@@ -35,3 +35,12 @@ verify_jwt = false
 
 [functions.handle-upgrade-request]
 verify_jwt = false
+
+[functions.uddoktapay-initiate]
+verify_jwt = false
+
+[functions.uddoktapay-webhook]
+verify_jwt = false
+
+[functions.uddoktapay-verify]
+verify_jwt = false
