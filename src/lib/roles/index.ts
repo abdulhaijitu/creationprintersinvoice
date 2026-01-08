@@ -5,34 +5,34 @@
  * 
  * ARCHITECTURE:
  * 1. System Roles (super_admin) - Platform-level, managed in user_roles table
- * 2. Organization Roles (owner, admin, staff, viewer) - Per-org, in organization_members table
+ * 2. Organization Roles (owner, manager, accounts, staff) - Per-org, in organization_members table
  * 
  * IMPORTANT:
  * - Frontend checks are for UX only (hiding/showing elements)
  * - All actual permission enforcement MUST happen in Edge Functions
+ * - Use src/lib/permissions as the single source of truth
  */
 
-// Type exports
+// Re-export everything from the centralized permission system
+export * from '@/lib/permissions/constants';
+export * from '@/lib/permissions/hooks';
+
+// Keep backward compatible type exports
 export type {
   SystemRole,
-  SystemCapability,
   OrgRole,
-  OrgAction,
   OrgModule,
+  OrgAction,
+  SystemCapability,
 } from './types';
 
-// Constant exports
 export {
-  SYSTEM_CAPABILITIES,
   ORG_ROLE_HIERARCHY,
   ORG_ROLE_DISPLAY,
   ORG_ROLE_DESCRIPTIONS,
   ORG_MODULE_DISPLAY,
   ORG_PERMISSION_MATRIX,
-} from './types';
-
-// Function exports
-export {
+  SYSTEM_CAPABILITIES,
   canOrgRolePerform,
   isRoleAtLeast,
   getRolesForAction,

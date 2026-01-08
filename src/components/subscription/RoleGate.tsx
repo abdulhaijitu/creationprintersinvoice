@@ -1,19 +1,28 @@
+/**
+ * RoleGate Component
+ * 
+ * Conditionally renders children based on user permissions.
+ * This is for UI/UX only - Edge Functions enforce actual security.
+ */
+
 import { ReactNode } from 'react';
-import { useFeatureAccess } from '@/hooks/useFeatureAccess';
-import { OrgModule, OrgAction, getOrgRoleDisplayName, PermissionKey } from '@/lib/orgPermissions';
-import { OrgRole } from '@/contexts/OrganizationContext';
-import { ShieldAlert, Building2 } from 'lucide-react';
+import { usePermissions } from '@/lib/permissions/hooks';
+import { 
+  PermissionModule, 
+  PermissionAction, 
+  OrgRole, 
+  ORG_ROLE_DISPLAY,
+  isRoleAtLeast,
+} from '@/lib/permissions/constants';
+import { ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 
 interface RoleGateProps {
   children: ReactNode;
-  /** Permission key for new permission system */
-  permissionKey?: PermissionKey;
-  /** Organization module for legacy permission check */
-  module?: OrgModule;
+  /** Organization module for permission check */
+  module?: PermissionModule;
   /** Action type for permission check */
-  action?: OrgAction;
+  action?: PermissionAction;
   /** Minimum org role required (alternative to module/action) */
   minRole?: OrgRole;
   /** Render nothing instead of blocked message */
@@ -26,11 +35,8 @@ interface RoleGateProps {
   fallback?: ReactNode;
 }
 
-const roleHierarchy: OrgRole[] = ['staff', 'accounts', 'manager', 'owner'];
-
 export const RoleGate = ({
   children,
-  permissionKey,
   module,
   action = 'view',
   minRole,
@@ -39,30 +45,21 @@ export const RoleGate = ({
   className,
   fallback,
 }: RoleGateProps) => {
-  const { checkOrgPermission, checkPermissionKey, orgRole, isSuperAdmin, hasCustomPermissions } = useFeatureAccess();
+  const { canPerform, hasMinRole, isSuperAdmin, orgRole } = usePermissions();
 
-  // Super Admin always has access
+  // Super Admin always has access when impersonating
   if (isSuperAdmin) {
     return <>{children}</>;
   }
 
-  // Check using new permission key if provided
-  if (permissionKey) {
-    const result = checkPermissionKey(permissionKey);
-    if (result.hasAccess) {
-      return <>{children}</>;
-    }
-  } else if (minRole && orgRole) {
-    // Check minimum role if specified
-    const currentRoleIndex = roleHierarchy.indexOf(orgRole);
-    const requiredRoleIndex = roleHierarchy.indexOf(minRole);
-    
-    if (currentRoleIndex >= requiredRoleIndex) {
+  // Check minimum role if specified
+  if (minRole) {
+    if (hasMinRole(minRole)) {
       return <>{children}</>;
     }
   } else if (module) {
-    // Check legacy module permission
-    const result = checkOrgPermission(module, action);
+    // Check module permission
+    const result = canPerform(module, action);
     if (result.hasAccess) {
       return <>{children}</>;
     }
@@ -72,22 +69,14 @@ export const RoleGate = ({
   if (hideWhenBlocked) return null;
   if (fallback) return <>{fallback}</>;
 
-  const requiredRole = minRole ? getOrgRoleDisplayName(minRole) : 'higher';
-  const message = hasCustomPermissions 
-    ? 'Access restricted by organization permissions.'
-    : `This requires ${requiredRole} access or above.`;
+  const requiredRole = minRole ? ORG_ROLE_DISPLAY[minRole] : 'higher';
+  const message = `This requires ${requiredRole} access or above.`;
 
   if (inline) {
     return (
       <span className={cn("text-muted-foreground text-sm flex items-center gap-1", className)}>
         <ShieldAlert className="h-3 w-3" />
         {message}
-        {hasCustomPermissions && (
-          <Badge variant="secondary" className="text-[10px] ml-1 gap-0.5 px-1 py-0">
-            <Building2 className="h-2.5 w-2.5" />
-            Custom
-          </Badge>
-        )}
       </span>
     );
   }
@@ -98,32 +87,51 @@ export const RoleGate = ({
       className
     )}>
       <ShieldAlert className="h-4 w-4 shrink-0" />
-      <span className="flex items-center gap-2">
-        {message}
-        {hasCustomPermissions && (
-          <Badge variant="secondary" className="text-[10px] gap-0.5 px-1 py-0">
-            <Building2 className="h-2.5 w-2.5" />
-            Custom
-          </Badge>
-        )}
-      </span>
+      <span>{message}</span>
     </div>
   );
 };
 
-// Simple hook alternative for conditional rendering
-export const useRoleCheck = (permissionKey?: PermissionKey, module?: OrgModule, action: OrgAction = 'view'): boolean => {
-  const { checkOrgPermission, checkPermissionKey, isSuperAdmin } = useFeatureAccess();
+/**
+ * Simple hook for checking permissions in conditional rendering
+ */
+export const useRoleCheck = (
+  module?: PermissionModule, 
+  action: PermissionAction = 'view',
+  minRole?: OrgRole
+): boolean => {
+  const { canPerform, hasMinRole, isSuperAdmin } = usePermissions();
   
   if (isSuperAdmin) return true;
   
-  if (permissionKey) {
-    return checkPermissionKey(permissionKey).hasAccess;
+  if (minRole) {
+    return hasMinRole(minRole);
   }
   
   if (module) {
-    return checkOrgPermission(module, action).hasAccess;
+    return canPerform(module, action).hasAccess;
   }
   
   return false;
+};
+
+/**
+ * Hook for bulk action permission check
+ */
+export const useBulkActionCheck = (module: PermissionModule): boolean => {
+  const { canPerform, isSuperAdmin } = usePermissions();
+  if (isSuperAdmin) return true;
+  return canPerform(module, 'bulk').hasAccess;
+};
+
+/**
+ * Hook for import/export permission check
+ */
+export const useImportExportCheck = (module: PermissionModule): { canImport: boolean; canExport: boolean } => {
+  const { canPerform, isSuperAdmin } = usePermissions();
+  if (isSuperAdmin) return { canImport: true, canExport: true };
+  return {
+    canImport: canPerform(module, 'import').hasAccess,
+    canExport: canPerform(module, 'export').hasAccess,
+  };
 };

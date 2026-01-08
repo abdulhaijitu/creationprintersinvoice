@@ -6,10 +6,10 @@
  * business operations (invoices, customers, etc.) unless explicitly impersonating.
  */
 
-import { SystemCapability, SYSTEM_CAPABILITIES } from './types';
+import { SUPER_ADMIN_CAPABILITIES, SuperAdminCapability } from '@/lib/permissions/constants';
 
 // All capabilities available to super_admin
-const SUPER_ADMIN_CAPABILITIES: SystemCapability[] = Object.values(SYSTEM_CAPABILITIES);
+const ALL_SUPER_ADMIN_CAPABILITIES: SuperAdminCapability[] = Object.values(SUPER_ADMIN_CAPABILITIES);
 
 /**
  * Check if a user has super_admin status
@@ -24,10 +24,10 @@ export function isSuperAdmin(systemRole: string | null): boolean {
  */
 export function hasSystemCapability(
   isSuper: boolean,
-  capability: SystemCapability
+  capability: SuperAdminCapability
 ): boolean {
   if (!isSuper) return false;
-  return SUPER_ADMIN_CAPABILITIES.includes(capability);
+  return ALL_SUPER_ADMIN_CAPABILITIES.includes(capability);
 }
 
 /**
@@ -73,6 +73,10 @@ export const ADMIN_PANEL_SECTIONS = {
   users: {
     label: 'Users',
     description: 'View and manage platform users',
+  },
+  'ownership-transfers': {
+    label: 'Ownership Transfers',
+    description: 'Review and approve ownership transfer requests',
   },
 } as const;
 
