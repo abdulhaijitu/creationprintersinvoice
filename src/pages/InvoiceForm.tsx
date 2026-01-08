@@ -58,17 +58,22 @@ const InvoiceForm = () => {
     tax: 0,
   });
 
-  const [items, setItems] = useState<InvoiceItem[]>([
-    { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, discount: 0, total: 0 },
-  ]);
+  // Initialize with empty array - will be populated by fetchInvoice for edit mode
+  // or a default item will be added in useEffect for create mode
+  const [items, setItems] = useState<InvoiceItem[]>([]);
 
   useEffect(() => {
     fetchCustomers();
     if (isEditing) {
       fetchInvoice();
+    } else {
+      // Only add default empty item for NEW invoices, not when editing
+      setItems([
+        { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, discount: 0, total: 0 },
+      ]);
     }
     // Invoice number is generated only on successful save, not on form open
-  }, [id]);
+  }, [id, isEditing]);
 
   const fetchCustomers = async () => {
     try {
