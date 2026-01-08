@@ -210,7 +210,7 @@ const Login = () => {
             className="h-16 w-auto mx-auto mb-4"
           />
           <h1 className="text-2xl font-bold text-foreground">PrintoSaaS</h1>
-          <p className="text-muted-foreground mt-2">Business Management Platform</p>
+          <p className="text-muted-foreground mt-2">Printing Business Accounting</p>
         </div>
 
         <Card className="shadow-soft">

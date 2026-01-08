@@ -42,11 +42,11 @@ const SuperAdminLogin = () => {
         <div className="text-center mb-8">
           <img 
             src={logo} 
-            alt="PrintoSaas" 
+            alt="PrintoSaaS" 
             className="h-14 w-auto mx-auto mb-4"
           />
-          <h1 className="text-2xl font-bold text-white">Platform Administration</h1>
-          <p className="text-slate-400 mt-2">Super Admin Access Only</p>
+          <h1 className="text-2xl font-bold text-white">PrintoSaaS Administration</h1>
+          <p className="text-slate-400 mt-2">Printing Business Accounting - Super Admin Access</p>
         </div>
 
         <Card className="bg-slate-800/50 border-slate-700">
