@@ -1,10 +1,12 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Input } from "./input";
+import { NumericInput, parseNumericValue, formatNumericDisplay } from "./numeric-input";
 
 interface CurrencyInputProps
   extends Omit<React.ComponentProps<"input">, "onChange" | "value" | "type"> {
+  /** Numeric value (stored as number in parent) */
   value: number;
+  /** Numeric onChange (parent receives number) */
   onChange: (value: number) => void;
   /** Number of decimal places (default: 2) */
   decimals?: number;
@@ -13,58 +15,28 @@ interface CurrencyInputProps
 }
 
 /**
- * CurrencyInput
+ * CurrencyInput - Wrapper around NumericInput for number-based APIs
  *
- * Cursor-safe numeric input:
- * - Uses isolated string state while typing (no number conversion, no formatting)
- * - Calls parent onChange ONLY on blur
- * - Never syncs from parent value while focused (prevents focus/caret jumps)
- * - Disables browser autocomplete/suggestions for amount fields
+ * Internally uses string state for cursor stability.
+ * Converts to/from number only on blur.
+ *
+ * Use this when parent state is a number.
+ * Use NumericInput directly when parent state is a string.
  */
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
   (
     { className, value, onChange, decimals = 2, formatOnBlur = true, onBlur, onFocus, ...props },
     ref,
   ) => {
+    // Internal string state for typing
     const [displayValue, setDisplayValue] = React.useState<string>("");
-
-    // Use a ref (not state) so "focused" is updated synchronously and cannot lag
     const isFocusedRef = React.useRef(false);
 
-    // Sync from numeric prop ONLY when not focused (never while typing)
+    // Sync from numeric prop ONLY when not focused
     React.useEffect(() => {
       if (isFocusedRef.current) return;
-
-      if (value === 0 || value === null || value === undefined) {
-        setDisplayValue("");
-        return;
-      }
-
-      setDisplayValue(formatOnBlur ? value.toFixed(decimals) : String(value));
-    }, [value, decimals, formatOnBlur]);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const next = e.target.value;
-
-      // Allow empty
-      if (next === "") {
-        setDisplayValue("");
-        return;
-      }
-
-      // Allow only valid numeric characters: digits, one decimal point, optional leading minus
-      if (!/^-?\d*\.?\d*$/.test(next)) return;
-
-      // Enforce decimal places limit
-      const dotIndex = next.indexOf(".");
-      if (dotIndex !== -1) {
-        const decimalPlaces = next.length - dotIndex - 1;
-        if (decimalPlaces > decimals) return;
-      }
-
-      // Store raw string only (NO conversion, NO formatting)
-      setDisplayValue(next);
-    };
+      setDisplayValue(formatNumericDisplay(value, decimals, true));
+    }, [value, decimals]);
 
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
       isFocusedRef.current = true;
@@ -74,30 +46,25 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
       isFocusedRef.current = false;
 
-      // Convert only on blur (commit)
-      const committed = parseFloat(displayValue) || 0;
+      // Convert and commit on blur
+      const committed = parseNumericValue(displayValue);
       onChange(committed);
 
-      // Optional display formatting on blur only
+      // Format for display
       if (formatOnBlur) {
-        setDisplayValue(committed === 0 ? "" : committed.toFixed(decimals));
+        setDisplayValue(formatNumericDisplay(committed, decimals, true));
       }
 
       onBlur?.(e);
     };
 
     return (
-      <Input
+      <NumericInput
         ref={ref}
-        type="text"
-        inputMode="decimal"
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="none"
-        spellCheck={false}
         className={cn("text-right", className)}
         value={displayValue}
-        onChange={handleChange}
+        onChange={setDisplayValue}
+        maxDecimals={decimals}
         onFocus={handleFocus}
         onBlur={handleBlur}
         {...props}

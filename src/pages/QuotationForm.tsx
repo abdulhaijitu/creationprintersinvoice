@@ -312,7 +312,7 @@ const QuotationForm = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} autoComplete="off">
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             <Card>
@@ -391,14 +391,14 @@ const QuotationForm = () => {
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="number"
+                            <CurrencyInput
                               value={item.quantity}
-                              onChange={(e) =>
-                                updateItem(item.id, 'quantity', Number(e.target.value))
+                              onChange={(val) =>
+                                updateItem(item.id, 'quantity', val)
                               }
+                              decimals={0}
+                              formatOnBlur={false}
                               className="text-center w-20"
-                              min={1}
                             />
                           </TableCell>
                           <TableCell>
