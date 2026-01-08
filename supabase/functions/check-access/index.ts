@@ -209,6 +209,7 @@ Deno.serve(async (req) => {
     }
 
     // Step 2: For organization-level access, check membership
+    // CRITICAL: This is the SINGLE SOURCE OF TRUTH for org role
     const { data: membership, error: membershipError } = await supabase
       .from('organization_members')
       .select('role')
@@ -216,8 +217,16 @@ Deno.serve(async (req) => {
       .eq('organization_id', organizationId)
       .single();
 
+    if (membershipError && membershipError.code !== 'PGRST116') {
+      console.error('Error fetching membership:', membershipError);
+    }
+
     // If super admin is impersonating, use synthetic owner role
+    // Otherwise, use the role from organization_members (SINGLE SOURCE OF TRUTH)
     const orgRole = isSuperAdmin && isImpersonating ? 'owner' : membership?.role;
+
+    // Log role resolution for debugging
+    console.log(`Role resolution: userId=${userId}, orgId=${organizationId}, isSuperAdmin=${isSuperAdmin}, isImpersonating=${isImpersonating}, resolvedRole=${orgRole}`);
 
     if (!orgRole && !isSuperAdmin) {
       return new Response(

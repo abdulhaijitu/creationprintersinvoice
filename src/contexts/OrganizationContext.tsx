@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { OrgRole } from '@/lib/roles';
@@ -8,6 +8,10 @@ const IMPERSONATION_STORAGE_KEY = 'printosaas_impersonation';
 
 // Storage key for active org selection (multi-org users)
 const ACTIVE_ORG_STORAGE_KEY = 'printosaas_active_organization_id';
+
+// Flag to track if we've already fetched during this session
+// This prevents race conditions but still allows fresh fetches on reload
+let sessionFetchCount = 0;
 
 // Re-export OrgRole for backward compatibility
 export type { OrgRole } from '@/lib/roles';
@@ -69,7 +73,7 @@ interface OrganizationContextType {
   isSubscriptionActive: boolean;
   isTrialExpired: boolean;
   daysRemaining: number | null;
-  refetchOrganization: () => Promise<void>;
+  refetchOrganization: (forceRefresh?: boolean) => Promise<void>;
   createOrganization: (name: string, slug: string) => Promise<{ error: Error | null; organization: Organization | null }>;
 }
 
@@ -82,6 +86,10 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [membership, setMembership] = useState<OrganizationMember | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  
+  // Track fetch to prevent duplicate calls but ensure fresh data on reload
+  const fetchInProgress = useRef(false);
+  const lastFetchUserId = useRef<string | null>(null);
 
   // Check for impersonation state from session storage
   const getImpersonationState = useCallback(() => {
@@ -99,15 +107,30 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return null;
   }, []);
 
-  const fetchOrganization = async () => {
+  const fetchOrganization = useCallback(async (forceRefresh = false) => {
+    // Prevent duplicate fetches unless forced
+    if (fetchInProgress.current && !forceRefresh) {
+      return;
+    }
+    
     if (!user) {
       setOrganization(null);
       setSubscription(null);
       setMembership(null);
       setNeedsOnboarding(false);
       setLoading(false);
+      lastFetchUserId.current = null;
       return;
     }
+
+    // Skip if we already fetched for this user (unless forced)
+    if (!forceRefresh && lastFetchUserId.current === user.id && membership) {
+      setLoading(false);
+      return;
+    }
+
+    fetchInProgress.current = true;
+    sessionFetchCount++;
 
     try {
       // Check if Super Admin is impersonating
@@ -239,11 +262,14 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setSubscription(subData ? (subData as Subscription) : null);
 
       setLoading(false);
+      lastFetchUserId.current = user.id;
     } catch (error) {
       console.error('Error in fetchOrganization:', error);
       setLoading(false);
+    } finally {
+      fetchInProgress.current = false;
     }
-  };
+  }, [user, isSuperAdmin, getImpersonationState, membership]);
 
   const createOrganization = async (name: string, slug: string): Promise<{ error: Error | null; organization: Organization | null }> => {
     if (!user) {
@@ -300,8 +326,8 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         // Don't fail the whole operation for subscription error
       }
 
-      // Refetch organization data
-      await fetchOrganization();
+      // Force refetch after creating organization
+      await fetchOrganization(true);
 
       return { error: null, organization: orgData as Organization };
     } catch (error) {
@@ -313,19 +339,40 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Listen for impersonation state changes via custom event
   useEffect(() => {
     const handleImpersonationChange = () => {
-      fetchOrganization();
+      // Force refetch when impersonation changes
+      fetchOrganization(true);
     };
     
     window.addEventListener('impersonation-changed', handleImpersonationChange);
     return () => window.removeEventListener('impersonation-changed', handleImpersonationChange);
-  }, [user, isSuperAdmin]);
+  }, [fetchOrganization]);
+
+  // Listen for org switch events
+  useEffect(() => {
+    const handleOrgSwitch = () => {
+      // Force refetch when org is switched
+      fetchOrganization(true);
+    };
+    
+    window.addEventListener('organization-switched', handleOrgSwitch);
+    return () => window.removeEventListener('organization-switched', handleOrgSwitch);
+  }, [fetchOrganization]);
 
   // Fetch organization on mount and when auth changes
+  // This ensures fresh data on page reload
   useEffect(() => {
-    if (!authLoading) {
-      fetchOrganization();
+    if (!authLoading && user) {
+      // Always force fresh fetch on mount (page reload)
+      fetchOrganization(true);
+    } else if (!authLoading && !user) {
+      // Clear state when logged out
+      setOrganization(null);
+      setSubscription(null);
+      setMembership(null);
+      setNeedsOnboarding(false);
+      setLoading(false);
     }
-  }, [user, authLoading, isSuperAdmin]);
+  }, [user?.id, authLoading, fetchOrganization]);
 
   const orgRole = membership?.role || null;
   const isOrgOwner = orgRole === 'owner';
