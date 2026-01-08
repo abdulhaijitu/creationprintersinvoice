@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Building2, Search, Calendar, RotateCcw, Eye, Ban, CheckCircle, Plus, Pencil, Trash2, MoreHorizontal, Users } from 'lucide-react';
+import { Building2, Search, Calendar, RotateCcw, Eye, Ban, CheckCircle, Plus, Pencil, Trash2, MoreHorizontal, Users, UserCog } from 'lucide-react';
 import { format, addDays, startOfMonth } from 'date-fns';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -28,6 +28,7 @@ import { AdminCommandPalette } from '@/components/admin/AdminCommandPalette';
 import { CreateOrganizationDialog } from '@/components/admin/CreateOrganizationDialog';
 import { EditOrganizationDialog } from '@/components/admin/EditOrganizationDialog';
 import { DeleteOrganizationDialog } from '@/components/admin/DeleteOrganizationDialog';
+import { ManageOwnerRolesDialog } from '@/components/admin/ManageOwnerRolesDialog';
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { AdminGlobalSearch } from '@/components/admin/AdminGlobalSearch';
 import { OrgRolePermissionsManager } from '@/components/admin/OrgRolePermissionsManager';
@@ -132,6 +133,7 @@ const PlatformAdmin = () => {
   const [createOrgDialogOpen, setCreateOrgDialogOpen] = useState(false);
   const [editOrgDialogOpen, setEditOrgDialogOpen] = useState(false);
   const [deleteOrgDialogOpen, setDeleteOrgDialogOpen] = useState(false);
+  const [manageOwnerDialogOpen, setManageOwnerDialogOpen] = useState(false);
   const isMobile = useIsMobile();
   const [organizations, setOrganizations] = useState<OrganizationWithStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -659,6 +661,9 @@ const PlatformAdmin = () => {
                                 <DropdownMenuItem onClick={() => extendTrial(org.id, 7, org.name)}>
                                   <RotateCcw className="mr-2 h-4 w-4" /> Extend Trial
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { setSelectedOrg(org); setManageOwnerDialogOpen(true); }}>
+                                  <UserCog className="mr-2 h-4 w-4" /> Manage Roles
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => { setSelectedOrg(org); setDeleteOrgDialogOpen(true); }} className="text-destructive">
                                   <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -787,6 +792,15 @@ const PlatformAdmin = () => {
                                       <DropdownMenuItem onClick={() => extendTrial(org.id, 7, org.name)}>
                                         <RotateCcw className="mr-2 h-4 w-4" />
                                         Extend Trial (+7 days)
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem 
+                                        onClick={() => {
+                                          setSelectedOrg(org);
+                                          setManageOwnerDialogOpen(true);
+                                        }}
+                                      >
+                                        <UserCog className="mr-2 h-4 w-4" />
+                                        Manage Owner & Roles
                                       </DropdownMenuItem>
                                       <DropdownMenuSeparator />
                                       {org.subscription?.status === 'suspended' ? (
@@ -984,6 +998,14 @@ const PlatformAdmin = () => {
         <DeleteOrganizationDialog
           open={deleteOrgDialogOpen}
           onOpenChange={setDeleteOrgDialogOpen}
+          organization={selectedOrg}
+          onSuccess={fetchOrganizations}
+        />
+
+        {/* Manage Owner & Roles Dialog */}
+        <ManageOwnerRolesDialog
+          open={manageOwnerDialogOpen}
+          onOpenChange={setManageOwnerDialogOpen}
           organization={selectedOrg}
           onSuccess={fetchOrganizations}
         />
