@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from 'sonner';
 import { Mail, Lock } from 'lucide-react';
 import logo from '@/assets/logo.png';
+import { APP_CONFIG } from '@/lib/appConfig';
 
 const SuperAdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -42,11 +43,11 @@ const SuperAdminLogin = () => {
         <div className="text-center mb-8">
           <img 
             src={logo} 
-            alt="PrintoSaas" 
+            alt={APP_CONFIG.name} 
             className="h-14 w-auto mx-auto mb-4"
           />
-          <h1 className="text-2xl font-bold text-white">PrintoSaas Administration</h1>
-          <p className="text-slate-400 mt-2">Printing Business Accounting - Super Admin Access</p>
+          <h1 className="text-2xl font-bold text-white">{APP_CONFIG.name} Administration</h1>
+          <p className="text-slate-400 mt-2">{APP_CONFIG.tagline} - Super Admin Access</p>
         </div>
 
         <Card className="bg-slate-800/50 border-slate-700">

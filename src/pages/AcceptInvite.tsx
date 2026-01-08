@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Lock, Eye, EyeOff, CheckCircle, XCircle, Shield, AlertCircle, Loader2 } from 'lucide-react';
-import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
+import { useAuthPageBranding } from '@/hooks/useAuthPageBranding';
 
 interface PasswordRequirement {
   label: string;
@@ -29,6 +29,7 @@ const AcceptInvite = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const navigate = useNavigate();
+  const { appName, logoUrl } = useAuthPageBranding();
   
   const [status, setStatus] = useState<InviteStatus>('loading');
   const [userEmail, setUserEmail] = useState<string>('');
@@ -187,7 +188,7 @@ const AcceptInvite = () => {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="w-full max-w-md animate-fade-in">
           <div className="text-center mb-8">
-            <img src={logo} alt="PrintoSaas" className="h-16 w-auto mx-auto mb-4" />
+            <img src={logoUrl} alt={appName} className="h-16 w-auto mx-auto mb-4" />
           </div>
           
           <Card className="shadow-soft">
@@ -232,7 +233,7 @@ const AcceptInvite = () => {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="w-full max-w-md animate-fade-in">
           <div className="text-center mb-8">
-            <img src={logo} alt="PrintoSaas" className="h-16 w-auto mx-auto mb-4" />
+            <img src={logoUrl} alt={appName} className="h-16 w-auto mx-auto mb-4" />
           </div>
           
           <Card className="shadow-soft">
@@ -259,8 +260,8 @@ const AcceptInvite = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <img src={logo} alt="PrintoSaas" className="h-16 w-auto mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-foreground">PrintoSaas</h1>
+          <img src={logoUrl} alt={appName} className="h-16 w-auto mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-foreground">{appName}</h1>
         </div>
 
         <Card className="shadow-soft">

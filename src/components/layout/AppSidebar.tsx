@@ -31,6 +31,7 @@ import logoIcon from '@/assets/logo-icon.jpg';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useBranding } from '@/contexts/BrandingContext';
 import { useOrgPermissions } from '@/hooks/useOrgPermissions';
 import {
   Sidebar,
@@ -199,10 +200,15 @@ export function AppSidebar() {
   const location = useLocation();
   const { user, signOut, isSuperAdmin } = useAuth();
   const { organization } = useOrganization();
+  const { appName, branding, isLoaded: brandingLoaded } = useBranding();
   const { permissions, loading } = useOrgPermissions();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const [pendingChallanCount, setPendingChallanCount] = useState(0);
+  
+  // Use white-label logo if available
+  const logoUrl = branding.logo_url || logo;
+  const logoIconUrl = branding.logo_url || logoIcon;
   
   // Remember last expanded group
   const [expandedGroup, setExpandedGroup] = useState<string | null>(() => {
@@ -355,15 +361,15 @@ export function AppSidebar() {
           {collapsed ? (
             <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden bg-white/10 p-1">
               <img 
-                src={logoIcon} 
-                alt="PrintoSaas" 
+                src={logoIconUrl} 
+                alt={appName} 
                 className="h-full w-full object-contain rounded-lg"
               />
             </div>
           ) : (
             <img 
-              src={logo} 
-              alt="PrintoSaas" 
+              src={logoUrl} 
+              alt={appName} 
               className="h-10 w-auto object-contain"
             />
           )}

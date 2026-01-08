@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useBranding } from '@/contexts/BrandingContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ const WelcomeScreen = ({ onComplete }: WelcomeScreenProps) => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const { organization, membership } = useOrganization();
+  const { appName } = useBranding();
 
   const handleGoToDashboard = () => {
     onComplete();
@@ -55,7 +57,7 @@ const WelcomeScreen = ({ onComplete }: WelcomeScreenProps) => {
             <Sparkles className="h-10 w-10 text-primary" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-            Welcome to PrintoSaas 👋
+            Welcome to {appName} 👋
           </h1>
           <p className="text-lg text-muted-foreground">
             Great to have you here, <span className="font-medium text-foreground">{user?.user_metadata?.full_name || user?.email?.split('@')[0]}</span>!

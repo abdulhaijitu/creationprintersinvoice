@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import { format } from 'date-fns';
 import type { BillingInvoice } from '@/hooks/useBillingInvoices';
-import { APP_CONFIG } from '@/lib/appConfig';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface BillingInvoicePDFProps {
   invoice: BillingInvoice;
@@ -9,6 +9,8 @@ interface BillingInvoicePDFProps {
 
 const BillingInvoicePDF = forwardRef<HTMLDivElement, BillingInvoicePDFProps>(
   ({ invoice }, ref) => {
+    const { appName, appTagline } = useBranding();
+    
     const planDetails: Record<string, string> = {
       free: 'Free Plan',
       basic: 'Basic Plan - Full access to core features',
@@ -25,8 +27,8 @@ const BillingInvoicePDF = forwardRef<HTMLDivElement, BillingInvoicePDFProps>(
         {/* Header */}
         <div className="flex justify-between items-start border-b-2 border-primary pb-6 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-primary">{APP_CONFIG.name}</h1>
-            <p className="text-gray-600 mt-1">{APP_CONFIG.tagline}</p>
+            <h1 className="text-3xl font-bold text-primary">{appName}</h1>
+            <p className="text-gray-600 mt-1">{appTagline}</p>
             <div className="mt-4 text-sm text-gray-600">
               <p>support@printosaas.com</p>
               <p>www.printosaas.com</p>
@@ -137,7 +139,7 @@ const BillingInvoicePDF = forwardRef<HTMLDivElement, BillingInvoicePDFProps>(
 
         {/* Footer */}
         <div className="border-t pt-6 text-center text-sm text-gray-500">
-          <p>Thank you for choosing {APP_CONFIG.name}!</p>
+          <p>Thank you for choosing {appName}!</p>
           <p className="mt-1">If you have any questions, please contact support@printosaas.com</p>
           <p className="mt-4 text-xs">
             This is a computer-generated invoice. No signature is required.
