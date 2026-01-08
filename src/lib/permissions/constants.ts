@@ -6,7 +6,7 @@
  * 
  * ARCHITECTURE:
  * 1. System Role: super_admin (platform-level)
- * 2. Organization Roles: owner, manager, accounts, staff (per-org)
+ * 2. Organization Roles: owner, manager, accounts, sales_staff, designer, employee (per-org)
  * 
  * IMPORTANT: Frontend checks are UX-only. Edge Functions enforce actual security.
  */
@@ -14,29 +14,40 @@
 // ============= ROLE DEFINITIONS =============
 
 export type SystemRole = 'super_admin';
-export type OrgRole = 'owner' | 'manager' | 'accounts' | 'staff';
+
+// Official organization roles - matches org_role enum in database
+export type OrgRole = 'owner' | 'manager' | 'accounts' | 'sales_staff' | 'designer' | 'employee';
 
 // Role hierarchy (higher number = more permissions)
 export const ORG_ROLE_HIERARCHY: Record<OrgRole, number> = {
-  owner: 100,    // Full control
-  manager: 75,   // Team & operations management
-  accounts: 50,  // Financial operations
-  staff: 25,     // Basic operations
+  owner: 100,       // Full control
+  manager: 75,      // Operational control (no ownership/billing)
+  accounts: 50,     // Finance-related modules
+  sales_staff: 40,  // Sales modules only
+  designer: 35,     // Design/job-related modules only
+  employee: 25,     // Limited operational access
 };
 
 export const ORG_ROLE_DISPLAY: Record<OrgRole, string> = {
   owner: 'Owner',
   manager: 'Manager',
   accounts: 'Accounts',
-  staff: 'Staff',
+  sales_staff: 'Sales Staff',
+  designer: 'Designer',
+  employee: 'Employee',
 };
 
 export const ORG_ROLE_DESCRIPTIONS: Record<OrgRole, string> = {
   owner: 'Full control over organization settings, billing, team management, and all operations',
   manager: 'Manage team members (no role changes), invoices, customers, and daily operations',
   accounts: 'Financial operations: create/edit invoices, manage expenses and financial records',
-  staff: 'Basic operations: view data, create invoices and quotations (no delete, no bulk actions)',
+  sales_staff: 'Sales operations: manage customers, quotations, invoices, and price calculations',
+  designer: 'Design operations: view quotations, manage tasks, and price calculations',
+  employee: 'Basic operations: view data, limited create/edit access',
 };
+
+// All organization roles for UI selection
+export const ALL_ORG_ROLES: OrgRole[] = ['owner', 'manager', 'accounts', 'sales_staff', 'designer', 'employee'];
 
 // ============= PERMISSION ACTIONS =============
 
@@ -92,30 +103,30 @@ export const MODULE_DISPLAY: Record<PermissionModule, string> = {
 
 export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<PermissionAction, OrgRole[]>>> = {
   dashboard: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
+    view: ['owner', 'manager', 'accounts', 'sales_staff', 'designer', 'employee'],
   },
   customers: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager', 'staff'],
-    edit: ['owner', 'manager', 'staff'],
+    view: ['owner', 'manager', 'accounts', 'sales_staff', 'employee'],
+    create: ['owner', 'manager', 'sales_staff'],
+    edit: ['owner', 'manager', 'sales_staff'],
     delete: ['owner', 'manager'],
     bulk: ['owner', 'manager'],
     import: ['owner', 'manager'],
     export: ['owner', 'manager'],
   },
   invoices: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager', 'accounts', 'staff'],
-    edit: ['owner', 'manager', 'accounts', 'staff'],
+    view: ['owner', 'manager', 'accounts', 'sales_staff', 'employee'],
+    create: ['owner', 'manager', 'accounts', 'sales_staff'],
+    edit: ['owner', 'manager', 'accounts', 'sales_staff'],
     delete: ['owner', 'manager'],
     bulk: ['owner', 'manager'],
     import: ['owner', 'manager'],
     export: ['owner', 'manager'],
   },
   quotations: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager', 'staff'],
-    edit: ['owner', 'manager', 'staff'],
+    view: ['owner', 'manager', 'sales_staff', 'designer'],
+    create: ['owner', 'manager', 'sales_staff'],
+    edit: ['owner', 'manager', 'sales_staff'],
     delete: ['owner', 'manager'],
     bulk: ['owner', 'manager'],
     import: ['owner', 'manager'],
@@ -140,9 +151,9 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     export: ['owner', 'manager'],
   },
   delivery_challans: {
-    view: ['owner', 'manager', 'accounts', 'staff'],
-    create: ['owner', 'manager', 'staff'],
-    edit: ['owner', 'manager', 'staff'],
+    view: ['owner', 'manager', 'accounts', 'sales_staff', 'employee'],
+    create: ['owner', 'manager', 'sales_staff'],
+    edit: ['owner', 'manager', 'sales_staff'],
     delete: ['owner', 'manager'],
     bulk: ['owner', 'manager'],
     export: ['owner', 'manager'],
@@ -157,7 +168,7 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     export: ['owner', 'manager'],
   },
   attendance: {
-    view: ['owner', 'manager', 'staff'],
+    view: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
     create: ['owner', 'manager'],
     edit: ['owner', 'manager'],
     delete: ['owner'],
@@ -172,15 +183,15 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     export: ['owner'],
   },
   leave: {
-    view: ['owner', 'manager', 'staff'],
-    create: ['owner', 'manager', 'staff'],
+    view: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
+    create: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
     edit: ['owner', 'manager'],
     delete: ['owner'],
   },
   tasks: {
-    view: ['owner', 'manager', 'staff'],
-    create: ['owner', 'manager', 'staff'],
-    edit: ['owner', 'manager', 'staff'],
+    view: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
+    create: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
+    edit: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
     delete: ['owner', 'manager'],
   },
   reports: {
@@ -210,7 +221,7 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     export: ['owner', 'manager'],
   },
   price_calculations: {
-    view: ['owner', 'manager'],
+    view: ['owner', 'manager', 'accounts'],
     create: ['owner', 'manager'],
     edit: ['owner', 'manager'],
     delete: ['owner', 'manager'],

@@ -3781,7 +3781,14 @@ export type Database = {
         | "account_unlocked"
         | "payment_success"
         | "payment_failed"
-      org_role: "owner" | "manager" | "accounts" | "staff"
+      org_role:
+        | "owner"
+        | "manager"
+        | "accounts"
+        | "staff"
+        | "sales_staff"
+        | "designer"
+        | "employee"
       payment_gateway: "sslcommerz" | "bkash" | "nagad" | "rocket" | "manual"
       payment_status:
         | "initiated"
@@ -3985,7 +3992,15 @@ export const Constants = {
         "payment_success",
         "payment_failed",
       ],
-      org_role: ["owner", "manager", "accounts", "staff"],
+      org_role: [
+        "owner",
+        "manager",
+        "accounts",
+        "staff",
+        "sales_staff",
+        "designer",
+        "employee",
+      ],
       payment_gateway: ["sslcommerz", "bkash", "nagad", "rocket", "manual"],
       payment_status: [
         "initiated",
