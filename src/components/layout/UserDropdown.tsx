@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { User, Settings, LogOut, ChevronDown, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getRoleDisplayName } from '@/lib/permissions';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { ORG_ROLE_DISPLAY } from '@/lib/permissions/constants';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -15,8 +15,29 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 export const UserDropdown = () => {
-  const { user, signOut, role } = useAuth();
+  const { user, signOut, isSuperAdmin } = useAuth();
+  const { membership, isOrgOwner, isOrgAdmin, isOrgManager } = useOrganization();
   const navigate = useNavigate();
+
+  // Get the display role - prioritize organization membership role
+  const getDisplayRole = (): string => {
+    // Super admin takes precedence
+    if (isSuperAdmin) return 'Super Admin';
+    
+    // Use organization membership role
+    if (membership?.role) {
+      return ORG_ROLE_DISPLAY[membership.role as keyof typeof ORG_ROLE_DISPLAY] || 'Member';
+    }
+    
+    // Fallback based on organization context flags
+    if (isOrgOwner) return 'Owner';
+    if (isOrgAdmin) return 'Admin';
+    if (isOrgManager) return 'Manager';
+    
+    return 'Member';
+  };
+
+  const displayRole = getDisplayRole();
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
@@ -36,7 +57,7 @@ export const UserDropdown = () => {
               {user?.email?.split('@')[0]}
             </span>
             <span className="text-[10px] text-muted-foreground leading-none mt-0.5">
-              {role ? getRoleDisplayName(role) : 'User'}
+              {displayRole}
             </span>
           </div>
           <ChevronDown className="h-3 w-3 text-muted-foreground hidden md:block" />
@@ -58,7 +79,7 @@ export const UserDropdown = () => {
           <Settings className="mr-2 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenuItem>
-        {role && ['admin', 'super_admin'].includes(role) && (
+        {(isSuperAdmin || isOrgOwner || isOrgAdmin) && (
           <DropdownMenuItem onClick={() => navigate('/user-roles')} className="cursor-pointer">
             <Shield className="mr-2 h-4 w-4" />
             <span>Role Management</span>
