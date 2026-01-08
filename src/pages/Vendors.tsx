@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrganization } from "@/contexts/OrganizationContext";
+import { canRolePerform, OrgRole } from "@/lib/permissions/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload } from "lucide-react";
+import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload, Pencil } from "lucide-react";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 import { parseCSV, downloadTemplate, ImportResult } from "@/lib/importUtils";
 import CSVImportDialog from "@/components/import/CSVImportDialog";
@@ -35,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Vendor {
   id: string;
@@ -51,7 +54,17 @@ interface Vendor {
 
 const Vendors = () => {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isSuperAdmin } = useAuth();
+  const { orgRole } = useOrganization();
+  
+  // Permission-based access controls
+  const canView = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'view');
+  const canCreate = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'create');
+  const canEdit = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'edit');
+  const canDelete = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'delete');
+  const canImport = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'import');
+  const canExport = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'export');
+  
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -349,30 +362,32 @@ const Vendors = () => {
           <h1 className="text-3xl font-bold">Vendors</h1>
           <p className="text-muted-foreground">All vendors and due balance</p>
         </div>
-        <div className="flex gap-2">
-          {isAdmin && (
+      <div className="flex gap-2">
+          {canImport && (
             <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
               <Upload className="mr-2 h-4 w-4" />
               Import
             </Button>
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={handleExportCSV}>
-                Export as CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportExcel}>
-                Export as Excel
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {isAdmin && (
+          {canExport && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportExcel}>
+                  Export as Excel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {canCreate && (
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) resetForm();
@@ -561,7 +576,7 @@ const Vendors = () => {
                     description={searchTerm 
                       ? "Try adjusting your search criteria" 
                       : "Add your first vendor to start tracking purchases and payments"}
-                    action={isAdmin && !searchTerm ? {
+                    action={canCreate && !searchTerm ? {
                       label: "Add Vendor",
                       onClick: () => setIsDialogOpen(true),
                       icon: Plus,
@@ -615,32 +630,49 @@ const Vendors = () => {
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/vendors/${vendor.id}`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {isAdmin && (
-                        <>
+                    <div className="flex items-center justify-center gap-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
                           <Button
                             variant="ghost"
-                            size="sm"
-                            onClick={() => openEditDialog(vendor)}
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => navigate(`/vendors/${vendor.id}`)}
                           >
-                            Edit
+                            <Eye className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(vendor.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
+                        </TooltipTrigger>
+                        <TooltipContent>View Details</TooltipContent>
+                      </Tooltip>
+                      {canEdit && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openEditDialog(vendor)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit Vendor</TooltipContent>
+                        </Tooltip>
+                      )}
+                      {canDelete && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(vendor.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Delete Vendor</TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   </TableCell>
