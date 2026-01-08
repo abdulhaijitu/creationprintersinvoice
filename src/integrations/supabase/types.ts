@@ -278,8 +278,10 @@ export type Database = {
           address: string | null
           company_name: string | null
           created_at: string
+          deleted_at: string | null
           email: string | null
           id: string
+          is_deleted: boolean
           name: string
           notes: string | null
           organization_id: string | null
@@ -290,8 +292,10 @@ export type Database = {
           address?: string | null
           company_name?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           id?: string
+          is_deleted?: boolean
           name: string
           notes?: string | null
           organization_id?: string | null
@@ -302,8 +306,10 @@ export type Database = {
           address?: string | null
           company_name?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           id?: string
+          is_deleted?: boolean
           name?: string
           notes?: string | null
           organization_id?: string | null
