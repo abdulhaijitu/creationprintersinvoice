@@ -27,10 +27,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Clock, UserCheck, UserX, Users, Plus } from "lucide-react";
+import { Calendar, Clock, UserCheck, UserX, Users, Plus, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { Database } from "@/integrations/supabase/types";
 
 type AttendanceStatus = Database["public"]["Enums"]["attendance_status"];
@@ -470,8 +471,12 @@ const Attendance = () => {
               </TableRow>
             ) : attendance.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  No attendance records found
+                <TableCell colSpan={6} className="py-0">
+                  <EmptyState
+                    icon={ClipboardList}
+                    title="No attendance records"
+                    description="No attendance records found for the selected date"
+                  />
                 </TableCell>
               </TableRow>
             ) : (

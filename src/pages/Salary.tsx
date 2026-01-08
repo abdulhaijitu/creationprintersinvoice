@@ -29,11 +29,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Calendar, ShieldAlert, Loader2, Banknote } from "lucide-react";
+import { Plus, Calendar, ShieldAlert, Loader2, Banknote, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface SalaryRecord {
   id: string;
@@ -727,8 +728,17 @@ const Salary = () => {
               </TableRow>
             ) : salaryRecords.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                  No salary records found for {months[selectedMonth - 1]} {selectedYear}
+                <TableCell colSpan={9} className="py-0">
+                  <EmptyState
+                    icon={Banknote}
+                    title="No salary records"
+                    description={`No salary records found for ${months[selectedMonth - 1]} ${selectedYear}`}
+                    action={isAdmin ? {
+                      label: "Generate Salaries",
+                      onClick: () => setIsDialogOpen(true),
+                      icon: Plus,
+                    } : undefined}
+                  />
                 </TableCell>
               </TableRow>
             ) : (
@@ -804,8 +814,17 @@ const Salary = () => {
                   </TableRow>
                 ) : advances.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No advances recorded
+                    <TableCell colSpan={6} className="py-0">
+                      <EmptyState
+                        icon={Banknote}
+                        title="No advances recorded"
+                        description="No salary advances have been recorded yet"
+                        action={isAdmin ? {
+                          label: "Add Advance",
+                          onClick: () => setIsAdvanceDialogOpen(true),
+                          icon: Plus,
+                        } : undefined}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (

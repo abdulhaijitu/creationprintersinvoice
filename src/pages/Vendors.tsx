@@ -26,6 +26,7 @@ import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Downloa
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 import { parseCSV, downloadTemplate, ImportResult } from "@/lib/importUtils";
 import CSVImportDialog from "@/components/import/CSVImportDialog";
+import { EmptyState } from "@/components/shared/EmptyState";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -553,8 +554,19 @@ const Vendors = () => {
               </TableRow>
             ) : filteredVendors.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  No vendors found
+                <TableCell colSpan={6} className="py-0">
+                  <EmptyState
+                    icon={Building2}
+                    title="No vendors found"
+                    description={searchTerm 
+                      ? "Try adjusting your search criteria" 
+                      : "Add your first vendor to start tracking purchases and payments"}
+                    action={isAdmin && !searchTerm ? {
+                      label: "Add Vendor",
+                      onClick: () => setIsDialogOpen(true),
+                      icon: Plus,
+                    } : undefined}
+                  />
                 </TableCell>
               </TableRow>
             ) : (

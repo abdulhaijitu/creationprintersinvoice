@@ -28,12 +28,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Calendar, Check, X, Trash2 } from "lucide-react";
+import { Plus, Calendar, Check, X, Trash2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Database } from "@/integrations/supabase/types";
 import { createNotification } from "@/hooks/useNotifications";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 type LeaveType = Database["public"]["Enums"]["leave_type"];
 type LeaveStatus = Database["public"]["Enums"]["leave_status"];
@@ -474,8 +475,17 @@ const Leave = () => {
               </TableRow>
             ) : leaveRequests.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 5} className="text-center py-8 text-muted-foreground">
-                  No requests
+                <TableCell colSpan={isAdmin ? 7 : 5} className="py-0">
+                  <EmptyState
+                    icon={Calendar}
+                    title="No leave requests"
+                    description="No leave requests have been submitted yet"
+                    action={{
+                      label: "Request Leave",
+                      onClick: () => setIsDialogOpen(true),
+                      icon: Plus,
+                    }}
+                  />
                 </TableCell>
               </TableRow>
             ) : (
