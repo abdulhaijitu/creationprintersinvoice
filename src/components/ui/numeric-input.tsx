@@ -25,12 +25,12 @@ export interface NumericInputProps
 /**
  * NumericInput - Global cursor-safe numeric input
  *
- * Rules enforced:
+ * CURSOR-SAFE RULES:
  * - Value is always STRING (no number conversion inside)
  * - Cursor never jumps (no formatting during typing)
  * - No browser autofill/suggestions
  * - No spinners
- * - Validation is silent (no value mutation)
+ * - Validation is silent (rejects invalid input, doesn't mutate)
  *
  * Usage:
  * <NumericInput value={amount} onChange={setAmount} />
@@ -55,10 +55,11 @@ const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps>(
     },
     ref,
   ) => {
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      let next = e.target.value;
+    // Memoized change handler to prevent unnecessary re-renders
+    const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+      const next = e.target.value;
 
-      // Allow empty
+      // Allow empty - user might be clearing the field
       if (next === "") {
         onChange("");
         return;
@@ -76,6 +77,7 @@ const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps>(
         pattern = /^\d*$/;
       }
 
+      // Reject invalid input silently - this preserves cursor position
       if (!pattern.test(next)) return;
 
       // Enforce decimal places limit
@@ -87,9 +89,9 @@ const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps>(
         }
       }
 
-      // Pass raw string to parent
+      // Pass raw string to parent - NO TRANSFORMATION
       onChange(next);
-    };
+    }, [onChange, allowNegative, allowDecimals, maxDecimals]);
 
     const inputElement = (
       <Input

@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import {
@@ -164,7 +164,8 @@ export function CreateChallanDialog({
     }
   };
 
-  const handleItemQuantityChange = (id: string, quantity: number) => {
+  // Memoized handler to prevent cursor jumps
+  const handleItemQuantityChange = useCallback((id: string, quantity: number) => {
     setChallanItems((items) =>
       items.map((item) =>
         item.id === id
@@ -172,7 +173,7 @@ export function CreateChallanDialog({
           : item
       )
     );
-  };
+  }, []);
 
   const handleSubmit = async () => {
     if (!selectedInvoice) {

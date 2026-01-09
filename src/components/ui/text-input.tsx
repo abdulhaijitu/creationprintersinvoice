@@ -44,16 +44,18 @@ const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
     },
     ref,
   ) => {
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      let next = e.target.value;
+    // Memoized change handler - prevents cursor jumps from handler recreation
+    const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+      const next = e.target.value;
       
-      // Enforce max length if specified
+      // Enforce max length if specified - reject silently to preserve cursor
       if (maxLength && next.length > maxLength) {
         return;
       }
       
+      // Pass value directly - NO TRANSFORMATION during typing
       onChange(next);
-    };
+    }, [onChange, maxLength]);
 
     const inputElement = (
       <Input

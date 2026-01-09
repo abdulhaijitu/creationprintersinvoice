@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -135,33 +135,41 @@ const InvoiceForm = () => {
 
   // Invoice number generation moved to handleSubmit to prevent gaps
 
-  const updateItem = (id: string, field: keyof InvoiceItem, value: string | number) => {
+  // Memoized update function to prevent cursor jumps
+  // Uses functional update to avoid stale closures
+  const updateItem = useCallback((id: string, field: keyof InvoiceItem, value: string | number) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
 
         const updated = { ...item, [field]: value };
         
-        const qty = Number(updated.quantity) || 0;
-        const price = Number(updated.unit_price) || 0;
-        updated.total = qty * price;
+        // Recalculate total only for numeric fields
+        if (field === 'quantity' || field === 'unit_price') {
+          const qty = Number(updated.quantity) || 0;
+          const price = Number(updated.unit_price) || 0;
+          updated.total = qty * price;
+        }
 
         return updated;
       })
     );
-  };
+  }, []);
 
-  const addItem = () => {
+  // Memoized add/remove handlers
+  const addItem = useCallback(() => {
     setItems((prev) => [
       ...prev,
       { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
     ]);
-  };
+  }, []);
 
-  const removeItem = (id: string) => {
-    if (items.length === 1) return;
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  };
+  const removeItem = useCallback((id: string) => {
+    setItems((prev) => {
+      if (prev.length === 1) return prev;
+      return prev.filter((item) => item.id !== id);
+    });
+  }, []);
 
   const calculateSubtotal = () => {
     return items.reduce((sum, item) => sum + item.total, 0);
