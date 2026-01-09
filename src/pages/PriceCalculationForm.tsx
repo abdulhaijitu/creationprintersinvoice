@@ -82,70 +82,70 @@ const CostLineItemRow = ({
   return (
     <div 
       className={`
-        flex flex-wrap items-center gap-2 sm:gap-3 py-2.5 px-2 rounded-md
+        flex flex-wrap items-center gap-3 sm:gap-4 py-3 px-3 rounded-md
         transition-all duration-200 ease-out
-        hover:bg-muted/40
+        hover:bg-muted/30
         ${showDivider ? 'border-b border-muted/20' : ''}
-        ${isFirst ? '' : 'ml-0 sm:ml-4'}
+        ${isFirst ? '' : 'sm:pl-6'}
       `}
     >
       {/* Label */}
-      <div className="w-full sm:w-24 shrink-0">
+      <div className="w-full sm:w-28 shrink-0">
         {showLabel ? (
           <span className="text-sm font-medium text-foreground">{label}</span>
         ) : (
-          <span className="text-sm text-muted-foreground italic hidden sm:inline">—</span>
+          <span className="text-xs text-muted-foreground/60 hidden sm:inline">—</span>
         )}
       </div>
       
       {/* Quantity */}
-      <div className="flex flex-col gap-0.5">
-        <Label className="text-[9px] uppercase tracking-wider text-muted-foreground sm:hidden">Qty</Label>
+      <div className="flex flex-col gap-1">
+        <Label className="text-[10px] uppercase tracking-wider sm:hidden">Qty</Label>
         <CurrencyInput
           value={item.qty}
           onChange={onQtyChange}
           decimals={0}
           formatOnBlur={false}
           placeholder="0"
-          className="w-16 h-9 text-center text-sm transition-all duration-200 focus-visible:ring-1 focus-visible:ring-primary"
+          className="w-20 h-10 text-center"
         />
       </div>
       
       {/* Unit */}
-      <div className="flex flex-col gap-0.5">
-        <Label className="text-[9px] uppercase tracking-wider text-muted-foreground sm:hidden">Unit</Label>
+      <div className="flex flex-col gap-1">
+        <Label className="text-[10px] uppercase tracking-wider sm:hidden">Unit</Label>
         <Input
           value={item.unit}
           onChange={(e) => onUnitChange(e.target.value)}
           placeholder="Pcs"
-          className="w-20 h-9 text-center text-sm transition-all duration-200 focus-visible:ring-1 focus-visible:ring-primary"
+          className="w-20 h-10 text-center"
         />
       </div>
       
       {/* Price */}
-      <div className="flex flex-col gap-0.5">
-        <Label className="text-[9px] uppercase tracking-wider text-muted-foreground sm:hidden">Price</Label>
+      <div className="flex flex-col gap-1">
+        <Label className="text-[10px] uppercase tracking-wider sm:hidden">Price</Label>
         <CurrencyInput
           value={item.price}
           onChange={onPriceChange}
-          className="w-24 h-9 text-sm transition-all duration-200 focus-visible:ring-1 focus-visible:ring-primary"
+          className="w-28 h-10"
         />
       </div>
       
       {/* Line Total */}
-      <div className="ml-auto text-right flex items-center gap-1.5">
-        <span className="text-sm font-semibold text-foreground min-w-[80px]">
+      <div className="ml-auto text-right flex items-center gap-2">
+        <span className="text-sm font-semibold tabular-nums text-foreground min-w-[90px]">
           {formatCurrencyStatic(total)}
         </span>
         {showRemove && onRemove && (
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive transition-colors duration-200"
+            size="icon-sm"
+            className="text-muted-foreground hover:text-destructive"
             onClick={onRemove}
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-4 w-4" />
           </Button>
         )}
       </div>
@@ -172,13 +172,13 @@ const CategoryGroup = ({
   const categoryTotal = category.items.reduce((sum, item) => sum + (item.qty * item.price), 0);
   
   return (
-    <div className={`${!isLast ? 'border-b border-muted/30 pb-3 mb-3' : ''}`}>
+    <div className={`${!isLast ? 'border-b border-muted/20 pb-4 mb-4' : ''}`}>
       {/* Category Header */}
-      <div className="flex items-center justify-between mb-1.5 px-2">
-        <div className="flex items-center gap-2">
-          <h4 className="text-xs font-bold uppercase tracking-wide text-foreground/80">{category.label}</h4>
+      <div className="flex items-center justify-between mb-2 px-3">
+        <div className="flex items-center gap-3">
+          <h4 className="text-xs font-semibold uppercase tracking-widest text-foreground/70">{category.label}</h4>
           {categoryTotal > 0 && (
-            <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+            <span className="text-xs font-medium tabular-nums text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">
               {formatCurrencyStatic(categoryTotal)}
             </span>
           )}
@@ -187,16 +187,16 @@ const CategoryGroup = ({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground transition-colors duration-200"
+          className="h-7 px-2 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
           onClick={onAddItem}
         >
-          <Plus className="h-3 w-3" />
-          Add
+          <Plus className="h-3.5 w-3.5" />
+          Add Row
         </Button>
       </div>
       
       {/* Category Items */}
-      <div className="space-y-0.5">
+      <div className="space-y-1">
         {category.items.map((item, index) => (
           <CostLineItemRow
             key={item.id}
@@ -750,7 +750,7 @@ const PriceCalculationForm = () => {
               <CardHeader>
                 <CardTitle>Job Information</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-4">
+              <CardContent className="grid gap-6 sm:grid-cols-4">
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Job Description *</Label>
                   <Textarea
@@ -758,7 +758,7 @@ const PriceCalculationForm = () => {
                     onChange={(e) => handleChange('job_description', e.target.value)}
                     placeholder="e.g. Business Card 1000 pcs"
                     rows={2}
-                    className="min-h-[60px] resize-y transition-all duration-200 focus-visible:ring-1 focus-visible:ring-primary"
+                    className="min-h-[80px] resize-y"
                   />
                 </div>
                 <div className="space-y-2">
@@ -769,7 +769,6 @@ const PriceCalculationForm = () => {
                     decimals={0}
                     formatOnBlur={false}
                     placeholder="1"
-                    className="transition-all duration-200 focus-visible:ring-1 focus-visible:ring-primary"
                   />
                 </div>
                 <div className="space-y-2">
@@ -778,7 +777,6 @@ const PriceCalculationForm = () => {
                     value={formData.quantity_unit}
                     onChange={(e) => handleChange('quantity_unit', e.target.value)}
                     placeholder="Pcs"
-                    className="transition-all duration-200 focus-visible:ring-1 focus-visible:ring-primary"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-4">
@@ -795,20 +793,20 @@ const PriceCalculationForm = () => {
 
             {/* Costing Items */}
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-4">
                 <CardTitle>Cost Breakdown</CardTitle>
               </CardHeader>
-              <CardContent className="pt-4">
+              <CardContent>
                 {/* Header Row - Desktop Only */}
-                <div className="hidden sm:flex items-center gap-2 sm:gap-3 py-2 px-2 mb-3 text-[9px] uppercase tracking-widest text-muted-foreground font-semibold border-b border-muted/40">
-                  <div className="w-24 shrink-0">Item</div>
-                  <div className="w-16 text-center">Qty</div>
+                <div className="hidden sm:flex items-center gap-4 py-3 px-3 mb-4 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold bg-muted/30 rounded-md">
+                  <div className="w-28 shrink-0">Item</div>
+                  <div className="w-20 text-center">Qty</div>
                   <div className="w-20 text-center">Unit</div>
-                  <div className="w-24 text-center">Price</div>
-                  <div className="ml-auto text-right min-w-[80px]">Total</div>
+                  <div className="w-28 text-center">Price</div>
+                  <div className="ml-auto text-right min-w-[90px]">Total</div>
                 </div>
                 
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {formData.categories.map((category, categoryIndex) => (
                     <CategoryGroup
                       key={category.key}
@@ -832,10 +830,10 @@ const PriceCalculationForm = () => {
               <CardHeader>
                 <CardTitle>Summary</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between text-lg">
-                  <span className="text-muted-foreground">Total Costing</span>
-                  <span className="font-bold">{formatCurrency(costingTotal)}</span>
+              <CardContent className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Total Costing</span>
+                  <span className="text-lg font-bold tabular-nums">{formatCurrency(costingTotal)}</span>
                 </div>
 
                 <div className="space-y-2">
@@ -849,23 +847,23 @@ const PriceCalculationForm = () => {
                   />
                 </div>
 
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Margin Amount</span>
-                  <span className="font-medium text-success">+{formatCurrency(marginAmount)}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Margin Amount</span>
+                  <span className="font-medium tabular-nums text-success">+{formatCurrency(marginAmount)}</span>
                 </div>
 
-                <div className="pt-4 border-t space-y-2">
-                  <div className="flex justify-between text-xl font-bold">
-                    <span>Quoted Price</span>
-                    <span className="text-primary">{formatCurrency(quotedPrice)}</span>
+                <div className="pt-4 border-t border-muted/30 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-base font-medium">Quoted Price</span>
+                    <span className="text-xl font-bold tabular-nums text-primary">{formatCurrency(quotedPrice)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Per Piece</span>
-                    <span className="font-medium">{formatCurrency(pricePerPcs)}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Per Piece</span>
+                    <span className="text-sm font-medium tabular-nums">{formatCurrency(pricePerPcs)}</span>
                   </div>
                 </div>
 
-                <div className="space-y-2 pt-4">
+                <div className="space-y-3 pt-4 border-t border-muted/30">
                   <Button type="submit" className="w-full gap-2" disabled={saving}>
                     <Save className="h-4 w-4" />
                     {saving ? 'Saving...' : 'Save Calculation'}
