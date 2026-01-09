@@ -608,19 +608,32 @@ const PriceCalculationForm = () => {
 
     try {
       if (convertType === 'quotation') {
-        const { data: quotationNumber } = await supabase.rpc('generate_quotation_number');
+        if (!organization?.id) {
+          toast.error('Organization not found');
+          setConverting(false);
+          return;
+        }
+
+        // Generate quotation number atomically server-side
+        const { data: seqData, error: seqError } = await supabase
+          .rpc('generate_org_quotation_number', { p_org_id: organization.id });
+        
+        if (seqError) throw seqError;
+        if (!seqData || seqData.length === 0) throw new Error('Failed to generate quotation number');
+
+        const generatedNumber = seqData[0].quotation_number;
         
         const { data: quotation, error: quotationError } = await supabase
           .from('quotations')
           .insert([{
-            quotation_number: quotationNumber,
+            quotation_number: generatedNumber,
             customer_id: formData.customer_id || null,
             quotation_date: format(new Date(), 'yyyy-MM-dd'),
             subtotal: quotedPrice,
             total: quotedPrice,
             notes: `Job: ${formData.job_description}`,
             created_by: user?.id,
-            organization_id: organization?.id,
+            organization_id: organization.id,
           }])
           .select()
           .single();
@@ -633,7 +646,7 @@ const PriceCalculationForm = () => {
           quantity: formData.quantity,
           unit_price: pricePerPcs,
           total: quotedPrice,
-          organization_id: organization?.id,
+          organization_id: organization.id,
         }]);
 
         if (isEditing) {

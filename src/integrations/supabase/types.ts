@@ -2750,6 +2750,44 @@ export type Database = {
           },
         ]
       }
+      quotation_sequences: {
+        Row: {
+          created_at: string
+          current_sequence: number
+          id: string
+          organization_id: string
+          prefix: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          current_sequence?: number
+          id?: string
+          organization_id: string
+          prefix?: string
+          updated_at?: string
+          year?: number
+        }
+        Update: {
+          created_at?: string
+          current_sequence?: number
+          id?: string
+          organization_id?: string
+          prefix?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_sequences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotations: {
         Row: {
           created_at: string
@@ -3638,8 +3676,14 @@ export type Database = {
           invoice_number: string
         }[]
       }
+      generate_org_quotation_number: {
+        Args: { p_org_id: string }
+        Returns: {
+          quotation_no_raw: number
+          quotation_number: string
+        }[]
+      }
       generate_payment_receipt_number: { Args: never; Returns: string }
-      generate_quotation_number: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
       get_mrr_trend: {
         Args: { days_back?: number }
