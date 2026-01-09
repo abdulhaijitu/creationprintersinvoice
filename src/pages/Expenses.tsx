@@ -721,98 +721,113 @@ const Expenses = () => {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Expense Management</h1>
-          <p className="text-muted-foreground">Manage vendors and daily expenses</p>
+          <h1 className="text-2xl font-bold tracking-tight">Expense Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage vendors and daily expenses</p>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+      {/* Summary Cards - Polished */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="pb-2 pt-4 px-5">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <Users className="h-4 w-4" />
               Total Vendors
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{vendors.length}</p>
+          <CardContent className="px-5 pb-4">
+            <p className="text-2xl font-bold tabular-nums">{vendors.length}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        
+        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="pb-2 pt-4 px-5">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <Receipt className="h-4 w-4" />
               Total Vendor Bills
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
+          <CardContent className="px-5 pb-4">
+            <p className="text-2xl font-bold tabular-nums">
               {formatCurrency(vendors.reduce((sum, v) => sum + (v.total_bills || 0), 0))}
             </p>
           </CardContent>
         </Card>
-        <Card className="border-destructive/50 bg-destructive/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-destructive flex items-center gap-2">
+        
+        <Card className="border-red-200/50 bg-red-50/30 dark:border-red-900/30 dark:bg-red-950/20 shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-5">
+            <CardTitle className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wider flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
               Vendor Due
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-destructive">{formatCurrency(totalVendorDue)}</p>
+          <CardContent className="px-5 pb-4">
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400 tabular-nums">{formatCurrency(totalVendorDue)}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+        
+        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="pb-2 pt-4 px-5">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
               <Wallet className="h-4 w-4" />
               Total Daily Expenses
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(totalExpenses)}</p>
+          <CardContent className="px-5 pb-4">
+            <p className="text-2xl font-bold tabular-nums">{formatCurrency(totalExpenses)}</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Tabs - Polished */}
       <Tabs defaultValue="vendors" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="vendors" className="gap-2">
+        <TabsList className="h-11 p-1 bg-muted/50">
+          <TabsTrigger 
+            value="vendors" 
+            className="gap-2 px-4 h-9 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:font-semibold transition-all duration-200"
+          >
             <Building2 className="h-4 w-4" />
-            Vendors
+            <span>Vendors</span>
           </TabsTrigger>
-          <TabsTrigger value="expenses" className="gap-2">
+          <TabsTrigger 
+            value="expenses" 
+            className="gap-2 px-4 h-9 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:font-semibold transition-all duration-200"
+          >
             <Wallet className="h-4 w-4" />
-            Expenses
+            <span>Expenses</span>
           </TabsTrigger>
-          <TabsTrigger value="categories" className="gap-2">
+          <TabsTrigger 
+            value="categories" 
+            className="gap-2 px-4 h-9 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:font-semibold transition-all duration-200"
+          >
             <Tag className="h-4 w-4" />
-            Categories
+            <span>Categories</span>
           </TabsTrigger>
         </TabsList>
 
-        {/* Vendors Tab */}
         <TabsContent value="vendors" className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
               <Input
                 placeholder="Search vendors..."
                 value={vendorSearchTerm}
                 onChange={(e) => setVendorSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 h-10 bg-muted/40 border-muted/60 focus-visible:ring-1 focus-visible:ring-primary transition-all duration-200"
               />
             </div>
             {canCreateVendors && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {/* Bill Dialog */}
                 <Dialog open={isBillDialogOpen} onOpenChange={(open) => {
                   setIsBillDialogOpen(open);
                   if (!open) resetBillForm();
                 }}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="gap-2">
+                    <Button variant="outline" className="gap-2 h-10 border-muted/60 hover:bg-muted/50 transition-all duration-200">
                       <FileText className="h-4 w-4" />
                       Add Bill
                     </Button>
@@ -912,7 +927,7 @@ const Expenses = () => {
                   if (!open) resetPaymentForm();
                 }}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="gap-2">
+                    <Button variant="outline" className="gap-2 h-10 border-muted/60 hover:bg-muted/50 transition-all duration-200">
                       <CreditCard className="h-4 w-4" />
                       Payment
                     </Button>
@@ -1020,7 +1035,7 @@ const Expenses = () => {
                   if (!open) resetVendorForm();
                 }}>
                   <DialogTrigger asChild>
-                    <Button className="gap-2">
+                    <Button className="gap-2 h-10 shadow-sm hover:shadow transition-all duration-200 active:scale-[0.98]">
                       <Plus className="h-4 w-4" />
                       Add Vendor
                     </Button>
@@ -1129,17 +1144,17 @@ const Expenses = () => {
             )}
           </div>
 
-          {/* Vendors Table */}
-          <div className="border rounded-lg">
+          {/* Vendors Table - Polished */}
+          <div className="border border-border/60 rounded-lg overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead className="text-right">Total Bills</TableHead>
-                  <TableHead className="text-right">Paid</TableHead>
-                  <TableHead className="text-right">Due</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="font-semibold h-12">Name</TableHead>
+                  <TableHead className="font-semibold h-12">Contact</TableHead>
+                  <TableHead className="font-semibold h-12 text-right">Total Bills</TableHead>
+                  <TableHead className="font-semibold h-12 text-right">Paid</TableHead>
+                  <TableHead className="font-semibold h-12 text-right">Due</TableHead>
+                  <TableHead className="font-semibold h-12 text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1168,85 +1183,105 @@ const Expenses = () => {
                   </TableRow>
                 ) : (
                   filteredVendors.map((vendor) => (
-                    <TableRow key={vendor.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <TableRow key={vendor.id} className="hover:bg-muted/30 transition-colors duration-150">
+                      <TableCell className="py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/60">
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                          </div>
                           <div>
                             <p className="font-medium">{vendor.name}</p>
                             {vendor.address && (
-                              <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                              <p className="text-sm text-muted-foreground truncate max-w-[180px]">
                                 {vendor.address}
                               </p>
                             )}
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-4">
                         <div className="space-y-1">
                           {vendor.phone && (
-                            <div className="flex items-center gap-1 text-sm">
-                              <Phone className="h-3 w-3" />
-                              {vendor.phone}
+                            <div className="flex items-center gap-2 text-sm">
+                              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>{vendor.phone}</span>
                             </div>
                           )}
                           {vendor.email && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Mail className="h-3 w-3" />
-                              {vendor.email}
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Mail className="h-3.5 w-3.5" />
+                              <span>{vendor.email}</span>
                             </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-4 text-right font-medium tabular-nums">
                         {formatCurrency(vendor.total_bills || 0)}
                       </TableCell>
-                      <TableCell className="text-right text-green-600">
+                      <TableCell className="py-4 text-right font-medium text-green-600 dark:text-green-400 tabular-nums">
                         {formatCurrency(vendor.total_paid || 0)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-4 text-right">
                         {(vendor.due_amount || 0) > 0 ? (
-                          <Badge variant="destructive">{formatCurrency(vendor.due_amount || 0)}</Badge>
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 tabular-nums">
+                            {formatCurrency(vendor.due_amount || 0)}
+                          </span>
                         ) : (
-                          <Badge variant="outline" className="text-green-600 border-green-600">Paid</Badge>
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                            Paid
+                          </span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-4">
                         <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/vendors/${vendor.id}`)}
-                            title="View details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {canEditVendors && (
-                            <>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
-                                size="sm"
-                                onClick={() => openEditVendorDialog(vendor)}
-                                title="Edit"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200"
+                                onClick={() => navigate(`/vendors/${vendor.id}`)}
                               >
-                                <Edit2 className="h-4 w-4" />
+                                <Eye className="h-4 w-4" />
                               </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>View details</TooltipContent>
+                          </Tooltip>
+                          {canEditVendors && (
+                            <>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200"
+                                    onClick={() => openEditVendorDialog(vendor)}
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit</TooltipContent>
+                              </Tooltip>
                               {canDeleteVendors && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteVendor(vendor.id)}
-                                  title="Delete"
-                                  className="text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
+                                      onClick={() => handleDeleteVendor(vendor.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete</TooltipContent>
+                                </Tooltip>
                               )}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="outline" size="sm">
-                                    <Plus className="h-4 w-4 mr-1" />
-                                    Add
+                                  <Button variant="outline" size="sm" className="h-8 px-2.5 border-muted/60 hover:bg-muted/50 transition-all duration-200">
+                                    <Plus className="h-3.5 w-3.5 mr-1" />
+                                    <span className="text-xs">Add</span>
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -1276,17 +1311,17 @@ const Expenses = () => {
           </div>
         </TabsContent>
 
-        {/* Daily Expenses Tab */}
+        {/* Daily Expenses Tab - Polished */}
         <TabsContent value="expenses" className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex flex-col sm:flex-row gap-4 flex-1">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full lg:w-auto">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
                 <Input
                   placeholder="Search expenses..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-10 bg-muted/40 border-muted/60 focus-visible:ring-1 focus-visible:ring-primary transition-all duration-200"
                 />
               </div>
               <Select value={filterCategory} onValueChange={setFilterCategory}>
