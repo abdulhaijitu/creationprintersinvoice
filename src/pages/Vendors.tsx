@@ -55,7 +55,7 @@ interface Vendor {
 const Vendors = () => {
   const navigate = useNavigate();
   const { isSuperAdmin } = useAuth();
-  const { orgRole } = useOrganization();
+  const { organization, orgRole } = useOrganization();
   
   // Permission-based access controls
   const canView = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'view');
@@ -147,7 +147,10 @@ const Vendors = () => {
         if (error) throw error;
         toast.success("Vendor updated");
       } else {
-        const { error } = await supabase.from("vendors").insert(formData);
+        const { error } = await supabase.from("vendors").insert({
+          ...formData,
+          organization_id: organization?.id,
+        });
 
         if (error) throw error;
         toast.success("Vendor added");
@@ -330,6 +333,7 @@ const Vendors = () => {
           address: address || null,
           bank_info: bankInfo || null,
           notes: notes || null,
+          organization_id: organization?.id,
         });
 
         if (error) {
