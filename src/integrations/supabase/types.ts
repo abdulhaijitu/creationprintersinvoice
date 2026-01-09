@@ -55,6 +55,7 @@ export type Database = {
           date: string
           id: string
           notes: string | null
+          organization_id: string | null
           status: Database["public"]["Enums"]["attendance_status"] | null
           updated_at: string
           user_id: string
@@ -66,6 +67,7 @@ export type Database = {
           date?: string
           id?: string
           notes?: string | null
+          organization_id?: string | null
           status?: Database["public"]["Enums"]["attendance_status"] | null
           updated_at?: string
           user_id: string
@@ -77,11 +79,20 @@ export type Database = {
           date?: string
           id?: string
           notes?: string | null
+          organization_id?: string | null
           status?: Database["public"]["Enums"]["attendance_status"] | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "attendance_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
@@ -1231,6 +1242,7 @@ export type Database = {
           casual_used: number | null
           created_at: string
           id: string
+          organization_id: string | null
           sick_total: number | null
           sick_used: number | null
           updated_at: string
@@ -1244,6 +1256,7 @@ export type Database = {
           casual_used?: number | null
           created_at?: string
           id?: string
+          organization_id?: string | null
           sick_total?: number | null
           sick_used?: number | null
           updated_at?: string
@@ -1257,13 +1270,22 @@ export type Database = {
           casual_used?: number | null
           created_at?: string
           id?: string
+          organization_id?: string | null
           sick_total?: number | null
           sick_used?: number | null
           updated_at?: string
           user_id?: string
           year?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leave_balances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leave_requests: {
         Row: {
@@ -1273,6 +1295,7 @@ export type Database = {
           end_date: string
           id: string
           leave_type: Database["public"]["Enums"]["leave_type"]
+          organization_id: string | null
           reason: string | null
           rejection_reason: string | null
           start_date: string
@@ -1287,6 +1310,7 @@ export type Database = {
           end_date: string
           id?: string
           leave_type: Database["public"]["Enums"]["leave_type"]
+          organization_id?: string | null
           reason?: string | null
           rejection_reason?: string | null
           start_date: string
@@ -1301,6 +1325,7 @@ export type Database = {
           end_date?: string
           id?: string
           leave_type?: Database["public"]["Enums"]["leave_type"]
+          organization_id?: string | null
           reason?: string | null
           rejection_reason?: string | null
           start_date?: string
@@ -1308,7 +1333,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       module_permissions: {
         Row: {
@@ -2261,6 +2294,7 @@ export type Database = {
           created_by: string | null
           id: string
           note: string
+          organization_id: string | null
           rating: number | null
           user_id: string
         }
@@ -2269,6 +2303,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           note: string
+          organization_id?: string | null
           rating?: number | null
           user_id: string
         }
@@ -2277,10 +2312,19 @@ export type Database = {
           created_by?: string | null
           id?: string
           note?: string
+          organization_id?: string | null
           rating?: number | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "performance_notes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       plan_limits: {
         Row: {
@@ -2952,6 +2996,7 @@ export type Database = {
           deducted_from_month: number | null
           deducted_from_year: number | null
           id: string
+          organization_id: string | null
           reason: string | null
           status: string | null
           user_id: string
@@ -2963,6 +3008,7 @@ export type Database = {
           deducted_from_month?: number | null
           deducted_from_year?: number | null
           id?: string
+          organization_id?: string | null
           reason?: string | null
           status?: string | null
           user_id: string
@@ -2974,11 +3020,20 @@ export type Database = {
           deducted_from_month?: number | null
           deducted_from_year?: number | null
           id?: string
+          organization_id?: string | null
           reason?: string | null
           status?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "salary_advances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       salary_records: {
         Row: {
@@ -2992,6 +3047,7 @@ export type Database = {
           month: number
           net_payable: number
           notes: string | null
+          organization_id: string | null
           overtime_amount: number | null
           overtime_hours: number | null
           paid_date: string | null
@@ -3011,6 +3067,7 @@ export type Database = {
           month: number
           net_payable: number
           notes?: string | null
+          organization_id?: string | null
           overtime_amount?: number | null
           overtime_hours?: number | null
           paid_date?: string | null
@@ -3030,6 +3087,7 @@ export type Database = {
           month?: number
           net_payable?: number
           notes?: string | null
+          organization_id?: string | null
           overtime_amount?: number | null
           overtime_hours?: number | null
           paid_date?: string | null
@@ -3044,6 +3102,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_records_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
