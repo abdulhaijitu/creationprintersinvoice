@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ import { Building2, Upload, Save, Loader2, CreditCard, Crown, Users } from 'luci
 import { format } from 'date-fns';
 import { OwnershipTransferRequest } from '@/components/ownership/OwnershipTransferRequest';
 import { OwnershipHistory } from '@/components/ownership/OwnershipHistory';
+import { InvoiceNumberSettings } from '@/components/settings/InvoiceNumberSettings';
 
 interface OrganizationSettings {
   name: string;
@@ -40,7 +41,6 @@ interface OrganizationSettings {
 
 const OrganizationSettings = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { organization, subscription, isOrgOwner, refetchOrganization } = useOrganization();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -203,11 +203,12 @@ const OrganizationSettings = () => {
       </div>
 
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="logo">Logo</TabsTrigger>
           <TabsTrigger value="bank">Bank Details</TabsTrigger>
           <TabsTrigger value="invoice">Invoicing</TabsTrigger>
+          <TabsTrigger value="numbering">Numbering</TabsTrigger>
         </TabsList>
 
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -383,6 +384,10 @@ const OrganizationSettings = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="numbering">
+            <InvoiceNumberSettings />
           </TabsContent>
 
           <div className="flex justify-end mt-6">

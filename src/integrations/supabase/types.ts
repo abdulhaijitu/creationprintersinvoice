@@ -1102,24 +1102,30 @@ export type Database = {
           created_at: string
           current_sequence: number
           id: string
+          last_migration_at: string | null
           organization_id: string
           prefix: string | null
+          starting_number: number
           updated_at: string
         }
         Insert: {
           created_at?: string
           current_sequence?: number
           id?: string
+          last_migration_at?: string | null
           organization_id: string
           prefix?: string | null
+          starting_number?: number
           updated_at?: string
         }
         Update: {
           created_at?: string
           current_sequence?: number
           id?: string
+          last_migration_at?: string | null
           organization_id?: string
           prefix?: string | null
+          starting_number?: number
           updated_at?: string
         }
         Relationships: [
@@ -1141,6 +1147,7 @@ export type Database = {
           due_date: string | null
           id: string
           invoice_date: string
+          invoice_no_raw: number | null
           invoice_number: string
           notes: string | null
           organization_id: string | null
@@ -1159,6 +1166,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           invoice_date?: string
+          invoice_no_raw?: number | null
           invoice_number: string
           notes?: string | null
           organization_id?: string | null
@@ -1177,6 +1185,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           invoice_date?: string
+          invoice_no_raw?: number | null
           invoice_number?: string
           notes?: string | null
           organization_id?: string | null
@@ -3612,6 +3621,13 @@ export type Database = {
         Args: { p_org_id: string }
         Returns: string
       }
+      generate_org_invoice_number_v2: {
+        Args: { p_org_id: string }
+        Returns: {
+          invoice_no_raw: number
+          invoice_number: string
+        }[]
+      }
       generate_payment_receipt_number: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
@@ -3623,6 +3639,10 @@ export type Database = {
           mrr: number
           snapshot_date: string
         }[]
+      }
+      get_next_invoice_number_preview: {
+        Args: { p_org_id: string }
+        Returns: string
       }
       get_org_usage_percentage: {
         Args: { org_id: string }
@@ -3735,6 +3755,14 @@ export type Database = {
       schedule_trial_reminders: {
         Args: { p_organization_id: string; p_trial_ends_at: string }
         Returns: undefined
+      }
+      update_invoice_sequence_settings: {
+        Args: {
+          p_org_id: string
+          p_prefix?: string
+          p_starting_number?: number
+        }
+        Returns: boolean
       }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }

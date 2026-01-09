@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.bulk-delete-customers]
 verify_jwt = false
+
+[functions.migrate-invoice-numbers]
+verify_jwt = false

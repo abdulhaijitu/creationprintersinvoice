@@ -234,16 +234,24 @@ const InvoiceForm = () => {
         toast.success('Invoice updated');
         navigate(`/invoices/${id}`);
       } else {
-        // Generate invoice number only at save time
+        // Generate invoice number only at save time using the new v2 function
         let newInvoiceNumber: string;
+        let invoiceNoRaw: number | null = null;
+        
         try {
-          const { data, error } = await supabase.rpc('generate_org_invoice_number', {
+          const { data, error } = await supabase.rpc('generate_org_invoice_number_v2', {
             p_org_id: organization?.id
           });
           if (error) throw error;
-          newInvoiceNumber = data;
+          if (data && data.length > 0) {
+            newInvoiceNumber = data[0].invoice_number;
+            invoiceNoRaw = data[0].invoice_no_raw;
+          } else {
+            throw new Error('No data returned');
+          }
         } catch (error) {
           // Fallback to old method if org-based fails
+          console.warn('Falling back to legacy invoice number generation:', error);
           const { data, error: oldError } = await supabase.rpc('generate_invoice_number');
           if (!oldError && data) {
             newInvoiceNumber = data;
@@ -261,6 +269,7 @@ const InvoiceForm = () => {
           .insert([
             {
               invoice_number: newInvoiceNumber,
+              invoice_no_raw: invoiceNoRaw,
               customer_id: formData.customer_id,
               invoice_date: formData.invoice_date,
               due_date: formData.due_date || null,
