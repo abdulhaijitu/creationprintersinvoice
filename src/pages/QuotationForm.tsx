@@ -32,7 +32,6 @@ interface QuotationItem {
   quantity: number;
   unit: string;
   unit_price: number;
-  discount: number;
   total: number;
 }
 
@@ -57,7 +56,7 @@ const QuotationForm = () => {
   });
 
   const [items, setItems] = useState<QuotationItem[]>([
-    { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, discount: 0, total: 0 },
+    { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
   ]);
 
   useEffect(() => {
@@ -117,7 +116,6 @@ const QuotationForm = () => {
           quantity: Number(item.quantity),
           unit: item.unit || '',
           unit_price: Number(item.unit_price),
-          discount: Number(item.discount) || 0,
           total: Number(item.total),
         })));
       }
@@ -149,8 +147,7 @@ const QuotationForm = () => {
         
         const qty = Number(updated.quantity) || 0;
         const price = Number(updated.unit_price) || 0;
-        const discount = Number(updated.discount) || 0;
-        updated.total = qty * price - discount;
+        updated.total = qty * price;
 
         return updated;
       })
@@ -160,7 +157,7 @@ const QuotationForm = () => {
   const addItem = () => {
     setItems((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, discount: 0, total: 0 },
+      { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
     ]);
   };
 
@@ -226,7 +223,7 @@ const QuotationForm = () => {
           quantity: item.quantity,
           unit: item.unit || null,
           unit_price: item.unit_price,
-          discount: item.discount,
+          discount: 0,
           total: item.total,
         }));
 
@@ -264,7 +261,7 @@ const QuotationForm = () => {
           quantity: item.quantity,
           unit: item.unit || null,
           unit_price: item.unit_price,
-          discount: item.discount,
+          discount: 0,
           total: item.total,
         }));
 
@@ -367,11 +364,10 @@ const QuotationForm = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[280px] w-[45%]">Description</TableHead>
+                        <TableHead className="min-w-[280px] w-[50%]">Description</TableHead>
                         <TableHead className="text-center w-20">Qty</TableHead>
                         <TableHead className="text-center w-20">Unit</TableHead>
                         <TableHead className="text-right w-28">Price</TableHead>
-                        <TableHead className="text-right w-24">Discount</TableHead>
                         <TableHead className="text-right w-28">Total</TableHead>
                         <TableHead className="w-10"></TableHead>
                       </TableRow>
@@ -418,15 +414,6 @@ const QuotationForm = () => {
                                 updateItem(item.id, 'unit_price', val)
                               }
                               className="w-28"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <CurrencyInput
-                              value={item.discount}
-                              onChange={(val) =>
-                                updateItem(item.id, 'discount', val)
-                              }
-                              className="w-24"
                             />
                           </TableCell>
                           <TableCell className="text-right font-medium">

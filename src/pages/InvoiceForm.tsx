@@ -33,7 +33,6 @@ interface InvoiceItem {
   quantity: number;
   unit: string;
   unit_price: number;
-  discount: number;
   total: number;
 }
 
@@ -69,7 +68,7 @@ const InvoiceForm = () => {
     } else {
       // Only add default empty item for NEW invoices, not when editing
       setItems([
-        { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, discount: 0, total: 0 },
+        { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
       ]);
     }
     // Invoice number is generated only on successful save, not on form open
@@ -123,7 +122,6 @@ const InvoiceForm = () => {
           quantity: Number(item.quantity),
           unit: item.unit || '',
           unit_price: Number(item.unit_price),
-          discount: Number(item.discount) || 0,
           total: Number(item.total),
         })));
       }
@@ -146,8 +144,7 @@ const InvoiceForm = () => {
         
         const qty = Number(updated.quantity) || 0;
         const price = Number(updated.unit_price) || 0;
-        const discount = Number(updated.discount) || 0;
-        updated.total = qty * price - discount;
+        updated.total = qty * price;
 
         return updated;
       })
@@ -157,7 +154,7 @@ const InvoiceForm = () => {
   const addItem = () => {
     setItems((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, discount: 0, total: 0 },
+      { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
     ]);
   };
 
@@ -223,7 +220,7 @@ const InvoiceForm = () => {
           quantity: item.quantity,
           unit: item.unit || null,
           unit_price: item.unit_price,
-          discount: item.discount,
+          discount: 0,
           total: item.total,
           organization_id: organization?.id,
         }));
@@ -293,7 +290,7 @@ const InvoiceForm = () => {
           quantity: item.quantity,
           unit: item.unit || null,
           unit_price: item.unit_price,
-          discount: item.discount,
+          discount: 0,
           total: item.total,
           organization_id: organization?.id,
         }));
@@ -401,11 +398,10 @@ const InvoiceForm = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[280px] w-[45%]">Description</TableHead>
+                        <TableHead className="min-w-[280px] w-[50%]">Description</TableHead>
                         <TableHead className="text-center w-20">Qty</TableHead>
                         <TableHead className="text-center w-20">Unit</TableHead>
                         <TableHead className="text-right w-28">Price</TableHead>
-                        <TableHead className="text-right w-24">Discount</TableHead>
                         <TableHead className="text-right w-28">Total</TableHead>
                         <TableHead className="w-10"></TableHead>
                       </TableRow>
@@ -452,15 +448,6 @@ const InvoiceForm = () => {
                                 updateItem(item.id, 'unit_price', val)
                               }
                               className="w-28"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <CurrencyInput
-                              value={item.discount}
-                              onChange={(val) =>
-                                updateItem(item.id, 'discount', val)
-                              }
-                              className="w-24"
                             />
                           </TableCell>
                           <TableCell className="text-right font-medium">
