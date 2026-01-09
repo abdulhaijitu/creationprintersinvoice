@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrganization } from "@/contexts/OrganizationContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,6 +55,7 @@ interface AttendanceRecord {
 
 const Attendance = () => {
   const { isAdmin } = useAuth();
+  const { organization } = useOrganization();
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,6 +144,7 @@ const Attendance = () => {
         check_out: newAttendance.check_out ? `${selectedDate}T${newAttendance.check_out}:00` : null,
         status: newAttendance.status,
         notes: newAttendance.notes || null,
+        organization_id: organization?.id,
       });
 
       if (error) throw error;

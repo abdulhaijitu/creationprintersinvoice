@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrganization } from "@/contexts/OrganizationContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,6 +68,7 @@ const VendorDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { organization } = useOrganization();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -165,6 +167,7 @@ const VendorDetail = () => {
           amount: parseFloat(billForm.amount),
           due_date: billForm.due_date || null,
           status: "unpaid",
+          organization_id: organization?.id,
         });
 
         if (error) throw error;
@@ -250,6 +253,7 @@ const VendorDetail = () => {
           payment_method: paymentForm.payment_method,
           notes: paymentForm.notes || null,
           bill_id: paymentForm.bill_id || null,
+          organization_id: organization?.id,
         });
 
         if (error) throw error;

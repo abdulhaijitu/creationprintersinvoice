@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrganization } from "@/contexts/OrganizationContext";
 import { hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,6 +81,7 @@ const months = [
 
 const Salary = () => {
   const { isAdmin, role, loading: authLoading } = useAuth();
+  const { organization } = useOrganization();
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [advances, setAdvances] = useState<EmployeeAdvance[]>([]);
@@ -203,6 +205,7 @@ const Salary = () => {
         net_payable: netPayable,
         status: "pending",
         notes: formData.notes || null,
+        organization_id: organization?.id,
       });
 
       if (error) throw error;
@@ -262,6 +265,7 @@ const Salary = () => {
         status: "pending",
         deducted_from_month: advanceFormData.deduction_month,
         deducted_from_year: advanceFormData.deduction_year,
+        organization_id: organization?.id,
       });
 
       if (error) throw error;

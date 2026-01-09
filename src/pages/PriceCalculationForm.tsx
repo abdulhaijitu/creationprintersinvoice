@@ -620,6 +620,7 @@ const PriceCalculationForm = () => {
             total: quotedPrice,
             notes: `Job: ${formData.job_description}`,
             created_by: user?.id,
+            organization_id: organization?.id,
           }])
           .select()
           .single();
@@ -632,6 +633,7 @@ const PriceCalculationForm = () => {
           quantity: formData.quantity,
           unit_price: pricePerPcs,
           total: quotedPrice,
+          organization_id: organization?.id,
         }]);
 
         if (isEditing) {
@@ -656,6 +658,7 @@ const PriceCalculationForm = () => {
             total: quotedPrice,
             notes: `Job: ${formData.job_description}`,
             created_by: user?.id,
+            organization_id: organization?.id,
           }])
           .select()
           .single();
@@ -668,6 +671,7 @@ const PriceCalculationForm = () => {
           quantity: formData.quantity,
           unit_price: pricePerPcs,
           total: quotedPrice,
+          organization_id: organization?.id,
         }]);
 
         if (isEditing) {

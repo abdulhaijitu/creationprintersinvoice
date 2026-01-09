@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { toast } from 'sonner';
 import { WorkflowStatus, WORKFLOW_STATUSES, getNextStatus, isDelivered } from '@/components/tasks/ProductionWorkflow';
 
@@ -30,6 +31,7 @@ export interface Employee {
 
 export function useTasks() {
   const { isAdmin, user } = useAuth();
+  const { organization } = useOrganization();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,6 +167,7 @@ export function useTasks() {
         status: 'design',
         reference_type: data.reference_type || null,
         reference_id: data.reference_id || null,
+        organization_id: organization?.id,
       });
 
       if (error) throw error;
