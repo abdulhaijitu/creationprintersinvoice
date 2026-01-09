@@ -345,11 +345,11 @@ export function AddPaymentDialog({
             </DrawerDescription>
           </DrawerHeader>
           <div className="px-4 overflow-y-auto">
-            {showSuccess ? <SuccessState /> : <FormContent />}
+            {showSuccess ? successContent : formContent}
           </div>
           {!showSuccess && (
             <DrawerFooter className="pt-4">
-              <FooterButtons />
+              {footerButtons}
             </DrawerFooter>
           )}
         </DrawerContent>
@@ -367,10 +367,10 @@ export function AddPaymentDialog({
             Add a payment for Invoice #{invoice.invoice_number}
           </DialogDescription>
         </DialogHeader>
-        {showSuccess ? <SuccessState /> : <FormContent />}
+        {showSuccess ? successContent : formContent}
         {!showSuccess && (
           <DialogFooter className="gap-2 sm:gap-0">
-            <FooterButtons />
+            {footerButtons}
           </DialogFooter>
         )}
       </DialogContent>
