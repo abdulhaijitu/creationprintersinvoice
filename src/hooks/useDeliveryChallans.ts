@@ -96,6 +96,16 @@ export function useDeliveryChallans() {
 
   const createChallan = async (data: CreateChallanData) => {
     try {
+      // Get current user and their organization
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data: orgData, error: orgError } = await supabase
+        .rpc('get_user_organization_id', { _user_id: user.id });
+      
+      if (orgError) throw orgError;
+      if (!orgData) throw new Error('User has no organization');
+
       // Generate challan number
       const { data: challanNumber, error: numError } = await supabase
         .rpc('generate_challan_number');
@@ -113,6 +123,8 @@ export function useDeliveryChallans() {
           driver_name: data.driver_name,
           driver_phone: data.driver_phone,
           notes: data.notes,
+          organization_id: orgData,
+          created_by: user.id,
         })
         .select()
         .single();
