@@ -2800,6 +2800,9 @@ export type Database = {
       }
       quotations: {
         Row: {
+          converted_at: string | null
+          converted_by: string | null
+          converted_invoice_id: string | null
           converted_to_invoice_id: string | null
           created_at: string
           created_by: string | null
@@ -2820,6 +2823,9 @@ export type Database = {
           valid_until: string | null
         }
         Insert: {
+          converted_at?: string | null
+          converted_by?: string | null
+          converted_invoice_id?: string | null
           converted_to_invoice_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -2840,6 +2846,9 @@ export type Database = {
           valid_until?: string | null
         }
         Update: {
+          converted_at?: string | null
+          converted_by?: string | null
+          converted_invoice_id?: string | null
           converted_to_invoice_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -2860,6 +2869,13 @@ export type Database = {
           valid_until?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "quotations_converted_invoice_id_fkey"
+            columns: ["converted_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quotations_converted_to_invoice_id_fkey"
             columns: ["converted_to_invoice_id"]
