@@ -218,9 +218,9 @@ export const GlobalSearch = () => {
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative w-full">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         <Input
           ref={inputRef}
           type="text"
@@ -233,19 +233,19 @@ export const GlobalSearch = () => {
           }}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          className="pl-9 pr-8 w-64 h-9 bg-muted/50 border-muted focus:bg-background transition-colors"
+          className="pl-9 pr-8 w-full h-10 bg-muted/40 border-muted/60 rounded-md placeholder:text-muted-foreground/60 focus:bg-background focus-visible:ring-1 focus-visible:ring-primary transition-all duration-200"
         />
         {query && (
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-muted/60 transition-colors duration-200"
             onClick={() => {
               setQuery('');
               setResults([]);
             }}
           >
-            <X className="h-3 w-3" />
+            <X className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>

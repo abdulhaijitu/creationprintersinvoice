@@ -48,9 +48,12 @@ export const QuickActions = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" className="hidden sm:flex gap-1.5">
+        <Button 
+          size="sm" 
+          className="hidden sm:flex gap-1.5 h-8 px-3 shadow-sm hover:shadow transition-all duration-200 active:scale-[0.98]"
+        >
           <Plus className="h-4 w-4" />
-          Quick Create
+          <span className="font-medium">Quick Create</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
