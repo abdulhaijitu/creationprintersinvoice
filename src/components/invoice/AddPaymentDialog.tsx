@@ -188,8 +188,8 @@ export function AddPaymentDialog({
     }
   };
 
-  // Payment summary component
-  const PaymentSummary = () => (
+  // Stable UI blocks (NOT nested components) to prevent remounts/caret resets
+  const paymentSummary = (
     <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
       <div className="flex justify-between text-sm">
         <span className="text-muted-foreground">Invoice</span>
@@ -215,25 +215,9 @@ export function AddPaymentDialog({
     </div>
   );
 
-  // Success state component
-  const SuccessState = () => (
-    <div className="flex flex-col items-center justify-center py-8 space-y-4">
-      <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center animate-in zoom-in-50 duration-300">
-        <CheckCircle className="w-8 h-8 text-success" />
-      </div>
-      <div className="text-center space-y-1">
-        <p className="font-semibold text-lg">Payment Recorded</p>
-        <p className="text-muted-foreground text-sm">
-          {formatCurrency(formData.amount)} has been added
-        </p>
-      </div>
-    </div>
-  );
-
-  // Form content component
-  const FormContent = () => (
+  const formContent = (
     <div className="space-y-4">
-      <PaymentSummary />
+      {paymentSummary}
 
       <div className="space-y-4 pt-2">
         {/* Payment Date */}
@@ -243,7 +227,7 @@ export function AddPaymentDialog({
             id="payment_date"
             type="date"
             value={formData.payment_date}
-            onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, payment_date: e.target.value }))}
             max={format(new Date(), 'yyyy-MM-dd')}
           />
         </div>
@@ -254,7 +238,7 @@ export function AddPaymentDialog({
           <CurrencyInput
             id="amount"
             value={formData.amount}
-            onChange={(value) => setFormData({ ...formData, amount: value })}
+            onChange={(value) => setFormData((prev) => ({ ...prev, amount: value }))}
             placeholder="0.00"
             className={cn(errors.amount && 'border-destructive focus-visible:ring-destructive')}
           />
@@ -271,7 +255,7 @@ export function AddPaymentDialog({
           <Label htmlFor="payment_method">Payment Method</Label>
           <Select
             value={formData.payment_method}
-            onValueChange={(value) => setFormData({ ...formData, payment_method: value })}
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, payment_method: value }))}
           >
             <SelectTrigger id="payment_method">
               <SelectValue />
@@ -294,7 +278,7 @@ export function AddPaymentDialog({
           <Input
             id="reference"
             value={formData.reference}
-            onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, reference: e.target.value }))}
             placeholder="e.g., TRX123456"
           />
         </div>
@@ -307,7 +291,7 @@ export function AddPaymentDialog({
           <Textarea
             id="notes"
             value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
             placeholder="Any additional notes..."
             rows={2}
           />
@@ -316,14 +300,21 @@ export function AddPaymentDialog({
     </div>
   );
 
-  // Footer buttons component
-  const FooterButtons = () => (
+  const successContent = (
+    <div className="flex flex-col items-center justify-center py-8 space-y-4">
+      <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center animate-in zoom-in-50 duration-300">
+        <CheckCircle className="w-8 h-8 text-success" />
+      </div>
+      <div className="text-center space-y-1">
+        <p className="font-semibold text-lg">Payment Recorded</p>
+        <p className="text-muted-foreground text-sm">{formatCurrency(formData.amount)} has been added</p>
+      </div>
+    </div>
+  );
+
+  const footerButtons = (
     <>
-      <Button
-        variant="outline"
-        onClick={() => onOpenChange(false)}
-        disabled={isSubmitting}
-      >
+      <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
         Cancel
       </Button>
       <Button
