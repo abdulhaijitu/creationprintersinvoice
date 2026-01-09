@@ -57,24 +57,39 @@ Components that enforce routing boundaries:
 3. **OrgContextGuard** - Prevents rendering without org context
    - Use for components that require organization data
 
-### Layer 4: RLS Policies (Database)
+### Layer 4: Business Table Guard (`src/lib/businessTableGuard.ts`)
 
-Supabase Row Level Security enforces server-side isolation:
+Hard-blocks any attempt to query business tables from Super Admin context:
 
-```sql
--- Business tables MUST have this pattern
-CREATE POLICY "Users can only view their org data"
-ON public.invoices
-FOR SELECT
-USING (
-  organization_id IN (
-    SELECT organization_id FROM organization_members 
-    WHERE user_id = auth.uid()
-  )
-);
+```typescript
+import { validateQueryAccess, BusinessDataAccessError } from '@/lib/businessTableGuard';
+
+// THROWS if in Super Admin context without impersonation
+validateQueryAccess('invoices', appContext, isImpersonating);
 ```
 
-**CRITICAL**: Super Admin bypass is REMOVED for business tables.
+**THROWS `BusinessDataAccessError`** if:
+- `appContext === 'super_admin'`
+- `isImpersonating === false`
+- Table is in `BUSINESS_TABLES` list
+
+This is a **hard guard** - not a soft filter.
+
+### Layer 5: RLS Policies (Database)
+
+Supabase Row Level Security enforces server-side isolation.
+
+**CRITICAL**: All business tables have `FORCE ROW LEVEL SECURITY` enabled and
+**NO Super Admin bypass** (`is_platform_admin` removed).
+
+```sql
+-- Business tables use ONLY org membership check
+CREATE POLICY "Users can view org invoices" ON public.invoices
+FOR SELECT USING (organization_id = get_user_organization_id(auth.uid()));
+
+-- Force RLS so even table owners can't bypass
+ALTER TABLE public.invoices FORCE ROW LEVEL SECURITY;
+```
 
 ## Data Flow
 
@@ -95,12 +110,14 @@ User Request → UserAppGuard → OrgContextGuard → useOrgScopedQuery
 ```
 Admin Request → AdminRouteGuard → useOrgScopedQuery
                                        ↓
-                                  shouldBlockDataQueries = true
+                                  assertQueryAllowed('invoices')
                                        ↓
-                                  BLOCK ALL BUSINESS QUERIES
+                                  THROWS BusinessDataAccessError
                                        ↓
-                                  Return Empty Array
+                                  Query BLOCKED (never executes)
 ```
+
+If query somehow bypasses frontend, RLS will return 0 rows (double protection).
 
 ### Super Admin Context (Impersonating)
 ```
@@ -153,17 +170,21 @@ Impersonation Start → Clear All Cache → OrganizationContext loads impersonat
 When adding new business data features:
 
 - [ ] Use `useOrgScopedQuery()` hook
+- [ ] Call `assertQueryAllowed(tableName)` before any business table query
 - [ ] Check `shouldBlockDataQueries` before fetching
 - [ ] Apply `applyOrgFilter()` to all queries
 - [ ] Add `organization_id` column to new tables
-- [ ] Create RLS policies WITHOUT Super Admin bypass
+- [ ] Create RLS policies WITHOUT `is_platform_admin` bypass
+- [ ] Run `ALTER TABLE ... FORCE ROW LEVEL SECURITY`
 - [ ] Wrap components in `OrgContextGuard` if needed
 - [ ] Include `organization_id` in all INSERT operations
+- [ ] Add table name to `BUSINESS_TABLES` in `businessTableGuard.ts`
 
 ## Testing Multi-Tenant Isolation
 
 1. **As User**: Verify only own org data is visible
-2. **As Super Admin (Admin Panel)**: Verify NO business data is visible
+2. **As Super Admin (Admin Panel)**: Verify NO business data is visible (should get 0 rows)
 3. **As Super Admin (Impersonating)**: Verify ONLY impersonated org data is visible
 4. **Context Switch**: Verify data clears when switching contexts
 5. **Direct URL Access**: Verify guards block unauthorized routes
+6. **API Direct Call**: Verify RLS returns 0 rows for Super Admin on business tables
