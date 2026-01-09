@@ -1,11 +1,11 @@
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Clock, XCircle, AlertCircle, Package, Truck, Ban, FileCheck } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, AlertCircle, Package, Truck, Ban, FileCheck, Send, FileEdit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type StatusType = 
   | 'paid' | 'partial' | 'unpaid' 
   | 'pending' | 'accepted' | 'rejected' | 'converted'
-  | 'draft' | 'dispatched' | 'delivered' | 'cancelled'
+  | 'draft' | 'sent' | 'dispatched' | 'delivered' | 'cancelled'
   | 'approved';
 
 interface StatusBadgeProps {
@@ -24,6 +24,8 @@ const statusConfig: Record<string, {
   unpaid: { label: 'Unpaid', icon: XCircle, variant: 'destructive' },
   
   // Quotation statuses
+  draft: { label: 'Draft', icon: FileEdit, variant: 'muted' },
+  sent: { label: 'Sent', icon: Send, variant: 'info' },
   pending: { label: 'Pending', icon: Clock, variant: 'warning' },
   accepted: { label: 'Accepted', icon: CheckCircle, variant: 'success' },
   rejected: { label: 'Rejected', icon: XCircle, variant: 'destructive' },
@@ -31,7 +33,6 @@ const statusConfig: Record<string, {
   converted: { label: 'Converted', icon: FileCheck, variant: 'primary' },
   
   // Delivery challan statuses
-  draft: { label: 'Draft', icon: AlertCircle, variant: 'muted' },
   dispatched: { label: 'Dispatched', icon: Truck, variant: 'info' },
   delivered: { label: 'Delivered', icon: Package, variant: 'success' },
   cancelled: { label: 'Cancelled', icon: Ban, variant: 'destructive' },

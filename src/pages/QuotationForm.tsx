@@ -47,6 +47,7 @@ const QuotationForm = () => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [quotationNumber, setQuotationNumber] = useState('');
+  const [quotationStatus, setQuotationStatus] = useState<string>('draft');
   const [isGeneratingNumber, setIsGeneratingNumber] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -61,6 +62,9 @@ const QuotationForm = () => {
   const [items, setItems] = useState<QuotationItem[]>([
     { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
   ]);
+
+  // Check if quotation can be edited (only draft status)
+  const canEdit = !isEditing || quotationStatus === 'draft';
 
   useEffect(() => {
     fetchCustomers();
@@ -95,7 +99,15 @@ const QuotationForm = () => {
 
       if (error) throw error;
 
+      // Check if quotation can be edited
+      if (quotation.status !== 'draft') {
+        toast.error('Only draft quotations can be edited');
+        navigate(`/quotations/${id}`);
+        return;
+      }
+
       setQuotationNumber(quotation.quotation_number);
+      setQuotationStatus(quotation.status);
       setFormData({
         customer_id: quotation.customer_id || '',
         quotation_date: quotation.quotation_date,

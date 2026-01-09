@@ -2811,6 +2811,8 @@ export type Database = {
           quotation_date: string
           quotation_number: string
           status: Database["public"]["Enums"]["quotation_status"] | null
+          status_changed_at: string | null
+          status_changed_by: string | null
           subtotal: number
           tax: number | null
           total: number
@@ -2829,6 +2831,8 @@ export type Database = {
           quotation_date?: string
           quotation_number: string
           status?: Database["public"]["Enums"]["quotation_status"] | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
           subtotal?: number
           tax?: number | null
           total?: number
@@ -2847,6 +2851,8 @@ export type Database = {
           quotation_date?: string
           quotation_number?: string
           status?: Database["public"]["Enums"]["quotation_status"] | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
           subtotal?: number
           tax?: number | null
           total?: number
@@ -3849,6 +3855,17 @@ export type Database = {
           p_starting_number?: number
         }
         Returns: boolean
+      }
+      update_quotation_status: {
+        Args: {
+          p_new_status: Database["public"]["Enums"]["quotation_status"]
+          p_quotation_id: string
+          p_user_id: string
+        }
+        Returns: {
+          message: string
+          success: boolean
+        }[]
       }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }

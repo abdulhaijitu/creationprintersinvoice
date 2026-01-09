@@ -13,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, FileText, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, FileText, Trash2, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -23,6 +23,8 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { formatCurrency } from '@/lib/formatters';
 
+type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted';
+
 interface Quotation {
   id: string;
   quotation_number: string;
@@ -30,7 +32,7 @@ interface Quotation {
   quotation_date: string;
   valid_until: string | null;
   total: number;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: QuotationStatus;
   customers: { name: string } | null;
 }
 
@@ -41,6 +43,7 @@ const Quotations = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null);
 
   useEffect(() => {
     fetchQuotations();
@@ -54,7 +57,7 @@ const Quotations = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setQuotations(data || []);
+      setQuotations((data || []) as Quotation[]);
     } catch (error) {
       console.error('Error fetching quotations:', error);
       toast.error('Failed to load quotations');
@@ -63,8 +66,26 @@ const Quotations = () => {
     }
   };
 
+  const handleDeleteClick = (quotation: Quotation) => {
+    // Only allow deletion of draft quotations
+    if (quotation.status !== 'draft') {
+      toast.error('Only draft quotations can be deleted');
+      return;
+    }
+    setQuotationToDelete(quotation);
+    setDeleteId(quotation.id);
+  };
+
   const handleDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteId || !quotationToDelete) return;
+    
+    // Double-check status before deletion
+    if (quotationToDelete.status !== 'draft') {
+      toast.error('Only draft quotations can be deleted');
+      setDeleteId(null);
+      setQuotationToDelete(null);
+      return;
+    }
     
     try {
       // Delete quotation items first
@@ -75,6 +96,7 @@ const Quotations = () => {
       
       toast.success('Quotation deleted');
       setDeleteId(null);
+      setQuotationToDelete(null);
       fetchQuotations();
     } catch (error) {
       console.error('Error deleting quotation:', error);
@@ -87,6 +109,10 @@ const Quotations = () => {
       quotation.quotation_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       quotation.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Check if quotation is editable (only draft)
+  const isEditable = (status: QuotationStatus) => status === 'draft';
+  const isDeletable = (status: QuotationStatus) => status === 'draft';
 
   return (
     <div className="space-y-6">
@@ -170,15 +196,27 @@ const Quotations = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() => navigate(`/quotations/${quotation.id}`)}
+                            title="View"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {isAdmin && (
+                          {isEditable(quotation.status) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => navigate(`/quotations/${quotation.id}/edit`)}
+                              title="Edit"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {isAdmin && isDeletable(quotation.status) && (
                             <Button
                               variant="ghost"
                               size="icon"
                               className="text-destructive hover:text-destructive"
-                              onClick={() => setDeleteId(quotation.id)}
+                              onClick={() => handleDeleteClick(quotation)}
+                              title="Delete"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -196,9 +234,12 @@ const Quotations = () => {
 
       <ConfirmDialog
         open={!!deleteId}
-        onOpenChange={() => setDeleteId(null)}
+        onOpenChange={() => {
+          setDeleteId(null);
+          setQuotationToDelete(null);
+        }}
         title="Delete Quotation"
-        description="Are you sure you want to delete this quotation? This action cannot be undone."
+        description="Are you sure you want to delete this draft quotation? This action cannot be undone."
         confirmLabel="Delete"
         variant="destructive"
         onConfirm={handleDelete}

@@ -4,15 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Table,
@@ -37,7 +28,6 @@ import {
   Download,
   CheckCircle,
   Clock,
-  XCircle,
   ArrowRightCircle,
   Edit,
   Phone,
@@ -46,11 +36,15 @@ import {
   Building2,
   FileCheck,
   Loader2,
+  Send,
+  Eye,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { bn } from 'date-fns/locale';
 import PrintTemplate from '@/components/print/PrintTemplate';
 import '@/components/print/printStyles.css';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+
+type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted';
 
 interface Quotation {
   id: string;
@@ -61,10 +55,12 @@ interface Quotation {
   discount: number;
   tax: number;
   total: number;
-  status: string;
+  status: QuotationStatus;
   notes: string | null;
   converted_to_invoice_id: string | null;
   organization_id: string | null;
+  status_changed_at: string | null;
+  status_changed_by: string | null;
   customers: {
     id: string;
     name: string;
@@ -92,6 +88,8 @@ const QuotationDetail = () => {
   const [items, setItems] = useState<QuotationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [converting, setConverting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
@@ -127,7 +125,7 @@ const QuotationDetail = () => {
       ]);
 
       if (quotationRes.error) throw quotationRes.error;
-      setQuotation(quotationRes.data);
+      setQuotation(quotationRes.data as Quotation);
       setItems(itemsRes.data || []);
     } catch (error) {
       console.error('Error fetching quotation:', error);
@@ -137,20 +135,29 @@ const QuotationDetail = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (!quotation) return;
+  const handleStatusTransition = async (newStatus: QuotationStatus) => {
+    if (!quotation || !user) return;
     setUpdatingStatus(true);
 
     try {
-      const { error } = await supabase
-        .from('quotations')
-        .update({ status: newStatus as 'pending' | 'accepted' | 'rejected' })
-        .eq('id', quotation.id);
+      const { data, error } = await supabase.rpc('update_quotation_status', {
+        p_quotation_id: quotation.id,
+        p_new_status: newStatus,
+        p_user_id: user.id,
+      });
 
       if (error) throw error;
 
-      setQuotation({ ...quotation, status: newStatus });
+      const result = data?.[0];
+      if (!result?.success) {
+        toast.error(result?.message || 'Status transition failed');
+        return;
+      }
+
+      setQuotation({ ...quotation, status: newStatus, status_changed_at: new Date().toISOString(), status_changed_by: user.id });
       toast.success('Status updated');
+      setSendDialogOpen(false);
+      setAcceptDialogOpen(false);
     } catch (error: any) {
       console.error('Error updating status:', error);
       toast.error(error.message || 'An error occurred');
@@ -160,11 +167,17 @@ const QuotationDetail = () => {
   };
 
   const handleConvertToInvoice = async () => {
-    if (!quotation) return;
+    if (!quotation || !user) return;
     
     // Check if already converted
     if (quotation.converted_to_invoice_id) {
       toast.error('This quotation has already been converted to an invoice');
+      return;
+    }
+
+    // Check if status is accepted
+    if (quotation.status !== 'accepted') {
+      toast.error('Only accepted quotations can be converted to invoices');
       return;
     }
     
@@ -225,12 +238,18 @@ const QuotationDetail = () => {
       if (itemsError) throw itemsError;
 
       // Update quotation status to converted and link the invoice
+      const { error: statusError } = await supabase.rpc('update_quotation_status', {
+        p_quotation_id: quotation.id,
+        p_new_status: 'converted',
+        p_user_id: user.id,
+      });
+
+      if (statusError) throw statusError;
+
+      // Update the converted_to_invoice_id
       await supabase
         .from('quotations')
-        .update({ 
-          status: 'converted' as any,
-          converted_to_invoice_id: invoice.id 
-        })
+        .update({ converted_to_invoice_id: invoice.id })
         .eq('id', quotation.id);
 
       toast.success('Invoice created from quotation');
@@ -253,40 +272,13 @@ const QuotationDetail = () => {
     }).format(amount);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'converted':
-        return (
-          <Badge className="bg-primary/10 text-primary border-0 text-base py-1 px-3">
-            <FileCheck className="w-4 h-4 mr-1" />
-            Converted to Invoice
-          </Badge>
-        );
-      case 'accepted':
-        return (
-          <Badge className="bg-success/10 text-success border-0 text-base py-1 px-3">
-            <CheckCircle className="w-4 h-4 mr-1" />
-            Accepted
-          </Badge>
-        );
-      case 'pending':
-        return (
-          <Badge className="bg-warning/10 text-warning border-0 text-base py-1 px-3">
-            <Clock className="w-4 h-4 mr-1" />
-            Pending
-          </Badge>
-        );
-      case 'rejected':
-        return (
-          <Badge className="bg-destructive/10 text-destructive border-0 text-base py-1 px-3">
-            <XCircle className="w-4 h-4 mr-1" />
-            Rejected
-          </Badge>
-        );
-      default:
-        return null;
-    }
-  };
+  // Determine if quotation is editable (only draft status)
+  const isEditable = quotation?.status === 'draft';
+  const isDeletable = quotation?.status === 'draft';
+  const canBeSent = quotation?.status === 'draft';
+  const canBeAccepted = quotation?.status === 'sent';
+  const canBeConverted = quotation?.status === 'accepted' && !quotation?.converted_to_invoice_id;
+  const isConverted = quotation?.status === 'converted' || !!quotation?.converted_to_invoice_id;
 
   const handlePrint = () => {
     window.print();
@@ -353,10 +345,13 @@ const QuotationDetail = () => {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => navigate(`/quotations/${quotation.id}/edit`)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+            {/* Edit button - only for draft */}
+            {isEditable && (
+              <Button variant="outline" size="sm" onClick={() => navigate(`/quotations/${quotation.id}/edit`)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />
               Print
@@ -365,54 +360,38 @@ const QuotationDetail = () => {
               <Download className="h-4 w-4 mr-2" />
               PDF
             </Button>
-            {quotation.converted_to_invoice_id ? (
+
+            {/* Context-aware primary action */}
+            {canBeSent && (
+              <Button size="sm" onClick={() => setSendDialogOpen(true)} disabled={updatingStatus}>
+                <Send className="h-4 w-4 mr-2" />
+                Send Quotation
+              </Button>
+            )}
+            
+            {canBeAccepted && (
+              <Button size="sm" onClick={() => setAcceptDialogOpen(true)} disabled={updatingStatus}>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Mark as Accepted
+              </Button>
+            )}
+
+            {canBeConverted && (
+              <Button size="sm" onClick={() => setConvertDialogOpen(true)}>
+                <ArrowRightCircle className="h-4 w-4 mr-2" />
+                Convert to Invoice
+              </Button>
+            )}
+
+            {isConverted && quotation.converted_to_invoice_id && (
               <Button 
                 size="sm" 
                 variant="outline"
                 onClick={() => navigate(`/invoices/${quotation.converted_to_invoice_id}`)}
               >
-                <FileCheck className="h-4 w-4 mr-2" />
+                <Eye className="h-4 w-4 mr-2" />
                 View Invoice
               </Button>
-            ) : quotation.status !== 'rejected' && (
-              <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <ArrowRightCircle className="h-4 w-4 mr-2" />
-                    Convert to Invoice
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Convert to Invoice</DialogTitle>
-                    <DialogDescription>
-                      This will create a new invoice from this quotation. All line items, customer details, and totals will be copied. The quotation will be marked as "Converted".
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <div className="p-3 rounded-lg bg-muted/50 border text-sm">
-                      <p><strong>Customer:</strong> {quotation.customers?.name || 'N/A'}</p>
-                      <p><strong>Items:</strong> {items.length} line item{items.length !== 1 ? 's' : ''}</p>
-                      <p><strong>Total:</strong> {formatCurrency(Number(quotation.total))}</p>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleConvertToInvoice} disabled={converting}>
-                      {converting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Converting...
-                        </>
-                      ) : (
-                        'Convert to Invoice'
-                      )}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
             )}
           </div>
         </div>
@@ -460,7 +439,7 @@ const QuotationDetail = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    {getStatusBadge(quotation.status)}
+                    <StatusBadge status={quotation.status} className="text-base py-1 px-3" />
                   </div>
                 </div>
 
@@ -589,46 +568,149 @@ const QuotationDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Status Update */}
+            {/* Quotation Status Info */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Update Status</CardTitle>
+                <CardTitle className="text-base">Status</CardTitle>
               </CardHeader>
-              <CardContent>
-                <Select
-                  value={quotation.status}
-                  onValueChange={handleStatusChange}
-                  disabled={updatingStatus}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-warning" />
-                        Pending
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="accepted">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-success" />
-                        Accepted
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="rejected">
-                      <div className="flex items-center gap-2">
-                        <XCircle className="h-4 w-4 text-destructive" />
-                        Rejected
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-sm">Current Status</span>
+                  <StatusBadge status={quotation.status} />
+                </div>
+                {quotation.status_changed_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Last updated on {format(new Date(quotation.status_changed_at), 'dd MMM yyyy, HH:mm')}
+                  </p>
+                )}
+                <div className="pt-3 border-t space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium">Status Workflow</p>
+                  <div className="flex items-center gap-1 text-xs">
+                    <span className={`px-2 py-1 rounded ${quotation.status === 'draft' ? 'bg-muted font-medium' : 'text-muted-foreground'}`}>Draft</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className={`px-2 py-1 rounded ${quotation.status === 'sent' ? 'bg-info/10 text-info font-medium' : 'text-muted-foreground'}`}>Sent</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className={`px-2 py-1 rounded ${quotation.status === 'accepted' ? 'bg-success/10 text-success font-medium' : 'text-muted-foreground'}`}>Accepted</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className={`px-2 py-1 rounded ${quotation.status === 'converted' ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'}`}>Converted</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* Send Quotation Dialog */}
+      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Quotation</DialogTitle>
+            <DialogDescription>
+              This will mark the quotation as sent and lock editing. The quotation content cannot be modified after this action.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="p-3 rounded-lg bg-muted/50 border text-sm">
+              <p><strong>Quotation:</strong> {quotation.quotation_number}</p>
+              <p><strong>Customer:</strong> {quotation.customers?.name || 'N/A'}</p>
+              <p><strong>Total:</strong> {formatCurrency(Number(quotation.total))}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => handleStatusTransition('sent')} disabled={updatingStatus}>
+              {updatingStatus ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Quotation
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Accept Quotation Dialog */}
+      <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark as Accepted</DialogTitle>
+            <DialogDescription>
+              Confirm that the customer has accepted this quotation. Once accepted, you can convert it to an invoice.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="p-3 rounded-lg bg-muted/50 border text-sm">
+              <p><strong>Quotation:</strong> {quotation.quotation_number}</p>
+              <p><strong>Customer:</strong> {quotation.customers?.name || 'N/A'}</p>
+              <p><strong>Total:</strong> {formatCurrency(Number(quotation.total))}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcceptDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => handleStatusTransition('accepted')} disabled={updatingStatus}>
+              {updatingStatus ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Mark as Accepted
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert to Invoice Dialog */}
+      <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Convert to Invoice</DialogTitle>
+            <DialogDescription>
+              This will create a new invoice from this quotation. All line items, customer details, and totals will be copied. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="p-3 rounded-lg bg-muted/50 border text-sm">
+              <p><strong>Customer:</strong> {quotation.customers?.name || 'N/A'}</p>
+              <p><strong>Items:</strong> {items.length} line item{items.length !== 1 ? 's' : ''}</p>
+              <p><strong>Total:</strong> {formatCurrency(Number(quotation.total))}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConvertToInvoice} disabled={converting}>
+              {converting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Converting...
+                </>
+              ) : (
+                <>
+                  <FileCheck className="h-4 w-4 mr-2" />
+                  Convert to Invoice
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
