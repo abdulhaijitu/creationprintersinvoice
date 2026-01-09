@@ -116,7 +116,7 @@ export function OrganizationSwitcher() {
         aria-expanded={open}
         className={cn(
           "w-full justify-between text-left font-normal h-10 px-3 transition-all duration-200",
-          "text-slate-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-slate-700 rounded-lg",
+          "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent border border-transparent hover:border-sidebar-border rounded-lg",
           collapsed && "justify-center p-0 w-10 h-10"
         )}
       >
@@ -125,10 +125,10 @@ export function OrganizationSwitcher() {
         ) : (
           <>
             <div className="flex items-center gap-2 truncate">
-              <Building2 className="h-4 w-4 flex-shrink-0 text-primary" />
+              <Building2 className="h-4 w-4 flex-shrink-0 text-sidebar-primary" />
               <span className="truncate">{currentOrg.name}</span>
             </div>
-            <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+            <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-sidebar-muted" />
           </>
         )}
       </Button>

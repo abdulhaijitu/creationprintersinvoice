@@ -32,7 +32,7 @@ export const FavoritePages = () => {
   return (
     <div className={cn("py-2", collapsed ? "px-0" : "px-2")}>
       {!collapsed && (
-        <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-sidebar-muted">
           <Star className="h-3 w-3" />
           Favorites
         </div>
@@ -59,7 +59,7 @@ export const FavoritePages = () => {
               )}>
                 <Icon className={cn(
                   "h-4 w-4 transition-colors duration-200",
-                  isActive ? "text-primary" : "text-slate-400 group-hover:text-white"
+                  isActive ? "text-sidebar-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground"
                 )} />
               </div>
               <span className={cn(
@@ -79,10 +79,10 @@ export const FavoritePages = () => {
                 collapsed 
                   ? "h-10 w-10 justify-center mx-auto p-0" 
                   : "gap-3 px-3 py-2 mx-1",
-                "text-slate-400 hover:text-white hover:bg-white/10",
+                "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent",
                 isActive && cn(
-                  "bg-gradient-to-r from-primary/20 to-primary/10 text-white font-medium",
-                  collapsed ? "ring-2 ring-primary/30" : "border-l-2 border-primary"
+                  "bg-sidebar-accent text-sidebar-foreground font-medium",
+                  collapsed ? "ring-2 ring-sidebar-primary/40" : "border-l-2 border-sidebar-primary"
                 )
               )}
             >
@@ -91,7 +91,7 @@ export const FavoritePages = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-yellow-400"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-sidebar-muted hover:text-warning"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -111,7 +111,7 @@ export const FavoritePages = () => {
                 <TooltipContent 
                   side="right" 
                   sideOffset={8}
-                  className="bg-slate-800 text-white border-slate-700"
+                  className="bg-popover text-popover-foreground border-border"
                 >
                   {fav.title}
                 </TooltipContent>
