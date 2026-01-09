@@ -63,38 +63,58 @@ const CostLineItemRow = ({
   const total = item.qty * item.price;
 
   return (
-    <div className={`grid gap-3 sm:grid-cols-5 items-end ${showDivider ? 'pb-4 border-b' : ''}`}>
-      <div>
-        <Label className="text-base font-semibold">{label}</Label>
+    <div 
+      className={`
+        flex flex-wrap items-center gap-3 py-3 px-2 rounded-md
+        transition-all duration-200 ease-out
+        hover:bg-muted/50
+        ${showDivider ? 'border-b border-muted/30' : ''}
+      `}
+    >
+      {/* Label */}
+      <div className="w-full sm:w-28 shrink-0">
+        <span className="text-sm font-medium text-foreground">{label}</span>
       </div>
-      <div className="space-y-1">
-        <Label className="text-xs text-muted-foreground">Quantity</Label>
+      
+      {/* Quantity */}
+      <div className="flex flex-col gap-1">
+        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground sm:hidden">Qty</Label>
         <CurrencyInput
           value={item.qty}
           onChange={onQtyChange}
           decimals={0}
           formatOnBlur={false}
           placeholder="0"
+          className="w-20 h-10 text-center transition-all duration-200 focus-visible:ring-1 focus-visible:ring-primary"
         />
       </div>
-      <div className="space-y-1">
-        <Label className="text-xs text-muted-foreground">Unit</Label>
+      
+      {/* Unit */}
+      <div className="flex flex-col gap-1">
+        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground sm:hidden">Unit</Label>
         <Input
           value={item.unit}
           onChange={(e) => onUnitChange(e.target.value)}
           placeholder="Pcs"
-          className="w-full"
+          className="w-24 h-10 text-center transition-all duration-200 focus-visible:ring-1 focus-visible:ring-primary"
         />
       </div>
-      <div className="space-y-1">
-        <Label className="text-xs text-muted-foreground">Price</Label>
+      
+      {/* Price */}
+      <div className="flex flex-col gap-1">
+        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground sm:hidden">Price</Label>
         <CurrencyInput
           value={item.price}
           onChange={onPriceChange}
+          className="w-28 h-10 transition-all duration-200 focus-visible:ring-1 focus-visible:ring-primary"
         />
       </div>
-      <div className="text-right font-medium">
-        {formatCurrencyStatic(total)}
+      
+      {/* Line Total */}
+      <div className="ml-auto text-right min-w-[90px]">
+        <span className="text-sm font-medium text-muted-foreground">
+          {formatCurrencyStatic(total)}
+        </span>
       </div>
     </div>
   );
@@ -579,25 +599,36 @@ const PriceCalculationForm = () => {
 
             {/* Costing Items */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle>Cost Breakdown</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <CostLineItemRow label="Design" item={formData.design} onQtyChange={(v) => handleItemChange('design', 'qty', v)} onUnitChange={(v) => handleItemChange('design', 'unit', v)} onPriceChange={(v) => handleItemChange('design', 'price', v)} />
-                <CostLineItemRow label="Plate-01" item={formData.plate1} onQtyChange={(v) => handleItemChange('plate1', 'qty', v)} onUnitChange={(v) => handleItemChange('plate1', 'unit', v)} onPriceChange={(v) => handleItemChange('plate1', 'price', v)} />
-                <CostLineItemRow label="Plate-02" item={formData.plate2} onQtyChange={(v) => handleItemChange('plate2', 'qty', v)} onUnitChange={(v) => handleItemChange('plate2', 'unit', v)} onPriceChange={(v) => handleItemChange('plate2', 'price', v)} />
-                <CostLineItemRow label="Plate-03" item={formData.plate3} onQtyChange={(v) => handleItemChange('plate3', 'qty', v)} onUnitChange={(v) => handleItemChange('plate3', 'unit', v)} onPriceChange={(v) => handleItemChange('plate3', 'price', v)} />
-                <CostLineItemRow label="Paper-1" item={formData.paper1} onQtyChange={(v) => handleItemChange('paper1', 'qty', v)} onUnitChange={(v) => handleItemChange('paper1', 'unit', v)} onPriceChange={(v) => handleItemChange('paper1', 'price', v)} />
-                <CostLineItemRow label="Paper-2" item={formData.paper2} onQtyChange={(v) => handleItemChange('paper2', 'qty', v)} onUnitChange={(v) => handleItemChange('paper2', 'unit', v)} onPriceChange={(v) => handleItemChange('paper2', 'price', v)} />
-                <CostLineItemRow label="Paper-3" item={formData.paper3} onQtyChange={(v) => handleItemChange('paper3', 'qty', v)} onUnitChange={(v) => handleItemChange('paper3', 'unit', v)} onPriceChange={(v) => handleItemChange('paper3', 'price', v)} />
-                <CostLineItemRow label="Printing-1" item={formData.print1} onQtyChange={(v) => handleItemChange('print1', 'qty', v)} onUnitChange={(v) => handleItemChange('print1', 'unit', v)} onPriceChange={(v) => handleItemChange('print1', 'price', v)} />
-                <CostLineItemRow label="Printing-2" item={formData.print2} onQtyChange={(v) => handleItemChange('print2', 'qty', v)} onUnitChange={(v) => handleItemChange('print2', 'unit', v)} onPriceChange={(v) => handleItemChange('print2', 'price', v)} />
-                <CostLineItemRow label="Printing-3" item={formData.print3} onQtyChange={(v) => handleItemChange('print3', 'qty', v)} onUnitChange={(v) => handleItemChange('print3', 'unit', v)} onPriceChange={(v) => handleItemChange('print3', 'price', v)} />
-                <CostLineItemRow label="Lamination" item={formData.lamination} onQtyChange={(v) => handleItemChange('lamination', 'qty', v)} onUnitChange={(v) => handleItemChange('lamination', 'unit', v)} onPriceChange={(v) => handleItemChange('lamination', 'price', v)} />
-                <CostLineItemRow label="Die Cutting" item={formData.die_cutting} onQtyChange={(v) => handleItemChange('die_cutting', 'qty', v)} onUnitChange={(v) => handleItemChange('die_cutting', 'unit', v)} onPriceChange={(v) => handleItemChange('die_cutting', 'price', v)} />
-                <CostLineItemRow label="Foil Printing" item={formData.foil_printing} onQtyChange={(v) => handleItemChange('foil_printing', 'qty', v)} onUnitChange={(v) => handleItemChange('foil_printing', 'unit', v)} onPriceChange={(v) => handleItemChange('foil_printing', 'price', v)} />
-                <CostLineItemRow label="Binding" item={formData.binding} onQtyChange={(v) => handleItemChange('binding', 'qty', v)} onUnitChange={(v) => handleItemChange('binding', 'unit', v)} onPriceChange={(v) => handleItemChange('binding', 'price', v)} />
-                <CostLineItemRow label="Others" item={formData.others} onQtyChange={(v) => handleItemChange('others', 'qty', v)} onUnitChange={(v) => handleItemChange('others', 'unit', v)} onPriceChange={(v) => handleItemChange('others', 'price', v)} showDivider={false} />
+              <CardContent className="pt-4">
+                {/* Header Row - Desktop Only */}
+                <div className="hidden sm:flex items-center gap-3 py-2 px-2 mb-2 text-[10px] uppercase tracking-wider text-muted-foreground font-medium border-b border-muted/50">
+                  <div className="w-28 shrink-0">Item</div>
+                  <div className="w-20 text-center">Qty</div>
+                  <div className="w-24 text-center">Unit</div>
+                  <div className="w-28 text-center">Price</div>
+                  <div className="ml-auto text-right min-w-[90px]">Total</div>
+                </div>
+                
+                <div className="space-y-1">
+                  <CostLineItemRow label="Design" item={formData.design} onQtyChange={(v) => handleItemChange('design', 'qty', v)} onUnitChange={(v) => handleItemChange('design', 'unit', v)} onPriceChange={(v) => handleItemChange('design', 'price', v)} />
+                  <CostLineItemRow label="Plate-01" item={formData.plate1} onQtyChange={(v) => handleItemChange('plate1', 'qty', v)} onUnitChange={(v) => handleItemChange('plate1', 'unit', v)} onPriceChange={(v) => handleItemChange('plate1', 'price', v)} />
+                  <CostLineItemRow label="Plate-02" item={formData.plate2} onQtyChange={(v) => handleItemChange('plate2', 'qty', v)} onUnitChange={(v) => handleItemChange('plate2', 'unit', v)} onPriceChange={(v) => handleItemChange('plate2', 'price', v)} />
+                  <CostLineItemRow label="Plate-03" item={formData.plate3} onQtyChange={(v) => handleItemChange('plate3', 'qty', v)} onUnitChange={(v) => handleItemChange('plate3', 'unit', v)} onPriceChange={(v) => handleItemChange('plate3', 'price', v)} />
+                  <CostLineItemRow label="Paper-1" item={formData.paper1} onQtyChange={(v) => handleItemChange('paper1', 'qty', v)} onUnitChange={(v) => handleItemChange('paper1', 'unit', v)} onPriceChange={(v) => handleItemChange('paper1', 'price', v)} />
+                  <CostLineItemRow label="Paper-2" item={formData.paper2} onQtyChange={(v) => handleItemChange('paper2', 'qty', v)} onUnitChange={(v) => handleItemChange('paper2', 'unit', v)} onPriceChange={(v) => handleItemChange('paper2', 'price', v)} />
+                  <CostLineItemRow label="Paper-3" item={formData.paper3} onQtyChange={(v) => handleItemChange('paper3', 'qty', v)} onUnitChange={(v) => handleItemChange('paper3', 'unit', v)} onPriceChange={(v) => handleItemChange('paper3', 'price', v)} />
+                  <CostLineItemRow label="Printing-1" item={formData.print1} onQtyChange={(v) => handleItemChange('print1', 'qty', v)} onUnitChange={(v) => handleItemChange('print1', 'unit', v)} onPriceChange={(v) => handleItemChange('print1', 'price', v)} />
+                  <CostLineItemRow label="Printing-2" item={formData.print2} onQtyChange={(v) => handleItemChange('print2', 'qty', v)} onUnitChange={(v) => handleItemChange('print2', 'unit', v)} onPriceChange={(v) => handleItemChange('print2', 'price', v)} />
+                  <CostLineItemRow label="Printing-3" item={formData.print3} onQtyChange={(v) => handleItemChange('print3', 'qty', v)} onUnitChange={(v) => handleItemChange('print3', 'unit', v)} onPriceChange={(v) => handleItemChange('print3', 'price', v)} />
+                  <CostLineItemRow label="Lamination" item={formData.lamination} onQtyChange={(v) => handleItemChange('lamination', 'qty', v)} onUnitChange={(v) => handleItemChange('lamination', 'unit', v)} onPriceChange={(v) => handleItemChange('lamination', 'price', v)} />
+                  <CostLineItemRow label="Die Cutting" item={formData.die_cutting} onQtyChange={(v) => handleItemChange('die_cutting', 'qty', v)} onUnitChange={(v) => handleItemChange('die_cutting', 'unit', v)} onPriceChange={(v) => handleItemChange('die_cutting', 'price', v)} />
+                  <CostLineItemRow label="Foil Printing" item={formData.foil_printing} onQtyChange={(v) => handleItemChange('foil_printing', 'qty', v)} onUnitChange={(v) => handleItemChange('foil_printing', 'unit', v)} onPriceChange={(v) => handleItemChange('foil_printing', 'price', v)} />
+                  <CostLineItemRow label="Binding" item={formData.binding} onQtyChange={(v) => handleItemChange('binding', 'qty', v)} onUnitChange={(v) => handleItemChange('binding', 'unit', v)} onPriceChange={(v) => handleItemChange('binding', 'price', v)} />
+                  <CostLineItemRow label="Others" item={formData.others} onQtyChange={(v) => handleItemChange('others', 'qty', v)} onUnitChange={(v) => handleItemChange('others', 'unit', v)} onPriceChange={(v) => handleItemChange('others', 'price', v)} showDivider={false} />
+                </div>
               </CardContent>
             </Card>
           </div>
