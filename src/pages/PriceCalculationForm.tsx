@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { ArrowLeft, Save, FileText, Receipt, Trash2, ShieldAlert, Plus } from 'lucide-react';
+import { ArrowLeft, Save, FileText, Receipt, Trash2, ShieldAlert, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Customer {
@@ -28,19 +28,18 @@ interface Customer {
 }
 
 interface CostLineItem {
+  id: string;
   qty: number;
   unit: string;
   price: number;
 }
 
-// Stable component - defined OUTSIDE PriceCalculationForm to prevent re-creation
-interface CostLineItemRowProps {
+type CategoryKey = 'design' | 'plate' | 'paper' | 'printing' | 'lamination' | 'die_cutting' | 'foil' | 'binding' | 'others';
+
+interface CostCategory {
   label: string;
-  item: CostLineItem;
-  onQtyChange: (val: number) => void;
-  onUnitChange: (val: string) => void;
-  onPriceChange: (val: number) => void;
-  showDivider?: boolean;
+  key: CategoryKey;
+  items: CostLineItem[];
 }
 
 const formatCurrencyStatic = (amount: number) => {
@@ -52,12 +51,26 @@ const formatCurrencyStatic = (amount: number) => {
   }).format(amount);
 };
 
+// Stable component - defined OUTSIDE PriceCalculationForm to prevent re-creation
+interface CostLineItemRowProps {
+  label: string;
+  item: CostLineItem;
+  onQtyChange: (val: number) => void;
+  onUnitChange: (val: string) => void;
+  onPriceChange: (val: number) => void;
+  onRemove?: () => void;
+  showRemove?: boolean;
+  showDivider?: boolean;
+}
+
 const CostLineItemRow = ({
   label,
   item,
   onQtyChange,
   onUnitChange,
   onPriceChange,
+  onRemove,
+  showRemove = false,
   showDivider = true,
 }: CostLineItemRowProps) => {
   const total = item.qty * item.price;
@@ -72,7 +85,7 @@ const CostLineItemRow = ({
       `}
     >
       {/* Label */}
-      <div className="w-full sm:w-28 shrink-0">
+      <div className="w-full sm:w-28 shrink-0 flex items-center gap-2">
         <span className="text-sm font-medium text-foreground">{label}</span>
       </div>
       
@@ -111,38 +124,115 @@ const CostLineItemRow = ({
       </div>
       
       {/* Line Total */}
-      <div className="ml-auto text-right min-w-[90px]">
+      <div className="ml-auto text-right min-w-[90px] flex items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground">
           {formatCurrencyStatic(total)}
         </span>
+        {showRemove && onRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={onRemove}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
 };
 
-interface CostingData {
+// Category Group Component
+interface CategoryGroupProps {
+  category: CostCategory;
+  onItemChange: (itemIndex: number, field: 'qty' | 'unit' | 'price', value: number | string) => void;
+  onAddItem: () => void;
+  onRemoveItem: (itemIndex: number) => void;
+  isLast?: boolean;
+}
+
+const CategoryGroup = ({
+  category,
+  onItemChange,
+  onAddItem,
+  onRemoveItem,
+  isLast = false,
+}: CategoryGroupProps) => {
+  const categoryTotal = category.items.reduce((sum, item) => sum + (item.qty * item.price), 0);
+  
+  return (
+    <div className={`${!isLast ? 'border-b border-muted/50 pb-4 mb-4' : ''}`}>
+      {/* Category Header */}
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-sm font-semibold text-foreground">{category.label}</h4>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            Subtotal: {formatCurrencyStatic(categoryTotal)}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs gap-1"
+            onClick={onAddItem}
+          >
+            <Plus className="h-3 w-3" />
+            Add Row
+          </Button>
+        </div>
+      </div>
+      
+      {/* Category Items */}
+      <div className="space-y-1">
+        {category.items.map((item, index) => (
+          <CostLineItemRow
+            key={item.id}
+            label={category.items.length > 1 ? `${category.label}-${index + 1}` : category.label}
+            item={item}
+            onQtyChange={(v) => onItemChange(index, 'qty', v)}
+            onUnitChange={(v) => onItemChange(index, 'unit', v)}
+            onPriceChange={(v) => onItemChange(index, 'price', v)}
+            onRemove={() => onRemoveItem(index)}
+            showRemove={category.items.length > 1}
+            showDivider={index < category.items.length - 1}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Generate unique ID
+const generateId = () => Math.random().toString(36).substring(2, 9);
+
+const createEmptyItem = (): CostLineItem => ({
+  id: generateId(),
+  qty: 0,
+  unit: 'Pcs',
+  price: 0,
+});
+
+const defaultCategories: CostCategory[] = [
+  { label: 'Design', key: 'design', items: [{ ...createEmptyItem(), qty: 1 }] },
+  { label: 'Plate', key: 'plate', items: [createEmptyItem()] },
+  { label: 'Paper', key: 'paper', items: [createEmptyItem()] },
+  { label: 'Printing', key: 'printing', items: [createEmptyItem()] },
+  { label: 'Lamination', key: 'lamination', items: [createEmptyItem()] },
+  { label: 'Die Cutting', key: 'die_cutting', items: [createEmptyItem()] },
+  { label: 'Foil', key: 'foil', items: [createEmptyItem()] },
+  { label: 'Binding', key: 'binding', items: [createEmptyItem()] },
+  { label: 'Others', key: 'others', items: [createEmptyItem()] },
+];
+
+interface FormData {
   job_description: string;
   quantity: number;
   customer_id: string;
-  design: CostLineItem;
-  plate1: CostLineItem;
-  plate2: CostLineItem;
-  plate3: CostLineItem;
-  paper1: CostLineItem;
-  paper2: CostLineItem;
-  paper3: CostLineItem;
-  print1: CostLineItem;
-  print2: CostLineItem;
-  print3: CostLineItem;
-  lamination: CostLineItem;
-  die_cutting: CostLineItem;
-  foil_printing: CostLineItem;
-  binding: CostLineItem;
-  others: CostLineItem;
+  categories: CostCategory[];
   margin_percent: number;
 }
-
-const initialCostItem: CostLineItem = { qty: 0, unit: 'Pcs', price: 0 };
 
 const PriceCalculationForm = () => {
   const { id } = useParams();
@@ -158,25 +248,14 @@ const PriceCalculationForm = () => {
   const [convertType, setConvertType] = useState<'quotation' | 'invoice'>('quotation');
   const [converting, setConverting] = useState(false);
 
-  const [formData, setFormData] = useState<CostingData>({
+  const [formData, setFormData] = useState<FormData>({
     job_description: '',
     quantity: 1,
     customer_id: '',
-    design: { qty: 1, unit: 'Pcs', price: 0 },
-    plate1: initialCostItem,
-    plate2: initialCostItem,
-    plate3: initialCostItem,
-    paper1: initialCostItem,
-    paper2: initialCostItem,
-    paper3: initialCostItem,
-    print1: initialCostItem,
-    print2: initialCostItem,
-    print3: initialCostItem,
-    lamination: initialCostItem,
-    die_cutting: initialCostItem,
-    foil_printing: initialCostItem,
-    binding: initialCostItem,
-    others: initialCostItem,
+    categories: defaultCategories.map(cat => ({
+      ...cat,
+      items: cat.items.map(item => ({ ...item, id: generateId() }))
+    })),
     margin_percent: 25,
   });
 
@@ -190,6 +269,94 @@ const PriceCalculationForm = () => {
   const fetchCustomers = async () => {
     const { data } = await supabase.from('customers').select('id, name').order('name');
     setCustomers(data || []);
+  };
+
+  // Helper to convert old flat structure to new category-based structure
+  const convertLegacyData = (data: any): CostCategory[] => {
+    const createItem = (qty: number, price: number): CostLineItem => ({
+      id: generateId(),
+      qty: qty || 0,
+      unit: 'Pcs',
+      price: price || 0,
+    });
+
+    return [
+      { 
+        label: 'Design', 
+        key: 'design' as CategoryKey, 
+        items: [createItem(data.design_qty || 1, data.design_price || 0)] 
+      },
+      { 
+        label: 'Plate', 
+        key: 'plate' as CategoryKey, 
+        items: [
+          createItem(data.plate_qty, data.plate_price),
+          ...(data.plate2_qty || data.plate2_price ? [createItem(data.plate2_qty, data.plate2_price)] : []),
+          ...(data.plate3_qty || data.plate3_price ? [createItem(data.plate3_qty, data.plate3_price)] : []),
+        ].filter(item => item.qty > 0 || item.price > 0).length > 0 
+          ? [
+              createItem(data.plate_qty, data.plate_price),
+              ...(data.plate2_qty || data.plate2_price ? [createItem(data.plate2_qty, data.plate2_price)] : []),
+              ...(data.plate3_qty || data.plate3_price ? [createItem(data.plate3_qty, data.plate3_price)] : []),
+            ]
+          : [createEmptyItem()]
+      },
+      { 
+        label: 'Paper', 
+        key: 'paper' as CategoryKey, 
+        items: [
+          createItem(data.paper1_qty, data.paper1_price),
+          ...(data.paper2_qty || data.paper2_price ? [createItem(data.paper2_qty, data.paper2_price)] : []),
+          ...(data.paper3_qty || data.paper3_price ? [createItem(data.paper3_qty, data.paper3_price)] : []),
+        ].filter(item => item.qty > 0 || item.price > 0).length > 0 
+          ? [
+              createItem(data.paper1_qty, data.paper1_price),
+              ...(data.paper2_qty || data.paper2_price ? [createItem(data.paper2_qty, data.paper2_price)] : []),
+              ...(data.paper3_qty || data.paper3_price ? [createItem(data.paper3_qty, data.paper3_price)] : []),
+            ]
+          : [createEmptyItem()]
+      },
+      { 
+        label: 'Printing', 
+        key: 'printing' as CategoryKey, 
+        items: [
+          createItem(data.print_qty, data.print_price),
+          ...(data.print2_qty || data.print2_price ? [createItem(data.print2_qty, data.print2_price)] : []),
+          ...(data.print3_qty || data.print3_price ? [createItem(data.print3_qty, data.print3_price)] : []),
+        ].filter(item => item.qty > 0 || item.price > 0).length > 0 
+          ? [
+              createItem(data.print_qty, data.print_price),
+              ...(data.print2_qty || data.print2_price ? [createItem(data.print2_qty, data.print2_price)] : []),
+              ...(data.print3_qty || data.print3_price ? [createItem(data.print3_qty, data.print3_price)] : []),
+            ]
+          : [createEmptyItem()]
+      },
+      { 
+        label: 'Lamination', 
+        key: 'lamination' as CategoryKey, 
+        items: [createItem(data.lamination_qty, data.lamination_price || data.lamination_cost)] 
+      },
+      { 
+        label: 'Die Cutting', 
+        key: 'die_cutting' as CategoryKey, 
+        items: [createItem(data.die_cutting_qty, data.die_cutting_price || data.die_cutting_cost)] 
+      },
+      { 
+        label: 'Foil', 
+        key: 'foil' as CategoryKey, 
+        items: [createItem(data.foil_printing_qty, data.foil_printing_price)] 
+      },
+      { 
+        label: 'Binding', 
+        key: 'binding' as CategoryKey, 
+        items: [createItem(data.binding_qty, data.binding_price || data.binding_cost)] 
+      },
+      { 
+        label: 'Others', 
+        key: 'others' as CategoryKey, 
+        items: [createItem(data.others_qty, data.others_price || data.others_cost)] 
+      },
+    ];
   };
 
   const fetchCalculation = async () => {
@@ -207,21 +374,7 @@ const PriceCalculationForm = () => {
           job_description: data.job_description || '',
           quantity: Number(data.quantity) || 1,
           customer_id: data.customer_id || '',
-          design: { qty: Number(data.design_qty) || 1, unit: 'Pcs', price: Number(data.design_price) || 0 },
-          plate1: { qty: Number(data.plate_qty) || 0, unit: 'Pcs', price: Number(data.plate_price) || 0 },
-          plate2: { qty: Number(data.plate2_qty) || 0, unit: 'Pcs', price: Number(data.plate2_price) || 0 },
-          plate3: { qty: Number(data.plate3_qty) || 0, unit: 'Pcs', price: Number(data.plate3_price) || 0 },
-          paper1: { qty: Number(data.paper1_qty) || 0, unit: 'Pcs', price: Number(data.paper1_price) || 0 },
-          paper2: { qty: Number(data.paper2_qty) || 0, unit: 'Pcs', price: Number(data.paper2_price) || 0 },
-          paper3: { qty: Number(data.paper3_qty) || 0, unit: 'Pcs', price: Number(data.paper3_price) || 0 },
-          print1: { qty: Number(data.print_qty) || 0, unit: 'Pcs', price: Number(data.print_price) || 0 },
-          print2: { qty: Number(data.print2_qty) || 0, unit: 'Pcs', price: Number(data.print2_price) || 0 },
-          print3: { qty: Number(data.print3_qty) || 0, unit: 'Pcs', price: Number(data.print3_price) || 0 },
-          lamination: { qty: Number(data.lamination_qty) || 0, unit: 'Pcs', price: Number(data.lamination_price) || Number(data.lamination_cost) || 0 },
-          die_cutting: { qty: Number(data.die_cutting_qty) || 0, unit: 'Pcs', price: Number(data.die_cutting_price) || Number(data.die_cutting_cost) || 0 },
-          foil_printing: { qty: Number(data.foil_printing_qty) || 0, unit: 'Pcs', price: Number(data.foil_printing_price) || 0 },
-          binding: { qty: Number(data.binding_qty) || 0, unit: 'Pcs', price: Number(data.binding_price) || Number(data.binding_cost) || 0 },
-          others: { qty: Number(data.others_qty) || 0, unit: 'Pcs', price: Number(data.others_price) || Number(data.others_cost) || 0 },
+          categories: convertLegacyData(data),
           margin_percent: Number(data.margin_percent) || 25,
         });
       }
@@ -234,31 +387,9 @@ const PriceCalculationForm = () => {
   };
 
   // Calculate totals
-  const calcTotal = (item: CostLineItem) => item.qty * item.price;
-  
-  const designTotal = calcTotal(formData.design);
-  const plate1Total = calcTotal(formData.plate1);
-  const plate2Total = calcTotal(formData.plate2);
-  const plate3Total = calcTotal(formData.plate3);
-  const paper1Total = calcTotal(formData.paper1);
-  const paper2Total = calcTotal(formData.paper2);
-  const paper3Total = calcTotal(formData.paper3);
-  const print1Total = calcTotal(formData.print1);
-  const print2Total = calcTotal(formData.print2);
-  const print3Total = calcTotal(formData.print3);
-  const laminationTotal = calcTotal(formData.lamination);
-  const dieCuttingTotal = calcTotal(formData.die_cutting);
-  const foilPrintingTotal = calcTotal(formData.foil_printing);
-  const bindingTotal = calcTotal(formData.binding);
-  const othersTotal = calcTotal(formData.others);
-
-  const costingTotal =
-    designTotal +
-    plate1Total + plate2Total + plate3Total +
-    paper1Total + paper2Total + paper3Total +
-    print1Total + print2Total + print3Total +
-    laminationTotal + dieCuttingTotal + foilPrintingTotal +
-    bindingTotal + othersTotal;
+  const costingTotal = formData.categories.reduce((total, category) => {
+    return total + category.items.reduce((sum, item) => sum + (item.qty * item.price), 0);
+  }, 0);
 
   const marginAmount = (costingTotal * formData.margin_percent) / 100;
   const quotedPrice = costingTotal + marginAmount;
@@ -273,26 +404,66 @@ const PriceCalculationForm = () => {
     }).format(amount);
   };
 
-  const handleItemChange = (
-    field: keyof CostingData,
-    subField: 'qty' | 'unit' | 'price',
+  const handleCategoryItemChange = (
+    categoryIndex: number,
+    itemIndex: number,
+    field: 'qty' | 'unit' | 'price',
     value: number | string
   ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: {
-        ...(prev[field] as CostLineItem),
-        [subField]: value,
-      },
-    }));
+    setFormData(prev => {
+      const newCategories = [...prev.categories];
+      const newItems = [...newCategories[categoryIndex].items];
+      newItems[itemIndex] = {
+        ...newItems[itemIndex],
+        [field]: value,
+      };
+      newCategories[categoryIndex] = {
+        ...newCategories[categoryIndex],
+        items: newItems,
+      };
+      return { ...prev, categories: newCategories };
+    });
   };
 
-  const handleChange = (field: keyof CostingData, value: string | number) => {
+  const handleAddItem = (categoryIndex: number) => {
+    setFormData(prev => {
+      const newCategories = [...prev.categories];
+      newCategories[categoryIndex] = {
+        ...newCategories[categoryIndex],
+        items: [...newCategories[categoryIndex].items, createEmptyItem()],
+      };
+      return { ...prev, categories: newCategories };
+    });
+  };
+
+  const handleRemoveItem = (categoryIndex: number, itemIndex: number) => {
+    setFormData(prev => {
+      const newCategories = [...prev.categories];
+      const newItems = newCategories[categoryIndex].items.filter((_, i) => i !== itemIndex);
+      // Ensure at least one item remains
+      if (newItems.length === 0) {
+        newItems.push(createEmptyItem());
+      }
+      newCategories[categoryIndex] = {
+        ...newCategories[categoryIndex],
+        items: newItems,
+      };
+      return { ...prev, categories: newCategories };
+    });
+  };
+
+  const handleChange = (field: keyof FormData, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   // Helper to normalize unit value (empty → "Pcs")
   const normalizeUnit = (unit: string) => unit?.trim() || 'Pcs';
+
+  // Helper to get category items by key
+  const getCategoryItems = (key: CategoryKey): CostLineItem[] => {
+    const category = formData.categories.find(c => c.key === key);
+    return category?.items || [];
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -304,76 +475,77 @@ const PriceCalculationForm = () => {
 
     setSaving(true);
 
-    // Normalize all unit values before save
-    const normalizedFormData = {
-      ...formData,
-      design: { ...formData.design, unit: normalizeUnit(formData.design.unit) },
-      plate1: { ...formData.plate1, unit: normalizeUnit(formData.plate1.unit) },
-      plate2: { ...formData.plate2, unit: normalizeUnit(formData.plate2.unit) },
-      plate3: { ...formData.plate3, unit: normalizeUnit(formData.plate3.unit) },
-      paper1: { ...formData.paper1, unit: normalizeUnit(formData.paper1.unit) },
-      paper2: { ...formData.paper2, unit: normalizeUnit(formData.paper2.unit) },
-      paper3: { ...formData.paper3, unit: normalizeUnit(formData.paper3.unit) },
-      print1: { ...formData.print1, unit: normalizeUnit(formData.print1.unit) },
-      print2: { ...formData.print2, unit: normalizeUnit(formData.print2.unit) },
-      print3: { ...formData.print3, unit: normalizeUnit(formData.print3.unit) },
-      lamination: { ...formData.lamination, unit: normalizeUnit(formData.lamination.unit) },
-      die_cutting: { ...formData.die_cutting, unit: normalizeUnit(formData.die_cutting.unit) },
-      foil_printing: { ...formData.foil_printing, unit: normalizeUnit(formData.foil_printing.unit) },
-      binding: { ...formData.binding, unit: normalizeUnit(formData.binding.unit) },
-      others: { ...formData.others, unit: normalizeUnit(formData.others.unit) },
-    };
-
     try {
+      // Get items for each category
+      const design = getCategoryItems('design');
+      const plate = getCategoryItems('plate');
+      const paper = getCategoryItems('paper');
+      const printing = getCategoryItems('printing');
+      const lamination = getCategoryItems('lamination');
+      const dieCutting = getCategoryItems('die_cutting');
+      const foil = getCategoryItems('foil');
+      const binding = getCategoryItems('binding');
+      const others = getCategoryItems('others');
+
+      // Calculate category totals
+      const calcCategoryTotal = (items: CostLineItem[]) => 
+        items.reduce((sum, item) => sum + (item.qty * item.price), 0);
+
       const dataToSave = {
         job_description: formData.job_description,
         quantity: formData.quantity,
         customer_id: formData.customer_id || null,
-        design_qty: formData.design.qty,
-        design_price: formData.design.price,
-        design_cost: designTotal,
-        plate_qty: formData.plate1.qty,
-        plate_price: formData.plate1.price,
-        plate_total: plate1Total,
-        plate2_qty: formData.plate2.qty,
-        plate2_price: formData.plate2.price,
-        plate2_total: plate2Total,
-        plate3_qty: formData.plate3.qty,
-        plate3_price: formData.plate3.price,
-        plate3_total: plate3Total,
-        paper1_qty: formData.paper1.qty,
-        paper1_price: formData.paper1.price,
-        paper1_total: paper1Total,
-        paper2_qty: formData.paper2.qty,
-        paper2_price: formData.paper2.price,
-        paper2_total: paper2Total,
-        paper3_qty: formData.paper3.qty,
-        paper3_price: formData.paper3.price,
-        paper3_total: paper3Total,
-        print_qty: formData.print1.qty,
-        print_price: formData.print1.price,
-        print_total: print1Total,
-        print2_qty: formData.print2.qty,
-        print2_price: formData.print2.price,
-        print2_total: print2Total,
-        print3_qty: formData.print3.qty,
-        print3_price: formData.print3.price,
-        print3_total: print3Total,
-        lamination_qty: formData.lamination.qty,
-        lamination_price: formData.lamination.price,
-        lamination_cost: laminationTotal,
-        die_cutting_qty: formData.die_cutting.qty,
-        die_cutting_price: formData.die_cutting.price,
-        die_cutting_cost: dieCuttingTotal,
-        foil_printing_qty: formData.foil_printing.qty,
-        foil_printing_price: formData.foil_printing.price,
-        foil_printing_total: foilPrintingTotal,
-        binding_qty: formData.binding.qty,
-        binding_price: formData.binding.price,
-        binding_cost: bindingTotal,
-        others_qty: formData.others.qty,
-        others_price: formData.others.price,
-        others_cost: othersTotal,
+        // Design (first item)
+        design_qty: design[0]?.qty || 0,
+        design_price: design[0]?.price || 0,
+        design_cost: calcCategoryTotal(design),
+        // Plate (up to 3 items for backward compatibility)
+        plate_qty: plate[0]?.qty || 0,
+        plate_price: plate[0]?.price || 0,
+        plate_total: (plate[0]?.qty || 0) * (plate[0]?.price || 0),
+        plate2_qty: plate[1]?.qty || 0,
+        plate2_price: plate[1]?.price || 0,
+        plate2_total: (plate[1]?.qty || 0) * (plate[1]?.price || 0),
+        plate3_qty: plate[2]?.qty || 0,
+        plate3_price: plate[2]?.price || 0,
+        plate3_total: (plate[2]?.qty || 0) * (plate[2]?.price || 0),
+        // Paper (up to 3 items)
+        paper1_qty: paper[0]?.qty || 0,
+        paper1_price: paper[0]?.price || 0,
+        paper1_total: (paper[0]?.qty || 0) * (paper[0]?.price || 0),
+        paper2_qty: paper[1]?.qty || 0,
+        paper2_price: paper[1]?.price || 0,
+        paper2_total: (paper[1]?.qty || 0) * (paper[1]?.price || 0),
+        paper3_qty: paper[2]?.qty || 0,
+        paper3_price: paper[2]?.price || 0,
+        paper3_total: (paper[2]?.qty || 0) * (paper[2]?.price || 0),
+        // Print (up to 3 items)
+        print_qty: printing[0]?.qty || 0,
+        print_price: printing[0]?.price || 0,
+        print_total: (printing[0]?.qty || 0) * (printing[0]?.price || 0),
+        print2_qty: printing[1]?.qty || 0,
+        print2_price: printing[1]?.price || 0,
+        print2_total: (printing[1]?.qty || 0) * (printing[1]?.price || 0),
+        print3_qty: printing[2]?.qty || 0,
+        print3_price: printing[2]?.price || 0,
+        print3_total: (printing[2]?.qty || 0) * (printing[2]?.price || 0),
+        // Other categories (first item each)
+        lamination_qty: lamination[0]?.qty || 0,
+        lamination_price: lamination[0]?.price || 0,
+        lamination_cost: calcCategoryTotal(lamination),
+        die_cutting_qty: dieCutting[0]?.qty || 0,
+        die_cutting_price: dieCutting[0]?.price || 0,
+        die_cutting_cost: calcCategoryTotal(dieCutting),
+        foil_printing_qty: foil[0]?.qty || 0,
+        foil_printing_price: foil[0]?.price || 0,
+        foil_printing_total: calcCategoryTotal(foil),
+        binding_qty: binding[0]?.qty || 0,
+        binding_price: binding[0]?.price || 0,
+        binding_cost: calcCategoryTotal(binding),
+        others_qty: others[0]?.qty || 0,
+        others_price: others[0]?.price || 0,
+        others_cost: calcCategoryTotal(others),
+        // Totals
         costing_total: costingTotal,
         margin_percent: formData.margin_percent,
         margin_amount: marginAmount,
@@ -527,8 +699,6 @@ const PriceCalculationForm = () => {
     );
   }
 
-  // CostLineItemRow is now defined outside the component for stability
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -604,7 +774,7 @@ const PriceCalculationForm = () => {
               </CardHeader>
               <CardContent className="pt-4">
                 {/* Header Row - Desktop Only */}
-                <div className="hidden sm:flex items-center gap-3 py-2 px-2 mb-2 text-[10px] uppercase tracking-wider text-muted-foreground font-medium border-b border-muted/50">
+                <div className="hidden sm:flex items-center gap-3 py-2 px-2 mb-4 text-[10px] uppercase tracking-wider text-muted-foreground font-medium border-b border-muted/50">
                   <div className="w-28 shrink-0">Item</div>
                   <div className="w-20 text-center">Qty</div>
                   <div className="w-24 text-center">Unit</div>
@@ -612,22 +782,19 @@ const PriceCalculationForm = () => {
                   <div className="ml-auto text-right min-w-[90px]">Total</div>
                 </div>
                 
-                <div className="space-y-1">
-                  <CostLineItemRow label="Design" item={formData.design} onQtyChange={(v) => handleItemChange('design', 'qty', v)} onUnitChange={(v) => handleItemChange('design', 'unit', v)} onPriceChange={(v) => handleItemChange('design', 'price', v)} />
-                  <CostLineItemRow label="Plate-01" item={formData.plate1} onQtyChange={(v) => handleItemChange('plate1', 'qty', v)} onUnitChange={(v) => handleItemChange('plate1', 'unit', v)} onPriceChange={(v) => handleItemChange('plate1', 'price', v)} />
-                  <CostLineItemRow label="Plate-02" item={formData.plate2} onQtyChange={(v) => handleItemChange('plate2', 'qty', v)} onUnitChange={(v) => handleItemChange('plate2', 'unit', v)} onPriceChange={(v) => handleItemChange('plate2', 'price', v)} />
-                  <CostLineItemRow label="Plate-03" item={formData.plate3} onQtyChange={(v) => handleItemChange('plate3', 'qty', v)} onUnitChange={(v) => handleItemChange('plate3', 'unit', v)} onPriceChange={(v) => handleItemChange('plate3', 'price', v)} />
-                  <CostLineItemRow label="Paper-1" item={formData.paper1} onQtyChange={(v) => handleItemChange('paper1', 'qty', v)} onUnitChange={(v) => handleItemChange('paper1', 'unit', v)} onPriceChange={(v) => handleItemChange('paper1', 'price', v)} />
-                  <CostLineItemRow label="Paper-2" item={formData.paper2} onQtyChange={(v) => handleItemChange('paper2', 'qty', v)} onUnitChange={(v) => handleItemChange('paper2', 'unit', v)} onPriceChange={(v) => handleItemChange('paper2', 'price', v)} />
-                  <CostLineItemRow label="Paper-3" item={formData.paper3} onQtyChange={(v) => handleItemChange('paper3', 'qty', v)} onUnitChange={(v) => handleItemChange('paper3', 'unit', v)} onPriceChange={(v) => handleItemChange('paper3', 'price', v)} />
-                  <CostLineItemRow label="Printing-1" item={formData.print1} onQtyChange={(v) => handleItemChange('print1', 'qty', v)} onUnitChange={(v) => handleItemChange('print1', 'unit', v)} onPriceChange={(v) => handleItemChange('print1', 'price', v)} />
-                  <CostLineItemRow label="Printing-2" item={formData.print2} onQtyChange={(v) => handleItemChange('print2', 'qty', v)} onUnitChange={(v) => handleItemChange('print2', 'unit', v)} onPriceChange={(v) => handleItemChange('print2', 'price', v)} />
-                  <CostLineItemRow label="Printing-3" item={formData.print3} onQtyChange={(v) => handleItemChange('print3', 'qty', v)} onUnitChange={(v) => handleItemChange('print3', 'unit', v)} onPriceChange={(v) => handleItemChange('print3', 'price', v)} />
-                  <CostLineItemRow label="Lamination" item={formData.lamination} onQtyChange={(v) => handleItemChange('lamination', 'qty', v)} onUnitChange={(v) => handleItemChange('lamination', 'unit', v)} onPriceChange={(v) => handleItemChange('lamination', 'price', v)} />
-                  <CostLineItemRow label="Die Cutting" item={formData.die_cutting} onQtyChange={(v) => handleItemChange('die_cutting', 'qty', v)} onUnitChange={(v) => handleItemChange('die_cutting', 'unit', v)} onPriceChange={(v) => handleItemChange('die_cutting', 'price', v)} />
-                  <CostLineItemRow label="Foil Printing" item={formData.foil_printing} onQtyChange={(v) => handleItemChange('foil_printing', 'qty', v)} onUnitChange={(v) => handleItemChange('foil_printing', 'unit', v)} onPriceChange={(v) => handleItemChange('foil_printing', 'price', v)} />
-                  <CostLineItemRow label="Binding" item={formData.binding} onQtyChange={(v) => handleItemChange('binding', 'qty', v)} onUnitChange={(v) => handleItemChange('binding', 'unit', v)} onPriceChange={(v) => handleItemChange('binding', 'price', v)} />
-                  <CostLineItemRow label="Others" item={formData.others} onQtyChange={(v) => handleItemChange('others', 'qty', v)} onUnitChange={(v) => handleItemChange('others', 'unit', v)} onPriceChange={(v) => handleItemChange('others', 'price', v)} showDivider={false} />
+                <div className="space-y-2">
+                  {formData.categories.map((category, categoryIndex) => (
+                    <CategoryGroup
+                      key={category.key}
+                      category={category}
+                      onItemChange={(itemIndex, field, value) => 
+                        handleCategoryItemChange(categoryIndex, itemIndex, field, value)
+                      }
+                      onAddItem={() => handleAddItem(categoryIndex)}
+                      onRemoveItem={(itemIndex) => handleRemoveItem(categoryIndex, itemIndex)}
+                      isLast={categoryIndex === formData.categories.length - 1}
+                    />
+                  ))}
                 </div>
               </CardContent>
             </Card>
