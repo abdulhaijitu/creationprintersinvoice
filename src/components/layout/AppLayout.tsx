@@ -90,25 +90,26 @@ const AppLayout = () => {
           <MobileSidebarHandler />
           <NotificationManager />
           <SidebarInset className="flex-1 min-w-0 flex flex-col">
-            {/* Top Header Bar */}
-            <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 px-4 md:px-6 shadow-sm">
-              {/* Left side - trigger + breadcrumb + favorite */}
-              <div className="flex items-center gap-3">
-                <SidebarTrigger className="-ml-1 h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors" />
-                <div className="hidden md:flex items-center gap-2">
+            {/* Top Header Bar - Compact & Modern */}
+            <header className="sticky top-0 z-20 flex h-12 items-center border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 shadow-sm">
+              {/* Left section - trigger + breadcrumb + favorite */}
+              <div className="flex items-center gap-2 pl-4 md:pl-5 min-w-0">
+                <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200" />
+                <div className="hidden md:flex items-center gap-2 min-w-0">
                   <Breadcrumb />
                   <FavoriteButton />
                 </div>
               </div>
               
-              {/* Center - spacer */}
-              <div className="flex-1" />
-              
-              {/* Right side - search, quick actions, notifications, user */}
-              <div className="flex items-center gap-1">
-                <div className="hidden sm:block">
+              {/* Center section - flexible spacer with search */}
+              <div className="flex-1 flex items-center justify-center px-4">
+                <div className="hidden sm:block w-full max-w-sm">
                   <GlobalSearch />
                 </div>
+              </div>
+              
+              {/* Right section - actions & profile */}
+              <div className="flex items-center gap-1.5 pr-4 md:pr-5">
                 <QuickActions />
                 <div className="hidden md:flex items-center gap-1">
                   <ThemeToggle />
@@ -117,7 +118,7 @@ const AppLayout = () => {
                 <PushNotificationToggle />
                 <NotificationBell />
                 <SupportChatButton />
-                <div className="w-px h-6 bg-border mx-1 hidden md:block" />
+                <div className="w-px h-5 bg-border/60 mx-1.5 hidden md:block" />
                 <UserDropdown />
               </div>
             </header>

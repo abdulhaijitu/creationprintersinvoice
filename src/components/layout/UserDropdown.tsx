@@ -46,17 +46,20 @@ export const UserDropdown = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-9 gap-2 px-2">
-          <Avatar className="h-7 w-7">
+        <Button 
+          variant="ghost" 
+          className="h-8 gap-2 px-2 hover:bg-muted/50 transition-all duration-200"
+        >
+          <Avatar className="h-7 w-7 ring-1 ring-border/50 hover:ring-primary/30 transition-all duration-200">
             <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
               {user?.email ? getInitials(user.email) : <User className="h-3 w-3" />}
             </AvatarFallback>
           </Avatar>
-          <div className="hidden md:flex flex-col items-start text-left">
-            <span className="text-sm font-medium leading-none">
+          <div className="hidden md:flex flex-col items-start text-left leading-tight">
+            <span className="text-sm font-medium">
               {user?.email?.split('@')[0]}
             </span>
-            <span className="text-[10px] text-muted-foreground leading-none mt-0.5">
+            <span className="text-[10px] text-muted-foreground">
               {displayRole}
             </span>
           </div>
