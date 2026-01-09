@@ -158,10 +158,14 @@ export const DeleteOrganizationDialog = ({
             <ul className="list-disc list-inside space-y-1 text-xs">
               {hardDelete ? (
                 <>
-                  <li>Organization record will be permanently removed</li>
+                  <li className="text-destructive font-medium">⚠️ ALL DATA will be permanently deleted:</li>
+                  <li className="ml-4">All invoices, quotations, payments</li>
+                  <li className="ml-4">All customers and vendors</li>
+                  <li className="ml-4">All expenses and employee records</li>
+                  <li className="ml-4">All tasks and delivery challans</li>
                   <li>Owner account will be deleted</li>
                   <li>All members will lose access</li>
-                  <li>This cannot be undone</li>
+                  <li className="text-destructive font-bold">This CANNOT be undone!</li>
                 </>
               ) : (
                 <>
