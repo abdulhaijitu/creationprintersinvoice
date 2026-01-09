@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { usePermissions } from '@/lib/permissions/hooks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -252,6 +253,7 @@ const PriceCalculationForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { organization } = useOrganization();
   const { canPerform, showCreate, showDelete } = usePermissions();
   const isEditing = Boolean(id);
   
@@ -568,6 +570,7 @@ const PriceCalculationForm = () => {
         final_price: quotedPrice,
         price_per_pcs: pricePerPcs,
         created_by: user?.id,
+        organization_id: organization?.id,
       };
 
       if (isEditing) {
@@ -588,8 +591,13 @@ const PriceCalculationForm = () => {
         navigate(`/price-calculation/${data.id}`);
       }
     } catch (error: any) {
-      console.error('Error saving:', error);
-      toast.error(error.message || 'Error occurred');
+      console.error('[PriceCalculation] Error saving:', error);
+      // Handle RLS policy violations with user-friendly message
+      if (error.code === '42501' || error.message?.includes('row-level security')) {
+        toast.error("Permission denied. You don't have access to create this item.");
+      } else {
+        toast.error(error.message || 'Failed to save calculation. Please try again.');
+      }
     } finally {
       setSaving(false);
     }
