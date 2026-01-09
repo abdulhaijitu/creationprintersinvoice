@@ -9,6 +9,7 @@
  * 2. Super Admins in the admin panel should NEVER see org business data
  * 3. Super Admins can only access org data when impersonating
  * 4. ALL queries MUST fail CLOSED (block if uncertain)
+ * 5. Business table queries THROW errors in Super Admin context (hard block)
  */
 
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -16,6 +17,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
+import { 
+  validateQueryAccess, 
+  canQueryTable, 
+  BusinessDataAccessError,
+  isBusinessTable 
+} from '@/lib/businessTableGuard';
 
 export interface OrgQueryContext {
   /** Current organization ID - null if no org context */
@@ -38,6 +45,20 @@ export interface OrgQueryContext {
   
   /** Current app context */
   appContext: 'user' | 'super_admin';
+  
+  /** Whether impersonating */
+  isImpersonating: boolean;
+  
+  /** 
+   * Validate query access - THROWS if attempting to query business tables in admin context 
+   * Use this before any business table query
+   */
+  assertQueryAllowed: (tableName: string) => void;
+  
+  /**
+   * Check if a query is allowed (non-throwing version)
+   */
+  canQuery: (tableName: string) => boolean;
 }
 
 /**
@@ -47,7 +68,10 @@ export interface OrgQueryContext {
  * 
  * Usage:
  * ```typescript
- * const { organizationId, hasOrgContext, applyOrgFilter, shouldBlockDataQueries } = useOrgScopedQuery();
+ * const { organizationId, hasOrgContext, applyOrgFilter, shouldBlockDataQueries, assertQueryAllowed } = useOrgScopedQuery();
+ * 
+ * // For business tables, ALWAYS assert first (throws if blocked)
+ * assertQueryAllowed('invoices');
  * 
  * // ALWAYS check if queries should be blocked first
  * if (shouldBlockDataQueries) {
@@ -170,6 +194,21 @@ export function useOrgScopedQuery(): OrgQueryContext {
     return validated;
   }, [organizationId, shouldBlockDataQueries]);
   
+  /**
+   * Assert that a query to a specific table is allowed
+   * THROWS BusinessDataAccessError if attempting to query business tables in Super Admin context
+   */
+  const assertQueryAllowed = useCallback((tableName: string): void => {
+    validateQueryAccess(tableName, appContext, isImpersonating);
+  }, [appContext, isImpersonating]);
+  
+  /**
+   * Check if a query is allowed (non-throwing version)
+   */
+  const canQuery = useCallback((tableName: string): boolean => {
+    return canQueryTable(tableName, appContext, isImpersonating);
+  }, [appContext, isImpersonating]);
+  
   return useMemo(() => ({
     organizationId,
     hasOrgContext,
@@ -178,7 +217,10 @@ export function useOrgScopedQuery(): OrgQueryContext {
     getOrgIdForInsert,
     validateFetchedData,
     appContext,
-  }), [organizationId, hasOrgContext, shouldBlockDataQueries, applyOrgFilter, getOrgIdForInsert, validateFetchedData, appContext]);
+    isImpersonating,
+    assertQueryAllowed,
+    canQuery,
+  }), [organizationId, hasOrgContext, shouldBlockDataQueries, applyOrgFilter, getOrgIdForInsert, validateFetchedData, appContext, isImpersonating, assertQueryAllowed, canQuery]);
 }
 
 /**
