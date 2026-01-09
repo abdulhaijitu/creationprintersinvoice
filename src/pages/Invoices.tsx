@@ -99,14 +99,19 @@ const Invoices = () => {
   } = useBulkSelection(invoices);
 
   useEffect(() => {
-    fetchInvoices();
-  }, []);
+    if (organization?.id) {
+      fetchInvoices();
+    }
+  }, [organization?.id]);
 
   const fetchInvoices = async () => {
+    if (!organization?.id) return;
+    
     try {
       const { data, error } = await supabase
         .from('invoices')
         .select('*, customers(name)')
+        .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

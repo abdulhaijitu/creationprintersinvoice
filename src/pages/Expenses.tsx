@@ -171,23 +171,29 @@ const Expenses = () => {
   });
 
   useEffect(() => {
-    fetchData();
-  }, [filterCategory, filterVendor, filterMonth]);
+    if (organization?.id) {
+      fetchData();
+    }
+  }, [filterCategory, filterVendor, filterMonth, organization?.id]);
 
   const fetchData = async () => {
+    if (!organization?.id) return;
+    
     setLoading(true);
     try {
-      // Fetch categories
+      // Fetch categories - scoped to organization
       const { data: categoriesData } = await supabase
         .from("expense_categories")
         .select("*")
+        .eq("organization_id", organization.id)
         .order("name");
       setCategories(categoriesData || []);
 
-      // Fetch vendors with dues
+      // Fetch vendors with dues - scoped to organization
       const { data: vendorsData } = await supabase
         .from("vendors")
         .select("*")
+        .eq("organization_id", organization.id)
         .order("name");
 
       if (vendorsData) {
@@ -196,12 +202,14 @@ const Expenses = () => {
             const { data: bills } = await supabase
               .from("vendor_bills")
               .select("amount")
-              .eq("vendor_id", vendor.id);
+              .eq("vendor_id", vendor.id)
+              .eq("organization_id", organization.id);
 
             const { data: payments } = await supabase
               .from("vendor_payments")
               .select("amount")
-              .eq("vendor_id", vendor.id);
+              .eq("vendor_id", vendor.id)
+              .eq("organization_id", organization.id);
 
             const totalBills = bills?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
             const totalPaid = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
@@ -217,7 +225,7 @@ const Expenses = () => {
         setVendors(vendorsWithDues);
       }
 
-      // Fetch expenses with filters
+      // Fetch expenses with filters - scoped to organization
       let query = supabase
         .from("expenses")
         .select(`
@@ -225,6 +233,7 @@ const Expenses = () => {
           category:expense_categories(id, name),
           vendor:vendors(id, name)
         `)
+        .eq("organization_id", organization.id)
         .order("date", { ascending: false });
 
       if (filterCategory && filterCategory !== "all") {

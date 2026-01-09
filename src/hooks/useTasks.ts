@@ -37,20 +37,28 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
 
   const fetchTasks = useCallback(async () => {
+    // Don't fetch without organization context
+    if (!organization?.id) {
+      setLoading(false);
+      return;
+    }
+    
     try {
-      // Fetch employees
+      // Fetch employees - scoped to organization
       const { data: employeesData } = await supabase
         .from('employees')
         .select('id, full_name')
+        .eq('organization_id', organization.id)
         .eq('is_active', true)
         .order('full_name');
       
       setEmployees(employeesData || []);
 
-      // Fetch tasks
+      // Fetch tasks - scoped to organization
       let query = supabase
         .from('tasks')
         .select('*')
+        .eq('organization_id', organization.id)
         .order('updated_at', { ascending: false });
 
       if (!isAdmin) {
@@ -86,7 +94,7 @@ export function useTasks() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, user?.id]);
+  }, [isAdmin, user?.id, organization?.id]);
 
   // Real-time subscription
   useEffect(() => {

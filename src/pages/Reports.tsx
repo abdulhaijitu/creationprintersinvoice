@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { hasPermission } from '@/lib/permissions';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { FeatureGate } from '@/components/subscription/FeatureGate';
@@ -82,6 +83,7 @@ const COLORS = [
 
 const Reports = () => {
   const { isAdmin, role, loading: authLoading } = useAuth();
+  const { organization } = useOrganization();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [reportType, setReportType] = useState<'monthly' | 'yearly'>('monthly');
@@ -123,10 +125,10 @@ const Reports = () => {
   }
 
   useEffect(() => {
-    if (hasPermission(role, 'reports', 'view')) {
+    if (hasPermission(role, 'reports', 'view') && organization?.id) {
       fetchReportData();
     }
-  }, [reportType, selectedMonth, selectedYear, role]);
+  }, [reportType, selectedMonth, selectedYear, role, organization?.id]);
 
   // Access control check
   if (authLoading) {
@@ -148,6 +150,8 @@ const Reports = () => {
   }
 
   const fetchReportData = async () => {
+    if (!organization?.id) return;
+    
     setLoading(true);
     try {
       let startDate: Date;
@@ -165,6 +169,7 @@ const Reports = () => {
       const startDateStr = format(startDate, 'yyyy-MM-dd');
       const endDateStr = format(endDate, 'yyyy-MM-dd');
 
+      // ALL queries scoped to organization_id
       const [
         invoicesRes,
         expensesRes,
@@ -175,17 +180,19 @@ const Reports = () => {
         supabase
           .from('invoices')
           .select('*, customers(name)')
+          .eq('organization_id', organization.id)
           .gte('invoice_date', startDateStr)
           .lte('invoice_date', endDateStr)
           .order('invoice_date', { ascending: false }),
         supabase
           .from('expenses')
           .select('*, expense_categories(name)')
+          .eq('organization_id', organization.id)
           .gte('date', startDateStr)
           .lte('date', endDateStr),
-        supabase.from('customers').select('id', { count: 'exact', head: true }),
-        supabase.from('vendor_bills').select('amount, status').neq('status', 'paid'),
-        supabase.from('expense_categories').select('*'),
+        supabase.from('customers').select('id', { count: 'exact', head: true }).eq('organization_id', organization.id),
+        supabase.from('vendor_bills').select('amount, status').eq('organization_id', organization.id).neq('status', 'paid'),
+        supabase.from('expense_categories').select('*').eq('organization_id', organization.id),
       ]);
 
       const invoices = invoicesRes.data || [];

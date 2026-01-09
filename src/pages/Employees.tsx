@@ -94,15 +94,18 @@ const Employees = () => {
   });
 
   useEffect(() => {
-    if (canView) fetchEmployees();
-  }, [canView]);
+    if (canView && organization?.id) fetchEmployees();
+  }, [canView, organization?.id]);
 
   const fetchEmployees = async () => {
+    if (!organization?.id) return;
+    
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from("employees")
         .select("*")
+        .eq("organization_id", organization.id)
         .eq("is_active", true)
         .order("full_name");
 

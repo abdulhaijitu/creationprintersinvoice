@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 export interface DeliveryChallan {
   id: string;
@@ -62,8 +63,15 @@ export function useDeliveryChallans() {
   const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const { toast } = useToast();
+  const { organization } = useOrganization();
 
-  const fetchChallans = async () => {
+  const fetchChallans = useCallback(async () => {
+    // Don't fetch without organization context
+    if (!organization?.id) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       const { data, error } = await supabase
         .from('delivery_challans')
@@ -72,6 +80,7 @@ export function useDeliveryChallans() {
           invoice:invoices(invoice_number, customer_id, customers(name, address)),
           customers(name, address)
         `)
+        .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -92,7 +101,7 @@ export function useDeliveryChallans() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [organization?.id, toast]);
 
   const createChallan = async (data: CreateChallanData) => {
     try {
@@ -226,8 +235,10 @@ export function useDeliveryChallans() {
     return data as DeliveryChallanItem[];
   };
 
-  // Real-time subscription
+  // Real-time subscription - depends on organization
   useEffect(() => {
+    if (!organization?.id) return;
+    
     fetchChallans();
 
     const channel = supabase
@@ -248,7 +259,7 @@ export function useDeliveryChallans() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [organization?.id, fetchChallans]);
 
   return {
     challans,
