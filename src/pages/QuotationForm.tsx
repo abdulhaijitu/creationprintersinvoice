@@ -47,6 +47,7 @@ const QuotationForm = () => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [quotationNumber, setQuotationNumber] = useState('');
+  const [isGeneratingNumber, setIsGeneratingNumber] = useState(false);
 
   const [formData, setFormData] = useState({
     customer_id: '',
@@ -65,9 +66,8 @@ const QuotationForm = () => {
     fetchCustomers();
     if (isEditing) {
       fetchQuotation();
-    } else {
-      generateQuotationNumber();
     }
+    // Note: For new quotations, number is generated server-side on save
   }, [id]);
 
   const fetchCustomers = async () => {
@@ -129,16 +129,8 @@ const QuotationForm = () => {
     }
   };
 
-  const generateQuotationNumber = async () => {
-    try {
-      const { data, error } = await supabase.rpc('generate_quotation_number');
-      if (error) throw error;
-      setQuotationNumber(data);
-    } catch (error) {
-      const year = new Date().getFullYear();
-      setQuotationNumber(`Q${year}0001`);
-    }
-  };
+  // Quotation number is now generated server-side atomically during insert
+  // This prevents duplicate key errors from race conditions
 
   const updateItem = (id: string, field: keyof QuotationItem, value: string | number) => {
     setItems((prev) =>
@@ -236,12 +228,28 @@ const QuotationForm = () => {
         toast.success('Quotation updated');
         navigate(`/quotations/${id}`);
       } else {
-        // Create quotation
+        // Create quotation with server-side generated number
+        if (!organization?.id) {
+          toast.error('Organization not found');
+          return;
+        }
+
+        // Generate quotation number atomically server-side
+        setIsGeneratingNumber(true);
+        const { data: seqData, error: seqError } = await supabase
+          .rpc('generate_org_quotation_number', { p_org_id: organization.id });
+        
+        if (seqError) throw seqError;
+        if (!seqData || seqData.length === 0) throw new Error('Failed to generate quotation number');
+
+        const generatedNumber = seqData[0].quotation_number;
+        setIsGeneratingNumber(false);
+
         const { data: quotation, error: quotationError } = await supabase
           .from('quotations')
           .insert([
             {
-              quotation_number: quotationNumber,
+              quotation_number: generatedNumber,
               customer_id: formData.customer_id,
               quotation_date: formData.quotation_date,
               valid_until: formData.valid_until || null,
@@ -251,7 +259,7 @@ const QuotationForm = () => {
               total,
               notes: formData.notes,
               created_by: user?.id,
-              organization_id: organization?.id,
+              organization_id: organization.id,
             },
           ])
           .select()
@@ -267,7 +275,7 @@ const QuotationForm = () => {
           unit_price: item.unit_price,
           discount: 0,
           total: item.total,
-          organization_id: organization?.id,
+          organization_id: organization.id,
         }));
 
         const { error: itemsError } = await supabase.from('quotation_items').insert(quotationItems);
@@ -278,7 +286,13 @@ const QuotationForm = () => {
       }
     } catch (error: any) {
       console.error('Error saving quotation:', error);
-      toast.error(error.message || 'Error occurred');
+      // User-friendly error message
+      if (error.message?.includes('duplicate key') || error.code === '23505') {
+        toast.error('Please try again - quotation number conflict detected');
+      } else {
+        toast.error(error.message || 'Error occurred');
+      }
+      setIsGeneratingNumber(false);
     } finally {
       setLoading(false);
     }
@@ -310,7 +324,11 @@ const QuotationForm = () => {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">{isEditing ? 'Edit Quotation' : 'New Quotation'}</h1>
-          <p className="text-muted-foreground">Quotation No: {quotationNumber}</p>
+          <p className="text-muted-foreground">
+            {isEditing 
+              ? `Quotation No: ${quotationNumber}` 
+              : 'Quotation number will be generated on save'}
+          </p>
         </div>
       </div>
 
