@@ -3408,6 +3408,7 @@ export type Database = {
           due_date: string | null
           id: string
           organization_id: string | null
+          reference_no: string | null
           status: string | null
           updated_at: string
           vendor_id: string
@@ -3420,6 +3421,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           organization_id?: string | null
+          reference_no?: string | null
           status?: string | null
           updated_at?: string
           vendor_id: string
@@ -3432,6 +3434,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           organization_id?: string | null
+          reference_no?: string | null
           status?: string | null
           updated_at?: string
           vendor_id?: string
@@ -3463,6 +3466,7 @@ export type Database = {
           organization_id: string | null
           payment_date: string
           payment_method: string | null
+          reference_no: string | null
           vendor_id: string
         }
         Insert: {
@@ -3474,6 +3478,7 @@ export type Database = {
           organization_id?: string | null
           payment_date?: string
           payment_method?: string | null
+          reference_no?: string | null
           vendor_id: string
         }
         Update: {
@@ -3485,6 +3490,7 @@ export type Database = {
           organization_id?: string | null
           payment_date?: string
           payment_method?: string | null
+          reference_no?: string | null
           vendor_id?: string
         }
         Relationships: [

@@ -53,6 +53,7 @@ interface Bill {
   amount: number;
   due_date: string | null;
   status: string;
+  reference_no: string | null;
 }
 
 interface Payment {
@@ -62,6 +63,7 @@ interface Payment {
   payment_method: string | null;
   notes: string | null;
   bill_id: string | null;
+  reference_no: string | null;
 }
 
 const VendorDetail = () => {
@@ -83,6 +85,7 @@ const VendorDetail = () => {
     description: "",
     amount: "",
     due_date: "",
+    reference_no: "",
   });
 
   const [paymentForm, setPaymentForm] = useState({
@@ -91,6 +94,7 @@ const VendorDetail = () => {
     payment_method: "cash",
     notes: "",
     bill_id: "",
+    reference_no: "",
   });
 
   useEffect(() => {
@@ -154,6 +158,7 @@ const VendorDetail = () => {
             description: billForm.description || null,
             amount: parseFloat(billForm.amount),
             due_date: billForm.due_date || null,
+            reference_no: billForm.reference_no || null,
           })
           .eq("id", editingBill.id);
 
@@ -168,6 +173,7 @@ const VendorDetail = () => {
           due_date: billForm.due_date || null,
           status: "unpaid",
           organization_id: organization?.id,
+          reference_no: billForm.reference_no || null,
         });
 
         if (error) throw error;
@@ -208,6 +214,7 @@ const VendorDetail = () => {
       description: bill.description || "",
       amount: bill.amount.toString(),
       due_date: bill.due_date || "",
+      reference_no: bill.reference_no || "",
     });
     setIsBillDialogOpen(true);
   };
@@ -218,6 +225,7 @@ const VendorDetail = () => {
       description: "",
       amount: "",
       due_date: "",
+      reference_no: "",
     });
     setEditingBill(null);
   };
@@ -240,6 +248,7 @@ const VendorDetail = () => {
             payment_method: paymentForm.payment_method,
             notes: paymentForm.notes || null,
             bill_id: paymentForm.bill_id || null,
+            reference_no: paymentForm.reference_no || null,
           })
           .eq("id", editingPayment.id);
 
@@ -254,6 +263,7 @@ const VendorDetail = () => {
           notes: paymentForm.notes || null,
           bill_id: paymentForm.bill_id || null,
           organization_id: organization?.id,
+          reference_no: paymentForm.reference_no || null,
         });
 
         if (error) throw error;
@@ -317,6 +327,7 @@ const VendorDetail = () => {
       payment_method: payment.payment_method || "cash",
       notes: payment.notes || "",
       bill_id: payment.bill_id || "",
+      reference_no: payment.reference_no || "",
     });
     setIsPaymentDialogOpen(true);
   };
@@ -328,6 +339,7 @@ const VendorDetail = () => {
       payment_method: "cash",
       notes: "",
       bill_id: "",
+      reference_no: "",
     });
     setEditingPayment(null);
   };
@@ -510,6 +522,18 @@ const VendorDetail = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
+                      <Label>Ref#</Label>
+                      <Input
+                        type="text"
+                        placeholder="Enter reference no."
+                        value={billForm.reference_no}
+                        onChange={(e) =>
+                          setBillForm({ ...billForm, reference_no: e.target.value })
+                        }
+                        className="h-10"
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label>Description</Label>
                       <Textarea
                         placeholder="Bill description"
@@ -621,6 +645,18 @@ const VendorDetail = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
+                      <Label>Ref#</Label>
+                      <Input
+                        type="text"
+                        placeholder="Enter reference no."
+                        value={paymentForm.reference_no}
+                        onChange={(e) =>
+                          setPaymentForm({ ...paymentForm, reference_no: e.target.value })
+                        }
+                        className="h-10"
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label>Notes</Label>
                       <Textarea
                         placeholder="Payment notes"
@@ -653,6 +689,7 @@ const VendorDetail = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
+                  <TableHead className="min-w-[120px]">Ref#</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Bill</TableHead>
                   <TableHead className="text-right">Payment</TableHead>
@@ -662,11 +699,12 @@ const VendorDetail = () => {
               <TableBody>
                 {(() => {
                   // Combine bills and payments for ledger
-                  const ledgerItems: { date: string; description: string; bill: number; payment: number; type: 'bill' | 'payment' }[] = [];
+                  const ledgerItems: { date: string; reference_no: string | null; description: string; bill: number; payment: number; type: 'bill' | 'payment' }[] = [];
                   
                   bills.forEach(bill => {
                     ledgerItems.push({
                       date: bill.bill_date,
+                      reference_no: bill.reference_no,
                       description: bill.description || 'Bill',
                       bill: bill.amount,
                       payment: 0,
@@ -677,6 +715,7 @@ const VendorDetail = () => {
                   payments.forEach(payment => {
                     ledgerItems.push({
                       date: payment.payment_date,
+                      reference_no: payment.reference_no,
                       description: payment.notes || `Payment (${payment.payment_method === 'cash' ? 'Cash' : payment.payment_method === 'bank' ? 'Bank' : 'bKash'})`,
                       bill: 0,
                       payment: payment.amount,
@@ -692,7 +731,7 @@ const VendorDetail = () => {
                   if (ledgerItems.length === 0) {
                     return (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                           No transactions
                         </TableCell>
                       </TableRow>
@@ -705,6 +744,9 @@ const VendorDetail = () => {
                       <TableRow key={index}>
                         <TableCell>
                           {format(new Date(item.date), "dd MMM yyyy")}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {item.reference_no || "—"}
                         </TableCell>
                         <TableCell>{item.description}</TableCell>
                         <TableCell className="text-right">
