@@ -401,19 +401,19 @@ const InvoiceForm = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[35%]">Description</TableHead>
-                        <TableHead className="text-center">Qty</TableHead>
-                        <TableHead className="text-center">Unit</TableHead>
-                        <TableHead className="text-right">Price</TableHead>
-                        <TableHead className="text-right">Discount</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead></TableHead>
+                        <TableHead className="min-w-[280px] w-[45%]">Description</TableHead>
+                        <TableHead className="text-center w-20">Qty</TableHead>
+                        <TableHead className="text-center w-20">Unit</TableHead>
+                        <TableHead className="text-right w-28">Price</TableHead>
+                        <TableHead className="text-right w-24">Discount</TableHead>
+                        <TableHead className="text-right w-28">Total</TableHead>
+                        <TableHead className="w-10"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {items.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell>
+                          <TableCell className="min-w-[280px]">
                             <Textarea
                               value={item.description}
                               onChange={(e) =>
@@ -421,7 +421,7 @@ const InvoiceForm = () => {
                               }
                               placeholder="Item description"
                               rows={2}
-                              className="min-h-[60px] resize-none"
+                              className="min-h-[60px] resize-y overflow-hidden text-wrap break-words"
                             />
                           </TableCell>
                           <TableCell>
