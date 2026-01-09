@@ -271,6 +271,9 @@ const PriceCalculationForm = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Helper to normalize unit value (empty → "Pcs")
+  const normalizeUnit = (unit: string) => unit?.trim() || 'Pcs';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -280,6 +283,26 @@ const PriceCalculationForm = () => {
     }
 
     setSaving(true);
+
+    // Normalize all unit values before save
+    const normalizedFormData = {
+      ...formData,
+      design: { ...formData.design, unit: normalizeUnit(formData.design.unit) },
+      plate1: { ...formData.plate1, unit: normalizeUnit(formData.plate1.unit) },
+      plate2: { ...formData.plate2, unit: normalizeUnit(formData.plate2.unit) },
+      plate3: { ...formData.plate3, unit: normalizeUnit(formData.plate3.unit) },
+      paper1: { ...formData.paper1, unit: normalizeUnit(formData.paper1.unit) },
+      paper2: { ...formData.paper2, unit: normalizeUnit(formData.paper2.unit) },
+      paper3: { ...formData.paper3, unit: normalizeUnit(formData.paper3.unit) },
+      print1: { ...formData.print1, unit: normalizeUnit(formData.print1.unit) },
+      print2: { ...formData.print2, unit: normalizeUnit(formData.print2.unit) },
+      print3: { ...formData.print3, unit: normalizeUnit(formData.print3.unit) },
+      lamination: { ...formData.lamination, unit: normalizeUnit(formData.lamination.unit) },
+      die_cutting: { ...formData.die_cutting, unit: normalizeUnit(formData.die_cutting.unit) },
+      foil_printing: { ...formData.foil_printing, unit: normalizeUnit(formData.foil_printing.unit) },
+      binding: { ...formData.binding, unit: normalizeUnit(formData.binding.unit) },
+      others: { ...formData.others, unit: normalizeUnit(formData.others.unit) },
+    };
 
     try {
       const dataToSave = {
