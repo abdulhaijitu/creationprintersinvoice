@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
@@ -38,9 +38,12 @@ import {
   Loader2,
   Send,
   Eye,
+  FileText,
+  User,
+  Calendar,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import PrintTemplate from '@/components/print/PrintTemplate';
+import { QuotationPDFTemplate, QuotationPDFData } from '@/components/print/QuotationPDFTemplate';
 import '@/components/print/printStyles.css';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 
@@ -61,6 +64,9 @@ interface Quotation {
   organization_id: string | null;
   status_changed_at: string | null;
   status_changed_by: string | null;
+  converted_by: string | null;
+  converted_at: string | null;
+  converted_invoice_id: string | null;
   customers: {
     id: string;
     name: string;
@@ -75,6 +81,7 @@ interface QuotationItem {
   id: string;
   description: string;
   quantity: number;
+  unit: string | null;
   unit_price: number;
   discount: number;
   total: number;
@@ -105,6 +112,39 @@ const QuotationDetail = () => {
       if (error) return null;
       return data;
     },
+  });
+
+  // Fetch converted by user info if quotation is converted
+  const { data: convertedByUser } = useQuery({
+    queryKey: ['converted-by-user', quotation?.converted_by],
+    queryFn: async () => {
+      if (!quotation?.converted_by) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', quotation.converted_by)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!quotation?.converted_by,
+  });
+
+  // Fetch linked invoice number if converted
+  const { data: linkedInvoice } = useQuery({
+    queryKey: ['linked-invoice', quotation?.converted_invoice_id || quotation?.converted_to_invoice_id],
+    queryFn: async () => {
+      const invoiceId = quotation?.converted_invoice_id || quotation?.converted_to_invoice_id;
+      if (!invoiceId) return null;
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('id, invoice_number')
+        .eq('id', invoiceId)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!(quotation?.converted_invoice_id || quotation?.converted_to_invoice_id),
   });
 
   useEffect(() => {
@@ -237,7 +277,7 @@ const QuotationDetail = () => {
 
       if (itemsError) throw itemsError;
 
-      // Update quotation status to converted and link the invoice
+      // Update quotation status to converted and link the invoice with audit info
       const { error: statusError } = await supabase.rpc('update_quotation_status', {
         p_quotation_id: quotation.id,
         p_new_status: 'converted',
@@ -246,11 +286,18 @@ const QuotationDetail = () => {
 
       if (statusError) throw statusError;
 
-      // Update the converted_to_invoice_id
-      await supabase
+      // Update the quotation with conversion audit fields
+      const { error: auditError } = await supabase
         .from('quotations')
-        .update({ converted_to_invoice_id: invoice.id })
+        .update({ 
+          converted_to_invoice_id: invoice.id,
+          converted_invoice_id: invoice.id,
+          converted_by: user.id,
+          converted_at: new Date().toISOString(),
+        })
         .eq('id', quotation.id);
+
+      if (auditError) throw auditError;
 
       toast.success('Invoice created from quotation');
       setConvertDialogOpen(false);
@@ -313,19 +360,47 @@ const QuotationDetail = () => {
     <>
       {/* Print Template - Hidden on screen, visible on print */}
       <div className="print-content">
-        <PrintTemplate
-          type="quotation"
-          documentNumber={quotation.quotation_number}
-          date={quotation.quotation_date}
-          validUntil={quotation.valid_until}
-          customer={quotation.customers}
-          items={items}
-          subtotal={Number(quotation.subtotal)}
-          discount={Number(quotation.discount)}
-          tax={Number(quotation.tax)}
-          total={Number(quotation.total)}
-          notes={quotation.notes}
-          status={quotation.status}
+        <QuotationPDFTemplate
+          data={{
+            company: {
+              name: companySettings?.company_name || 'Company Name',
+              nameBn: companySettings?.company_name_bn || undefined,
+              address: companySettings?.address || undefined,
+              phone: companySettings?.phone || undefined,
+              email: companySettings?.email || undefined,
+              website: companySettings?.website || undefined,
+              logoUrl: companySettings?.logo_url || undefined,
+            },
+            quotation: {
+              number: quotation.quotation_number,
+              date: quotation.quotation_date,
+              validUntil: quotation.valid_until || undefined,
+              status: quotation.status,
+            },
+            customer: {
+              name: quotation.customers?.name || 'N/A',
+              companyName: quotation.customers?.company_name || undefined,
+              address: quotation.customers?.address || undefined,
+              phone: quotation.customers?.phone || undefined,
+              email: quotation.customers?.email || undefined,
+            },
+            items: items.map(item => ({
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit || undefined,
+              unitPrice: Number(item.unit_price),
+              discount: item.discount ? Number(item.discount) : undefined,
+              total: Number(item.total),
+            })),
+            totals: {
+              subtotal: Number(quotation.subtotal),
+              discount: quotation.discount ? Number(quotation.discount) : undefined,
+              tax: quotation.tax ? Number(quotation.tax) : undefined,
+              total: Number(quotation.total),
+            },
+            notes: quotation.notes || undefined,
+            footer: companySettings?.invoice_footer || 'Thank you for your interest!',
+          }}
         />
       </div>
 
@@ -597,6 +672,48 @@ const QuotationDetail = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Conversion Info - Only show when converted */}
+            {quotation.status === 'converted' && (quotation.converted_by || quotation.converted_at || linkedInvoice) && (
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Conversion Info
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {convertedByUser?.full_name && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Converted by:</span>
+                      <span className="font-medium">{convertedByUser.full_name}</span>
+                    </div>
+                  )}
+                  {quotation.converted_at && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Converted on:</span>
+                      <span className="font-medium">
+                        {format(new Date(quotation.converted_at), 'dd MMM yyyy, HH:mm')}
+                      </span>
+                    </div>
+                  )}
+                  {linkedInvoice && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <FileCheck className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Invoice No:</span>
+                      <Link 
+                        to={`/invoices/${linkedInvoice.id}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {linkedInvoice.invoice_number}
+                      </Link>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
