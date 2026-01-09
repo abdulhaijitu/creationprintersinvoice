@@ -41,16 +41,18 @@ const TextAreaInput = React.forwardRef<HTMLTextAreaElement, TextAreaInputProps>(
     },
     ref,
   ) => {
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      let next = e.target.value;
+    // Memoized change handler - prevents cursor jumps from handler recreation
+    const handleChange = React.useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const next = e.target.value;
       
-      // Enforce max length if specified
+      // Enforce max length if specified - reject silently to preserve cursor
       if (maxLength && next.length > maxLength) {
         return;
       }
       
+      // Pass value directly - NO TRANSFORMATION during typing
       onChange(next);
-    };
+    }, [onChange, maxLength]);
 
     const textareaElement = (
       <Textarea

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -422,7 +422,8 @@ const PriceCalculationForm = () => {
     }).format(amount);
   };
 
-  const handleCategoryItemChange = (
+  // Memoized handlers to prevent cursor jumps
+  const handleCategoryItemChange = useCallback((
     categoryIndex: number,
     itemIndex: number,
     field: 'qty' | 'unit' | 'price',
@@ -441,9 +442,9 @@ const PriceCalculationForm = () => {
       };
       return { ...prev, categories: newCategories };
     });
-  };
+  }, []);
 
-  const handleAddItem = (categoryIndex: number) => {
+  const handleAddItem = useCallback((categoryIndex: number) => {
     setFormData(prev => {
       const newCategories = [...prev.categories];
       newCategories[categoryIndex] = {
@@ -452,9 +453,9 @@ const PriceCalculationForm = () => {
       };
       return { ...prev, categories: newCategories };
     });
-  };
+  }, []);
 
-  const handleRemoveItem = (categoryIndex: number, itemIndex: number) => {
+  const handleRemoveItem = useCallback((categoryIndex: number, itemIndex: number) => {
     setFormData(prev => {
       const newCategories = [...prev.categories];
       const newItems = newCategories[categoryIndex].items.filter((_, i) => i !== itemIndex);
@@ -468,11 +469,11 @@ const PriceCalculationForm = () => {
       };
       return { ...prev, categories: newCategories };
     });
-  };
+  }, []);
 
-  const handleChange = (field: keyof FormData, value: string | number) => {
+  const handleChange = useCallback((field: keyof FormData, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
   // Helper to normalize unit value (empty → "Pcs")
   const normalizeUnit = (unit: string) => unit?.trim() || 'Pcs';
