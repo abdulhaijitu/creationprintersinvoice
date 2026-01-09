@@ -62,37 +62,60 @@ const NavItem = ({ item, isActive }: NavItemProps) => {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   
-  const content = (
-    <SidebarMenuItem>
+  const linkContent = (
+    <NavLink 
+      to={item.url} 
+      className={cn(
+        "flex items-center w-full transition-all duration-200",
+        collapsed ? "justify-center px-0" : "gap-3 px-3"
+      )}
+    >
+      <div className={cn(
+        "relative flex items-center justify-center flex-shrink-0",
+        collapsed ? "h-8 w-8" : "h-5 w-5"
+      )}>
+        <item.icon className={cn(
+          "h-[18px] w-[18px] transition-colors duration-200",
+          isActive ? "text-primary" : "text-slate-400 group-hover:text-white"
+        )} />
+        {item.badge !== undefined && item.badge > 0 && collapsed && (
+          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] h-3.5 min-w-3.5 px-0.5 rounded-full flex items-center justify-center font-medium leading-none">
+            {item.badge > 9 ? '9+' : item.badge}
+          </span>
+        )}
+      </div>
+      <span className={cn(
+        "flex-1 flex items-center justify-between text-sm whitespace-nowrap transition-all duration-200",
+        collapsed ? "w-0 opacity-0 overflow-hidden" : "opacity-100"
+      )}>
+        {item.title}
+        {item.badge !== undefined && item.badge > 0 && (
+          <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full font-medium ml-2">
+            {item.badge > 99 ? '99+' : item.badge}
+          </span>
+        )}
+      </span>
+    </NavLink>
+  );
+  
+  const menuItem = (
+    <SidebarMenuItem className="group">
       <SidebarMenuButton 
         asChild 
         isActive={isActive}
         className={cn(
-          "relative h-10 transition-all duration-200 rounded-lg mx-1",
-          "text-slate-400 hover:text-white hover:bg-white/5",
-          isActive && "bg-gradient-to-r from-primary/20 to-primary/5 text-white font-medium border-l-2 border-primary"
+          "relative transition-all duration-200 rounded-lg",
+          collapsed 
+            ? "h-10 w-10 mx-auto p-0 flex items-center justify-center" 
+            : "h-10 mx-1 px-0",
+          "text-slate-400 hover:text-white hover:bg-white/10",
+          isActive && cn(
+            "bg-gradient-to-r from-primary/20 to-primary/10 text-white font-medium",
+            collapsed ? "ring-2 ring-primary/30" : "border-l-2 border-primary"
+          )
         )}
       >
-        <NavLink to={item.url} className="flex items-center gap-3 px-3">
-          <div className="relative flex-shrink-0">
-            <item.icon className={cn("h-[18px] w-[18px]", isActive && "text-primary")} />
-            {item.badge !== undefined && item.badge > 0 && collapsed && (
-              <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] h-4 min-w-4 px-1 rounded-full flex items-center justify-center font-medium">
-                {item.badge > 9 ? '9+' : item.badge}
-              </span>
-            )}
-          </div>
-          {!collapsed && (
-            <span className="flex-1 flex items-center justify-between text-sm">
-              {item.title}
-              {item.badge !== undefined && item.badge > 0 && (
-                <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full font-medium">
-                  {item.badge > 99 ? '99+' : item.badge}
-                </span>
-              )}
-            </span>
-          )}
-        </NavLink>
+        {linkContent}
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
@@ -101,9 +124,13 @@ const NavItem = ({ item, isActive }: NavItemProps) => {
     return (
       <Tooltip delayDuration={0}>
         <TooltipTrigger asChild>
-          {content}
+          {menuItem}
         </TooltipTrigger>
-        <TooltipContent side="right" className="flex items-center gap-2">
+        <TooltipContent 
+          side="right" 
+          sideOffset={8}
+          className="flex items-center gap-2 bg-slate-800 text-white border-slate-700"
+        >
           {item.title}
           {item.badge !== undefined && item.badge > 0 && (
             <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full font-medium">
@@ -115,7 +142,7 @@ const NavItem = ({ item, isActive }: NavItemProps) => {
     );
   }
 
-  return content;
+  return menuItem;
 };
 
 interface NavGroupProps {
@@ -136,12 +163,12 @@ const NavGroup = ({ id, label, icon: GroupIcon, items, expandedGroup, onToggle }
 
   if (items.length === 0) return null;
 
-  // Collapsed state - show icons only with tooltips
+  // Collapsed state - show icons only with tooltips, centered
   if (collapsed) {
     return (
-      <SidebarGroup className="py-1">
-        <SidebarGroupContent>
-          <SidebarMenu>
+      <SidebarGroup className="py-1 px-0">
+        <SidebarGroupContent className="flex flex-col items-center">
+          <SidebarMenu className="w-full flex flex-col items-center gap-1">
             {items.map((item) => (
               <NavItem
                 key={item.url}
@@ -353,27 +380,35 @@ export function AppSidebar() {
       className="border-r border-slate-800 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950"
     >
       {/* Header */}
-      <SidebarHeader className="px-4 py-5 border-b border-slate-800">
+      <SidebarHeader className={cn(
+        "border-b border-slate-800 transition-all duration-200",
+        collapsed ? "px-2 py-4" : "px-4 py-5"
+      )}>
         <div className={cn(
-          "flex items-center",
-          collapsed ? "justify-center" : "gap-3"
+          "flex items-center justify-center transition-all duration-200",
+          collapsed ? "h-10 w-full" : "h-9 w-full justify-start"
         )}>
           {collapsed ? (
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden bg-white/10 p-1">
-              <img 
-                src={logoIconUrl} 
-                alt={appName} 
-                className="h-full w-full object-contain rounded-lg"
-              />
-            </div>
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden bg-white/10 p-1.5 cursor-pointer hover:bg-white/15 transition-colors">
+                  <img 
+                    src={logoIconUrl} 
+                    alt={appName} 
+                    className="h-full w-full object-contain rounded-lg"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8} className="bg-slate-800 text-white border-slate-700">
+                {appName}
+              </TooltipContent>
+            </Tooltip>
           ) : (
-            <div className="flex items-center justify-start w-full">
-              <img 
-                src={logoUrl} 
-                alt={appName} 
-                className="h-9 max-h-9 w-auto object-contain drop-shadow-sm"
-              />
-            </div>
+            <img 
+              src={logoUrl} 
+              alt={appName} 
+              className="h-9 max-h-9 w-auto object-contain drop-shadow-sm"
+            />
           )}
         </div>
       </SidebarHeader>
@@ -382,12 +417,15 @@ export function AppSidebar() {
       <OrganizationSwitcher />
 
       {/* Navigation */}
-      <SidebarContent className="px-2 py-3 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+      <SidebarContent className={cn(
+        "py-3 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent overflow-x-hidden",
+        collapsed ? "px-1" : "px-2"
+      )}>
         {/* Dashboard - Always visible if permitted */}
         {mainNavItems.length > 0 && (
-          <SidebarGroup className="py-1">
-            <SidebarGroupContent>
-              <SidebarMenu>
+          <SidebarGroup className={cn("py-1", collapsed && "px-0")}>
+            <SidebarGroupContent className={cn(collapsed && "flex flex-col items-center")}>
+              <SidebarMenu className={cn(collapsed && "w-full flex flex-col items-center")}>
                 {mainNavItems.map((item) => (
                   <NavItem
                     key={item.url}
@@ -460,39 +498,79 @@ export function AppSidebar() {
       </SidebarContent>
 
       {/* Footer */}
-      <SidebarFooter className="p-3 border-t border-slate-800">
+      <SidebarFooter className={cn(
+        "border-t border-slate-800 transition-all duration-200",
+        collapsed ? "p-2" : "p-3"
+      )}>
         <div className={cn(
-          "flex items-center",
-          collapsed ? "justify-center" : "gap-3"
+          "flex items-center transition-all duration-200",
+          collapsed ? "flex-col gap-2 justify-center" : "gap-3"
         )}>
-          <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-slate-700">
-            <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
-              {user?.email ? getInitials(user.email) : <User className="h-4 w-4" />}
-            </AvatarFallback>
-          </Avatar>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
-                {user?.email?.split('@')[0]}
-              </p>
-              <p className="text-[11px] text-slate-400 truncate">
-                {user?.email}
-              </p>
-            </div>
+          {collapsed ? (
+            <>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-slate-700 cursor-pointer hover:ring-primary/50 transition-all">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+                      {user?.email ? getInitials(user.email) : <User className="h-4 w-4" />}
+                    </AvatarFallback>
+                  </Avatar>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={8} className="bg-slate-800 text-white border-slate-700">
+                  <div className="flex flex-col">
+                    <span className="font-medium">{user?.email?.split('@')[0]}</span>
+                    <span className="text-xs text-slate-400">{user?.email}</span>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={signOut}
+                    className="h-9 w-9 text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={8} className="bg-slate-800 text-white border-slate-700">
+                  Logout
+                </TooltipContent>
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-slate-700">
+                <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+                  {user?.email ? getInitials(user.email) : <User className="h-4 w-4" />}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {user?.email?.split('@')[0]}
+                </p>
+                <p className="text-[11px] text-slate-400 truncate">
+                  {user?.email}
+                </p>
+              </div>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={signOut}
+                    className="shrink-0 h-8 w-8 text-slate-400 hover:text-white hover:bg-white/10"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={8} className="bg-slate-800 text-white border-slate-700">
+                  Logout
+                </TooltipContent>
+              </Tooltip>
+            </>
           )}
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={signOut}
-                className="shrink-0 h-8 w-8 text-slate-400 hover:text-white hover:bg-white/10"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Logout</TooltipContent>
-          </Tooltip>
         </div>
       </SidebarFooter>
     </Sidebar>
