@@ -23,6 +23,7 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  AlertCircle,
   Edit,
   Phone,
   Mail,
@@ -36,6 +37,7 @@ import PrintTemplate from '@/components/print/PrintTemplate';
 import '@/components/print/printStyles.css';
 import { CreateChallanDialog } from '@/components/delivery-challan/CreateChallanDialog';
 import { AddPaymentDialog } from '@/components/invoice/AddPaymentDialog';
+import { calculateInvoiceStatus } from '@/lib/invoiceUtils';
 
 interface Invoice {
   id: string;
@@ -153,32 +155,52 @@ const InvoiceDetail = () => {
     }).format(amount);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return (
-          <Badge className="bg-success/10 text-success border-0 text-base py-1 px-3">
-            <CheckCircle className="w-4 h-4 mr-1" />
-            Paid
-          </Badge>
-        );
-      case 'partial':
-        return (
-          <Badge className="bg-warning/10 text-warning border-0 text-base py-1 px-3">
-            <Clock className="w-4 h-4 mr-1" />
-            Partial
-          </Badge>
-        );
-      case 'unpaid':
-        return (
-          <Badge className="bg-destructive/10 text-destructive border-0 text-base py-1 px-3">
-            <XCircle className="w-4 h-4 mr-1" />
-            Unpaid
-          </Badge>
-        );
-      default:
-        return null;
-    }
+  // Calculate status from amounts (single source of truth)
+  const getInvoiceStatus = () => {
+    if (!invoice) return null;
+    return calculateInvoiceStatus(invoice.total, invoice.paid_amount, invoice.due_date);
+  };
+
+  const statusInfo = invoice ? getInvoiceStatus() : null;
+
+  const getStatusBadge = () => {
+    if (!statusInfo) return null;
+    const { displayStatus } = statusInfo;
+
+    const badges = {
+      paid: (
+        <Badge className="bg-success/10 text-success border-0 text-base py-1 px-3">
+          <CheckCircle className="w-4 h-4 mr-1" />
+          Fully Paid
+        </Badge>
+      ),
+      partial: (
+        <Badge className="bg-warning/10 text-warning border-0 text-base py-1 px-3">
+          <Clock className="w-4 h-4 mr-1" />
+          Partial
+        </Badge>
+      ),
+      overdue: (
+        <Badge className="bg-destructive/10 text-destructive border-0 text-base py-1 px-3">
+          <AlertCircle className="w-4 h-4 mr-1" />
+          Overdue
+        </Badge>
+      ),
+      unpaid: (
+        <Badge className="bg-muted text-muted-foreground border-0 text-base py-1 px-3">
+          <XCircle className="w-4 h-4 mr-1" />
+          Unpaid
+        </Badge>
+      ),
+      due: (
+        <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-0 text-base py-1 px-3">
+          <Clock className="w-4 h-4 mr-1" />
+          Due
+        </Badge>
+      ),
+    };
+
+    return badges[displayStatus] || badges.unpaid;
   };
 
   const handlePrint = () => {
@@ -210,7 +232,8 @@ const InvoiceDetail = () => {
     );
   }
 
-  const remaining = Number(invoice.total) - Number(invoice.paid_amount);
+  const remaining = statusInfo?.dueAmount || 0;
+  const isFullyPaid = statusInfo?.isFullyPaid || false;
 
   return (
     <>
@@ -270,7 +293,7 @@ const InvoiceDetail = () => {
               <Download className="h-4 w-4 mr-2" />
               PDF
             </Button>
-            {invoice.status !== 'paid' && (
+            {!isFullyPaid && (
               <Button size="sm" onClick={() => setPaymentDialogOpen(true)}>
                 <CreditCard className="h-4 w-4 mr-2" />
                 Add Payment
@@ -322,7 +345,7 @@ const InvoiceDetail = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    {getStatusBadge(invoice.status)}
+                    {getStatusBadge()}
                   </div>
                 </div>
 
@@ -448,10 +471,23 @@ const InvoiceDetail = () => {
                   <span>Total</span>
                   <span className="text-primary">{formatCurrency(Number(invoice.total))}</span>
                 </div>
-                <div className="flex justify-between text-sm text-success bg-success/5 p-2 rounded">
-                  <span>Paid Amount</span>
-                  <span className="font-medium">{formatCurrency(Number(invoice.paid_amount))}</span>
-                </div>
+                
+                {/* Paid Amount Section - Conditional styling based on payment status */}
+                {isFullyPaid ? (
+                  <div className="flex justify-between text-sm bg-success/10 p-3 rounded-lg border border-success/20">
+                    <span className="text-success font-medium flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      Fully Paid
+                    </span>
+                    <span className="font-bold text-success">{formatCurrency(Number(invoice.paid_amount))}</span>
+                  </div>
+                ) : Number(invoice.paid_amount) > 0 ? (
+                  <div className="flex justify-between text-sm bg-warning/10 p-2 rounded border border-warning/20">
+                    <span className="text-warning-foreground">Paid Amount</span>
+                    <span className="font-medium text-warning">{formatCurrency(Number(invoice.paid_amount))}</span>
+                  </div>
+                ) : null}
+                
                 {remaining > 0 && (
                   <div className="flex justify-between font-bold pt-2 border-t bg-destructive/5 p-2 rounded">
                     <span className="text-destructive">Amount Due</span>

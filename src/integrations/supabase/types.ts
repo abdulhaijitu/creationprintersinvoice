@@ -3704,6 +3704,7 @@ export type Database = {
         Returns: boolean
       }
       check_overdue_invoices: { Args: never; Returns: undefined }
+      fix_all_invoice_statuses: { Args: never; Returns: undefined }
       generate_billing_invoice_number: { Args: never; Returns: string }
       generate_challan_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }

@@ -52,6 +52,7 @@ import {
 import { format, isPast, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
+import { calculateInvoiceStatus, type InvoiceDisplayStatus } from '@/lib/invoiceUtils';
 import CSVImportDialog from '@/components/import/CSVImportDialog';
 import { ImportResult } from '@/lib/importUtils';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
@@ -70,7 +71,7 @@ interface Invoice {
   customers: { name: string } | null;
 }
 
-type StatusFilter = 'all' | 'paid' | 'unpaid' | 'partial' | 'overdue' | 'due';
+type StatusFilter = 'all' | 'paid' | 'unpaid' | 'partial' | 'overdue';
 
 const Invoices = () => {
   const navigate = useNavigate();
@@ -227,32 +228,24 @@ const Invoices = () => {
     return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const getDueAmount = (invoice: Invoice) => {
-    return Number(invoice.total) - Number(invoice.paid_amount);
+  // Use centralized status calculation
+  const getInvoiceStatusInfo = (invoice: Invoice) => {
+    return calculateInvoiceStatus(invoice.total, invoice.paid_amount, invoice.due_date);
   };
 
-  const isOverdue = (invoice: Invoice) => {
-    if (invoice.status === 'paid') return false;
-    if (!invoice.due_date) return false;
-    return isPast(parseISO(invoice.due_date));
-  };
-
-  const getDisplayStatus = (invoice: Invoice): 'paid' | 'unpaid' | 'partial' | 'overdue' | 'due' => {
-    const dueAmount = getDueAmount(invoice);
-    if (dueAmount <= 0) return 'paid';
-    if (isOverdue(invoice)) return 'overdue';
-    if (Number(invoice.paid_amount) > 0) return 'partial';
-    return 'due';
+  const getDisplayStatus = (invoice: Invoice): InvoiceDisplayStatus => {
+    return getInvoiceStatusInfo(invoice).displayStatus;
   };
 
   const getStatusBadge = (invoice: Invoice) => {
-    const displayStatus = getDisplayStatus(invoice);
+    const statusInfo = getInvoiceStatusInfo(invoice);
+    const { displayStatus, isFullyPaid } = statusInfo;
     
-    const badges = {
+    const badges: Record<InvoiceDisplayStatus, JSX.Element> = {
       paid: (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
           <CheckCircle className="w-3.5 h-3.5" />
-          Paid
+          {isFullyPaid ? 'Fully Paid' : 'Paid'}
         </span>
       ),
       partial: (
@@ -265,6 +258,12 @@ const Invoices = () => {
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
           <AlertCircle className="w-3.5 h-3.5" />
           Overdue
+        </span>
+      ),
+      unpaid: (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+          <Clock className="w-3.5 h-3.5" />
+          Unpaid
         </span>
       ),
       due: (
@@ -288,8 +287,9 @@ const Invoices = () => {
     if (statusFilter === 'all') return true;
     
     const displayStatus = getDisplayStatus(invoice);
-    if (statusFilter === 'due') return displayStatus === 'due';
-    return displayStatus === statusFilter;
+    // Map 'due' to 'unpaid' for filtering purposes
+    const normalizedStatus = displayStatus === 'due' ? 'unpaid' : displayStatus;
+    return normalizedStatus === statusFilter;
   });
 
   const invoiceHeaders = {
@@ -309,15 +309,18 @@ const Invoices = () => {
       return;
     }
     
-    const exportData = dataToExport.map(inv => ({
-      invoice_number: inv.invoice_number,
-      customer_name: inv.customers?.name || '',
-      invoice_date: format(new Date(inv.invoice_date), 'dd/MM/yyyy'),
-      total: inv.total,
-      paid_amount: inv.paid_amount,
-      due_amount: getDueAmount(inv),
-      status: getDisplayStatus(inv),
-    }));
+    const exportData = dataToExport.map(inv => {
+      const statusInfo = getInvoiceStatusInfo(inv);
+      return {
+        invoice_number: inv.invoice_number,
+        customer_name: inv.customers?.name || '',
+        invoice_date: format(new Date(inv.invoice_date), 'dd/MM/yyyy'),
+        total: inv.total,
+        paid_amount: inv.paid_amount,
+        due_amount: statusInfo.dueAmount,
+        status: statusInfo.displayStatus,
+      };
+    });
 
     if (exportFormat === 'csv') {
       exportToCSV(exportData, 'invoices', invoiceHeaders);
@@ -453,12 +456,16 @@ const Invoices = () => {
     return { success, failed, errors, duplicates };
   };
 
-  // Stats
+  // Stats - use centralized status calculation
   const totalInvoices = invoices.length;
   const paidCount = invoices.filter(i => getDisplayStatus(i) === 'paid').length;
-  const dueCount = invoices.filter(i => getDisplayStatus(i) === 'due').length;
+  const unpaidCount = invoices.filter(i => {
+    const status = getDisplayStatus(i);
+    return status === 'unpaid' || status === 'due';
+  }).length;
   const overdueCount = invoices.filter(i => getDisplayStatus(i) === 'overdue').length;
-  const totalDueAmount = invoices.reduce((sum, inv) => sum + getDueAmount(inv), 0);
+  const partialCount = invoices.filter(i => getDisplayStatus(i) === 'partial').length;
+  const totalDueAmount = invoices.reduce((sum, inv) => sum + getInvoiceStatusInfo(inv).dueAmount, 0);
 
   const bulkActions = [
     {
@@ -511,8 +518,8 @@ const Invoices = () => {
             <p className="text-2xl font-semibold text-foreground mt-1">{paidCount}</p>
           </div>
           <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
-            <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Due</p>
-            <p className="text-2xl font-semibold text-foreground mt-1">{dueCount}</p>
+            <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Unpaid</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{unpaidCount}</p>
           </div>
           <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-destructive uppercase tracking-wide">Overdue</p>
@@ -663,8 +670,9 @@ const Invoices = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredInvoices.map((invoice, index) => {
-                      const dueAmount = getDueAmount(invoice);
-                      const displayStatus = getDisplayStatus(invoice);
+                      const statusInfo = getInvoiceStatusInfo(invoice);
+                      const displayStatus = statusInfo.displayStatus;
+                      const dueAmount = statusInfo.dueAmount;
                       return (
                         <TableRow 
                           key={invoice.id}
