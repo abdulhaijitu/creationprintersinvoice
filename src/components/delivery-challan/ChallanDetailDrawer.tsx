@@ -1,6 +1,23 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Printer, Download, Share2, Mail, MessageCircle, ExternalLink, Truck, User, Phone, MapPin, FileText, Lock } from 'lucide-react';
+import { 
+  Printer, 
+  Download, 
+  Share2, 
+  Mail, 
+  MessageCircle, 
+  ExternalLink, 
+  Truck, 
+  User, 
+  Phone, 
+  MapPin, 
+  FileText, 
+  Lock,
+  Package,
+  Calendar,
+  Hash,
+  ClipboardList
+} from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -9,6 +26,7 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,14 +73,17 @@ export function ChallanDetailDrawer({
         .from('delivery_challans')
         .select(`
           *,
-          invoice:invoices(invoice_number, customer_id, customers(name, address)),
-          customers(name, address)
+          invoice:invoices(invoice_number, customer_id, customers(name, address, phone)),
+          customers(name, address, phone)
         `)
         .eq('id', challanId)
         .single();
 
       if (challanError) throw challanError;
-      setChallan(challanData as unknown as DeliveryChallan);
+      
+      // Type assertion to handle the nested customer phone
+      const typedData = challanData as any;
+      setChallan(typedData as DeliveryChallan);
 
       const { data: itemsData, error: itemsError } = await supabase
         .from('delivery_challan_items')
@@ -78,7 +99,6 @@ export function ChallanDetailDrawer({
     }
   };
 
-  // Business logic helpers
   const isLocked = challan?.status === 'delivered' || challan?.status === 'cancelled';
   const canPrint = challan?.status !== 'cancelled';
   const canShare = challan?.status !== 'cancelled';
@@ -100,44 +120,52 @@ export function ChallanDetailDrawer({
     }
   };
 
-  const customerName = challan?.customers?.name || challan?.invoice?.customers?.name || 'N/A';
-  const customerAddress = challan?.delivery_address || challan?.customers?.address || challan?.invoice?.customers?.address || 'N/A';
+  const challanData = challan as any;
+  const customerName = challanData?.customers?.name || challanData?.invoice?.customers?.name || 'N/A';
+  const customerAddress = challanData?.delivery_address || challanData?.customers?.address || challanData?.invoice?.customers?.address || 'N/A';
+  const customerPhone = challanData?.customers?.phone || challanData?.invoice?.customers?.phone || '';
   const totalQuantity = items.reduce((sum, item) => sum + Number(item.quantity), 0);
-
-  
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-4 md:p-6">
-        <SheetHeader className="space-y-1">
-          <div className="flex items-center justify-between gap-2">
-            <SheetTitle className="flex items-center gap-2 text-base md:text-lg">
-              <FileText className="h-4 w-4 md:h-5 md:w-5" />
-              <span className="truncate">{loading ? 'Loading...' : challan?.challan_number}</span>
-            </SheetTitle>
-            {!loading && challan && (
-              <div className="flex items-center gap-2 shrink-0">
-                {isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
-                <StatusBadge status={challan.status} />
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-0">
+        {/* Premium Header */}
+        <div className="sticky top-0 z-10 bg-background border-b">
+          <SheetHeader className="p-4 md:p-6 pb-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <SheetTitle className="text-base md:text-lg font-semibold truncate">
+                    {loading ? 'Loading...' : 'Delivery Challan'}
+                  </SheetTitle>
+                  {!loading && challan && (
+                    <p className="text-sm text-muted-foreground font-mono">
+                      {challan.challan_number}
+                    </p>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        </SheetHeader>
+              {!loading && challan && (
+                <div className="flex items-center gap-2 shrink-0">
+                  {isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
+                  <StatusBadge status={challan.status} />
+                </div>
+              )}
+            </div>
+          </SheetHeader>
 
-        {loading ? (
-          <div className="mt-4 md:mt-6">
-            <ContentSkeleton />
-          </div>
-        ) : challan ? (
-          <div className="space-y-4 md:space-y-6 mt-4 md:mt-6">
-            {/* Actions - disabled for cancelled challans */}
-            <div className="flex flex-wrap gap-2">
+          {/* Quick Actions Bar */}
+          {!loading && challan && (
+            <div className="px-4 md:px-6 pb-4 flex flex-wrap gap-2">
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={handlePrint}
                 disabled={!canPrint}
-                className={cn("h-9 flex-1 sm:flex-none", !canPrint && 'opacity-50 cursor-not-allowed')}
+                className={cn("h-9", !canPrint && 'opacity-50 cursor-not-allowed')}
               >
                 <Printer className="h-4 w-4 mr-1.5" />
                 Print
@@ -147,7 +175,7 @@ export function ChallanDetailDrawer({
                 size="sm" 
                 onClick={handlePrint}
                 disabled={!canPrint}
-                className={cn("h-9 flex-1 sm:flex-none", !canPrint && 'opacity-50 cursor-not-allowed')}
+                className={cn("h-9", !canPrint && 'opacity-50 cursor-not-allowed')}
               >
                 <Download className="h-4 w-4 mr-1.5" />
                 PDF
@@ -158,7 +186,7 @@ export function ChallanDetailDrawer({
                     variant="outline" 
                     size="sm"
                     disabled={!canShare}
-                    className={cn("h-9 flex-1 sm:flex-none", !canShare && 'opacity-50 cursor-not-allowed')}
+                    className={cn("h-9", !canShare && 'opacity-50 cursor-not-allowed')}
                   >
                     <Share2 className="h-4 w-4 mr-1.5" />
                     Share
@@ -176,22 +204,34 @@ export function ChallanDetailDrawer({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+          )}
+        </div>
 
-            <Separator />
-
-            {/* Basic Info */}
-            <div className="grid grid-cols-2 gap-3 md:gap-4 text-sm">
-              <div>
-                <p className="text-xs md:text-sm text-muted-foreground">Date</p>
-                <p className="font-medium text-sm md:text-base">
+        {loading ? (
+          <div className="p-4 md:p-6">
+            <ContentSkeleton />
+          </div>
+        ) : challan ? (
+          <div className="p-4 md:p-6 space-y-6">
+            {/* Info Cards Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-muted/40 rounded-xl p-4 space-y-1">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium uppercase tracking-wide">Date</span>
+                </div>
+                <p className="font-semibold text-sm">
                   {format(new Date(challan.challan_date), 'dd MMM yyyy')}
                 </p>
               </div>
-              <div>
-                <p className="text-xs md:text-sm text-muted-foreground">Invoice</p>
+              <div className="bg-muted/40 rounded-xl p-4 space-y-1">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Hash className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium uppercase tracking-wide">Invoice</span>
+                </div>
                 <Button
                   variant="link"
-                  className="p-0 h-auto font-medium text-sm md:text-base"
+                  className="p-0 h-auto font-semibold text-sm text-primary"
                   onClick={() => navigate(`/invoices/${challan.invoice_id}`)}
                 >
                   {challan.invoice?.invoice_number}
@@ -200,133 +240,147 @@ export function ChallanDetailDrawer({
               </div>
             </div>
 
-            <Separator />
-
-            {/* Customer & Delivery Info */}
-            <div className="space-y-3">
-              <h4 className="font-medium flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Customer & Delivery
-              </h4>
-              <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
-                <p className="font-medium">{customerName}</p>
-                <p className="text-muted-foreground flex items-start gap-2">
-                  <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                  {customerAddress}
-                </p>
+            {/* Customer Card */}
+            <div className="rounded-xl border bg-card overflow-hidden">
+              <div className="bg-muted/30 px-4 py-3 border-b">
+                <h4 className="font-semibold text-sm flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" />
+                  Customer Information
+                </h4>
+              </div>
+              <div className="p-4 space-y-3">
+                <p className="font-semibold text-base">{customerName}</p>
+                {customerAddress && customerAddress !== 'N/A' && (
+                  <p className="text-sm text-muted-foreground flex items-start gap-2">
+                    <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground/70" />
+                    <span>{customerAddress}</span>
+                  </p>
+                )}
+                {customerPhone && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground/70" />
+                    {customerPhone}
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Vehicle & Driver */}
+            {/* Transport Details Card */}
             {(challan.vehicle_info || challan.driver_name) && (
-              <>
-                <Separator />
-                <div className="space-y-3">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Truck className="h-4 w-4" />
+              <div className="rounded-xl border bg-card overflow-hidden">
+                <div className="bg-muted/30 px-4 py-3 border-b">
+                  <h4 className="font-semibold text-sm flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-primary" />
                     Transport Details
                   </h4>
-                  <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
-                    {challan.vehicle_info && (
-                      <p>
-                        <span className="text-muted-foreground">Vehicle:</span>{' '}
-                        {challan.vehicle_info}
-                      </p>
-                    )}
-                    {challan.driver_name && (
-                      <p>
-                        <span className="text-muted-foreground">Driver:</span>{' '}
-                        {challan.driver_name}
-                      </p>
-                    )}
-                    {challan.driver_phone && (
-                      <p className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        {challan.driver_phone}
-                      </p>
-                    )}
-                  </div>
                 </div>
-              </>
+                <div className="p-4 grid grid-cols-2 gap-4">
+                  {challan.vehicle_info && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Vehicle</p>
+                      <p className="text-sm font-medium">{challan.vehicle_info}</p>
+                    </div>
+                  )}
+                  {challan.driver_name && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Driver</p>
+                      <p className="text-sm font-medium">{challan.driver_name}</p>
+                    </div>
+                  )}
+                  {challan.driver_phone && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Driver Phone</p>
+                      <p className="text-sm font-medium">{challan.driver_phone}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
 
-            <Separator />
-
-            {/* Items */}
-            <div className="space-y-2 md:space-y-3">
-              <h4 className="font-medium text-sm md:text-base">Items ({items.length})</h4>
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-xs md:text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="text-left p-2.5 md:p-3 font-medium">Description</th>
-                      <th className="text-right p-2.5 md:p-3 font-medium w-20 md:w-24">Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item) => (
-                      <tr key={item.id} className="border-t">
-                        <td className="p-2.5 md:p-3">{item.description}</td>
-                        <td className="p-2.5 md:p-3 text-right">
-                          {item.quantity} {item.unit}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr className="border-t bg-muted/30 font-medium">
-                      <td className="p-2.5 md:p-3">Total</td>
-                      <td className="p-2.5 md:p-3 text-right">{totalQuantity}</td>
-                    </tr>
-                  </tbody>
-                </table>
+            {/* Items Card */}
+            <div className="rounded-xl border bg-card overflow-hidden">
+              <div className="bg-muted/30 px-4 py-3 border-b flex items-center justify-between">
+                <h4 className="font-semibold text-sm flex items-center gap-2">
+                  <Package className="h-4 w-4 text-primary" />
+                  Items
+                </h4>
+                <Badge variant="secondary" className="font-mono">
+                  {items.length} items
+                </Badge>
+              </div>
+              <div className="divide-y">
+                {items.map((item, index) => (
+                  <div key={item.id} className="px-4 py-3 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-xs text-muted-foreground w-5 shrink-0">
+                        {index + 1}.
+                      </span>
+                      <span className="text-sm font-medium truncate">{item.description}</span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-semibold text-sm">{item.quantity}</span>
+                      <span className="text-xs text-muted-foreground ml-1">{item.unit || 'pcs'}</span>
+                    </div>
+                  </div>
+                ))}
+                <div className="px-4 py-3 bg-muted/30 flex items-center justify-between">
+                  <span className="font-semibold text-sm">Total Quantity</span>
+                  <span className="font-bold text-primary">{totalQuantity}</span>
+                </div>
               </div>
             </div>
 
-            {/* Notes */}
+            {/* Notes Card */}
             {challan.notes && (
-              <>
-                <Separator />
-                <div className="space-y-2">
-                  <h4 className="font-medium">Notes</h4>
-                  <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
+              <div className="rounded-xl border bg-card overflow-hidden">
+                <div className="bg-muted/30 px-4 py-3 border-b">
+                  <h4 className="font-semibold text-sm flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4 text-primary" />
+                    Notes
+                  </h4>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                     {challan.notes}
                   </p>
                 </div>
-              </>
+              </div>
             )}
 
-            <Separator />
-
-            {/* Status Actions - only show if not locked */}
+            {/* Status Actions */}
             {!isLocked && onStatusChange && (
-              <div className="space-y-2 md:space-y-3">
-                <h4 className="font-medium text-sm md:text-base">Update Status</h4>
-                <div className="flex flex-col sm:flex-row gap-2">
+              <div className="rounded-xl border bg-card overflow-hidden">
+                <div className="bg-muted/30 px-4 py-3 border-b">
+                  <h4 className="font-semibold text-sm">Update Status</h4>
+                </div>
+                <div className="p-4 flex flex-col sm:flex-row gap-2">
                   {challan.status === 'draft' && (
                     <>
                       <Button
                         size="sm"
                         onClick={() => onStatusChange(challan.id, 'dispatched')}
-                        className="h-10 sm:h-9 transition-transform duration-200 active:scale-95 flex-1 sm:flex-none"
+                        className="h-10 flex-1"
                       >
+                        <Truck className="h-4 w-4 mr-2" />
                         Mark as Dispatched
                       </Button>
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() => onStatusChange(challan.id, 'cancelled')}
-                        className="h-10 sm:h-9 transition-transform duration-200 active:scale-95 flex-1 sm:flex-none"
+                        className="h-10 flex-1"
                       >
-                        Cancel
+                        Cancel Challan
                       </Button>
                     </>
                   )}
                   {challan.status === 'dispatched' && (
                     <Button
                       size="sm"
-                      className="h-10 sm:h-9 bg-success hover:bg-success/90 transition-transform duration-200 active:scale-95 w-full sm:w-auto"
+                      className="h-10 w-full bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => onStatusChange(challan.id, 'delivered')}
                     >
-                      Mark as Delivered
+                      ✓ Mark as Delivered
                     </Button>
                   )}
                 </div>
@@ -335,20 +389,24 @@ export function ChallanDetailDrawer({
 
             {/* Locked state indicator */}
             {isLocked && (
-              <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground flex items-center gap-2">
-                <Lock className="h-4 w-4" />
-                {challan.status === 'delivered' 
-                  ? 'This challan has been delivered and cannot be modified.'
-                  : 'This challan has been cancelled and cannot be modified.'}
+              <div className="rounded-xl bg-muted/50 p-4 text-sm text-muted-foreground flex items-center gap-3">
+                <Lock className="h-4 w-4 shrink-0" />
+                <span>
+                  {challan.status === 'delivered' 
+                    ? 'This challan has been delivered and cannot be modified.'
+                    : 'This challan has been cancelled and cannot be modified.'}
+                </span>
               </div>
             )}
           </div>
         ) : (
-          <EmptyState
-            icon={FileText}
-            title="Challan not found"
-            description="The requested delivery challan could not be found."
-          />
+          <div className="p-4 md:p-6">
+            <EmptyState
+              icon={FileText}
+              title="Challan not found"
+              description="The requested delivery challan could not be found."
+            />
+          </div>
         )}
       </SheetContent>
     </Sheet>
