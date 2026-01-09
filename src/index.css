@@ -303,9 +303,27 @@
   /* === Form Input Enterprise Style === */
   .input-enterprise {
     @apply h-10 rounded-md border border-input bg-background px-3 py-2 text-sm 
-           ring-offset-background placeholder:text-muted-foreground 
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-           transition-colors duration-200;
+           placeholder:text-muted-foreground/60
+           focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary
+           transition-all duration-200 ease-out;
+  }
+
+  /* === Form Row Layout === */
+  .form-row {
+    @apply flex items-center gap-4;
+  }
+
+  .form-stack {
+    @apply flex flex-col gap-2;
+  }
+
+  /* === Section Spacing === */
+  .section-gap {
+    @apply space-y-6;
+  }
+
+  .section-gap-lg {
+    @apply space-y-8;
   }
 
   /* === Safe Area for Notched Devices === */
@@ -333,7 +351,16 @@
 
   /* === Focus Ring Utility === */
   .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+    @apply focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary;
+  }
+
+  /* === Divider === */
+  .divider {
+    @apply border-t border-muted/30;
+  }
+
+  .divider-subtle {
+    @apply border-t border-muted/20;
   }
 }
 
