@@ -3917,7 +3917,13 @@ export type Database = {
         | "failed"
         | "cancelled"
         | "refunded"
-      quotation_status: "pending" | "accepted" | "rejected"
+      quotation_status:
+        | "draft"
+        | "sent"
+        | "pending"
+        | "accepted"
+        | "converted"
+        | "rejected"
       subscription_plan: "free" | "basic" | "pro" | "enterprise"
       subscription_status:
         | "trial"
@@ -4130,7 +4136,14 @@ export const Constants = {
         "cancelled",
         "refunded",
       ],
-      quotation_status: ["pending", "accepted", "rejected"],
+      quotation_status: [
+        "draft",
+        "sent",
+        "pending",
+        "accepted",
+        "converted",
+        "rejected",
+      ],
       subscription_plan: ["free", "basic", "pro", "enterprise"],
       subscription_status: [
         "trial",
