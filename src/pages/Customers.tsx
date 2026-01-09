@@ -125,14 +125,19 @@ const Customers = () => {
   } = useBulkSelection(customers);
 
   useEffect(() => {
-    fetchCustomers();
-  }, []);
+    if (organization?.id) {
+      fetchCustomers();
+    }
+  }, [organization?.id]);
 
   const fetchCustomers = async () => {
+    if (!organization?.id) return;
+    
     try {
       const { data: customersData, error } = await supabase
         .from('customers')
         .select('*')
+        .eq('organization_id', organization.id)
         .eq('is_deleted', false) // Exclude soft-deleted customers
         .order('created_at', { ascending: false });
 
@@ -140,7 +145,8 @@ const Customers = () => {
 
       const { data: invoicesData } = await supabase
         .from('invoices')
-        .select('customer_id, total, paid_amount');
+        .select('customer_id, total, paid_amount')
+        .eq('organization_id', organization.id);
 
       const customerWithLedger = (customersData || []).map(customer => {
         const customerInvoices = invoicesData?.filter(inv => inv.customer_id === customer.id) || [];

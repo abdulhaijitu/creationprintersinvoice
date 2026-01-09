@@ -81,15 +81,20 @@ const Vendors = () => {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchVendors();
-  }, []);
+    if (organization?.id) {
+      fetchVendors();
+    }
+  }, [organization?.id]);
 
   const fetchVendors = async () => {
+    if (!organization?.id) return;
+    
     setLoading(true);
     try {
       const { data: vendorsData } = await supabase
         .from("vendors")
         .select("*")
+        .eq("organization_id", organization.id)
         .order("name");
 
       if (!vendorsData) {
@@ -102,12 +107,14 @@ const Vendors = () => {
           const { data: bills } = await supabase
             .from("vendor_bills")
             .select("amount")
-            .eq("vendor_id", vendor.id);
+            .eq("vendor_id", vendor.id)
+            .eq("organization_id", organization.id);
 
           const { data: payments } = await supabase
             .from("vendor_payments")
             .select("amount")
-            .eq("vendor_id", vendor.id);
+            .eq("vendor_id", vendor.id)
+            .eq("organization_id", organization.id);
 
           const totalBills = bills?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
           const totalPaid = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;

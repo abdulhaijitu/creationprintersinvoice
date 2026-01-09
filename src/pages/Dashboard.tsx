@@ -138,8 +138,15 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Don't fetch data without organization context
+    if (!organization?.id) {
+      setLoading(false);
+      return;
+    }
+
     const fetchDashboardData = async () => {
       try {
+        const orgId = organization.id;
         const today = new Date();
         const monthStart = startOfMonth(today);
         const lastMonth = subMonths(today, 1);
@@ -154,7 +161,7 @@ const Dashboard = () => {
         const sixMonthsAgo = subMonths(today, 5);
         const sixMonthsAgoStr = format(startOfMonth(sixMonthsAgo), 'yyyy-MM-dd');
 
-        // Fetch all data in parallel
+        // Fetch all data in parallel - ALL queries MUST be scoped to organization_id
         const [
           invoicesRes,
           quotationsRes,
@@ -171,35 +178,39 @@ const Dashboard = () => {
           lastMonthExpensesRes,
           lastMonthInvoicesRes,
         ] = await Promise.all([
-          supabase.from('invoices').select('total, paid_amount, status, invoice_date, due_date'),
-          supabase.from('quotations').select('status').eq('status', 'pending'),
-          supabase.from('customers').select('id', { count: 'exact', head: true }),
-          supabase.from('expenses').select('amount').gte('date', monthStartStr),
+          supabase.from('invoices').select('total, paid_amount, status, invoice_date, due_date').eq('organization_id', orgId),
+          supabase.from('quotations').select('status').eq('organization_id', orgId).eq('status', 'pending'),
+          supabase.from('customers').select('id', { count: 'exact', head: true }).eq('organization_id', orgId),
+          supabase.from('expenses').select('amount').eq('organization_id', orgId).gte('date', monthStartStr),
           supabase
             .from('invoices')
             .select('*, customers(name)')
+            .eq('organization_id', orgId)
             .order('created_at', { ascending: false })
             .limit(5),
-          supabase.from('vendor_bills').select('amount, status').neq('status', 'paid'),
-          supabase.from('employees').select('id', { count: 'exact', head: true }).eq('is_active', true),
-          supabase.from('employee_attendance').select('id').eq('date', todayStr).eq('status', 'present'),
+          supabase.from('vendor_bills').select('amount, status').eq('organization_id', orgId).neq('status', 'paid'),
+          supabase.from('employees').select('id', { count: 'exact', head: true }).eq('organization_id', orgId).eq('is_active', true),
+          supabase.from('employee_attendance').select('id').eq('organization_id', orgId).eq('date', todayStr).eq('status', 'present'),
           isAdmin
-            ? supabase.from('leave_requests').select('id').eq('status', 'pending')
+            ? supabase.from('leave_requests').select('id').eq('organization_id', orgId).eq('status', 'pending')
             : Promise.resolve({ data: [], count: 0 }),
-          supabase.from('tasks').select('id, status, deadline'),
-          supabase.from('expenses').select('amount, date').gte('date', sixMonthsAgoStr),
+          supabase.from('tasks').select('id, status, deadline').eq('organization_id', orgId),
+          supabase.from('expenses').select('amount, date').eq('organization_id', orgId).gte('date', sixMonthsAgoStr),
           supabase
             .from('expenses')
             .select('amount, expense_categories(name)')
+            .eq('organization_id', orgId)
             .gte('date', monthStartStr),
           supabase
             .from('expenses')
             .select('amount')
+            .eq('organization_id', orgId)
             .gte('date', lastMonthStartStr)
             .lte('date', lastMonthEndStr),
           supabase
             .from('invoices')
             .select('paid_amount')
+            .eq('organization_id', orgId)
             .gte('invoice_date', lastMonthStartStr)
             .lte('invoice_date', lastMonthEndStr),
         ]);
@@ -357,7 +368,7 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
-  }, [user, isAdmin]);
+  }, [user, isAdmin, organization?.id]);
 
   const chartConfig = {
     income: { label: 'Revenue', color: CHART_COLORS.success },
