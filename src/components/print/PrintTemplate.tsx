@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { calculateInvoiceStatus } from '@/lib/invoiceUtils';
 
 interface PrintTemplateProps {
   type: 'invoice' | 'quotation';
@@ -112,6 +113,7 @@ export const PrintTemplate = ({
         case 'paid': return 'PAID';
         case 'partial': return 'PARTIALLY PAID';
         case 'unpaid': return 'UNPAID';
+        case 'overdue': return 'OVERDUE';
         default: return status.toUpperCase();
       }
     } else {
@@ -130,6 +132,7 @@ export const PrintTemplate = ({
         case 'paid': return '#059669';
         case 'partial': return '#d97706';
         case 'unpaid': return '#dc2626';
+        case 'overdue': return '#991b1b';
         default: return '#6b7280';
       }
     } else {
@@ -143,6 +146,14 @@ export const PrintTemplate = ({
   };
 
   const remaining = paidAmount !== undefined ? total - paidAmount : 0;
+
+  // Calculate actual status based on payment amounts for invoices
+  const computedStatus = type === 'invoice' 
+    ? calculateInvoiceStatus(total, paidAmount || 0, dueDate || null).displayStatus
+    : status;
+  
+  // Map computed status to component status format
+  const effectiveStatus = computedStatus === 'due' ? 'unpaid' : computedStatus;
 
   const companyName = settings?.company_name || 'Company Name';
   const companyNameBn = settings?.company_name_bn || '';
@@ -172,8 +183,8 @@ export const PrintTemplate = ({
       minHeight: '100vh',
       position: 'relative',
     }}>
-      {/* Watermark for unpaid invoices */}
-      {type === 'invoice' && status === 'unpaid' && (
+      {/* Watermark for unpaid/overdue invoices - only show when NOT paid */}
+      {type === 'invoice' && (effectiveStatus === 'unpaid' || effectiveStatus === 'overdue') && (
         <div style={{
           position: 'fixed',
           top: '50%',
@@ -181,12 +192,30 @@ export const PrintTemplate = ({
           transform: 'translate(-50%, -50%) rotate(-30deg)',
           fontSize: '100px',
           fontWeight: 'bold',
-          color: 'rgba(220, 38, 38, 0.08)',
+          color: effectiveStatus === 'overdue' ? 'rgba(220, 38, 38, 0.08)' : 'rgba(220, 38, 38, 0.08)',
           pointerEvents: 'none',
           zIndex: 0,
           whiteSpace: 'nowrap',
         }}>
-          UNPAID
+          {effectiveStatus === 'overdue' ? 'OVERDUE' : 'UNPAID'}
+        </div>
+      )}
+      
+      {/* PAID watermark - only when fully paid */}
+      {type === 'invoice' && effectiveStatus === 'paid' && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%) rotate(-30deg)',
+          fontSize: '100px',
+          fontWeight: 'bold',
+          color: 'rgba(22, 163, 74, 0.08)',
+          pointerEvents: 'none',
+          zIndex: 0,
+          whiteSpace: 'nowrap',
+        }}>
+          PAID
         </div>
       )}
 
@@ -411,12 +440,12 @@ export const PrintTemplate = ({
                       display: 'inline-block',
                       padding: '2px 8px',
                       borderRadius: '4px',
-                      backgroundColor: getStatusColor(status),
+                      backgroundColor: getStatusColor(effectiveStatus),
                       color: 'white',
                       fontSize: '8pt',
                       fontWeight: '600',
                     }}>
-                      {getStatusText(status)}
+                      {getStatusText(effectiveStatus)}
                     </span>
                   </td>
                 </tr>
