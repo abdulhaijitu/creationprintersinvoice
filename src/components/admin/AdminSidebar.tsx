@@ -212,7 +212,7 @@ export const AdminSidebar = ({
               <TooltipTrigger asChild>
                 <button
                   onClick={handleToggle}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 p-1 hover:bg-white/20 transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-accent p-1 hover:bg-sidebar-accent/80 transition-colors"
                 >
                   <img 
                     src={logoIcon} 
@@ -238,7 +238,7 @@ export const AdminSidebar = ({
                     variant="ghost"
                     size="sm"
                     onClick={handleToggle}
-                    className="h-8 w-8 p-0 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    className="h-8 w-8 p-0 text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground"
                   >
                     <PanelLeftClose className="h-4 w-4" />
                   </Button>
@@ -303,7 +303,7 @@ export const AdminSidebar = ({
                               'group flex w-full h-10 items-center justify-center rounded-lg text-sm font-medium transition-all duration-200',
                               isActive
                                 ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
-                                : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                                : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
                             )}
                           >
                             <item.icon
@@ -311,7 +311,7 @@ export const AdminSidebar = ({
                                 'h-4 w-4 shrink-0 transition-colors duration-200',
                                 isActive
                                   ? 'text-sidebar-primary-foreground'
-                                  : 'text-sidebar-muted group-hover:text-sidebar-accent-foreground'
+                                  : 'text-sidebar-muted group-hover:text-sidebar-foreground'
                               )}
                             />
                           </button>
@@ -370,7 +370,7 @@ export const AdminSidebar = ({
                             'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                             isActive
                               ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
-                              : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                              : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
                           )}
                         >
                           <item.icon
@@ -378,14 +378,14 @@ export const AdminSidebar = ({
                               'h-4 w-4 shrink-0 transition-colors duration-200',
                               isActive
                                 ? 'text-sidebar-primary-foreground'
-                                : 'text-sidebar-muted group-hover:text-sidebar-accent-foreground'
+                                : 'text-sidebar-muted group-hover:text-sidebar-foreground'
                             )}
                           />
                           <span className="flex-1 text-left truncate">
                             {item.label}
                           </span>
                           {isActive && (
-                            <ChevronRight className="h-4 w-4 opacity-70" />
+                            <ChevronRight className="h-4 w-4" />
                           )}
                         </button>
                       );

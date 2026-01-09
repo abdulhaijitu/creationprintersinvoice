@@ -76,7 +76,7 @@ const NavItem = ({ item, isActive }: NavItemProps) => {
       )}>
         <item.icon className={cn(
           "h-[18px] w-[18px] transition-colors duration-200",
-          isActive ? "text-primary" : "text-slate-400 group-hover:text-white"
+          isActive ? "text-sidebar-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground"
         )} />
         {item.badge !== undefined && item.badge > 0 && collapsed && (
           <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] h-3.5 min-w-3.5 px-0.5 rounded-full flex items-center justify-center font-medium leading-none">
@@ -108,10 +108,10 @@ const NavItem = ({ item, isActive }: NavItemProps) => {
           collapsed 
             ? "h-10 w-10 mx-auto p-0 flex items-center justify-center" 
             : "h-10 mx-1 px-0",
-          "text-slate-400 hover:text-white hover:bg-white/10",
+          "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent",
           isActive && cn(
-            "bg-gradient-to-r from-primary/20 to-primary/10 text-white font-medium",
-            collapsed ? "ring-2 ring-primary/30" : "border-l-2 border-primary"
+            "bg-sidebar-accent text-sidebar-foreground font-medium",
+            collapsed ? "ring-2 ring-sidebar-primary/40" : "border-l-2 border-sidebar-primary"
           )
         )}
       >
@@ -129,7 +129,7 @@ const NavItem = ({ item, isActive }: NavItemProps) => {
         <TooltipContent 
           side="right" 
           sideOffset={8}
-          className="flex items-center gap-2 bg-slate-800 text-white border-slate-700"
+          className="flex items-center gap-2 bg-popover text-popover-foreground border-border"
         >
           {item.title}
           {item.badge !== undefined && item.badge > 0 && (
@@ -188,8 +188,8 @@ const NavGroup = ({ id, label, icon: GroupIcon, items, expandedGroup, onToggle }
         onClick={() => onToggle(id)}
         className={cn(
           "w-full cursor-pointer rounded-lg px-3 py-2.5 mx-1 flex items-center gap-3",
-          "text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200",
-          isGroupActive && "text-white"
+          "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all duration-200",
+          isGroupActive && "text-sidebar-foreground"
         )}
       >
         <GroupIcon className="h-4 w-4 flex-shrink-0" />
@@ -360,14 +360,14 @@ export function AppSidebar() {
     return (
       <Sidebar 
         collapsible="icon" 
-        className="border-r border-slate-800 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950"
+        className="border-r border-sidebar-border"
       >
-        <SidebarHeader className="p-4 border-b border-slate-800">
-          <div className="h-10 w-24 bg-slate-800 rounded animate-pulse" />
+        <SidebarHeader className="p-4 border-b border-sidebar-border">
+          <div className="h-10 w-24 bg-sidebar-accent rounded animate-pulse" />
         </SidebarHeader>
         <SidebarContent className="px-2 py-3">
           {[1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="h-10 mx-1 mb-2 bg-slate-800/50 rounded animate-pulse" />
+            <div key={i} className="h-10 mx-1 mb-2 bg-sidebar-accent/50 rounded animate-pulse" />
           ))}
         </SidebarContent>
       </Sidebar>
@@ -377,11 +377,11 @@ export function AppSidebar() {
   return (
     <Sidebar 
       collapsible="icon" 
-      className="border-r border-slate-800 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950"
+      className="border-r border-sidebar-border"
     >
       {/* Header */}
       <SidebarHeader className={cn(
-        "border-b border-slate-800 transition-all duration-200",
+        "border-b border-sidebar-border transition-all duration-200",
         collapsed ? "px-2 py-4" : "px-4 py-5"
       )}>
         <div className={cn(
@@ -391,7 +391,7 @@ export function AppSidebar() {
           {collapsed ? (
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden bg-white/10 p-1.5 cursor-pointer hover:bg-white/15 transition-colors">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden bg-sidebar-accent p-1.5 cursor-pointer hover:bg-sidebar-accent/80 transition-colors">
                   <img 
                     src={logoIconUrl} 
                     alt={appName} 
@@ -399,7 +399,7 @@ export function AppSidebar() {
                   />
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8} className="bg-slate-800 text-white border-slate-700">
+              <TooltipContent side="right" sideOffset={8} className="bg-popover text-popover-foreground border-border">
                 {appName}
               </TooltipContent>
             </Tooltip>
@@ -442,7 +442,7 @@ export function AppSidebar() {
         <FavoritePages />
 
         {/* Divider */}
-        {!collapsed && <div className="mx-3 my-3 border-t border-slate-800" />}
+        {!collapsed && <div className="mx-3 my-3 border-t border-sidebar-border" />}
 
         {/* Navigation Groups - Only show if menu access is granted */}
         {permissions.salesBilling && salesItems.length > 0 && (
@@ -499,7 +499,7 @@ export function AppSidebar() {
 
       {/* Footer */}
       <SidebarFooter className={cn(
-        "border-t border-slate-800 transition-all duration-200",
+        "border-t border-sidebar-border transition-all duration-200",
         collapsed ? "p-2" : "p-3"
       )}>
         <div className={cn(
@@ -510,16 +510,16 @@ export function AppSidebar() {
             <>
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
-                  <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-slate-700 cursor-pointer hover:ring-primary/50 transition-all">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+                  <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-sidebar-border cursor-pointer hover:ring-sidebar-primary/50 transition-all">
+                    <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-sm font-medium">
                       {user?.email ? getInitials(user.email) : <User className="h-4 w-4" />}
                     </AvatarFallback>
                   </Avatar>
                 </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={8} className="bg-slate-800 text-white border-slate-700">
+                <TooltipContent side="right" sideOffset={8} className="bg-popover text-popover-foreground border-border">
                   <div className="flex flex-col">
                     <span className="font-medium">{user?.email?.split('@')[0]}</span>
-                    <span className="text-xs text-slate-400">{user?.email}</span>
+                    <span className="text-xs text-muted-foreground">{user?.email}</span>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -529,28 +529,28 @@ export function AppSidebar() {
                     variant="ghost"
                     size="icon"
                     onClick={signOut}
-                    className="h-9 w-9 text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                    className="h-9 w-9 text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
                   >
                     <LogOut className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={8} className="bg-slate-800 text-white border-slate-700">
+                <TooltipContent side="right" sideOffset={8} className="bg-popover text-popover-foreground border-border">
                   Logout
                 </TooltipContent>
               </Tooltip>
             </>
           ) : (
             <>
-              <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-slate-700">
-                <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+              <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-sidebar-border">
+                <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-sm font-medium">
                   {user?.email ? getInitials(user.email) : <User className="h-4 w-4" />}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
+                <p className="text-sm font-medium text-sidebar-foreground truncate">
                   {user?.email?.split('@')[0]}
                 </p>
-                <p className="text-[11px] text-slate-400 truncate">
+                <p className="text-[11px] text-sidebar-muted truncate">
                   {user?.email}
                 </p>
               </div>
@@ -560,12 +560,12 @@ export function AppSidebar() {
                     variant="ghost"
                     size="icon"
                     onClick={signOut}
-                    className="shrink-0 h-8 w-8 text-slate-400 hover:text-white hover:bg-white/10"
+                    className="shrink-0 h-8 w-8 text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
                   >
                     <LogOut className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={8} className="bg-slate-800 text-white border-slate-700">
+                <TooltipContent side="right" sideOffset={8} className="bg-popover text-popover-foreground border-border">
                   Logout
                 </TooltipContent>
               </Tooltip>

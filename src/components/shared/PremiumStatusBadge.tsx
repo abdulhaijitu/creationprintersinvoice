@@ -18,19 +18,19 @@ const variantConfig: Record<BadgeVariant, {
 }> = {
   success: {
     icon: CheckCircle,
-    classes: 'bg-success/10 text-success border-success/20',
+    classes: 'bg-success/15 text-success border-success/25',
   },
   warning: {
     icon: AlertTriangle,
-    classes: 'bg-warning/10 text-warning border-warning/20',
+    classes: 'bg-warning/15 text-warning border-warning/25',
   },
   destructive: {
     icon: AlertCircle,
-    classes: 'bg-destructive/10 text-destructive border-destructive/20',
+    classes: 'bg-destructive/15 text-destructive border-destructive/25',
   },
   info: {
     icon: Clock,
-    classes: 'bg-info/10 text-info border-info/20',
+    classes: 'bg-info/15 text-info border-info/25',
   },
   muted: {
     icon: XCircle,
@@ -38,7 +38,7 @@ const variantConfig: Record<BadgeVariant, {
   },
   pending: {
     icon: Loader2,
-    classes: 'bg-primary/10 text-primary border-primary/20',
+    classes: 'bg-primary/15 text-primary border-primary/25',
   },
 };
 

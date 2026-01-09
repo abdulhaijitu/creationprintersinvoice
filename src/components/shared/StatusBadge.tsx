@@ -39,12 +39,12 @@ const statusConfig: Record<string, {
 };
 
 const variantStyles: Record<string, string> = {
-  success: 'bg-success/10 text-success border-0 hover:bg-success/15',
-  warning: 'bg-warning/10 text-warning border-0 hover:bg-warning/15',
-  destructive: 'bg-destructive/10 text-destructive border-0 hover:bg-destructive/15',
-  info: 'bg-info/10 text-info border-0 hover:bg-info/15',
-  muted: 'bg-muted/50 text-muted-foreground border-0 hover:bg-muted/70',
-  primary: 'bg-primary/10 text-primary border-0 hover:bg-primary/15',
+  success: 'bg-success/15 text-success border border-success/25 hover:bg-success/20',
+  warning: 'bg-warning/15 text-warning border border-warning/25 hover:bg-warning/20',
+  destructive: 'bg-destructive/15 text-destructive border border-destructive/25 hover:bg-destructive/20',
+  info: 'bg-info/15 text-info border border-info/25 hover:bg-info/20',
+  muted: 'bg-muted text-muted-foreground border border-border hover:bg-muted/80',
+  primary: 'bg-primary/15 text-primary border border-primary/25 hover:bg-primary/20',
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
