@@ -1,5 +1,8 @@
 /* PrintoSaaS - Swiss Design System with Shadcn Components */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -17,42 +20,42 @@
   :root {
     /* === Core Color System === */
     /* Clean, professional neutral palette */
-    --background: 0 0% 99%;
-    --foreground: 222 47% 11%;
+    --background: 0 0% 96%;
+    --foreground: 0 0% 9%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 9%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 0 0% 89%;
+    --popover-foreground: 0 0% 9%;
 
     /* Primary - Professional Blue */
-    --primary: 217 91% 50%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 20 90% 48%;
+    --primary-foreground: 33 100% 96%;
 
     /* Secondary - Muted slate */
-    --secondary: 215 16% 47%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 0 0% 32%;
+    --secondary-foreground: 0 0% 98%;
 
     /* Muted backgrounds */
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 0 0% 63%;
+    --muted-foreground: 0 0% 9%;
 
     /* Accent for hover states */
-    --accent: 220 14% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 47 100% 96%;
+    --accent-foreground: 37 92% 50%;
 
     /* Destructive actions */
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 85% 97%;
 
     /* Form elements */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217 91% 50%;
+    --border: 0 0% 83%;
+    --input: 0 0% 83%;
+    --ring: 20 90% 48%;
 
     /* Border radius - Subtle, professional */
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     /* === Status Colors - Finance Optimized === */
     --success: 142 71% 45%;
@@ -64,97 +67,104 @@
 
     /* === Sidebar - Dark Professional === */
     --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 17% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 220 17% 20%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-foreground: 0 0% 9%;
+    --sidebar-primary: 20 90% 48%;
+    --sidebar-primary-foreground: 33 100% 96%;
+    --sidebar-accent: 0 0% 32%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 83%;
+    --sidebar-ring: 20 90% 48%;
     --sidebar-muted: 220 14% 40%;
 
     /* === Chart Colors === */
-    --chart-1: 217 91% 50%;
-    --chart-2: 199 89% 48%;
-    --chart-3: 142 71% 45%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 0 72% 51%;
+    --chart-1: 27 95% 60%;
+    --chart-2: 43 96% 56%;
+    --chart-3: 47 95% 53%;
+    --chart-4: 24 94% 53%;
+    --chart-5: 0 0% 45%;
 
     /* === Typography === */
-    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-sans: 'Roboto', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
     --font-display: 'Hind Siliguri', 'Inter', sans-serif;
 
     /* === Shadows - Subtle, Professional === */
-    --shadow-2xs: 0 1px 2px 0 hsl(220 9% 46% / 0.04);
-    --shadow-xs: 0 1px 3px 0 hsl(220 9% 46% / 0.05);
-    --shadow-sm: 0 1px 2px 0 hsl(220 9% 46% / 0.04), 0 1px 3px 0 hsl(220 9% 46% / 0.08);
-    --shadow: 0 2px 4px -1px hsl(220 9% 46% / 0.05), 0 4px 6px -1px hsl(220 9% 46% / 0.08);
-    --shadow-md: 0 4px 6px -2px hsl(220 9% 46% / 0.04), 0 10px 15px -3px hsl(220 9% 46% / 0.08);
-    --shadow-lg: 0 10px 15px -3px hsl(220 9% 46% / 0.06), 0 20px 25px -5px hsl(220 9% 46% / 0.08);
-    --shadow-xl: 0 20px 25px -5px hsl(220 9% 46% / 0.08), 0 25px 50px -12px hsl(220 9% 46% / 0.12);
-    
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+
     /* === Spacing (4px base) === */
     --spacing: 0.25rem;
+    --sidebar: 0 0% 98%;
+    --font-serif: 'Libre Caslon Text', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+    --font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+    --tracking-normal: 0em;
   }
 
   /* === DARK MODE - Intentional, Not Inverted === */
   .dark {
-    --background: 222 47% 7%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 9%;
+    --foreground: 0 0% 98%;
 
-    --card: 222 47% 10%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 14%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222 47% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 25%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 27 95% 60%;
+    --primary-foreground: 12 81% 14%;
 
-    --secondary: 215 20% 65%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 0 0% 45%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 220 17% 15%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 0 0% 45%;
+    --muted-foreground: 0 0% 98%;
 
-    --accent: 220 17% 15%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 20 91% 14%;
+    --accent-foreground: 43 96% 56%;
 
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 85% 97%;
 
-    --border: 220 17% 18%;
-    --input: 220 17% 18%;
-    --ring: 217 91% 60%;
+    --border: 0 0% 32%;
+    --input: 0 0% 32%;
+    --ring: 27 95% 60%;
 
     --success: 142 71% 50%;
     --warning: 38 92% 55%;
     --info: 199 89% 55%;
 
     --sidebar-background: 222 47% 5%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 17% 10%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 220 17% 12%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 27 95% 60%;
+    --sidebar-primary-foreground: 12 81% 14%;
+    --sidebar-accent: 43 96% 56%;
+    --sidebar-accent-foreground: 20 91% 14%;
+    --sidebar-border: 0 0% 32%;
+    --sidebar-ring: 27 95% 60%;
     --sidebar-muted: 220 14% 40%;
 
-    --chart-1: 217 91% 60%;
-    --chart-2: 199 89% 58%;
-    --chart-3: 142 71% 55%;
-    --chart-4: 38 92% 60%;
-    --chart-5: 0 72% 61%;
+    --chart-1: 30 97% 72%;
+    --chart-2: 45 96% 64%;
+    --chart-3: 48 96% 76%;
+    --chart-4: 27 95% 60%;
+    --chart-5: 0 0% 45%;
 
     /* Dark mode shadows - Subtle depth */
-    --shadow-2xs: 0 1px 2px 0 hsl(0 0% 0% / 0.15);
-    --shadow-xs: 0 1px 3px 0 hsl(0 0% 0% / 0.2);
-    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.15), 0 1px 3px 0 hsl(0 0% 0% / 0.25);
-    --shadow: 0 2px 4px -1px hsl(0 0% 0% / 0.2), 0 4px 6px -1px hsl(0 0% 0% / 0.25);
-    --shadow-md: 0 4px 6px -2px hsl(0 0% 0% / 0.15), 0 10px 15px -3px hsl(0 0% 0% / 0.25);
-    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.2), 0 20px 25px -5px hsl(0 0% 0% / 0.25);
-    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.25), 0 25px 50px -12px hsl(0 0% 0% / 0.35);
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+    --sidebar: 0 0% 14%;
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
   }
 }
 
@@ -234,7 +244,7 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
-  
+
   .scrollbar-none {
     -ms-overflow-style: none;
     scrollbar-width: none;
