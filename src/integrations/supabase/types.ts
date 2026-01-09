@@ -3613,6 +3613,10 @@ export type Database = {
         Args: { end_date?: string; start_date?: string }
         Returns: Json
       }
+      can_view_org_member_profile: {
+        Args: { profile_id: string; viewer_id: string }
+        Returns: boolean
+      }
       check_overdue_invoices: { Args: never; Returns: undefined }
       generate_billing_invoice_number: { Args: never; Returns: string }
       generate_challan_number: { Args: never; Returns: string }
