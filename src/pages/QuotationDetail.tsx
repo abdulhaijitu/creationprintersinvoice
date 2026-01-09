@@ -44,6 +44,8 @@ import {
   Mail,
   MapPin,
   Building2,
+  FileCheck,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { bn } from 'date-fns/locale';
@@ -61,6 +63,8 @@ interface Quotation {
   total: number;
   status: string;
   notes: string | null;
+  converted_to_invoice_id: string | null;
+  organization_id: string | null;
   customers: {
     id: string;
     name: string;
@@ -157,14 +161,30 @@ const QuotationDetail = () => {
 
   const handleConvertToInvoice = async () => {
     if (!quotation) return;
+    
+    // Check if already converted
+    if (quotation.converted_to_invoice_id) {
+      toast.error('This quotation has already been converted to an invoice');
+      return;
+    }
+    
     setConverting(true);
 
     try {
-      // Generate invoice number
-      const { data: invoiceNumber, error: rpcError } = await supabase.rpc('generate_invoice_number');
-      if (rpcError) throw rpcError;
+      // Get organization ID
+      const orgId = quotation.organization_id;
+      if (!orgId) throw new Error('Organization not found');
 
-      // Create invoice
+      // Generate invoice number using org-specific function
+      const { data: seqData, error: rpcError } = await supabase.rpc('generate_org_invoice_number_v2', {
+        p_org_id: orgId
+      });
+      if (rpcError) throw rpcError;
+      if (!seqData || seqData.length === 0) throw new Error('Failed to generate invoice number');
+
+      const invoiceNumber = seqData[0].invoice_number;
+
+      // Create invoice with source_quotation_id
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert([
@@ -178,6 +198,8 @@ const QuotationDetail = () => {
             total: quotation.total,
             notes: quotation.notes,
             created_by: user?.id,
+            organization_id: orgId,
+            source_quotation_id: quotation.id,
           },
         ])
         .select()
@@ -193,6 +215,7 @@ const QuotationDetail = () => {
         unit_price: item.unit_price,
         discount: item.discount,
         total: item.total,
+        organization_id: orgId,
       }));
 
       const { error: itemsError } = await supabase
@@ -201,13 +224,16 @@ const QuotationDetail = () => {
 
       if (itemsError) throw itemsError;
 
-      // Update quotation status to accepted
+      // Update quotation status to converted and link the invoice
       await supabase
         .from('quotations')
-        .update({ status: 'accepted' })
+        .update({ 
+          status: 'converted' as any,
+          converted_to_invoice_id: invoice.id 
+        })
         .eq('id', quotation.id);
 
-      toast.success('Invoice created');
+      toast.success('Invoice created from quotation');
       setConvertDialogOpen(false);
       navigate(`/invoices/${invoice.id}`);
     } catch (error: any) {
@@ -229,6 +255,13 @@ const QuotationDetail = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'converted':
+        return (
+          <Badge className="bg-primary/10 text-primary border-0 text-base py-1 px-3">
+            <FileCheck className="w-4 h-4 mr-1" />
+            Converted to Invoice
+          </Badge>
+        );
       case 'accepted':
         return (
           <Badge className="bg-success/10 text-success border-0 text-base py-1 px-3">
@@ -332,7 +365,16 @@ const QuotationDetail = () => {
               <Download className="h-4 w-4 mr-2" />
               PDF
             </Button>
-            {quotation.status === 'pending' && (
+            {quotation.converted_to_invoice_id ? (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => navigate(`/invoices/${quotation.converted_to_invoice_id}`)}
+              >
+                <FileCheck className="h-4 w-4 mr-2" />
+                View Invoice
+              </Button>
+            ) : quotation.status !== 'rejected' && (
               <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm">
@@ -344,15 +386,29 @@ const QuotationDetail = () => {
                   <DialogHeader>
                     <DialogTitle>Convert to Invoice</DialogTitle>
                     <DialogDescription>
-                      This will create a new invoice from this quotation. The quotation status will be changed to "Accepted".
+                      This will create a new invoice from this quotation. All line items, customer details, and totals will be copied. The quotation will be marked as "Converted".
                     </DialogDescription>
                   </DialogHeader>
+                  <div className="py-4">
+                    <div className="p-3 rounded-lg bg-muted/50 border text-sm">
+                      <p><strong>Customer:</strong> {quotation.customers?.name || 'N/A'}</p>
+                      <p><strong>Items:</strong> {items.length} line item{items.length !== 1 ? 's' : ''}</p>
+                      <p><strong>Total:</strong> {formatCurrency(Number(quotation.total))}</p>
+                    </div>
+                  </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
                       Cancel
                     </Button>
                     <Button onClick={handleConvertToInvoice} disabled={converting}>
-                      {converting ? 'Converting...' : 'Convert'}
+                      {converting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Converting...
+                        </>
+                      ) : (
+                        'Convert to Invoice'
+                      )}
                     </Button>
                   </DialogFooter>
                 </DialogContent>

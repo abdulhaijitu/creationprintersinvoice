@@ -1152,6 +1152,7 @@ export type Database = {
           notes: string | null
           organization_id: string | null
           paid_amount: number | null
+          source_quotation_id: string | null
           status: Database["public"]["Enums"]["invoice_status"] | null
           subtotal: number
           tax: number | null
@@ -1171,6 +1172,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string | null
           paid_amount?: number | null
+          source_quotation_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal?: number
           tax?: number | null
@@ -1190,6 +1192,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string | null
           paid_amount?: number | null
+          source_quotation_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal?: number
           tax?: number | null
@@ -1209,6 +1212,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_source_quotation_id_fkey"
+            columns: ["source_quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
             referencedColumns: ["id"]
           },
         ]
@@ -2790,6 +2800,7 @@ export type Database = {
       }
       quotations: {
         Row: {
+          converted_to_invoice_id: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -2807,6 +2818,7 @@ export type Database = {
           valid_until: string | null
         }
         Insert: {
+          converted_to_invoice_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -2824,6 +2836,7 @@ export type Database = {
           valid_until?: string | null
         }
         Update: {
+          converted_to_invoice_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -2841,6 +2854,13 @@ export type Database = {
           valid_until?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "quotations_converted_to_invoice_id_fkey"
+            columns: ["converted_to_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quotations_customer_id_fkey"
             columns: ["customer_id"]
@@ -3698,6 +3718,10 @@ export type Database = {
         Args: { p_org_id: string }
         Returns: string
       }
+      get_next_quotation_number_preview: {
+        Args: { p_org_id: string }
+        Returns: string
+      }
       get_org_usage_percentage: {
         Args: { org_id: string }
         Returns: {
@@ -3811,6 +3835,14 @@ export type Database = {
         Returns: undefined
       }
       update_invoice_sequence_settings: {
+        Args: {
+          p_org_id: string
+          p_prefix?: string
+          p_starting_number?: number
+        }
+        Returns: boolean
+      }
+      update_quotation_sequence_settings: {
         Args: {
           p_org_id: string
           p_prefix?: string
