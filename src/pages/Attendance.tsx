@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useOrganization } from "@/contexts/OrganizationContext";
+import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,7 +55,7 @@ interface AttendanceRecord {
 
 const Attendance = () => {
   const { isAdmin } = useAuth();
-  const { organization } = useOrganization();
+  const { organizationId, hasOrgContext } = useOrgScopedQuery();
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,16 +72,21 @@ const Attendance = () => {
   });
 
   useEffect(() => {
-    fetchData();
-  }, [selectedDate, selectedEmployee]);
+    if (hasOrgContext && organizationId) {
+      fetchData();
+    }
+  }, [selectedDate, selectedEmployee, organizationId, hasOrgContext]);
 
   const fetchData = async () => {
+    if (!organizationId) return;
+    
     setLoading(true);
     try {
       // Fetch employees
       const { data: employeesData } = await supabase
         .from("employees")
         .select("id, full_name")
+        .eq("organization_id", organizationId)
         .eq("is_active", true)
         .order("full_name");
       setEmployees(employeesData || []);
@@ -90,6 +95,7 @@ const Attendance = () => {
       let query = supabase
         .from("employee_attendance")
         .select("*")
+        .eq("organization_id", organizationId)
         .eq("date", selectedDate)
         .order("created_at", { ascending: false });
 
@@ -144,7 +150,7 @@ const Attendance = () => {
         check_out: newAttendance.check_out ? `${selectedDate}T${newAttendance.check_out}:00` : null,
         status: newAttendance.status,
         notes: newAttendance.notes || null,
-        organization_id: organization?.id,
+        organization_id: organizationId,
       });
 
       if (error) throw error;
@@ -230,7 +236,7 @@ const Attendance = () => {
         date: selectedDate,
         status: "present" as AttendanceStatus,
         check_in: new Date().toISOString(),
-        organization_id: organization?.id,
+        organization_id: organizationId,
       }));
 
       const { error } = await supabase.from("employee_attendance").insert(records);

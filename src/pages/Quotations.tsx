@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrgScopedQuery } from '@/hooks/useOrgScopedQuery';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -39,6 +40,7 @@ interface Quotation {
 const Quotations = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { organizationId, hasOrgContext } = useOrgScopedQuery();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,14 +48,25 @@ const Quotations = () => {
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null);
 
   useEffect(() => {
-    fetchQuotations();
-  }, []);
+    if (hasOrgContext && organizationId) {
+      fetchQuotations();
+    } else {
+      setQuotations([]);
+      setLoading(false);
+    }
+  }, [organizationId, hasOrgContext]);
 
   const fetchQuotations = async () => {
+    if (!organizationId) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       const { data, error } = await supabase
         .from('quotations')
         .select('*, customers(name)')
+        .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
