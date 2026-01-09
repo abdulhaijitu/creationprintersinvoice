@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useOrganization } from "@/contexts/OrganizationContext";
+import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
 import { hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,7 +81,7 @@ const months = [
 
 const Salary = () => {
   const { isAdmin, role, loading: authLoading } = useAuth();
-  const { organization } = useOrganization();
+  const { organizationId, hasOrgContext } = useOrgScopedQuery();
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [advances, setAdvances] = useState<EmployeeAdvance[]>([]);
@@ -112,12 +112,15 @@ const Salary = () => {
   });
 
   const fetchData = useCallback(async () => {
+    if (!organizationId) return;
+    
     setLoading(true);
     try {
       // Fetch employees
       const { data: employeesData } = await supabase
         .from("employees")
         .select("id, full_name, basic_salary")
+        .eq("organization_id", organizationId)
         .eq("is_active", true)
         .order("full_name");
       setEmployees(employeesData || []);
@@ -126,6 +129,7 @@ const Salary = () => {
       const { data: salaryData } = await supabase
         .from("employee_salary_records")
         .select("*")
+        .eq("organization_id", organizationId)
         .eq("year", selectedYear)
         .eq("month", selectedMonth)
         .order("created_at", { ascending: false });
@@ -142,6 +146,7 @@ const Salary = () => {
       const { data: advancesData } = await supabase
         .from("employee_advances")
         .select("*")
+        .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
 
       if (advancesData && employeesData) {
@@ -156,11 +161,13 @@ const Salary = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear, selectedMonth, organizationId]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (hasOrgContext && organizationId) {
+      fetchData();
+    }
+  }, [fetchData, organizationId, hasOrgContext]);
 
   const calculateNetPayable = () => {
     const basic = parseFloat(formData.basic_salary) || 0;
@@ -205,7 +212,7 @@ const Salary = () => {
         net_payable: netPayable,
         status: "pending",
         notes: formData.notes || null,
-        organization_id: organization?.id,
+        organization_id: organizationId,
       });
 
       if (error) throw error;
@@ -265,7 +272,7 @@ const Salary = () => {
         status: "pending",
         deducted_from_month: advanceFormData.deduction_month,
         deducted_from_year: advanceFormData.deduction_year,
-        organization_id: organization?.id,
+        organization_id: organizationId,
       });
 
       if (error) throw error;

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useOrganization } from "@/contexts/OrganizationContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,7 +71,7 @@ const leaveTypeLabels: Record<LeaveType, string> = {
 
 const Leave = () => {
   const { isAdmin, user } = useAuth();
-  const { organization } = useOrganization();
+  const { organizationId, hasOrgContext } = useOrgScopedQuery();
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,15 +84,20 @@ const Leave = () => {
   });
 
   useEffect(() => {
-    fetchData();
-  }, [isAdmin]);
+    if (hasOrgContext && organizationId) {
+      fetchData();
+    }
+  }, [isAdmin, organizationId, hasOrgContext]);
 
   const fetchData = async () => {
+    if (!organizationId) return;
+    
     setLoading(true);
     try {
       let query = supabase
         .from("leave_requests")
         .select("*")
+        .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
 
       if (!isAdmin) {
@@ -133,7 +138,7 @@ const Leave = () => {
             .insert({
               user_id: user.id,
               year: currentYear,
-              organization_id: organization?.id,
+              organization_id: organizationId,
             })
             .select()
             .single();
@@ -166,7 +171,7 @@ const Leave = () => {
         end_date: formData.end_date,
         reason: formData.reason || null,
         status: "pending",
-        organization_id: organization?.id,
+        organization_id: organizationId,
       });
 
       if (error) throw error;

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrgScopedQuery } from '@/hooks/useOrgScopedQuery';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -37,13 +37,16 @@ const formatCurrency = (amount: number) => {
 };
 
 export function BusinessAnalyticsDashboard() {
-  const { organization } = useOrganization();
+  const { organizationId, hasOrgContext } = useOrgScopedQuery();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
-      if (!organization?.id) return;
+      if (!hasOrgContext || !organizationId) {
+        setLoading(false);
+        return;
+      }
 
       try {
         const today = new Date();
@@ -56,7 +59,7 @@ export function BusinessAnalyticsDashboard() {
         const { data: invoices } = await supabase
           .from('invoices')
           .select('id, total, paid_amount, status, invoice_date, due_date, customer_id, customers(name)')
-          .eq('organization_id', organization.id);
+          .eq('organization_id', organizationId);
 
         if (!invoices) {
           setLoading(false);
@@ -157,7 +160,7 @@ export function BusinessAnalyticsDashboard() {
     };
 
     fetchAnalytics();
-  }, [organization?.id]);
+  }, [organizationId, hasOrgContext]);
 
   const revenueGrowth = useMemo(() => {
     if (!data || data.previousMonthRevenue === 0) return 0;

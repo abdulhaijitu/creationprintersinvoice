@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useOrganization } from "@/contexts/OrganizationContext";
+import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,7 +50,7 @@ interface Employee {
 
 const Performance = () => {
   const { isAdmin, user } = useAuth();
-  const { organization } = useOrganization();
+  const { organizationId, hasOrgContext } = useOrgScopedQuery();
   const [notes, setNotes] = useState<PerformanceNote[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,16 +63,21 @@ const Performance = () => {
   });
 
   useEffect(() => {
-    fetchData();
-  }, [selectedEmployee, isAdmin]);
+    if (hasOrgContext && organizationId) {
+      fetchData();
+    }
+  }, [selectedEmployee, isAdmin, organizationId, hasOrgContext]);
 
   const fetchData = async () => {
+    if (!organizationId) return;
+    
     setLoading(true);
     try {
       // Fetch employees from employees table
       const { data: employeesData } = await supabase
         .from("employees")
         .select("id, full_name")
+        .eq("organization_id", organizationId)
         .eq("is_active", true)
         .order("full_name");
       setEmployees(employeesData || []);
@@ -80,6 +85,7 @@ const Performance = () => {
       let query = supabase
         .from("performance_notes")
         .select("*")
+        .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
 
       if (!isAdmin) {
@@ -123,7 +129,7 @@ const Performance = () => {
         note: formData.note,
         rating: parseInt(formData.rating),
         created_by: user?.id,
-        organization_id: organization?.id,
+        organization_id: organizationId,
       });
 
       if (error) throw error;
