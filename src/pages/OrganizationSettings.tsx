@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { OwnershipTransferRequest } from '@/components/ownership/OwnershipTransferRequest';
 import { OwnershipHistory } from '@/components/ownership/OwnershipHistory';
 import { InvoiceNumberSettings } from '@/components/settings/InvoiceNumberSettings';
+import { QuotationNumberSettings } from '@/components/settings/QuotationNumberSettings';
 
 interface OrganizationSettings {
   name: string;
@@ -386,8 +387,9 @@ const OrganizationSettings = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="numbering">
+          <TabsContent value="numbering" className="space-y-6">
             <InvoiceNumberSettings />
+            <QuotationNumberSettings />
           </TabsContent>
 
           <div className="flex justify-end mt-6">

@@ -1,10 +1,10 @@
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Clock, XCircle, AlertCircle, Package, Truck, Ban } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, AlertCircle, Package, Truck, Ban, FileCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type StatusType = 
   | 'paid' | 'partial' | 'unpaid' 
-  | 'pending' | 'accepted' | 'rejected'
+  | 'pending' | 'accepted' | 'rejected' | 'converted'
   | 'draft' | 'dispatched' | 'delivered' | 'cancelled'
   | 'approved';
 
@@ -16,7 +16,7 @@ interface StatusBadgeProps {
 const statusConfig: Record<string, {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  variant: 'success' | 'warning' | 'destructive' | 'info' | 'muted';
+  variant: 'success' | 'warning' | 'destructive' | 'info' | 'muted' | 'primary';
 }> = {
   // Invoice statuses
   paid: { label: 'Paid', icon: CheckCircle, variant: 'success' },
@@ -28,6 +28,7 @@ const statusConfig: Record<string, {
   accepted: { label: 'Accepted', icon: CheckCircle, variant: 'success' },
   rejected: { label: 'Rejected', icon: XCircle, variant: 'destructive' },
   approved: { label: 'Approved', icon: CheckCircle, variant: 'success' },
+  converted: { label: 'Converted', icon: FileCheck, variant: 'primary' },
   
   // Delivery challan statuses
   draft: { label: 'Draft', icon: AlertCircle, variant: 'muted' },
@@ -42,6 +43,7 @@ const variantStyles: Record<string, string> = {
   destructive: 'bg-destructive/10 text-destructive border-0 hover:bg-destructive/15',
   info: 'bg-info/10 text-info border-0 hover:bg-info/15',
   muted: 'bg-muted/50 text-muted-foreground border-0 hover:bg-muted/70',
+  primary: 'bg-primary/10 text-primary border-0 hover:bg-primary/15',
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
