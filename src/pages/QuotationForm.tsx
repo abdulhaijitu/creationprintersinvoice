@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -39,6 +40,7 @@ const QuotationForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { organization } = useOrganization();
   const isEditing = Boolean(id);
   
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -225,6 +227,7 @@ const QuotationForm = () => {
           unit_price: item.unit_price,
           discount: 0,
           total: item.total,
+          organization_id: organization?.id,
         }));
 
         const { error: itemsError } = await supabase.from('quotation_items').insert(quotationItems);
@@ -248,6 +251,7 @@ const QuotationForm = () => {
               total,
               notes: formData.notes,
               created_by: user?.id,
+              organization_id: organization?.id,
             },
           ])
           .select()
@@ -263,6 +267,7 @@ const QuotationForm = () => {
           unit_price: item.unit_price,
           discount: 0,
           total: item.total,
+          organization_id: organization?.id,
         }));
 
         const { error: itemsError } = await supabase.from('quotation_items').insert(quotationItems);

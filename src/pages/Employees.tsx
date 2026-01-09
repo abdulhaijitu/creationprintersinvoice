@@ -57,7 +57,7 @@ interface Employee {
 
 const Employees = () => {
   const { user, loading: authLoading, isSuperAdmin } = useAuth();
-  const { orgRole } = useOrganization();
+  const { orgRole, organization } = useOrganization();
   
   // Permission checks using proper role system
   const canView = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'view');
@@ -180,6 +180,7 @@ const Employees = () => {
         designation: newEmployeeData.designation || null,
         department: newEmployeeData.department || null,
         basic_salary: newEmployeeData.basic_salary ? parseFloat(newEmployeeData.basic_salary) : 0,
+        organization_id: organization?.id,
       });
 
       if (error) throw error;
