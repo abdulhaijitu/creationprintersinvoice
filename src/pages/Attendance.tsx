@@ -230,6 +230,7 @@ const Attendance = () => {
         date: selectedDate,
         status: "present" as AttendanceStatus,
         check_in: new Date().toISOString(),
+        organization_id: organization?.id,
       }));
 
       const { error } = await supabase.from("employee_attendance").insert(records);

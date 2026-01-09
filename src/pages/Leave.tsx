@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrganization } from "@/contexts/OrganizationContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,7 @@ const leaveTypeLabels: Record<LeaveType, string> = {
 
 const Leave = () => {
   const { isAdmin, user } = useAuth();
+  const { organization } = useOrganization();
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,6 +133,7 @@ const Leave = () => {
             .insert({
               user_id: user.id,
               year: currentYear,
+              organization_id: organization?.id,
             })
             .select()
             .single();
@@ -163,6 +166,7 @@ const Leave = () => {
         end_date: formData.end_date,
         reason: formData.reason || null,
         status: "pending",
+        organization_id: organization?.id,
       });
 
       if (error) throw error;

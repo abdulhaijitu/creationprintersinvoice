@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrganization } from "@/contexts/OrganizationContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,6 +50,7 @@ interface Employee {
 
 const Performance = () => {
   const { isAdmin, user } = useAuth();
+  const { organization } = useOrganization();
   const [notes, setNotes] = useState<PerformanceNote[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,6 +123,7 @@ const Performance = () => {
         note: formData.note,
         rating: parseInt(formData.rating),
         created_by: user?.id,
+        organization_id: organization?.id,
       });
 
       if (error) throw error;
