@@ -26,7 +26,7 @@ import {
   FileBarChart,
   Palette,
 } from 'lucide-react';
-import logo from '@/assets/logo.png';
+import whiteLogo from '@/assets/white-logo.png';
 import logoIcon from '@/assets/logo-icon.jpg';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -206,8 +206,8 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const [pendingChallanCount, setPendingChallanCount] = useState(0);
   
-  // Use white-label logo if available
-  const logoUrl = branding.logo_url || logo;
+  // Use white-label logo if available, otherwise use new white logo
+  const logoUrl = branding.logo_url || whiteLogo;
   const logoIconUrl = branding.logo_url || logoIcon;
   
   // Remember last expanded group
@@ -353,7 +353,7 @@ export function AppSidebar() {
       className="border-r border-slate-800 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950"
     >
       {/* Header */}
-      <SidebarHeader className="p-4 border-b border-slate-800">
+      <SidebarHeader className="px-4 py-5 border-b border-slate-800">
         <div className={cn(
           "flex items-center",
           collapsed ? "justify-center" : "gap-3"
@@ -367,11 +367,13 @@ export function AppSidebar() {
               />
             </div>
           ) : (
-            <img 
-              src={logoUrl} 
-              alt={appName} 
-              className="h-10 w-auto object-contain"
-            />
+            <div className="flex items-center justify-start w-full">
+              <img 
+                src={logoUrl} 
+                alt={appName} 
+                className="h-9 max-h-9 w-auto object-contain drop-shadow-sm"
+              />
+            </div>
           )}
         </div>
       </SidebarHeader>
