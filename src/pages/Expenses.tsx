@@ -43,6 +43,7 @@ import {
   Building2, Eye, Edit2, Phone, Mail, AlertCircle,
   FileText, CreditCard, Receipt, Tag, Trash2, Users, Pencil
 } from "lucide-react";
+import { VendorSelect } from "@/components/shared/VendorSelect";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -839,23 +840,15 @@ const Expenses = () => {
                     <form onSubmit={handleBillSubmit} className="space-y-4">
                       <div className="space-y-2">
                         <Label>Vendor *</Label>
-                        <Select
+                        <VendorSelect
                           value={billFormData.vendor_id}
                           onValueChange={(value) =>
                             setBillFormData({ ...billFormData, vendor_id: value })
                           }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select vendor" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {vendors.map((vendor) => (
-                              <SelectItem key={vendor.id} value={vendor.id}>
-                                {vendor.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          vendors={vendors}
+                          onVendorAdded={fetchData}
+                          placeholder="Select vendor"
+                        />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
@@ -939,23 +932,17 @@ const Expenses = () => {
                     <form onSubmit={handlePaymentSubmit} className="space-y-4">
                       <div className="space-y-2">
                         <Label>Vendor *</Label>
-                        <Select
+                        <VendorSelect
                           value={paymentFormData.vendor_id}
                           onValueChange={(value) =>
                             setPaymentFormData({ ...paymentFormData, vendor_id: value })
                           }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select vendor" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {vendors.map((vendor) => (
-                              <SelectItem key={vendor.id} value={vendor.id}>
-                                {vendor.name} {vendor.due_amount && vendor.due_amount > 0 ? `(Due: ${formatCurrency(vendor.due_amount)})` : ''}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          vendors={vendors}
+                          onVendorAdded={fetchData}
+                          placeholder="Select vendor"
+                          showDueAmount
+                          formatCurrency={formatCurrency}
+                        />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
