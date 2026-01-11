@@ -107,7 +107,7 @@ const AppLayout = () => {
             
             {/* Main Content */}
             <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-auto">
-              <div className="mx-auto max-w-7xl animate-fade-in space-y-4">
+              <div className="mx-auto max-w-7xl space-y-4">
                 <Outlet />
               </div>
             </main>

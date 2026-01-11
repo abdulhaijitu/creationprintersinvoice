@@ -99,6 +99,12 @@ export function AppSidebar() {
                 <TooltipTrigger asChild>
                   <NavLink 
                     to={item.url}
+                    onClick={(e) => {
+                      // Prevent navigation if already on this route
+                      if (isActive) {
+                        e.preventDefault();
+                      }
+                    }}
                     className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
