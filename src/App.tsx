@@ -1,11 +1,12 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ImpersonationProvider } from "@/contexts/ImpersonationContext";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
+import { createQueryClient } from "@/hooks/useQueryConfig";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -37,21 +38,15 @@ import ChallanPrintTemplate from "./components/delivery-challan/ChallanPrintTemp
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: true,
-      staleTime: 1000 * 60, // 1 minute
-    },
-  },
-});
+// Create a single QueryClient instance with optimized settings
+const queryClient = createQueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
+      <TooltipProvider delayDuration={200}>
         <Toaster />
-        <Sonner />
+        <Sonner position="bottom-right" closeButton richColors />
         <BrowserRouter>
           <ImpersonationProvider>
             <OrganizationProvider>

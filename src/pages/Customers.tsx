@@ -617,9 +617,27 @@ const Customers = () => {
           {/* Table */}
           <div className="border-t border-border/50">
             {loading ? (
-              <div className="p-6 space-y-3">
+              <div className="p-4 space-y-3">
+                {/* Enhanced skeleton matching table layout */}
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-14 bg-muted/30 rounded-lg animate-pulse" />
+                  <div 
+                    key={i} 
+                    className="flex items-center gap-4 p-3 rounded-lg"
+                    style={{ opacity: 1 - i * 0.1 }}
+                  >
+                    <div className="h-4 w-4 rounded bg-muted animate-pulse" />
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
+                      <div className="space-y-1.5 flex-1">
+                        <div className="h-4 bg-muted rounded animate-pulse" style={{ width: `${120 + (i * 20) % 80}px` }} />
+                        <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="h-4 w-16 bg-muted rounded animate-pulse hidden md:block" />
+                    <div className="h-4 w-20 bg-muted rounded animate-pulse hidden lg:block" />
+                    <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                    <div className="h-8 w-20 bg-muted rounded animate-pulse" />
+                  </div>
                 ))}
               </div>
             ) : filteredCustomers.length === 0 ? (

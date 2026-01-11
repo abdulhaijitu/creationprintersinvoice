@@ -1,5 +1,5 @@
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
@@ -38,22 +38,60 @@ const MobileSidebarHandler = () => {
   return null;
 };
 
+// Minimal auth check loader - shows only briefly during initial auth resolution
+const AuthLoadingShell = () => (
+  <div className="min-h-screen flex w-full bg-muted/30">
+    {/* Sidebar skeleton */}
+    <div className="hidden md:flex w-[240px] flex-col border-r bg-background">
+      <div className="p-4 space-y-4">
+        <Skeleton className="h-10 w-32" />
+        <div className="space-y-2 mt-6">
+          {[1, 2, 3, 4, 5].map(i => (
+            <Skeleton key={i} className="h-9 w-full rounded-md" />
+          ))}
+        </div>
+      </div>
+    </div>
+    {/* Main content skeleton */}
+    <div className="flex-1 flex flex-col min-w-0">
+      {/* Header skeleton */}
+      <header className="h-12 border-b bg-background flex items-center justify-between px-4">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-8 w-8 rounded" />
+          <Skeleton className="h-4 w-32 hidden md:block" />
+        </div>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-8 w-8 rounded" />
+          <Skeleton className="h-8 w-8 rounded" />
+          <Skeleton className="h-8 w-8 rounded-full" />
+        </div>
+      </header>
+      {/* Content area - no loading indicator, just empty */}
+      <main className="flex-1 p-6" />
+    </div>
+  </div>
+);
+
+// Page content fallback for Suspense
+const PageLoadingFallback = () => (
+  <div className="space-y-4">
+    <Skeleton className="h-8 w-48" />
+    <Skeleton className="h-4 w-64" />
+    <div className="mt-6 space-y-3">
+      <Skeleton className="h-32 w-full rounded-xl" />
+      <Skeleton className="h-48 w-full rounded-xl" />
+    </div>
+  </div>
+);
+
 const AppLayout = () => {
   const { user, loading: authLoading } = useAuth();
   const { loading: orgLoading, needsOnboarding } = useOrganization();
 
-  const loading = authLoading || orgLoading;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="space-y-4 w-full max-w-md">
-          <Skeleton className="h-12 w-full rounded-lg" />
-          <Skeleton className="h-8 w-3/4 rounded-lg" />
-          <Skeleton className="h-8 w-1/2 rounded-lg" />
-        </div>
-      </div>
-    );
+  // Only block on auth loading - show shell immediately
+  // Organization loading can happen in background
+  if (authLoading) {
+    return <AuthLoadingShell />;
   }
 
   if (!user) {
@@ -61,7 +99,7 @@ const AppLayout = () => {
   }
 
   // Redirect to onboarding if user has no organization
-  if (needsOnboarding) {
+  if (needsOnboarding && !orgLoading) {
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -105,10 +143,12 @@ const AppLayout = () => {
               </div>
             </header>
             
-            {/* Main Content */}
+            {/* Main Content - Use Suspense for lazy-loaded pages */}
             <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-auto">
               <div className="mx-auto max-w-7xl space-y-4">
-                <Outlet />
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <Outlet />
+                </Suspense>
               </div>
             </main>
 
