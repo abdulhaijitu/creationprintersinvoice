@@ -607,9 +607,24 @@ const Invoices = () => {
           {/* Table */}
           <div className="border-t border-border/50">
             {loading ? (
-              <div className="p-6 space-y-3">
+              <div className="p-4 space-y-3">
+                {/* Enhanced skeleton matching invoice table layout */}
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-14 bg-muted/30 rounded-lg animate-pulse" />
+                  <div 
+                    key={i} 
+                    className="flex items-center gap-4 p-3 rounded-lg"
+                    style={{ opacity: 1 - i * 0.1 }}
+                  >
+                    <div className="h-4 w-4 rounded bg-muted animate-pulse" />
+                    <div className="h-4 bg-muted rounded animate-pulse" style={{ width: '80px' }} />
+                    <div className="h-4 bg-muted rounded animate-pulse flex-1" style={{ maxWidth: '120px' }} />
+                    <div className="h-4 w-20 bg-muted rounded animate-pulse hidden md:block" />
+                    <div className="h-4 w-16 bg-muted rounded animate-pulse text-right" />
+                    <div className="h-4 w-16 bg-muted rounded animate-pulse text-right hidden md:block" />
+                    <div className="h-4 w-14 bg-muted rounded animate-pulse text-right" />
+                    <div className="h-6 w-16 bg-muted rounded-full animate-pulse" />
+                    <div className="h-8 w-8 bg-muted rounded animate-pulse" />
+                  </div>
                 ))}
               </div>
             ) : filteredInvoices.length === 0 ? (
