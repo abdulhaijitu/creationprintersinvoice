@@ -89,8 +89,8 @@ export function useIsOwner(): boolean {
 export function useCanManageTeam(): { canView: boolean; canEdit: boolean } {
   const { canPerform } = usePermissions();
   return {
-    canView: canPerform('team', 'view'),
-    canEdit: canPerform('team', 'edit'),
+    canView: canPerform('team_members', 'view'),
+    canEdit: canPerform('team_members', 'edit'),
   };
 }
 

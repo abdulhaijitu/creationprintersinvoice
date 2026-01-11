@@ -104,7 +104,7 @@ const ErrorState = ({ onRetry, isRetrying }: { onRetry: () => void; isRetrying: 
 );
 
 const TeamMembers = () => {
-  const { organization, isOrgOwner, isOrgAdmin, subscription } = useOrganization();
+  const { organization, isOrgOwner, isOrgAdmin } = useOrganization();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -233,7 +233,7 @@ const TeamMembers = () => {
       .substring(0, 2);
   };
 
-  const userLimit = subscription?.user_limit || 5;
+  const userLimit = 20; // Default team member limit
   const canManageTeam = isOrgOwner;
 
   // Access denied state

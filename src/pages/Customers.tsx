@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { useSubscriptionGuard } from '@/hooks/useSubscriptionGuard';
-import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,8 +52,6 @@ import {
   Eye,
   MoreHorizontal,
   Users,
-  Lock,
-  AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -63,7 +59,6 @@ import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 import CSVImportDialog from '@/components/import/CSVImportDialog';
 import { ImportResult } from '@/lib/importUtils';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { LimitReachedAlert } from '@/components/shared/LimitReachedAlert';
 import { BulkActionsBar } from '@/components/shared/BulkActionsBar';
 import { canRolePerform, OrgRole } from '@/lib/permissions/constants';
 
@@ -83,10 +78,8 @@ interface Customer {
 
 const Customers = () => {
   const navigate = useNavigate();
-  const { isAdmin, isSuperAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { organization, orgRole } = useOrganization();
-  const { isLocked, checkAccess } = useSubscriptionGuard();
-  const { checkLimit, canCreate, getLimitMessage, refetch: refetchLimits } = usePlanLimits();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -106,10 +99,8 @@ const Customers = () => {
   });
 
   // Permission checks
-  const canBulkDelete = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'customers', 'delete');
-  const canBulkExport = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'customers', 'export');
-
-  const clientLimit = checkLimit('clients');
+  const canBulkDelete = isAdmin || canRolePerform(orgRole as OrgRole, 'customers', 'delete');
+  const canBulkExport = isAdmin || canRolePerform(orgRole as OrgRole, 'customers', 'export');
 
   // Bulk selection
   const {
@@ -174,8 +165,6 @@ const Customers = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!checkAccess('create or edit customers')) return;
-
     try {
       if (editingCustomer) {
         const { error } = await supabase
@@ -186,12 +175,6 @@ const Customers = () => {
         if (error) throw error;
         toast.success('Customer updated successfully');
       } else {
-        // Check plan limit before creating
-        if (!canCreate('clients')) {
-          toast.error(getLimitMessage('clients') || 'You have reached your client limit');
-          return;
-        }
-
         const { error } = await supabase.from('customers').insert([{
           ...formData,
           organization_id: organization?.id,
@@ -199,7 +182,6 @@ const Customers = () => {
 
         if (error) throw error;
         toast.success('New customer added');
-        refetchLimits(); // Refresh limits after adding
       }
 
       setIsDialogOpen(false);
@@ -212,7 +194,6 @@ const Customers = () => {
   };
 
   const handleEdit = (customer: Customer) => {
-    if (!checkAccess('edit customers')) return;
     setEditingCustomer(customer);
     setFormData({
       name: customer.name,
@@ -450,7 +431,6 @@ const Customers = () => {
 
     if (success > 0) {
       fetchCustomers();
-      refetchLimits();
     }
 
     return { success, failed, errors, duplicates };
@@ -465,21 +445,11 @@ const Customers = () => {
   return (
     <TooltipProvider>
       <div className="space-y-6 animate-fade-in">
-        {/* Plan Limit Alert */}
-        {!clientLimit.allowed && clientLimit.limit !== null && (
-          <LimitReachedAlert type="clients" current={clientLimit.current} limit={clientLimit.limit} />
-        )}
-
         {/* Header */}
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold text-foreground">Customer List</h1>
           <p className="text-sm text-muted-foreground">
             Manage all customer information and view their ledger
-            {clientLimit.limit !== null && (
-              <span className="ml-2 text-muted-foreground">
-                ({clientLimit.current}/{clientLimit.limit} used)
-              </span>
-            )}
           </p>
         </div>
 
@@ -546,11 +516,6 @@ const Customers = () => {
               </Button>
 
               <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                if (open && !checkAccess('add new customers')) return;
-                if (open && !editingCustomer && !canCreate('clients')) {
-                  toast.error(getLimitMessage('clients') || 'You have reached your client limit');
-                  return;
-                }
                 setIsDialogOpen(open);
                 if (!open) resetForm();
               }}>
@@ -558,13 +523,8 @@ const Customers = () => {
                   <Button 
                     size="sm" 
                     className="h-10 gap-2 shadow-sm" 
-                    disabled={isLocked || (!editingCustomer && !clientLimit.allowed)}
                   >
-                    {isLocked || (!editingCustomer && !clientLimit.allowed) ? (
-                      <Lock className="h-4 w-4" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
+                    <Plus className="h-4 w-4" />
                     <span className="hidden sm:inline">New Customer</span>
                   </Button>
                 </DialogTrigger>
