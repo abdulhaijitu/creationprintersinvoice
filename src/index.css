@@ -705,18 +705,59 @@
     @apply scale-[1.02];
   }
 
-  /* === Press Effect (Button) === */
+  /* === Card Hover Elevation === */
+  .hover-elevate {
+    @apply transition-all duration-200;
+  }
+
+  .hover-elevate:hover {
+    @apply shadow-md -translate-y-0.5;
+  }
+
+  /* === Press Effect (Button) - 0.95 scale === */
   .press-effect {
     @apply transition-transform duration-100;
   }
 
   .press-effect:active {
-    @apply scale-[0.95];
+    @apply scale-95;
+  }
+
+  /* === Smooth Card Press === */
+  .card-press {
+    @apply transition-all duration-150;
+  }
+
+  .card-press:active {
+    @apply scale-[0.99];
   }
 
   /* === Focus States === */
   .focus-visible-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* === Table Sticky Header === */
+  .table-sticky thead {
+    @apply sticky top-0 z-10 bg-card/95 backdrop-blur-sm;
+  }
+
+  /* === Row Actions - Show on Hover === */
+  .row-actions-container .row-actions {
+    @apply opacity-0 transition-opacity duration-150;
+  }
+
+  .row-actions-container:hover .row-actions {
+    @apply opacity-100;
+  }
+
+  /* === Success Toast Animation === */
+  .success-checkmark {
+    @apply inline-flex items-center justify-center w-5 h-5 rounded-full bg-success/20 text-success;
+  }
+
+  .success-checkmark svg {
+    @apply h-3 w-3 animate-scale-in;
   }
 }
 

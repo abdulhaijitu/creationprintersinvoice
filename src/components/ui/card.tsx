@@ -2,12 +2,17 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  hoverable?: boolean;
+}
+
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, hoverable = false, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
         "rounded-lg border bg-card text-card-foreground shadow-sm transition-all duration-200",
+        hoverable && "hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5",
         className
       )}
       {...props}
@@ -58,7 +63,7 @@ const CardInteractive = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HT
       ref={ref}
       className={cn(
         "rounded-lg border bg-card text-card-foreground shadow-sm transition-all duration-200 cursor-pointer",
-        "hover:border-primary/30 hover:shadow-md active:scale-[0.99]",
+        "hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99]",
         className
       )}
       {...props}
@@ -67,4 +72,20 @@ const CardInteractive = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HT
 );
 CardInteractive.displayName = "CardInteractive";
 
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent, CardInteractive };
+// Stat card variant for dashboard metrics
+const CardStat = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        "relative overflow-hidden rounded-lg border bg-card p-4 md:p-6 shadow-sm",
+        "transition-all duration-200 hover:shadow-md hover:border-primary/20",
+        className
+      )}
+      {...props}
+    />
+  ),
+);
+CardStat.displayName = "CardStat";
+
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent, CardInteractive, CardStat };
