@@ -19,8 +19,7 @@ import {
   Truck,
   UserCog,
 } from 'lucide-react';
-import whiteLogo from '@/assets/white-logo.png';
-import logoIcon from '@/assets/logo-icon.jpg';
+import appLogo from '@/assets/app-logo.jpg';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -239,11 +238,11 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border/30 p-4">
         <div className="flex items-center gap-3">
           <img 
-            src={collapsed ? logoIcon : whiteLogo} 
-            alt="Logo" 
+            src={appLogo} 
+            alt="Creation Printers - All Printing Solution"
             className={cn(
-              "h-8 object-contain transition-all duration-200",
-              collapsed ? "w-8" : "w-auto"
+              "object-contain transition-all duration-200 rounded",
+              collapsed ? "h-8 w-8" : "h-10 w-auto max-w-[140px]"
             )}
           />
           {!collapsed && organization && (

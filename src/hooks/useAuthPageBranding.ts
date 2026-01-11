@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { APP_CONFIG } from '@/lib/appConfig';
-import logo from '@/assets/logo.png';
+import appLogo from '@/assets/app-logo.jpg';
 
 interface AuthPageBranding {
   appName: string;
@@ -67,7 +67,7 @@ export function useAuthPageBranding(): AuthPageBranding {
   return useMemo(() => ({
     appName: orgBranding?.app_name || APP_CONFIG.name,
     appTagline: APP_CONFIG.tagline,
-    logoUrl: orgBranding?.logo_url || logo,
+    logoUrl: orgBranding?.logo_url || appLogo,
     isLoading,
   }), [orgBranding, isLoading]);
 }
