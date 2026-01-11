@@ -51,6 +51,7 @@ import { Badge } from "@/components/ui/badge";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { parseValidatedFloat } from "@/lib/validation";
 
 interface Expense {
   id: string;
@@ -269,6 +270,15 @@ const Expenses = () => {
       return;
     }
 
+    // Validate amount
+    let validatedAmount: number;
+    try {
+      validatedAmount = parseValidatedFloat(expenseFormData.amount, 'Amount', 0.01, 100000000);
+    } catch (validationError: any) {
+      toast.error(validationError.message);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       if (editingExpense) {
@@ -277,7 +287,7 @@ const Expenses = () => {
           .update({
             date: expenseFormData.date,
             description: expenseFormData.description,
-            amount: parseFloat(expenseFormData.amount),
+            amount: validatedAmount,
             payment_method: expenseFormData.payment_method,
             category_id: expenseFormData.category_id || null,
             vendor_id: expenseFormData.vendor_id || null,
@@ -290,13 +300,12 @@ const Expenses = () => {
           throw error;
         }
         
-        console.log("Expense updated successfully:", data);
         toast.success("Expense updated successfully");
       } else {
         const { error } = await supabase.from("expenses").insert({
           date: expenseFormData.date,
           description: expenseFormData.description,
-          amount: parseFloat(expenseFormData.amount),
+          amount: validatedAmount,
           payment_method: expenseFormData.payment_method,
           category_id: expenseFormData.category_id || null,
           vendor_id: expenseFormData.vendor_id || null,
@@ -399,12 +408,21 @@ const Expenses = () => {
       return;
     }
 
+    // Validate amount
+    let validatedAmount: number;
+    try {
+      validatedAmount = parseValidatedFloat(billFormData.amount, 'Bill amount', 0.01, 100000000);
+    } catch (validationError: any) {
+      toast.error(validationError.message);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { error } = await supabase.from("vendor_bills").insert({
         vendor_id: billFormData.vendor_id,
         bill_date: billFormData.bill_date,
-        amount: parseFloat(billFormData.amount),
+        amount: validatedAmount,
         description: billFormData.description || null,
         due_date: billFormData.due_date || null,
         organization_id: organization?.id,
@@ -434,12 +452,21 @@ const Expenses = () => {
       return;
     }
 
+    // Validate amount
+    let validatedAmount: number;
+    try {
+      validatedAmount = parseValidatedFloat(paymentFormData.amount, 'Payment amount', 0.01, 100000000);
+    } catch (validationError: any) {
+      toast.error(validationError.message);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { error } = await supabase.from("vendor_payments").insert({
         vendor_id: paymentFormData.vendor_id,
         payment_date: paymentFormData.payment_date,
-        amount: parseFloat(paymentFormData.amount),
+        amount: validatedAmount,
         payment_method: paymentFormData.payment_method,
         notes: paymentFormData.notes || null,
         organization_id: organization?.id,

@@ -36,6 +36,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { safeParseFloat, parseValidatedFloat } from "@/lib/validation";
 
 interface SalaryRecord {
   id: string;
@@ -170,11 +171,11 @@ const Salary = () => {
   }, [fetchData, organizationId, hasOrgContext]);
 
   const calculateNetPayable = () => {
-    const basic = parseFloat(formData.basic_salary) || 0;
-    const overtime = parseFloat(formData.overtime_amount) || 0;
-    const bonus = parseFloat(formData.bonus) || 0;
-    const deductions = parseFloat(formData.deductions) || 0;
-    const advance = parseFloat(formData.advance) || 0;
+    const basic = safeParseFloat(formData.basic_salary, 0, 0, 100000000);
+    const overtime = safeParseFloat(formData.overtime_amount, 0, 0, 100000000);
+    const bonus = safeParseFloat(formData.bonus, 0, 0, 100000000);
+    const deductions = safeParseFloat(formData.deductions, 0, 0, 100000000);
+    const advance = safeParseFloat(formData.advance, 0, 0, 100000000);
 
     return basic + overtime + bonus - deductions - advance;
   };
@@ -199,16 +200,24 @@ const Salary = () => {
     try {
       const netPayable = calculateNetPayable();
 
+      // Validate all numeric fields
+      const basicSalary = safeParseFloat(formData.basic_salary, 0, 0, 100000000);
+      const overtimeHours = safeParseFloat(formData.overtime_hours, 0, 0, 1000);
+      const overtimeAmount = safeParseFloat(formData.overtime_amount, 0, 0, 100000000);
+      const bonus = safeParseFloat(formData.bonus, 0, 0, 100000000);
+      const deductions = safeParseFloat(formData.deductions, 0, 0, 100000000);
+      const advance = safeParseFloat(formData.advance, 0, 0, 100000000);
+
       const { error } = await supabase.from("employee_salary_records").insert({
         employee_id: formData.employee_id,
         month: formData.month,
         year: formData.year,
-        basic_salary: parseFloat(formData.basic_salary) || 0,
-        overtime_hours: parseFloat(formData.overtime_hours) || 0,
-        overtime_amount: parseFloat(formData.overtime_amount) || 0,
-        bonus: parseFloat(formData.bonus) || 0,
-        deductions: parseFloat(formData.deductions) || 0,
-        advance: parseFloat(formData.advance) || 0,
+        basic_salary: basicSalary,
+        overtime_hours: overtimeHours,
+        overtime_amount: overtimeAmount,
+        bonus: bonus,
+        deductions: deductions,
+        advance: advance,
         net_payable: netPayable,
         status: "pending",
         notes: formData.notes || null,
@@ -264,10 +273,19 @@ const Salary = () => {
       return;
     }
 
+    // Validate amount
+    let validatedAmount: number;
+    try {
+      validatedAmount = parseValidatedFloat(advanceFormData.amount, 'Advance amount', 0.01, 100000000);
+    } catch (validationError: any) {
+      toast.error(validationError.message);
+      return;
+    }
+
     try {
       const { error } = await supabase.from("employee_advances").insert({
         employee_id: advanceFormData.employee_id,
-        amount: parseFloat(advanceFormData.amount),
+        amount: validatedAmount,
         reason: advanceFormData.reason || null,
         status: "pending",
         deducted_from_month: advanceFormData.deduction_month,
