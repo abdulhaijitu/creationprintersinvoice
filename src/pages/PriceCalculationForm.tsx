@@ -721,13 +721,13 @@ const PriceCalculationForm = () => {
   };
 
   // Check permission using resolved org role
-  const viewPermission = canPerform('price_calculations', 'view');
-  if (!viewPermission.hasAccess) {
+  const hasViewAccess = canPerform('price_calculations', 'view');
+  if (!hasViewAccess) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
         <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
         <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-        <p className="text-muted-foreground">{viewPermission.reason || "You don't have permission to view this page."}</p>
+        <p className="text-muted-foreground">You don't have permission to view this page.</p>
       </div>
     );
   }

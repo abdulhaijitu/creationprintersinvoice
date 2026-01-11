@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { hasPermission } from '@/lib/permissions';
-import { useFeatureAccess } from '@/hooks/useFeatureAccess';
-import { FeatureGate } from '@/components/subscription/FeatureGate';
+import { usePermissions } from '@/lib/permissions/hooks';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,7 +47,6 @@ import {
   Loader2,
   Search,
   Filter,
-  Zap,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -82,8 +79,9 @@ const COLORS = [
 ];
 
 const Reports = () => {
-  const { isAdmin, role, loading: authLoading } = useAuth();
+  const { isAdmin, loading: authLoading } = useAuth();
   const { organization } = useOrganization();
+  const { canPerform } = usePermissions();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [reportType, setReportType] = useState<'monthly' | 'yearly'>('monthly');
@@ -124,11 +122,13 @@ const Reports = () => {
     });
   }
 
+  const hasReportAccess = canPerform('reports', 'view');
+
   useEffect(() => {
-    if (hasPermission(role, 'reports', 'view') && organization?.id) {
+    if (hasReportAccess && organization?.id) {
       fetchReportData();
     }
-  }, [reportType, selectedMonth, selectedYear, role, organization?.id]);
+  }, [reportType, selectedMonth, selectedYear, hasReportAccess, organization?.id]);
 
   // Access control check
   if (authLoading) {
@@ -139,7 +139,7 @@ const Reports = () => {
     );
   }
 
-  if (!hasPermission(role, 'reports', 'view')) {
+  if (!hasReportAccess) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
         <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
