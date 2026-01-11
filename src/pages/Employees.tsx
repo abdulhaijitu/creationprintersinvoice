@@ -40,6 +40,7 @@ import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { formatCurrency, getInitials } from "@/lib/formatters";
+import { parseValidatedFloat, employeeFormSchema } from "@/lib/validation";
 
 interface Employee {
   id: string;
@@ -124,6 +125,15 @@ const Employees = () => {
     if (!editingEmployee) return;
 
     try {
+      // Validate salary
+      let validatedSalary: number;
+      try {
+        validatedSalary = parseValidatedFloat(formData.basic_salary, 'Basic salary', 0, 10000000);
+      } catch (validationError: any) {
+        toast.error(validationError.message);
+        return;
+      }
+
       const { error } = await supabase
         .from("employees")
         .update({
@@ -133,7 +143,7 @@ const Employees = () => {
           designation: formData.designation || null,
           department: formData.department || null,
           joining_date: formData.joining_date || null,
-          basic_salary: formData.basic_salary ? parseFloat(formData.basic_salary) : 0,
+          basic_salary: validatedSalary,
           address: formData.address || null,
           nid: formData.nid || null,
         })
@@ -174,6 +184,15 @@ const Employees = () => {
       return;
     }
 
+    // Validate salary
+    let validatedSalary: number;
+    try {
+      validatedSalary = parseValidatedFloat(newEmployeeData.basic_salary, 'Basic salary', 0, 10000000);
+    } catch (validationError: any) {
+      toast.error(validationError.message);
+      return;
+    }
+
     setAddLoading(true);
     try {
       const { error } = await supabase.from("employees").insert({
@@ -182,7 +201,7 @@ const Employees = () => {
         email: newEmployeeData.email || null,
         designation: newEmployeeData.designation || null,
         department: newEmployeeData.department || null,
-        basic_salary: newEmployeeData.basic_salary ? parseFloat(newEmployeeData.basic_salary) : 0,
+        basic_salary: validatedSalary,
         organization_id: organization?.id,
       });
 
