@@ -1,8 +1,9 @@
 /**
  * Team Members Page - Enhanced with invite flow, inline role management, and permissions matrix
+ * Uses module-level caching to prevent refetch on navigation (SPA standard)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { OrgRole, ORG_ROLE_DISPLAY } from '@/lib/permissions/constants';
@@ -270,13 +271,28 @@ const InlineRoleSelect = ({
 
 type FetchStatus = 'idle' | 'loading' | 'success' | 'error';
 
+// Module-level cache for team data to prevent refetching on navigation
+const teamDataCache = new Map<string, {
+  members: TeamMember[];
+  invites: PendingInvite[];
+  fetchedAt: number;
+}>();
+
+const CACHE_TTL = 30000; // 30 seconds
+
 const TeamMembers = () => {
   const { organization, isOrgOwner, isOrgAdmin } = useOrganization();
   const { user } = useAuth();
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [invites, setInvites] = useState<PendingInvite[]>([]);
-  const [status, setStatus] = useState<FetchStatus>('idle');
+  
+  // Initialize from cache if available
+  const cachedData = organization ? teamDataCache.get(organization.id) : null;
+  const isCacheValid = cachedData && (Date.now() - cachedData.fetchedAt < CACHE_TTL);
+  
+  const [members, setMembers] = useState<TeamMember[]>(isCacheValid ? cachedData.members : []);
+  const [invites, setInvites] = useState<PendingInvite[]>(isCacheValid ? cachedData.invites : []);
+  const [status, setStatus] = useState<FetchStatus>(isCacheValid ? 'success' : 'idle');
   const [isRetrying, setIsRetrying] = useState(false);
+  const hasFetchedRef = React.useRef(isCacheValid);
   
   // Invite dialog state
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
@@ -289,12 +305,18 @@ const TeamMembers = () => {
   // Resend/Cancel loading states
   const [loadingInviteId, setLoadingInviteId] = useState<string | null>(null);
 
-  const fetchData = useCallback(async (isRetry = false) => {
+  const fetchData = useCallback(async (isRetry = false, force = false) => {
     if (!organization) return;
+    
+    // Skip if we already have data and this isn't a forced refresh
+    if (!force && hasFetchedRef.current && status === 'success') {
+      return;
+    }
     
     if (isRetry) {
       setIsRetrying(true);
-    } else {
+    } else if (!hasFetchedRef.current) {
+      // Only show loading if we don't have cached data
       setStatus('loading');
     }
     
@@ -347,26 +369,43 @@ const TeamMembers = () => {
         status: 'pending' as const,
       }));
       
+      // Update cache
+      teamDataCache.set(organization.id, {
+        members: combinedMembers,
+        invites: pendingInvites,
+        fetchedAt: Date.now(),
+      });
+      
       setMembers(combinedMembers);
       setInvites(pendingInvites);
       setStatus('success');
+      hasFetchedRef.current = true;
     } catch (err) {
       console.error('[TeamMembers] Failed to load data:', err);
       setStatus('error');
     } finally {
       setIsRetrying(false);
     }
-  }, [organization]);
+  }, [organization, status]);
 
   useEffect(() => {
-    if (organization) {
+    if (organization && !hasFetchedRef.current) {
       fetchData();
     }
-  }, [organization, fetchData]);
+  }, [organization?.id]);
 
-  const handleRetry = () => fetchData(true);
+  const handleRetry = () => fetchData(true, true);
 
-  // Validate email
+  // Helper to update cache
+  const updateCache = useCallback((newMembers: TeamMember[], newInvites: PendingInvite[]) => {
+    if (organization) {
+      teamDataCache.set(organization.id, {
+        members: newMembers,
+        invites: newInvites,
+        fetchedAt: Date.now(),
+      });
+    }
+  }, [organization]);
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -432,7 +471,9 @@ const TeamMembers = () => {
         expires_at: data.expires_at,
       };
       
-      setInvites(prev => [newInvite, ...prev]);
+      const newInvites = [newInvite, ...invites];
+      setInvites(newInvites);
+      updateCache(members, newInvites);
       setInviteDialogOpen(false);
       setInviteEmail('');
       setInviteRole('employee');
@@ -485,7 +526,9 @@ const TeamMembers = () => {
       if (error) throw error;
       
       // Optimistic update
-      setInvites(prev => prev.filter(i => i.id !== inviteId));
+      const newInvites = invites.filter(i => i.id !== inviteId);
+      setInvites(newInvites);
+      updateCache(members, newInvites);
       toast.success('Invitation cancelled');
     } catch (err) {
       console.error('[TeamMembers] Failed to cancel invite:', err);
@@ -504,9 +547,11 @@ const TeamMembers = () => {
     
     // Optimistic update
     const previousMembers = [...members];
-    setMembers(prev => prev.map(m => 
+    const newMembers = members.map(m => 
       m.id === memberId ? { ...m, role: newRole } : m
-    ));
+    );
+    setMembers(newMembers);
+    updateCache(newMembers, invites);
     
     try {
       const { error } = await supabase
@@ -521,6 +566,7 @@ const TeamMembers = () => {
       console.error('[TeamMembers] Failed to update role:', err);
       // Revert on failure
       setMembers(previousMembers);
+      updateCache(previousMembers, invites);
       toast.error('Failed to update role');
     }
   };
@@ -534,7 +580,9 @@ const TeamMembers = () => {
     
     // Optimistic update
     const previousMembers = [...members];
-    setMembers(prev => prev.filter(m => m.id !== memberId));
+    const newMembers = members.filter(m => m.id !== memberId);
+    setMembers(newMembers);
+    updateCache(newMembers, invites);
     
     try {
       const { error } = await supabase
@@ -548,6 +596,7 @@ const TeamMembers = () => {
     } catch (err) {
       console.error('[TeamMembers] Failed to remove member:', err);
       setMembers(previousMembers);
+      updateCache(previousMembers, invites);
       toast.error('Failed to remove member');
     }
   };
