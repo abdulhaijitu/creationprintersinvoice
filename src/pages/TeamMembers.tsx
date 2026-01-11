@@ -1,5 +1,5 @@
 /**
- * Team Members Page - Enhanced with invite flow and inline role management
+ * Team Members Page - Enhanced with invite flow, inline role management, and permissions matrix
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -19,9 +19,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Users, UserPlus, Mail, Shield, Crown, Briefcase, Calculator, ShieldAlert, Palette, UserCheck, RefreshCw, AlertCircle, Clock, RotateCw, X, Loader2, Check } from 'lucide-react';
+import { Users, UserPlus, Mail, Shield, Crown, Briefcase, Calculator, ShieldAlert, Palette, UserCheck, RefreshCw, AlertCircle, Clock, RotateCw, X, Loader2, Check, ShieldCheck } from 'lucide-react';
 import { format } from 'date-fns';
+import { StaffPermissionsMatrix } from '@/components/team/StaffPermissionsMatrix';
 
 interface Profile {
   id: string;
@@ -591,14 +593,30 @@ const TeamMembers = () => {
             <Users className="h-6 w-6 text-primary" /> Team Members
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {isLoading ? (
-              <Skeleton className="h-3 w-20 inline-block" />
-            ) : (
-              `${totalCount}/${userLimit} members`
-            )}
+            Manage your team and permissions
           </p>
         </div>
-        {canManageTeam && (
+      </div>
+
+      <Tabs defaultValue="members" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="members" className="gap-2">
+            <Users className="h-4 w-4" />
+            Members
+            {!isLoading && <Badge variant="secondary" className="ml-1">{totalCount}</Badge>}
+          </TabsTrigger>
+          {isOrgOwner && (
+            <TabsTrigger value="permissions" className="gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              Permissions
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="members" className="space-y-4">
+          {/* Invite Button */}
+          <div className="flex justify-end">
+            {canManageTeam && (
           <Dialog open={inviteDialogOpen} onOpenChange={(open) => {
             setInviteDialogOpen(open);
             if (!open) {
@@ -864,6 +882,15 @@ const TeamMembers = () => {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        {/* Permissions Tab */}
+        {isOrgOwner && (
+          <TabsContent value="permissions">
+            <StaffPermissionsMatrix />
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 };

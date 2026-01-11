@@ -53,116 +53,182 @@ Deno.serve(async (req) => {
 
     console.log('Processing invite acceptance for token:', token.substring(0, 8) + '...');
 
-    // Find the user with this invite token
-    const { data: userRole, error: lookupError } = await supabaseAdmin
-      .from('user_roles')
-      .select('user_id, invite_token, invite_token_expires_at, invite_used_at')
-      .eq('invite_token', token)
+    // Find the invite by token
+    const { data: invite, error: lookupError } = await supabaseAdmin
+      .from('organization_invites')
+      .select('id, email, role, status, expires_at, organization_id')
+      .eq('token', token)
       .maybeSingle();
 
-    if (lookupError || !userRole) {
+    if (lookupError || !invite) {
       console.error('Token lookup error:', lookupError);
       return new Response(
-        JSON.stringify({ error: 'Invalid or expired invite token' }),
+        JSON.stringify({ error: 'Invalid invite token' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check if already used
-    if (userRole.invite_used_at) {
-      console.log('Token already used');
+    // Check if already accepted
+    if (invite.status === 'accepted') {
+      console.log('Invite already accepted');
       return new Response(
-        JSON.stringify({ error: 'This invite link has already been used' }),
+        JSON.stringify({ error: 'This invite has already been accepted' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if cancelled
+    if (invite.status === 'cancelled') {
+      console.log('Invite was cancelled');
+      return new Response(
+        JSON.stringify({ error: 'This invite has been cancelled' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Check if expired
-    if (userRole.invite_token_expires_at) {
-      const expiresAt = new Date(userRole.invite_token_expires_at);
+    if (invite.expires_at) {
+      const expiresAt = new Date(invite.expires_at);
       if (expiresAt < new Date()) {
-        console.log('Token expired');
+        console.log('Invite expired');
         return new Response(
-          JSON.stringify({ error: 'This invite link has expired' }),
+          JSON.stringify({ error: 'This invite has expired' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
-    const userId = userRole.user_id;
-    console.log('Setting password for user:', userId);
+    console.log('Creating user for email:', invite.email);
 
-    // Update the user's password using admin API
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      userId,
-      { password: newPassword }
-    );
+    // Check if user already exists
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email === invite.email);
 
-    if (updateError) {
-      console.error('Error updating password:', updateError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to update password: ' + updateError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    let userId: string;
+
+    if (existingUser) {
+      // User exists, just update their password
+      userId = existingUser.id;
+      console.log('User exists, updating password for:', userId);
+      
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { password: newPassword, email_confirm: true }
       );
+
+      if (updateError) {
+        console.error('Error updating password:', updateError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to update password: ' + updateError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // Create new user
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: invite.email,
+        password: newPassword,
+        email_confirm: true,
+      });
+
+      if (createError || !newUser.user) {
+        console.error('Error creating user:', createError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to create account: ' + (createError?.message || 'Unknown error') }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      userId = newUser.user.id;
+      console.log('Created new user:', userId);
+
+      // Create profile for new user
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          id: userId,
+          full_name: invite.email.split('@')[0],
+          first_login_completed: false,
+        });
+
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+        // Continue anyway, profile can be created later
+      }
     }
 
-    // Mark the invite as used and clear the reset flag
-    const { error: flagError } = await supabaseAdmin
-      .from('user_roles')
-      .update({
-        must_reset_password: false,
-        password_reset_at: new Date().toISOString(),
-        invite_used_at: new Date().toISOString(),
-      })
-      .eq('user_id', userId);
-
-    if (flagError) {
-      console.error('Error updating invite status:', flagError);
-      // Don't fail the request, password was already updated
-    }
-
-    // Set first_login_completed = false so welcome screen appears
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .update({ first_login_completed: false })
-      .eq('id', userId);
-
-    if (profileError) {
-      console.error('Error updating first login status:', profileError);
-      // Don't fail the request, password was already updated
-    }
-
-    // Get organization for audit log
-    const { data: member } = await supabaseAdmin
+    // Check if already a member of this org
+    const { data: existingMember } = await supabaseAdmin
       .from('organization_members')
-      .select('organization_id')
+      .select('id')
       .eq('user_id', userId)
+      .eq('organization_id', invite.organization_id)
       .maybeSingle();
 
-    // Log the password set event
-    if (member?.organization_id) {
+    if (!existingMember) {
+      // Add user to organization
+      const { error: memberError } = await supabaseAdmin
+        .from('organization_members')
+        .insert({
+          user_id: userId,
+          organization_id: invite.organization_id,
+          role: invite.role,
+        });
+
+      if (memberError) {
+        console.error('Error adding member to organization:', memberError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to add to organization: ' + memberError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      console.log('Added user to organization with role:', invite.role);
+    } else {
+      console.log('User already a member of this organization');
+    }
+
+    // Mark invite as accepted
+    const { error: updateInviteError } = await supabaseAdmin
+      .from('organization_invites')
+      .update({ 
+        status: 'accepted',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', invite.id);
+
+    if (updateInviteError) {
+      console.error('Error updating invite status:', updateInviteError);
+      // Don't fail, user was already created
+    }
+
+    // Log the acceptance event
+    try {
       await supabaseAdmin.rpc('insert_audit_log', {
         p_actor_id: userId,
         p_actor_type: 'user',
-        p_action_type: 'update',
-        p_action_label: 'Password set via invite link',
-        p_entity_type: 'user_password',
+        p_action_type: 'create',
+        p_action_label: 'Accepted organization invite',
+        p_entity_type: 'organization_member',
         p_entity_id: userId,
-        p_organization_id: member.organization_id,
+        p_organization_id: invite.organization_id,
         p_source: 'invite_flow',
         p_metadata: {
-          source: 'invite_acceptance',
-          invite_token_used: true,
+          invite_id: invite.id,
+          role: invite.role,
         },
       });
+    } catch (auditError) {
+      console.error('Error logging audit:', auditError);
+      // Don't fail for audit log errors
     }
 
-    console.log('Password set successfully for user:', userId);
+    console.log('Invite accepted successfully for:', invite.email);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Password set successfully',
+        message: 'Welcome to the team!',
+        userId,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
