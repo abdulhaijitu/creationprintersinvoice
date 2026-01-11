@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { OrgRole } from '@/lib/permissions/constants';
 
-// Simple role type for single-business app
-export type OrgRole = 'owner' | 'manager' | 'accounts' | 'staff';
+// Re-export for backward compatibility
+export type { OrgRole };
 
 interface Organization {
   id: string;
