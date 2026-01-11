@@ -2,20 +2,32 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-  ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
+interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
+  stickyHeader?: boolean;
+}
+
+const Table = React.forwardRef<HTMLTableElement, TableProps>(
+  ({ className, stickyHeader = false, ...props }, ref) => (
+    <div className={cn("relative w-full overflow-auto", stickyHeader && "max-h-[70vh]")}>
       <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   ),
 );
 Table.displayName = "Table";
 
-const TableHeader = React.forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLTableSectionElement>>(
-  ({ className, ...props }, ref) => (
+interface TableHeaderProps extends React.HTMLAttributes<HTMLTableSectionElement> {
+  sticky?: boolean;
+}
+
+const TableHeader = React.forwardRef<HTMLTableSectionElement, TableHeaderProps>(
+  ({ className, sticky = false, ...props }, ref) => (
     <thead
       ref={ref}
-      className={cn("[&_tr]:border-b bg-muted/40", className)}
+      className={cn(
+        "[&_tr]:border-b bg-muted/50",
+        sticky && "sticky top-0 z-10 bg-card/95 backdrop-blur-sm shadow-sm",
+        className
+      )}
       {...props}
     />
   ),
@@ -36,12 +48,17 @@ const TableFooter = React.forwardRef<HTMLTableSectionElement, React.HTMLAttribut
 );
 TableFooter.displayName = "TableFooter";
 
-const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(
-  ({ className, ...props }, ref) => (
+interface TableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
+  interactive?: boolean;
+}
+
+const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(
+  ({ className, interactive = true, ...props }, ref) => (
     <tr
       ref={ref}
       className={cn(
-        "border-b border-muted/30 transition-colors duration-150 data-[state=selected]:bg-muted hover:bg-muted/40",
+        "border-b border-muted/30 transition-colors duration-150 data-[state=selected]:bg-muted",
+        interactive && "hover:bg-muted/50 cursor-pointer",
         className
       )}
       {...props}
