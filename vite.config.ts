@@ -17,9 +17,9 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.jpg", "apple-touch-icon.png"],
       manifest: {
-        name: "PrintoSaas - Printing Business Software",
-        short_name: "PrintoSaas",
-        description: "Complete business management platform for printing press and service businesses",
+        name: "Creation Printers - All Printing Solution",
+        short_name: "Creation Printers",
+        description: "Creation Printers - All printing solution for your business. Manage customers, invoicing, payments, expenses, vendors, and team.",
         theme_color: "#0f172a",
         background_color: "#0f172a",
         display: "standalone",
