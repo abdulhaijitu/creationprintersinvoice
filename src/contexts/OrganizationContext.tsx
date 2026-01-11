@@ -1,22 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { OrgRole } from '@/lib/permissions/constants';
 
-// Storage key for impersonation - must match ImpersonationContext
-const IMPERSONATION_STORAGE_KEY = 'printosaas_impersonation';
-
-// Storage key for active org selection (multi-org users)
-const ACTIVE_ORG_STORAGE_KEY = 'printosaas_active_organization_id';
-
-// Flag to track if we've already fetched during this session
-// This prevents race conditions but still allows fresh fetches on reload
-let sessionFetchCount = 0;
-
-// Re-export OrgRole for backward compatibility
-export type { OrgRole } from '@/lib/permissions/constants';
-export type SubscriptionPlan = 'free' | 'basic' | 'pro' | 'enterprise';
-export type SubscriptionStatus = 'trial' | 'active' | 'suspended' | 'cancelled' | 'expired';
+// Simple role type for single-business app
+export type OrgRole = 'owner' | 'manager' | 'accounts' | 'staff';
 
 interface Organization {
   id: string;
@@ -42,17 +29,6 @@ interface Organization {
   owner_id: string | null;
 }
 
-interface Subscription {
-  id: string;
-  organization_id: string;
-  plan: SubscriptionPlan;
-  status: SubscriptionStatus;
-  user_limit: number;
-  trial_ends_at: string | null;
-  current_period_start: string | null;
-  current_period_end: string | null;
-}
-
 interface OrganizationMember {
   id: string;
   organization_id: string;
@@ -62,7 +38,6 @@ interface OrganizationMember {
 
 interface OrganizationContextType {
   organization: Organization | null;
-  subscription: Subscription | null;
   membership: OrganizationMember | null;
   loading: boolean;
   needsOnboarding: boolean;
@@ -70,9 +45,6 @@ interface OrganizationContextType {
   isOrgManager: boolean;
   isOrgAdmin: boolean;
   orgRole: OrgRole | null;
-  isSubscriptionActive: boolean;
-  isTrialExpired: boolean;
-  daysRemaining: number | null;
   refetchOrganization: (forceRefresh?: boolean) => Promise<void>;
   createOrganization: (name: string, slug: string) => Promise<{ error: Error | null; organization: Organization | null }>;
 }
@@ -80,42 +52,22 @@ interface OrganizationContextType {
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
 export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading: authLoading, isSuperAdmin } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [organization, setOrganization] = useState<Organization | null>(null);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [membership, setMembership] = useState<OrganizationMember | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   
-  // Track fetch to prevent duplicate calls but ensure fresh data on reload
   const fetchInProgress = useRef(false);
   const lastFetchUserId = useRef<string | null>(null);
 
-  // Check for impersonation state from session storage
-  const getImpersonationState = useCallback(() => {
-    try {
-      const stored = sessionStorage.getItem(IMPERSONATION_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.isImpersonating && parsed.target?.organizationId) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to read impersonation state:', e);
-    }
-    return null;
-  }, []);
-
   const fetchOrganization = useCallback(async (forceRefresh = false) => {
-    // Prevent duplicate fetches unless forced
     if (fetchInProgress.current && !forceRefresh) {
       return;
     }
     
     if (!user) {
       setOrganization(null);
-      setSubscription(null);
       setMembership(null);
       setNeedsOnboarding(false);
       setLoading(false);
@@ -123,69 +75,20 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return;
     }
 
-    // Skip if we already fetched for this user (unless forced)
     if (!forceRefresh && lastFetchUserId.current === user.id && membership) {
       setLoading(false);
       return;
     }
 
     fetchInProgress.current = true;
-    sessionFetchCount++;
 
     try {
-      // Check if Super Admin is impersonating
-      const impersonationState = getImpersonationState();
-      
-      if (isSuperAdmin && impersonationState?.isImpersonating) {
-        // Fetch the impersonated organization directly
-        const targetOrgId = impersonationState.target.organizationId;
-        
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('id', targetOrgId)
-          .single();
-
-        if (orgError) {
-          console.error('Error fetching impersonated organization:', orgError);
-          setLoading(false);
-          return;
-        }
-
-        setOrganization(orgData as Organization);
-        setNeedsOnboarding(false);
-
-        // Create a synthetic owner membership for the impersonation
-        setMembership({
-          id: 'impersonation-synthetic',
-          organization_id: targetOrgId,
-          user_id: impersonationState.target.ownerId,
-          role: 'owner' as OrgRole,
-        });
-
-        // Get the subscription
-        const { data: subData } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('organization_id', targetOrgId)
-          .maybeSingle();
-
-        if (subData) {
-          setSubscription(subData as Subscription);
-        } else {
-          setSubscription(null);
-        }
-
-        setLoading(false);
-        return;
-      }
-
-      // Normal flow: Get the user's organization membership(s)
+      // Get the user's organization membership
       const { data: membershipRows, error: membershipError } = await supabase
         .from('organization_members')
         .select('*')
         .eq('user_id', user.id)
-        .limit(25);
+        .limit(1);
 
       if (membershipError) {
         console.error('Error fetching membership:', membershipError);
@@ -195,45 +98,12 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
 
       if (!membershipRows || membershipRows.length === 0) {
-        // User has no organization, needs onboarding
         setNeedsOnboarding(true);
         setLoading(false);
         return;
       }
 
-      // Choose active org:
-      // 1) localStorage preference
-      // 2) first org with an active/trial subscription
-      // 3) fallback to first membership
-      let selectedMembership = membershipRows[0] as OrganizationMember;
-
-      const preferredOrgId = (() => {
-        try {
-          return localStorage.getItem(ACTIVE_ORG_STORAGE_KEY);
-        } catch {
-          return null;
-        }
-      })();
-
-      if (preferredOrgId) {
-        const match = membershipRows.find((m) => m.organization_id === preferredOrgId);
-        if (match) selectedMembership = match as OrganizationMember;
-      }
-
-      if (membershipRows.length > 1 && !preferredOrgId) {
-        const orgIds = membershipRows.map((m) => m.organization_id);
-        const { data: subs } = await supabase
-          .from('subscriptions')
-          .select('organization_id, status')
-          .in('organization_id', orgIds);
-
-        const activeOrgId = subs?.find((s) => s.status === 'active' || s.status === 'trial')?.organization_id;
-        if (activeOrgId) {
-          const match = membershipRows.find((m) => m.organization_id === activeOrgId);
-          if (match) selectedMembership = match as OrganizationMember;
-        }
-      }
-
+      const selectedMembership = membershipRows[0] as OrganizationMember;
       setMembership(selectedMembership);
       setNeedsOnboarding(false);
 
@@ -251,16 +121,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
 
       setOrganization(orgData as Organization);
-
-      // Get the subscription
-      const { data: subData } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('organization_id', selectedMembership.organization_id)
-        .maybeSingle();
-
-      setSubscription(subData ? (subData as Subscription) : null);
-
       setLoading(false);
       lastFetchUserId.current = user.id;
     } catch (error) {
@@ -269,7 +129,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       fetchInProgress.current = false;
     }
-  }, [user, isSuperAdmin, getImpersonationState, membership]);
+  }, [user, membership]);
 
   const createOrganization = async (name: string, slug: string): Promise<{ error: Error | null; organization: Organization | null }> => {
     if (!user) {
@@ -307,25 +167,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { error: memberError, organization: null };
       }
 
-      // Create a free trial subscription (7 days)
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
-      
-      const { error: subError } = await supabase
-        .from('subscriptions')
-        .insert({
-          organization_id: orgData.id,
-          plan: 'free' as SubscriptionPlan,
-          status: 'trial' as SubscriptionStatus,
-          user_limit: 5,
-          trial_ends_at: trialEndsAt.toISOString(),
-        });
-
-      if (subError) {
-        console.error('Error creating subscription:', subError);
-        // Don't fail the whole operation for subscription error
-      }
-
       // Force refetch after creating organization
       await fetchOrganization(true);
 
@@ -336,38 +177,12 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  // Listen for impersonation state changes via custom event
-  useEffect(() => {
-    const handleImpersonationChange = () => {
-      // Force refetch when impersonation changes
-      fetchOrganization(true);
-    };
-    
-    window.addEventListener('impersonation-changed', handleImpersonationChange);
-    return () => window.removeEventListener('impersonation-changed', handleImpersonationChange);
-  }, [fetchOrganization]);
-
-  // Listen for org switch events
-  useEffect(() => {
-    const handleOrgSwitch = () => {
-      // Force refetch when org is switched
-      fetchOrganization(true);
-    };
-    
-    window.addEventListener('organization-switched', handleOrgSwitch);
-    return () => window.removeEventListener('organization-switched', handleOrgSwitch);
-  }, [fetchOrganization]);
-
   // Fetch organization on mount and when auth changes
-  // This ensures fresh data on page reload
   useEffect(() => {
     if (!authLoading && user) {
-      // Always force fresh fetch on mount (page reload)
       fetchOrganization(true);
     } else if (!authLoading && !user) {
-      // Clear state when logged out
       setOrganization(null);
-      setSubscription(null);
       setMembership(null);
       setNeedsOnboarding(false);
       setLoading(false);
@@ -379,20 +194,8 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const isOrgManager = orgRole === 'manager';
   const isOrgAdmin = isOrgOwner || isOrgManager;
 
-  // Calculate trial status
-  const isTrialExpired = subscription?.status === 'expired' || 
-    (subscription?.status === 'trial' && subscription?.trial_ends_at && new Date(subscription.trial_ends_at) < new Date());
-  
-  const isSubscriptionActive = subscription?.status === 'active' || 
-    (subscription?.status === 'trial' && !isTrialExpired);
-
-  const daysRemaining = subscription?.trial_ends_at 
-    ? Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
-    : null;
-
   const value = {
     organization,
-    subscription,
     membership,
     loading: loading || authLoading,
     needsOnboarding,
@@ -400,9 +203,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isOrgManager,
     isOrgAdmin,
     orgRole,
-    isSubscriptionActive,
-    isTrialExpired,
-    daysRemaining,
     refetchOrganization: fetchOrganization,
     createOrganization,
   };

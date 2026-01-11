@@ -2702,6 +2702,105 @@ export type Database = {
           },
         ]
       }
+      print_orders: {
+        Row: {
+          advance_paid: number | null
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_id: string | null
+          delivered_at: string | null
+          design_file_url: string | null
+          design_notes: string | null
+          due_date: string | null
+          finishing: string | null
+          height_inches: number | null
+          id: string
+          material: string | null
+          notes: string | null
+          order_date: string | null
+          order_number: string
+          print_type: string
+          quantity: number
+          size: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          total_amount: number | null
+          unit_price: number | null
+          updated_at: string | null
+          width_inches: number | null
+        }
+        Insert: {
+          advance_paid?: number | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
+          delivered_at?: string | null
+          design_file_url?: string | null
+          design_notes?: string | null
+          due_date?: string | null
+          finishing?: string | null
+          height_inches?: number | null
+          id?: string
+          material?: string | null
+          notes?: string | null
+          order_date?: string | null
+          order_number: string
+          print_type: string
+          quantity?: number
+          size?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total_amount?: number | null
+          unit_price?: number | null
+          updated_at?: string | null
+          width_inches?: number | null
+        }
+        Update: {
+          advance_paid?: number | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
+          delivered_at?: string | null
+          design_file_url?: string | null
+          design_notes?: string | null
+          due_date?: string | null
+          finishing?: string | null
+          height_inches?: number | null
+          id?: string
+          material?: string | null
+          notes?: string | null
+          order_date?: string | null
+          order_number?: string
+          print_type?: string
+          quantity?: number
+          size?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total_amount?: number | null
+          unit_price?: number | null
+          updated_at?: string | null
+          width_inches?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_orders_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "shop_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "shop_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string | null
@@ -3159,6 +3258,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      shop_customers: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      shop_users: {
+        Row: {
+          created_at: string | null
+          full_name: string
+          id: string
+          is_active: boolean | null
+          phone: string | null
+          role: Database["public"]["Enums"]["shop_role"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean | null
+          phone?: string | null
+          role?: Database["public"]["Enums"]["shop_role"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean | null
+          phone?: string | null
+          role?: Database["public"]["Enums"]["shop_role"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       subscription_events: {
         Row: {
@@ -3773,6 +3938,7 @@ export type Database = {
       generate_billing_invoice_number: { Args: never; Returns: string }
       generate_challan_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
+      generate_order_number: { Args: never; Returns: string }
       generate_org_invoice_number: {
         Args: { p_org_id: string }
         Returns: string
@@ -3880,6 +4046,8 @@ export type Database = {
         Returns: boolean
       }
       is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_shop_admin: { Args: { check_user_id: string }; Returns: boolean }
+      is_shop_member: { Args: { check_user_id: string }; Returns: boolean }
       is_subscription_active: { Args: { _org_id: string }; Returns: boolean }
       log_password_reset_event: {
         Args: {
@@ -4000,6 +4168,7 @@ export type Database = {
         | "account_unlocked"
         | "payment_success"
         | "payment_failed"
+      order_status: "pending" | "in_progress" | "completed" | "delivered"
       org_role:
         | "owner"
         | "manager"
@@ -4023,6 +4192,7 @@ export type Database = {
         | "accepted"
         | "converted"
         | "rejected"
+      shop_role: "admin" | "staff"
       subscription_plan: "free" | "basic" | "pro" | "enterprise"
       subscription_status:
         | "trial"
@@ -4217,6 +4387,7 @@ export const Constants = {
         "payment_success",
         "payment_failed",
       ],
+      order_status: ["pending", "in_progress", "completed", "delivered"],
       org_role: [
         "owner",
         "manager",
@@ -4243,6 +4414,7 @@ export const Constants = {
         "converted",
         "rejected",
       ],
+      shop_role: ["admin", "staff"],
       subscription_plan: ["free", "basic", "pro", "enterprise"],
       subscription_status: [
         "trial",
