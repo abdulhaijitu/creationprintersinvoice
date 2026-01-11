@@ -1,9 +1,10 @@
 /**
  * Staff Permissions Matrix Component
  * Allows organization owners to configure role-based permissions
+ * Uses module-level caching to prevent refetch on navigation
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { 
@@ -100,18 +101,37 @@ const getPermissionKey = (module: PermissionModule, action: PermissionAction): s
   return `${module}.${action}`;
 };
 
+// Module-level cache for permissions data
+const permissionsCache = new Map<string, {
+  orgPermissions: OrgSpecificPermission[];
+  permissionState: Map<string, boolean>;
+  fetchedAt: number;
+}>();
+
+const CACHE_TTL = 60000; // 60 seconds
+
 interface StaffPermissionsMatrixProps {
   className?: string;
 }
 
 export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProps) {
   const { organization, isOrgOwner } = useOrganization();
-  const [orgPermissions, setOrgPermissions] = useState<OrgSpecificPermission[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Check cache on mount
+  const cachedData = organization ? permissionsCache.get(organization.id) : null;
+  const isCacheValid = cachedData && (Date.now() - cachedData.fetchedAt < CACHE_TTL);
+  
+  const [orgPermissions, setOrgPermissions] = useState<OrgSpecificPermission[]>(
+    isCacheValid ? cachedData.orgPermissions : []
+  );
+  const [loading, setLoading] = useState(!isCacheValid);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const hasFetchedRef = useRef(isCacheValid);
   
   // Local permission state: Map<"module.action.role", boolean>
-  const [permissionState, setPermissionState] = useState<Map<string, boolean>>(new Map());
+  const [permissionState, setPermissionState] = useState<Map<string, boolean>>(
+    isCacheValid ? cachedData.permissionState : new Map()
+  );
 
   // Build initial state from PERMISSION_MATRIX and org-specific overrides
   const buildPermissionState = useCallback((orgPerms: OrgSpecificPermission[]): Map<string, boolean> => {
@@ -137,8 +157,24 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
     return state;
   }, []);
 
+  // Helper to update cache
+  const updateCache = useCallback((orgPerms: OrgSpecificPermission[], permState: Map<string, boolean>) => {
+    if (organization) {
+      permissionsCache.set(organization.id, {
+        orgPermissions: orgPerms,
+        permissionState: permState,
+        fetchedAt: Date.now(),
+      });
+    }
+  }, [organization]);
+
   const fetchPermissions = useCallback(async () => {
     if (!organization) return;
+    
+    // Skip if we already have cached data
+    if (hasFetchedRef.current) {
+      return;
+    }
     
     setLoading(true);
     try {
@@ -149,22 +185,26 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
 
       if (error) throw error;
       
-      setOrgPermissions(data || []);
-      const state = buildPermissionState(data || []);
+      const perms = data || [];
+      const state = buildPermissionState(perms);
+      
+      setOrgPermissions(perms);
       setPermissionState(state);
+      updateCache(perms, state);
+      hasFetchedRef.current = true;
     } catch (error) {
       console.error('Error fetching permissions:', error);
       toast.error('Failed to load permissions');
     } finally {
       setLoading(false);
     }
-  }, [organization, buildPermissionState]);
+  }, [organization, buildPermissionState, updateCache]);
 
   useEffect(() => {
-    if (organization) {
+    if (organization && !hasFetchedRef.current) {
       fetchPermissions();
     }
-  }, [organization, fetchPermissions]);
+  }, [organization?.id]);
 
   // Check if permission is enabled
   const isChecked = useCallback((module: PermissionModule, action: PermissionAction, role: OrgRole): boolean => {
@@ -193,11 +233,9 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
     const newValue = !currentValue;
     
     // Optimistic update
-    setPermissionState(prev => {
-      const next = new Map(prev);
-      next.set(stateKey, newValue);
-      return next;
-    });
+    const newPermissionState = new Map(permissionState);
+    newPermissionState.set(stateKey, newValue);
+    setPermissionState(newPermissionState);
     
     setSavingKey(stateKey);
 
@@ -206,6 +244,8 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
       const existing = orgPermissions.find(
         p => p.permission_key === permKey && p.role === role
       );
+
+      let newOrgPermissions: OrgSpecificPermission[];
 
       if (existing) {
         // Update existing
@@ -216,8 +256,8 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
 
         if (error) throw error;
 
-        setOrgPermissions(prev => 
-          prev.map(p => p.id === existing.id ? { ...p, is_enabled: newValue } : p)
+        newOrgPermissions = orgPermissions.map(p => 
+          p.id === existing.id ? { ...p, is_enabled: newValue } : p
         );
       } else {
         // Create new
@@ -234,18 +274,19 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
 
         if (error) throw error;
 
-        setOrgPermissions(prev => [...prev, data]);
+        newOrgPermissions = [...orgPermissions, data];
       }
 
+      setOrgPermissions(newOrgPermissions);
+      updateCache(newOrgPermissions, newPermissionState);
       toast.success('Permission updated', { duration: 1500 });
     } catch (error) {
       console.error('Error updating permission:', error);
       // Revert on failure
-      setPermissionState(prev => {
-        const next = new Map(prev);
-        next.set(stateKey, currentValue);
-        return next;
-      });
+      const revertedState = new Map(permissionState);
+      revertedState.set(stateKey, currentValue);
+      setPermissionState(revertedState);
+      updateCache(orgPermissions, revertedState);
       toast.error('Failed to update permission');
     } finally {
       setSavingKey(null);
