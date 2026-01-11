@@ -615,273 +615,273 @@ const TeamMembers = () => {
 
         <TabsContent value="members" className="space-y-4">
           {/* Invite Button */}
-          <div className="flex justify-end">
-            {canManageTeam && (
-          <Dialog open={inviteDialogOpen} onOpenChange={(open) => {
-            setInviteDialogOpen(open);
-            if (!open) {
-              setInviteEmail('');
-              setInviteRole('employee');
-              setInviteNote('');
-              setInviteError('');
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button 
-                disabled={totalCount >= userLimit} 
-                className="transition-all duration-200 hover:shadow-md active:scale-[0.98]"
-              >
-                <UserPlus className="h-4 w-4 mr-2" />
-                Invite Member
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5 text-primary" />
-                  Invite Team Member
-                </DialogTitle>
-                <DialogDescription>
-                  Send an invitation to join your organization.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="invite-email">Email Address <span className="text-destructive">*</span></Label>
-                  <Input 
-                    id="invite-email"
-                    type="email" 
-                    placeholder="colleague@company.com"
-                    value={inviteEmail} 
-                    onChange={e => {
-                      setInviteEmail(e.target.value);
-                      setInviteError('');
-                    }}
-                    className={`h-10 ${inviteError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                    disabled={isSendingInvite}
-                  />
-                  {inviteError && (
-                    <p className="text-sm text-destructive flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {inviteError}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="invite-role">Role</Label>
-                  <Select value={inviteRole} onValueChange={v => setInviteRole(v as OrgRole)} disabled={isSendingInvite}>
-                    <SelectTrigger id="invite-role" className="h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ASSIGNABLE_ROLES.map(r => (
-                        <SelectItem key={r} value={r}>
-                          <div className="flex items-center gap-2">
-                            {roleIcons[r]}
-                            {ORG_ROLE_DISPLAY[r]}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="invite-note">Note (optional)</Label>
-                  <Textarea 
-                    id="invite-note"
-                    placeholder="Add an internal note about this invitation..."
-                    value={inviteNote}
-                    onChange={e => setInviteNote(e.target.value)}
-                    className="resize-none h-20"
-                    disabled={isSendingInvite}
-                  />
-                  <p className="text-xs text-muted-foreground">This note is for internal reference only.</p>
-                </div>
-              </div>
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setInviteDialogOpen(false)}
-                  disabled={isSendingInvite}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleSendInvite}
-                  disabled={isSendingInvite}
-                  className="min-w-[120px]"
-                >
-                  {isSendingInvite ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="h-4 w-4 mr-2" />
-                      Send Invite
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
-
-      {/* Team Card */}
-      <Card className="border-border/50 shadow-sm overflow-hidden">
-        <CardHeader className="pb-4 border-b border-border/50">
-          <CardTitle className="text-lg">Team</CardTitle>
-          <CardDescription>{organization?.name}'s members and pending invitations</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isError && <ErrorState onRetry={handleRetry} isRetrying={isRetrying} />}
-          
-          {isEmpty && (
-            <EmptyState onInvite={() => setInviteDialogOpen(true)} canInvite={canManageTeam} />
-          )}
-          
-          {isLoading && (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="font-medium">Member</TableHead>
-                    <TableHead className="font-medium">Status</TableHead>
-                    <TableHead className="font-medium">Role</TableHead>
-                    <TableHead className="font-medium">Joined</TableHead>
-                    {canManageTeam && <TableHead className="font-medium text-right">Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TeamMemberSkeleton canManageTeam={canManageTeam} />
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          
-          {hasData && (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="font-medium">Member</TableHead>
-                    <TableHead className="font-medium">Status</TableHead>
-                    <TableHead className="font-medium">Role</TableHead>
-                    <TableHead className="font-medium">Joined</TableHead>
-                    {canManageTeam && <TableHead className="font-medium text-right">Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allItems.map(item => (
-                    <TableRow 
-                      key={item.id} 
-                      className="transition-colors duration-150 hover:bg-muted/50 group"
-                    >
-                      <TableCell className="py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9 border border-border/50 transition-transform group-hover:scale-105">
-                            <AvatarFallback className={`text-xs font-medium ${
-                              isPendingInvite(item) 
-                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                : 'bg-primary/10 text-primary'
-                            }`}>
-                              {isActiveMember(item) 
-                                ? getInitials(item.profile?.full_name || 'U')
-                                : <Mail className="h-4 w-4" />
-                              }
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <span className="font-medium block">
-                              {isActiveMember(item) 
-                                ? item.profile?.full_name || 'Unknown User'
-                                : item.email
-                              }
-                            </span>
-                            {isActiveMember(item) && item.profile?.phone && (
-                              <span className="text-xs text-muted-foreground">{item.profile.phone}</span>
-                            )}
-                            {isPendingInvite(item) && item.note && (
-                              <span className="text-xs text-muted-foreground italic">Note: {item.note}</span>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <StatusBadge status={item.status} />
-                      </TableCell>
-                      <TableCell className="py-4">
-                        {isActiveMember(item) && canManageTeam ? (
-                          <InlineRoleSelect
-                            currentRole={item.role}
-                            memberId={item.id}
-                            isOwner={item.role === 'owner'}
-                            isSelf={item.user_id === user?.id}
-                            onRoleChange={updateMemberRole}
-                          />
-                        ) : (
-                          <Badge className={`${roleColors[item.role]} gap-1.5 px-2.5 py-1 font-medium`} variant="secondary">
-                            {roleIcons[item.role]}
-                            {ORG_ROLE_DISPLAY[item.role]}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-4 text-muted-foreground">
-                        {format(new Date(item.created_at), 'MMM d, yyyy')}
-                      </TableCell>
-                      {canManageTeam && (
-                        <TableCell className="py-4 text-right">
-                          {isActiveMember(item) ? (
-                            item.role !== 'owner' && item.user_id !== user?.id && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => removeMember(item.id, item.role)}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                Remove
-                              </Button>
-                            )
-                          ) : (
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleResendInvite(item.id)}
-                                disabled={loadingInviteId === item.id}
-                                className="gap-1"
-                              >
-                                {loadingInviteId === item.id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <RotateCw className="h-3 w-3" />
-                                )}
-                                Resend
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleCancelInvite(item.id)}
-                                disabled={loadingInviteId === item.id}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <X className="h-3 w-3 mr-1" />
-                                Cancel
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
+          {canManageTeam && (
+            <div className="flex justify-end">
+              <Dialog open={inviteDialogOpen} onOpenChange={(open) => {
+                setInviteDialogOpen(open);
+                if (!open) {
+                  setInviteEmail('');
+                  setInviteRole('employee');
+                  setInviteNote('');
+                  setInviteError('');
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button 
+                    disabled={totalCount >= userLimit} 
+                    className="transition-all duration-200 hover:shadow-md active:scale-[0.98]"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Invite Member
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Mail className="h-5 w-5 text-primary" />
+                      Invite Team Member
+                    </DialogTitle>
+                    <DialogDescription>
+                      Send an invitation to join your organization.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="invite-email">Email Address <span className="text-destructive">*</span></Label>
+                      <Input 
+                        id="invite-email"
+                        type="email" 
+                        placeholder="colleague@company.com"
+                        value={inviteEmail} 
+                        onChange={e => {
+                          setInviteEmail(e.target.value);
+                          setInviteError('');
+                        }}
+                        className={`h-10 ${inviteError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                        disabled={isSendingInvite}
+                      />
+                      {inviteError && (
+                        <p className="text-sm text-destructive flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {inviteError}
+                        </p>
                       )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="invite-role">Role</Label>
+                      <Select value={inviteRole} onValueChange={v => setInviteRole(v as OrgRole)} disabled={isSendingInvite}>
+                        <SelectTrigger id="invite-role" className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ASSIGNABLE_ROLES.map(r => (
+                            <SelectItem key={r} value={r}>
+                              <div className="flex items-center gap-2">
+                                {roleIcons[r]}
+                                {ORG_ROLE_DISPLAY[r]}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="invite-note">Note (optional)</Label>
+                      <Textarea 
+                        id="invite-note"
+                        placeholder="Add an internal note about this invitation..."
+                        value={inviteNote}
+                        onChange={e => setInviteNote(e.target.value)}
+                        className="resize-none h-20"
+                        disabled={isSendingInvite}
+                      />
+                      <p className="text-xs text-muted-foreground">This note is for internal reference only.</p>
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setInviteDialogOpen(false)}
+                      disabled={isSendingInvite}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleSendInvite}
+                      disabled={isSendingInvite}
+                      className="min-w-[120px]"
+                    >
+                      {isSendingInvite ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Send Invite
+                        </>
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
-        </CardContent>
-      </Card>
+
+          {/* Team Card */}
+          <Card className="border-border/50 shadow-sm overflow-hidden">
+            <CardHeader className="pb-4 border-b border-border/50">
+              <CardTitle className="text-lg">Team</CardTitle>
+              <CardDescription>{organization?.name}'s members and pending invitations</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isError && <ErrorState onRetry={handleRetry} isRetrying={isRetrying} />}
+              
+              {isEmpty && (
+                <EmptyState onInvite={() => setInviteDialogOpen(true)} canInvite={canManageTeam} />
+              )}
+              
+              {isLoading && (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="font-medium">Member</TableHead>
+                        <TableHead className="font-medium">Status</TableHead>
+                        <TableHead className="font-medium">Role</TableHead>
+                        <TableHead className="font-medium">Joined</TableHead>
+                        {canManageTeam && <TableHead className="font-medium text-right">Actions</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TeamMemberSkeleton canManageTeam={canManageTeam} />
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              
+              {hasData && (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="font-medium">Member</TableHead>
+                        <TableHead className="font-medium">Status</TableHead>
+                        <TableHead className="font-medium">Role</TableHead>
+                        <TableHead className="font-medium">Joined</TableHead>
+                        {canManageTeam && <TableHead className="font-medium text-right">Actions</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allItems.map(item => (
+                        <TableRow 
+                          key={item.id} 
+                          className="transition-colors duration-150 hover:bg-muted/50 group"
+                        >
+                          <TableCell className="py-4">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-9 w-9 border border-border/50 transition-transform group-hover:scale-105">
+                                <AvatarFallback className={`text-xs font-medium ${
+                                  isPendingInvite(item) 
+                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                    : 'bg-primary/10 text-primary'
+                                }`}>
+                                  {isActiveMember(item) 
+                                    ? getInitials(item.profile?.full_name || 'U')
+                                    : <Mail className="h-4 w-4" />
+                                  }
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <span className="font-medium block">
+                                  {isActiveMember(item) 
+                                    ? item.profile?.full_name || 'Unknown User'
+                                    : item.email
+                                  }
+                                </span>
+                                {isActiveMember(item) && item.profile?.phone && (
+                                  <span className="text-xs text-muted-foreground">{item.profile.phone}</span>
+                                )}
+                                {isPendingInvite(item) && item.note && (
+                                  <span className="text-xs text-muted-foreground italic">Note: {item.note}</span>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <StatusBadge status={item.status} />
+                          </TableCell>
+                          <TableCell className="py-4">
+                            {isActiveMember(item) && canManageTeam ? (
+                              <InlineRoleSelect
+                                currentRole={item.role}
+                                memberId={item.id}
+                                isOwner={item.role === 'owner'}
+                                isSelf={item.user_id === user?.id}
+                                onRoleChange={updateMemberRole}
+                              />
+                            ) : (
+                              <Badge className={`${roleColors[item.role]} gap-1.5 px-2.5 py-1 font-medium`} variant="secondary">
+                                {roleIcons[item.role]}
+                                {ORG_ROLE_DISPLAY[item.role]}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-4 text-muted-foreground">
+                            {format(new Date(item.created_at), 'MMM d, yyyy')}
+                          </TableCell>
+                          {canManageTeam && (
+                            <TableCell className="py-4 text-right">
+                              {isActiveMember(item) ? (
+                                item.role !== 'owner' && item.user_id !== user?.id && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => removeMember(item.id, item.role)}
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    Remove
+                                  </Button>
+                                )
+                              ) : (
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleResendInvite(item.id)}
+                                    disabled={loadingInviteId === item.id}
+                                    className="gap-1"
+                                  >
+                                    {loadingInviteId === item.id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <RotateCw className="h-3 w-3" />
+                                    )}
+                                    Resend
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleCancelInvite(item.id)}
+                                    disabled={loadingInviteId === item.id}
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  >
+                                    <X className="h-3 w-3 mr-1" />
+                                    Cancel
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Permissions Tab */}
