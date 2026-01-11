@@ -5,10 +5,10 @@
 
 export const APP_CONFIG = {
   /** Application name - used throughout the UI */
-  name: 'PrintoSaas',
+  name: 'Creation Printers',
   
   /** Application tagline */
-  tagline: 'Printing Business Accounting',
+  tagline: 'all printing solution',
   
   /** Full title for browser tab */
   get fullTitle() {
@@ -16,7 +16,7 @@ export const APP_CONFIG = {
   },
   
   /** Storage key prefixes */
-  storagePrefix: 'printosaas',
+  storagePrefix: 'creationprinters',
   
   /** Copyright text */
   get copyright() {
