@@ -20,4 +20,3 @@ export { TableToolbar } from './TableToolbar';
 // Status & State Components
 export { PremiumStatusBadge, InvoiceStatusBadge, TaskStatusBadge } from './PremiumStatusBadge';
 export { DashboardEmptyState } from './DashboardEmptyState';
-export { LimitReachedAlert } from './LimitReachedAlert';

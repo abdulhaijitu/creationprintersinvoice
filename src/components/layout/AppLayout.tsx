@@ -1,10 +1,7 @@
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePasswordResetCheck } from '@/hooks/usePasswordResetCheck';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { useFirstLogin } from '@/hooks/useFirstLogin';
-import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { Breadcrumb } from './Breadcrumb';
@@ -17,7 +14,6 @@ import { NotificationManager } from '@/components/notifications/NotificationMana
 import { PushNotificationToggle } from '@/components/notifications/PushNotificationToggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { SupportChatButton } from '@/components/support/SupportChatButton';
 import { ThemeToggle } from './ThemeToggle';
 import { RecentActivity } from './RecentActivity';
 import { QuickActions } from './QuickActions';
@@ -25,10 +21,7 @@ import { FavoriteButton } from './FavoriteButton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { TrialBanner } from '@/components/subscription/TrialBanner';
-import { UsageLimitBanner } from '@/components/usage/UsageLimitBanner';
 import AppFooter from './AppFooter';
-import WelcomeScreen from '@/components/welcome/WelcomeScreen';
 
 // Component to handle closing sidebar on route change
 const MobileSidebarHandler = () => {
@@ -48,11 +41,8 @@ const MobileSidebarHandler = () => {
 const AppLayout = () => {
   const { user, loading: authLoading } = useAuth();
   const { loading: orgLoading, needsOnboarding } = useOrganization();
-  const { mustResetPassword, checking: resetChecking } = usePasswordResetCheck();
-  const { showWelcome, loading: welcomeLoading, completeFirstLogin } = useFirstLogin();
-  const { isImpersonating } = useImpersonation();
 
-  const loading = authLoading || orgLoading || resetChecking || welcomeLoading;
+  const loading = authLoading || orgLoading;
 
   if (loading) {
     return (
@@ -70,11 +60,6 @@ const AppLayout = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Redirect to password reset if required
-  if (mustResetPassword) {
-    return <Navigate to="/reset-password" replace />;
-  }
-
   // Redirect to onboarding if user has no organization
   if (needsOnboarding) {
     return <Navigate to="/onboarding" replace />;
@@ -82,17 +67,15 @@ const AppLayout = () => {
 
   return (
     <TooltipProvider delayDuration={0}>
-      {showWelcome && <WelcomeScreen onComplete={completeFirstLogin} />}
       <SidebarProvider>
-        {/* Add top padding when impersonating to account for fixed banner */}
-        <div className={cn("min-h-screen flex w-full bg-muted/30", isImpersonating && "pt-12")}>
+        <div className="min-h-screen flex w-full bg-muted/30">
           <AppSidebar />
           <MobileSidebarHandler />
           <NotificationManager />
           <SidebarInset className="flex-1 min-w-0 flex flex-col">
-            {/* Top Header Bar - Compact & Modern */}
+            {/* Top Header Bar */}
             <header className="sticky top-0 z-20 flex h-12 items-center border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 shadow-sm">
-              {/* Left section - trigger + breadcrumb + favorite */}
+              {/* Left section */}
               <div className="flex items-center gap-2 pl-4 md:pl-5 min-w-0">
                 <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200" />
                 <div className="hidden md:flex items-center gap-2 min-w-0">
@@ -101,14 +84,14 @@ const AppLayout = () => {
                 </div>
               </div>
               
-              {/* Center section - flexible spacer with search */}
+              {/* Center section */}
               <div className="flex-1 flex items-center justify-center px-4">
                 <div className="hidden sm:block w-full max-w-sm">
                   <GlobalSearch />
                 </div>
               </div>
               
-              {/* Right section - actions & profile */}
+              {/* Right section */}
               <div className="flex items-center gap-1.5 pr-4 md:pr-5">
                 <QuickActions />
                 <div className="hidden md:flex items-center gap-1">
@@ -117,7 +100,6 @@ const AppLayout = () => {
                 </div>
                 <PushNotificationToggle />
                 <NotificationBell />
-                <SupportChatButton />
                 <div className="w-px h-5 bg-border/60 mx-1.5 hidden md:block" />
                 <UserDropdown />
               </div>
@@ -126,8 +108,6 @@ const AppLayout = () => {
             {/* Main Content */}
             <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-auto">
               <div className="mx-auto max-w-7xl animate-fade-in space-y-4">
-                <TrialBanner />
-                <UsageLimitBanner />
                 <Outlet />
               </div>
             </main>
