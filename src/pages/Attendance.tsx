@@ -647,7 +647,6 @@ const Attendance = () => {
                       error={formErrors.checkInError}
                       date={selectedDate}
                       validateFuture={true}
-                      showPreview={true}
                     />
                     <EnhancedTimeInput
                       label="Check Out"
@@ -656,7 +655,6 @@ const Attendance = () => {
                       error={formErrors.checkOutError}
                       warning={showOvernightWarning ? "Enable overnight shift" : undefined}
                       date={selectedDate}
-                      showPreview={true}
                     />
                   </div>
 
