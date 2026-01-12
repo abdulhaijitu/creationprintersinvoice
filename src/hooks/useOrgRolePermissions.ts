@@ -17,6 +17,29 @@ interface OrgSpecificPermission {
   is_enabled: boolean;
 }
 
+// Module name aliases - handles variations in module names (canonical → database variants)
+const MODULE_NAME_ALIASES: Record<string, string[]> = {
+  'price_calculation': ['price_calculation', 'price_calculations'],
+  'price_calculations': ['price_calculation', 'price_calculations'],
+  'challan': ['challan', 'delivery_challans'],
+  'delivery_challans': ['challan', 'delivery_challans'],
+  'team': ['team', 'team_members'],
+  'team_members': ['team', 'team_members'],
+};
+
+/**
+ * Get all possible permission keys for a module (handles aliases)
+ */
+const getAliasedPermissionKeys = (permissionKey: string): string[] => {
+  const [moduleName, action] = permissionKey.split('.');
+  if (!moduleName || !action) return [permissionKey];
+  
+  const aliases = MODULE_NAME_ALIASES[moduleName];
+  if (!aliases) return [permissionKey];
+  
+  return aliases.map(alias => `${alias}.${action}`);
+};
+
 // Module-level caches with proper invalidation
 let globalPermissionCache: OrgRolePermission[] | null = null;
 let globalCacheTimestamp = 0;
@@ -142,6 +165,8 @@ export const useOrgRolePermissions = () => {
    * 
    * CRITICAL: This now correctly returns the is_enabled value (true/false)
    * rather than just checking for existence
+   * 
+   * ALSO: Supports module name aliasing (e.g., price_calculations → price_calculation)
    */
   const hasPermission = useCallback((permissionKey: string): boolean => {
     if (!orgRole) return false;
@@ -149,20 +174,31 @@ export const useOrgRolePermissions = () => {
     // Owner always has all permissions
     if (orgRole === 'owner') return true;
 
-    // Check org-specific override first - MUST respect the is_enabled value
-    const orgOverride = orgPermissions.find(
-      p => p.role === orgRole && p.permission_key === permissionKey
-    );
-    if (orgOverride !== undefined) {
-      // We found an org-specific override, use its value
-      return orgOverride.is_enabled;
+    // Get all possible keys (handles aliases like price_calculations/price_calculation)
+    const keysToCheck = getAliasedPermissionKeys(permissionKey);
+
+    // Check org-specific override first for ANY alias - MUST respect the is_enabled value
+    for (const key of keysToCheck) {
+      const orgOverride = orgPermissions.find(
+        p => p.role === orgRole && p.permission_key === key
+      );
+      if (orgOverride !== undefined) {
+        // We found an org-specific override, use its value
+        return orgOverride.is_enabled;
+      }
     }
 
-    // Fall back to global role permission
-    const globalPerm = globalPermissions.find(
-      p => p.role === orgRole && p.permission_key === permissionKey
-    );
-    return globalPerm?.is_enabled ?? false;
+    // Fall back to global role permission for ANY alias
+    for (const key of keysToCheck) {
+      const globalPerm = globalPermissions.find(
+        p => p.role === orgRole && p.permission_key === key
+      );
+      if (globalPerm !== undefined) {
+        return globalPerm.is_enabled;
+      }
+    }
+
+    return false;
   }, [globalPermissions, orgPermissions, orgRole]);
 
   /**
