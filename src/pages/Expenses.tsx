@@ -423,6 +423,8 @@ const Expenses = () => {
         vendor_id: billFormData.vendor_id,
         bill_date: billFormData.bill_date,
         amount: validatedAmount,
+        discount: 0,
+        net_amount: validatedAmount,
         description: billFormData.description || null,
         due_date: billFormData.due_date || null,
         organization_id: organization?.id,

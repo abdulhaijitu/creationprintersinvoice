@@ -4332,8 +4332,10 @@ export type Database = {
           bill_date: string
           created_at: string
           description: string | null
+          discount: number
           due_date: string | null
           id: string
+          net_amount: number
           organization_id: string | null
           reference_no: string | null
           status: string | null
@@ -4345,8 +4347,10 @@ export type Database = {
           bill_date?: string
           created_at?: string
           description?: string | null
+          discount?: number
           due_date?: string | null
           id?: string
+          net_amount: number
           organization_id?: string | null
           reference_no?: string | null
           status?: string | null
@@ -4358,8 +4362,10 @@ export type Database = {
           bill_date?: string
           created_at?: string
           description?: string | null
+          discount?: number
           due_date?: string | null
           id?: string
+          net_amount?: number
           organization_id?: string | null
           reference_no?: string | null
           status?: string | null
