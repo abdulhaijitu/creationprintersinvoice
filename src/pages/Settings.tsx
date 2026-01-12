@@ -62,9 +62,6 @@ export default function Settings() {
     isDirty,
     markAsClean,
     markAsDirty,
-    showBlockerDialog,
-    confirmNavigation,
-    cancelNavigation,
     showTabSwitchWarning,
     pendingTab,
     requestTabSwitch,
@@ -296,14 +293,6 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      {/* Navigation blocker dialog */}
-      <UnsavedChangesWarning
-        open={showBlockerDialog}
-        onDiscard={confirmNavigation}
-        onContinueEditing={cancelNavigation}
-        context="navigation"
-      />
-
       {/* Tab switch warning dialog */}
       <UnsavedChangesWarning
         open={showTabSwitchWarning}
