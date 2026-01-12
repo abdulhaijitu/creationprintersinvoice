@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrganization } from "@/contexts/OrganizationContext";
@@ -25,22 +25,24 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Search, Users, Phone, Briefcase, Edit2, UserPlus, Trash2, ShieldAlert } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { formatCurrency, getInitials } from "@/lib/formatters";
-import { parseValidatedFloat, employeeFormSchema } from "@/lib/validation";
+import { parseValidatedFloat } from "@/lib/validation";
+import { 
+  validateField, 
+  validateForm, 
+  hasFormChanges,
+  type FieldErrors 
+} from "@/components/employees/EmployeeFormValidation";
+import { UnsavedChangesDialog } from "@/components/employees/UnsavedChangesDialog";
+import { SalaryHistoryPanel } from "@/components/employees/SalaryHistoryPanel";
+import { SalaryChangeConfirmDialog } from "@/components/employees/SalaryChangeConfirmDialog";
+import { FormFieldWithError } from "@/components/employees/FormFieldWithError";
 
 interface Employee {
   id: string;
@@ -56,6 +58,18 @@ interface Employee {
   is_active: boolean;
 }
 
+const initialFormData = {
+  full_name: "",
+  phone: "",
+  email: "",
+  designation: "",
+  department: "",
+  joining_date: "",
+  basic_salary: "",
+  address: "",
+  nid: "",
+};
+
 const Employees = () => {
   const { user, loading: authLoading, isSuperAdmin } = useAuth();
   const { orgRole, organization } = useOrganization();
@@ -65,7 +79,7 @@ const Employees = () => {
   const canCreate = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'create');
   const canEdit = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'edit');
   const canDelete = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'delete');
-  const canExport = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'export');
+  
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -75,25 +89,30 @@ const Employees = () => {
   const [addLoading, setAddLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    full_name: "",
-    phone: "",
-    email: "",
-    designation: "",
-    department: "",
-    joining_date: "",
-    basic_salary: "",
-    address: "",
-    nid: "",
-  });
-  const [newEmployeeData, setNewEmployeeData] = useState({
-    full_name: "",
-    phone: "",
-    email: "",
-    designation: "",
-    department: "",
-    basic_salary: "",
-  });
+  
+  // Form state
+  const [formData, setFormData] = useState(initialFormData);
+  const [originalFormData, setOriginalFormData] = useState(initialFormData);
+  const [newEmployeeData, setNewEmployeeData] = useState(initialFormData);
+  const [originalNewEmployeeData, setOriginalNewEmployeeData] = useState(initialFormData);
+  
+  // Validation state
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [newErrors, setNewErrors] = useState<FieldErrors>({});
+  const [newTouched, setNewTouched] = useState<Record<string, boolean>>({});
+  
+  // Unsaved changes state
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [pendingCloseAction, setPendingCloseAction] = useState<"edit" | "add" | null>(null);
+  
+  // Salary change confirmation
+  const [showSalaryConfirm, setShowSalaryConfirm] = useState(false);
+  const [pendingSalaryChange, setPendingSalaryChange] = useState<{
+    oldSalary: number;
+    newSalary: number;
+    updateData: Record<string, any>;
+  } | null>(null);
 
   useEffect(() => {
     if (canView && organization?.id) fetchEmployees();
@@ -120,124 +139,290 @@ const Employees = () => {
     }
   };
 
+  // Validation handlers
+  const handleFieldBlur = useCallback((fieldName: keyof FieldErrors, isNew = false) => {
+    const data = isNew ? newEmployeeData : formData;
+    const value = data[fieldName as keyof typeof data] || "";
+    const error = validateField(fieldName as any, value);
+    
+    if (isNew) {
+      setNewTouched(prev => ({ ...prev, [fieldName]: true }));
+      setNewErrors(prev => ({ ...prev, [fieldName]: error }));
+    } else {
+      setTouched(prev => ({ ...prev, [fieldName]: true }));
+      setErrors(prev => ({ ...prev, [fieldName]: error }));
+    }
+  }, [formData, newEmployeeData]);
+
+  const handleFieldChange = useCallback((
+    fieldName: string, 
+    value: string, 
+    isNew = false
+  ) => {
+    if (isNew) {
+      setNewEmployeeData(prev => ({ ...prev, [fieldName]: value }));
+      // Clear error on change if touched
+      if (newTouched[fieldName]) {
+        const error = validateField(fieldName as any, value);
+        setNewErrors(prev => ({ ...prev, [fieldName]: error }));
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [fieldName]: value }));
+      if (touched[fieldName]) {
+        const error = validateField(fieldName as any, value);
+        setErrors(prev => ({ ...prev, [fieldName]: error }));
+      }
+    }
+  }, [touched, newTouched]);
+
+  // Check if form has unsaved changes
+  const hasEditChanges = hasFormChanges(formData, originalFormData);
+  const hasAddChanges = hasFormChanges(newEmployeeData, originalNewEmployeeData);
+
+  // Handle dialog close with unsaved changes check
+  const handleEditDialogClose = (shouldClose: boolean) => {
+    if (!shouldClose) return;
+    
+    if (hasEditChanges && !editLoading) {
+      setPendingCloseAction("edit");
+      setShowUnsavedDialog(true);
+      return;
+    }
+    
+    closeEditDialog();
+  };
+
+  const handleAddDialogClose = (shouldClose: boolean) => {
+    if (!shouldClose) return;
+    
+    if (hasAddChanges && !addLoading) {
+      setPendingCloseAction("add");
+      setShowUnsavedDialog(true);
+      return;
+    }
+    
+    closeAddDialog();
+  };
+
+  const closeEditDialog = () => {
+    setIsDialogOpen(false);
+    resetEditForm();
+  };
+
+  const closeAddDialog = () => {
+    setIsAddDialogOpen(false);
+    resetAddForm();
+  };
+
+  const handleDiscardChanges = () => {
+    setShowUnsavedDialog(false);
+    if (pendingCloseAction === "edit") {
+      closeEditDialog();
+    } else if (pendingCloseAction === "add") {
+      closeAddDialog();
+    }
+    setPendingCloseAction(null);
+  };
+
+  const handleContinueEditing = () => {
+    setShowUnsavedDialog(false);
+    setPendingCloseAction(null);
+  };
+
+  const resetEditForm = () => {
+    setFormData(initialFormData);
+    setOriginalFormData(initialFormData);
+    setEditingEmployee(null);
+    setErrors({});
+    setTouched({});
+  };
+
+  const resetAddForm = () => {
+    setNewEmployeeData(initialFormData);
+    setOriginalNewEmployeeData(initialFormData);
+    setNewErrors({});
+    setNewTouched({});
+  };
+
+  // Create salary history record
+  const createSalaryHistoryRecord = async (
+    employeeId: string,
+    salaryAmount: number,
+    notes?: string
+  ) => {
+    if (!organization?.id || !user?.id) return;
+
+    try {
+      await supabase.from("employee_salary_history").insert({
+        employee_id: employeeId,
+        organization_id: organization.id,
+        salary_amount: salaryAmount,
+        effective_date: new Date().toISOString().split("T")[0],
+        updated_by: user.id,
+        notes: notes || null,
+      });
+    } catch (error) {
+      console.error("Error creating salary history:", error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!editingEmployee || !organization?.id) return;
 
-    // Validate required field
-    if (!formData.full_name.trim()) {
-      toast.error("Employee name is required");
+    // Full form validation
+    const { isValid, errors: validationErrors } = validateForm(formData);
+    setErrors(validationErrors);
+    setTouched(Object.keys(formData).reduce((acc, key) => ({ ...acc, [key]: true }), {}));
+
+    if (!isValid) {
+      toast.error("Please fix the validation errors");
       return;
     }
 
-    // Prevent double submission
     if (editLoading) return;
 
-    // Validate salary
+    // Parse salary
     let validatedSalary: number;
     try {
       validatedSalary = parseValidatedFloat(formData.basic_salary, 'Basic salary', 0, 10000000);
     } catch (validationError: any) {
-      toast.error(validationError.message);
+      setErrors(prev => ({ ...prev, basic_salary: validationError.message }));
       return;
     }
+
+    const updateData = {
+      full_name: formData.full_name.trim(),
+      phone: formData.phone.trim() || null,
+      email: formData.email.trim() || null,
+      designation: formData.designation.trim() || null,
+      department: formData.department.trim() || null,
+      joining_date: formData.joining_date || null,
+      basic_salary: validatedSalary,
+      address: formData.address.trim() || null,
+      nid: formData.nid.trim() || null,
+    };
+
+    // Check if salary changed
+    const oldSalary = editingEmployee.basic_salary || 0;
+    if (validatedSalary !== oldSalary) {
+      setPendingSalaryChange({ oldSalary, newSalary: validatedSalary, updateData });
+      setShowSalaryConfirm(true);
+      return;
+    }
+
+    await performUpdate(updateData, false);
+  };
+
+  const performUpdate = async (updateData: Record<string, any>, recordSalaryHistory: boolean) => {
+    if (!editingEmployee || !organization?.id) return;
 
     setEditLoading(true);
 
     try {
-      const updateData = {
-        full_name: formData.full_name.trim(),
-        phone: formData.phone.trim() || null,
-        email: formData.email.trim() || null,
-        designation: formData.designation.trim() || null,
-        department: formData.department.trim() || null,
-        joining_date: formData.joining_date || null,
-        basic_salary: validatedSalary,
-        address: formData.address.trim() || null,
-        nid: formData.nid.trim() || null,
-      };
-
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("employees")
         .update(updateData)
         .eq("id", editingEmployee.id)
-        .eq("organization_id", organization.id)
-        .select()
-        .single();
+        .eq("organization_id", organization.id);
 
       if (error) throw error;
 
-      // Optimistic UI update - update the local state immediately
-      setEmployees(prev => 
-        prev.map(emp => 
-          emp.id === editingEmployee.id 
-            ? { ...emp, ...updateData, basic_salary: validatedSalary }
+      // Record salary history if salary changed
+      if (recordSalaryHistory && pendingSalaryChange) {
+        await createSalaryHistoryRecord(
+          editingEmployee.id,
+          pendingSalaryChange.newSalary,
+          `Salary updated from ${formatCurrency(pendingSalaryChange.oldSalary)}`
+        );
+      }
+
+      // Optimistic UI update
+      setEmployees(prev =>
+        prev.map(emp =>
+          emp.id === editingEmployee.id
+            ? { ...emp, ...updateData }
             : emp
         )
       );
 
       toast.success("Employee updated successfully");
-      setIsDialogOpen(false);
-      resetForm();
+      closeEditDialog();
+      setShowSalaryConfirm(false);
+      setPendingSalaryChange(null);
     } catch (error: any) {
       console.error("Error updating employee:", error);
       toast.error(error.message || "Failed to update employee");
-      // Keep modal open on error - don't close
     } finally {
       setEditLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      full_name: "",
-      phone: "",
-      email: "",
-      designation: "",
-      department: "",
-      joining_date: "",
-      basic_salary: "",
-      address: "",
-      nid: "",
-    });
-    setEditingEmployee(null);
+  const handleSalaryConfirm = () => {
+    if (pendingSalaryChange) {
+      performUpdate(pendingSalaryChange.updateData, true);
+    }
+  };
+
+  const handleSalaryCancel = () => {
+    setShowSalaryConfirm(false);
+    setPendingSalaryChange(null);
   };
 
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!newEmployeeData.full_name) {
-      toast.error("Please enter employee name");
+    if (!organization?.id) return;
+
+    // Full form validation
+    const { isValid, errors: validationErrors } = validateForm(newEmployeeData);
+    setNewErrors(validationErrors);
+    setNewTouched(Object.keys(newEmployeeData).reduce((acc, key) => ({ ...acc, [key]: true }), {}));
+
+    if (!isValid) {
+      toast.error("Please fix the validation errors");
       return;
     }
 
-    // Validate salary
+    if (addLoading) return;
+
     let validatedSalary: number;
     try {
       validatedSalary = parseValidatedFloat(newEmployeeData.basic_salary, 'Basic salary', 0, 10000000);
     } catch (validationError: any) {
-      toast.error(validationError.message);
+      setNewErrors(prev => ({ ...prev, basic_salary: validationError.message }));
       return;
     }
 
     setAddLoading(true);
     try {
-      const { error } = await supabase.from("employees").insert({
-        full_name: newEmployeeData.full_name,
-        phone: newEmployeeData.phone || null,
-        email: newEmployeeData.email || null,
-        designation: newEmployeeData.designation || null,
-        department: newEmployeeData.department || null,
-        basic_salary: validatedSalary,
-        organization_id: organization?.id,
-      });
+      const { data, error } = await supabase
+        .from("employees")
+        .insert({
+          full_name: newEmployeeData.full_name.trim(),
+          phone: newEmployeeData.phone.trim() || null,
+          email: newEmployeeData.email.trim() || null,
+          designation: newEmployeeData.designation.trim() || null,
+          department: newEmployeeData.department.trim() || null,
+          joining_date: newEmployeeData.joining_date || null,
+          basic_salary: validatedSalary,
+          address: newEmployeeData.address.trim() || null,
+          nid: newEmployeeData.nid.trim() || null,
+          organization_id: organization.id,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Create initial salary history record
+      if (data && validatedSalary > 0) {
+        await createSalaryHistoryRecord(data.id, validatedSalary, "Initial salary");
+      }
+
       toast.success("New employee added");
-      setIsAddDialogOpen(false);
-      setNewEmployeeData({ full_name: "", phone: "", email: "", designation: "", department: "", basic_salary: "" });
+      closeAddDialog();
       fetchEmployees();
     } catch (error: any) {
       console.error("Error adding employee:", error);
@@ -260,7 +445,7 @@ const Employees = () => {
 
       toast.success("Employee removed");
       setDeleteId(null);
-      fetchEmployees();
+      setEmployees(prev => prev.filter(emp => emp.id !== deleteId));
     } catch (error) {
       console.error("Error removing employee:", error);
       toast.error("Failed to remove employee");
@@ -268,8 +453,7 @@ const Employees = () => {
   };
 
   const openEditDialog = (employee: Employee) => {
-    setEditingEmployee(employee);
-    setFormData({
+    const data = {
       full_name: employee.full_name,
       phone: employee.phone || "",
       email: employee.email || "",
@@ -279,8 +463,18 @@ const Employees = () => {
       basic_salary: employee.basic_salary?.toString() || "",
       address: employee.address || "",
       nid: employee.nid || "",
-    });
+    };
+    setEditingEmployee(employee);
+    setFormData(data);
+    setOriginalFormData(data);
+    setErrors({});
+    setTouched({});
     setIsDialogOpen(true);
+  };
+
+  const openAddDialog = () => {
+    resetAddForm();
+    setIsAddDialogOpen(true);
   };
 
   const filteredEmployees = employees.filter(
@@ -291,6 +485,9 @@ const Employees = () => {
       emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Check if form is valid for save button
+  const isEditFormValid = formData.full_name.trim().length >= 2 && !Object.values(errors).some(Boolean);
+  const isAddFormValid = newEmployeeData.full_name.trim().length >= 2 && !Object.values(newErrors).some(Boolean);
 
   if (authLoading) {
     return (
@@ -300,15 +497,12 @@ const Employees = () => {
     );
   }
 
-  // Show access denied message for users without permission
   if (!canView) {
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Employees</h1>
-          <p className="text-muted-foreground mt-1">
-            List of all employees
-          </p>
+          <p className="text-muted-foreground mt-1">List of all employees</p>
         </div>
         
         <Card className="border-destructive/50 bg-destructive/5">
@@ -339,14 +533,14 @@ const Employees = () => {
           <p className="text-muted-foreground">List of all employees</p>
         </div>
         {canCreate && (
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={handleAddDialogClose}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={openAddDialog}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 New Employee
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Add New Employee</DialogTitle>
                 <DialogDescription>
@@ -354,71 +548,121 @@ const Employees = () => {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddEmployee} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="new_full_name">Name *</Label>
-                  <Input
-                    id="new_full_name"
-                    placeholder="Employee name"
-                    value={newEmployeeData.full_name}
-                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, full_name: e.target.value })}
+                <FormFieldWithError
+                  id="new_full_name"
+                  label="Name"
+                  value={newEmployeeData.full_name}
+                  onChange={(v) => handleFieldChange("full_name", v, true)}
+                  onBlur={() => handleFieldBlur("full_name", true)}
+                  error={newErrors.full_name}
+                  touched={newTouched.full_name}
+                  placeholder="Employee name"
+                  required
+                />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormFieldWithError
+                    id="new_phone"
+                    label="Phone"
+                    value={newEmployeeData.phone}
+                    onChange={(v) => handleFieldChange("phone", v, true)}
+                    onBlur={() => handleFieldBlur("phone", true)}
+                    error={newErrors.phone}
+                    touched={newTouched.phone}
+                    placeholder="01XXXXXXXXX"
+                  />
+                  <FormFieldWithError
+                    id="new_email"
+                    label="Email"
+                    type="email"
+                    value={newEmployeeData.email}
+                    onChange={(v) => handleFieldChange("email", v, true)}
+                    onBlur={() => handleFieldBlur("email", true)}
+                    error={newErrors.email}
+                    touched={newTouched.email}
+                    placeholder="email@example.com"
                   />
                 </div>
+
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="new_phone">Phone</Label>
-                    <Input
-                      id="new_phone"
-                      placeholder="01XXXXXXXXX"
-                      value={newEmployeeData.phone}
-                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, phone: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="new_email">Email</Label>
-                    <Input
-                      id="new_email"
-                      type="email"
-                      placeholder="email@example.com"
-                      value={newEmployeeData.email}
-                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, email: e.target.value })}
-                    />
-                  </div>
+                  <FormFieldWithError
+                    id="new_designation"
+                    label="Designation"
+                    value={newEmployeeData.designation}
+                    onChange={(v) => handleFieldChange("designation", v, true)}
+                    onBlur={() => handleFieldBlur("designation", true)}
+                    error={newErrors.designation}
+                    touched={newTouched.designation}
+                    placeholder="e.g. Designer"
+                  />
+                  <FormFieldWithError
+                    id="new_department"
+                    label="Department"
+                    value={newEmployeeData.department}
+                    onChange={(v) => handleFieldChange("department", v, true)}
+                    onBlur={() => handleFieldBlur("department", true)}
+                    error={newErrors.department}
+                    touched={newTouched.department}
+                    placeholder="e.g. Production"
+                  />
                 </div>
+
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="new_designation">Designation</Label>
-                    <Input
-                      id="new_designation"
-                      placeholder="e.g. Designer"
-                      value={newEmployeeData.designation}
-                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, designation: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="new_department">Department</Label>
-                    <Input
-                      id="new_department"
-                      placeholder="e.g. Production"
-                      value={newEmployeeData.department}
-                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, department: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="new_basic_salary">Basic Salary</Label>
-                  <Input
+                  <FormFieldWithError
+                    id="new_joining_date"
+                    label="Joining Date"
+                    type="date"
+                    value={newEmployeeData.joining_date}
+                    onChange={(v) => handleFieldChange("joining_date", v, true)}
+                    onBlur={() => handleFieldBlur("joining_date", true)}
+                    error={newErrors.joining_date}
+                    touched={newTouched.joining_date}
+                  />
+                  <FormFieldWithError
                     id="new_basic_salary"
+                    label="Basic Salary"
                     type="number"
-                    placeholder="0"
                     value={newEmployeeData.basic_salary}
-                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, basic_salary: e.target.value })}
+                    onChange={(v) => handleFieldChange("basic_salary", v, true)}
+                    onBlur={() => handleFieldBlur("basic_salary", true)}
+                    error={newErrors.basic_salary}
+                    touched={newTouched.basic_salary}
+                    placeholder="0"
                   />
                 </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+
+                <FormFieldWithError
+                  id="new_address"
+                  label="Address"
+                  value={newEmployeeData.address}
+                  onChange={(v) => handleFieldChange("address", v, true)}
+                  onBlur={() => handleFieldBlur("address", true)}
+                  error={newErrors.address}
+                  touched={newTouched.address}
+                  placeholder="Full address"
+                />
+
+                <FormFieldWithError
+                  id="new_nid"
+                  label="NID"
+                  value={newEmployeeData.nid}
+                  onChange={(v) => handleFieldChange("nid", v, true)}
+                  onBlur={() => handleFieldBlur("nid", true)}
+                  error={newErrors.nid}
+                  touched={newTouched.nid}
+                  placeholder="National ID"
+                />
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleAddDialogClose(true)}
+                    disabled={addLoading}
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={addLoading}>
+                  <Button type="submit" disabled={addLoading || !isAddFormValid}>
                     {addLoading ? "Adding..." : "Add Employee"}
                   </Button>
                 </div>
@@ -484,7 +728,7 @@ const Employees = () => {
                       : "Add your first employee to manage your workforce"}
                     action={canCreate && !searchTerm ? {
                       label: "Add Employee",
-                      onClick: () => setIsDialogOpen(true),
+                      onClick: openAddDialog,
                       icon: UserPlus,
                     } : undefined}
                   />
@@ -561,119 +805,155 @@ const Employees = () => {
       </div>
 
       {/* Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={(open) => {
-        setIsDialogOpen(open);
-        if (!open) resetForm();
-      }}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={isDialogOpen} onOpenChange={handleEditDialogClose}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Employee Information</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="full_name">Name *</Label>
-                <Input
-                  id="full_name"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nid">NID</Label>
-                <Input
-                  id="nid"
-                  value={formData.nid}
-                  onChange={(e) => setFormData({ ...formData, nid: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="designation">Designation</Label>
-                <Input
-                  id="designation"
-                  value={formData.designation}
-                  onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
-                <Input
-                  id="department"
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="joining_date">Joining Date</Label>
-                <Input
-                  id="joining_date"
-                  type="date"
-                  value={formData.joining_date}
-                  onChange={(e) => setFormData({ ...formData, joining_date: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="basic_salary">Basic Salary</Label>
-                <Input
-                  id="basic_salary"
-                  type="number"
-                  value={formData.basic_salary}
-                  onChange={(e) => setFormData({ ...formData, basic_salary: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              <FormFieldWithError
+                id="full_name"
+                label="Name"
+                value={formData.full_name}
+                onChange={(v) => handleFieldChange("full_name", v)}
+                onBlur={() => handleFieldBlur("full_name")}
+                error={errors.full_name}
+                touched={touched.full_name}
+                required
+              />
+              <FormFieldWithError
+                id="phone"
+                label="Phone"
+                value={formData.phone}
+                onChange={(v) => handleFieldChange("phone", v)}
+                onBlur={() => handleFieldBlur("phone")}
+                error={errors.phone}
+                touched={touched.phone}
               />
             </div>
 
-            <div className="flex justify-end gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsDialogOpen(false)}
+            <div className="grid grid-cols-2 gap-4">
+              <FormFieldWithError
+                id="email"
+                label="Email"
+                type="email"
+                value={formData.email}
+                onChange={(v) => handleFieldChange("email", v)}
+                onBlur={() => handleFieldBlur("email")}
+                error={errors.email}
+                touched={touched.email}
+              />
+              <FormFieldWithError
+                id="nid"
+                label="NID"
+                value={formData.nid}
+                onChange={(v) => handleFieldChange("nid", v)}
+                onBlur={() => handleFieldBlur("nid")}
+                error={errors.nid}
+                touched={touched.nid}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormFieldWithError
+                id="designation"
+                label="Designation"
+                value={formData.designation}
+                onChange={(v) => handleFieldChange("designation", v)}
+                onBlur={() => handleFieldBlur("designation")}
+                error={errors.designation}
+                touched={touched.designation}
+              />
+              <FormFieldWithError
+                id="department"
+                label="Department"
+                value={formData.department}
+                onChange={(v) => handleFieldChange("department", v)}
+                onBlur={() => handleFieldBlur("department")}
+                error={errors.department}
+                touched={touched.department}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormFieldWithError
+                id="joining_date"
+                label="Joining Date"
+                type="date"
+                value={formData.joining_date}
+                onChange={(v) => handleFieldChange("joining_date", v)}
+                onBlur={() => handleFieldBlur("joining_date")}
+                error={errors.joining_date}
+                touched={touched.joining_date}
+              />
+              <FormFieldWithError
+                id="basic_salary"
+                label="Basic Salary"
+                type="number"
+                value={formData.basic_salary}
+                onChange={(v) => handleFieldChange("basic_salary", v)}
+                onBlur={() => handleFieldBlur("basic_salary")}
+                error={errors.basic_salary}
+                touched={touched.basic_salary}
+              />
+            </div>
+
+            <FormFieldWithError
+              id="address"
+              label="Address"
+              value={formData.address}
+              onChange={(v) => handleFieldChange("address", v)}
+              onBlur={() => handleFieldBlur("address")}
+              error={errors.address}
+              touched={touched.address}
+            />
+
+            {/* Salary History Panel */}
+            {editingEmployee && (
+              <SalaryHistoryPanel 
+                employeeId={editingEmployee.id} 
+                currentSalary={editingEmployee.basic_salary || 0}
+              />
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleEditDialogClose(true)}
                 disabled={editLoading}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={editLoading}>
+              <Button type="submit" disabled={editLoading || !isEditFormValid}>
                 {editLoading ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Unsaved Changes Dialog */}
+      <UnsavedChangesDialog
+        open={showUnsavedDialog}
+        onOpenChange={setShowUnsavedDialog}
+        onDiscard={handleDiscardChanges}
+        onContinueEditing={handleContinueEditing}
+      />
+
+      {/* Salary Change Confirmation Dialog */}
+      {pendingSalaryChange && (
+        <SalaryChangeConfirmDialog
+          open={showSalaryConfirm}
+          onOpenChange={setShowSalaryConfirm}
+          currentSalary={pendingSalaryChange.oldSalary}
+          newSalary={pendingSalaryChange.newSalary}
+          onConfirm={handleSalaryConfirm}
+          onCancel={handleSalaryCancel}
+          isLoading={editLoading}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleteId}
