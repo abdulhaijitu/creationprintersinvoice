@@ -61,8 +61,6 @@ interface SalaryRecord {
   month: number;
   year: number;
   basic_salary: number;
-  overtime_hours: number;
-  overtime_amount: number;
   bonus: number;
   deductions: number;
   advance: number;
@@ -131,8 +129,6 @@ const Salary = () => {
   // Edit form for salary (excludes employee_id and month/year)
   const [editSalaryForm, setEditSalaryForm] = useState({
     basic_salary: "",
-    overtime_hours: "0",
-    overtime_amount: "0",
     bonus: "0",
     deductions: "0",
     notes: "",
@@ -154,8 +150,6 @@ const Salary = () => {
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
     basic_salary: "",
-    overtime_hours: "0",
-    overtime_amount: "0",
     bonus: "0",
     deductions: "0",
     notes: "",
@@ -263,15 +257,13 @@ const Salary = () => {
 
   const calculateNetPayable = () => {
     const basic = safeParseFloat(formData.basic_salary, 0, 0, 100000000);
-    const overtime = safeParseFloat(formData.overtime_amount, 0, 0, 100000000);
     const bonus = safeParseFloat(formData.bonus, 0, 0, 100000000);
     const deductions = safeParseFloat(formData.deductions, 0, 0, 100000000);
-    const grossSalary = basic + overtime + bonus - deductions;
-    
-    // Auto-calculate advance deduction (capped at gross salary)
-    const advanceToDeduct = Math.min(autoAdvanceDeduction, Math.max(0, grossSalary));
+    // Formula: (Basic + Bonus) - (Deductions + Advance)
+    const grossSalary = basic + bonus;
+    const advanceToDeduct = Math.min(autoAdvanceDeduction, Math.max(0, grossSalary - deductions));
 
-    return grossSalary - advanceToDeduct;
+    return grossSalary - deductions - advanceToDeduct;
   };
 
   const handleEmployeeSelect = async (employeeId: string) => {
@@ -312,13 +304,11 @@ const Salary = () => {
     setSubmitting(true);
 
     try {
-      // Calculate gross salary
+      // Calculate salary: (Basic + Bonus) - (Deductions + Advance)
       const basicSalary = safeParseFloat(formData.basic_salary, 0, 0, 100000000);
-      const overtimeHours = safeParseFloat(formData.overtime_hours, 0, 0, 1000);
-      const overtimeAmount = safeParseFloat(formData.overtime_amount, 0, 0, 100000000);
       const bonus = safeParseFloat(formData.bonus, 0, 0, 100000000);
       const deductions = safeParseFloat(formData.deductions, 0, 0, 100000000);
-      const grossSalary = basicSalary + overtimeAmount + bonus - deductions;
+      const grossSalary = basicSalary + bonus;
 
       // Fetch FRESH pending advances for this employee (for the target salary month)
       const salaryMonthStr = `${formData.year}-${String(formData.month).padStart(2, '0')}`;
@@ -333,22 +323,22 @@ const Salary = () => {
         .eq("deduct_month", salaryMonthStr) // Only advances where deduct_month == salary month (exact match)
         .order("created_at", { ascending: true });
 
-      // Calculate advance deductions
-      let remainingGross = grossSalary;
+      // Calculate advance deductions: max deductible = grossSalary - deductions
+      let remainingForAdvance = grossSalary - deductions;
       let totalAdvanceDeducted = 0;
       const advanceDeductionDetails: AdvanceDeductionDetail[] = [];
       const advanceIdsToUpdate: { id: string; newBalance: number; fullySettled: boolean }[] = [];
 
       if (freshAdvances) {
         for (const adv of freshAdvances) {
-          if (remainingGross <= 0) break;
+          if (remainingForAdvance <= 0) break;
           
           const currentBalance = adv.remaining_balance ?? adv.amount;
-          const deductAmount = Math.min(currentBalance, remainingGross);
+          const deductAmount = Math.min(currentBalance, remainingForAdvance);
           const newBalance = currentBalance - deductAmount;
           
           totalAdvanceDeducted += deductAmount;
-          remainingGross -= deductAmount;
+          remainingForAdvance -= deductAmount;
           
           advanceDeductionDetails.push({
             advance_id: adv.id,
@@ -364,7 +354,8 @@ const Salary = () => {
         }
       }
 
-      const netPayable = grossSalary - totalAdvanceDeducted;
+      // Net Payable = (Basic + Bonus) - (Deductions + Advance)
+      const netPayable = grossSalary - deductions - totalAdvanceDeducted;
 
       // Insert salary record with advance snapshot
       const salaryInsertData = {
@@ -372,8 +363,8 @@ const Salary = () => {
         month: formData.month,
         year: formData.year,
         basic_salary: basicSalary,
-        overtime_hours: overtimeHours,
-        overtime_amount: overtimeAmount,
+        overtime_hours: 0,
+        overtime_amount: 0,
         bonus: bonus,
         deductions: deductions,
         advance: totalAdvanceDeducted,
@@ -430,8 +421,6 @@ const Salary = () => {
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
       basic_salary: "",
-      overtime_hours: "0",
-      overtime_amount: "0",
       bonus: "0",
       deductions: "0",
       notes: "",
@@ -498,8 +487,6 @@ const Salary = () => {
     setEditingSalary(record);
     setEditSalaryForm({
       basic_salary: record.basic_salary.toString(),
-      overtime_hours: record.overtime_hours?.toString() || "0",
-      overtime_amount: record.overtime_amount?.toString() || "0",
       bonus: record.bonus?.toString() || "0",
       deductions: record.deductions?.toString() || "0",
       notes: record.notes || "",
@@ -507,15 +494,15 @@ const Salary = () => {
   };
 
   // Calculate net payable for edit form (advance stays unchanged)
+  // Formula: (Basic + Bonus) - (Deductions + Advance)
   const calculateEditNetPayable = () => {
     if (!editingSalary) return 0;
     const basic = safeParseFloat(editSalaryForm.basic_salary, 0, 0, 100000000);
-    const overtime = safeParseFloat(editSalaryForm.overtime_amount, 0, 0, 100000000);
     const bonus = safeParseFloat(editSalaryForm.bonus, 0, 0, 100000000);
     const deductions = safeParseFloat(editSalaryForm.deductions, 0, 0, 100000000);
-    const grossSalary = basic + overtime + bonus - deductions;
-    // Advance deduction remains unchanged from original record
-    return grossSalary - (editingSalary.advance || 0);
+    const grossSalary = basic + bonus;
+    // Net = (Basic + Bonus) - (Deductions + Advance)
+    return grossSalary - deductions - (editingSalary.advance || 0);
   };
 
   // Handle edit salary submission
@@ -525,15 +512,12 @@ const Salary = () => {
     setSubmitting(true);
     try {
       const basicSalary = safeParseFloat(editSalaryForm.basic_salary, 0, 0, 100000000);
-      const overtimeHours = safeParseFloat(editSalaryForm.overtime_hours, 0, 0, 1000);
-      const overtimeAmount = safeParseFloat(editSalaryForm.overtime_amount, 0, 0, 100000000);
       const bonus = safeParseFloat(editSalaryForm.bonus, 0, 0, 100000000);
       const deductions = safeParseFloat(editSalaryForm.deductions, 0, 0, 100000000);
       
-      // Gross salary recalculation
-      const grossSalary = basicSalary + overtimeAmount + bonus - deductions;
-      // Advance deduction stays unchanged
-      const netPayable = grossSalary - (editingSalary.advance || 0);
+      // Net = (Basic + Bonus) - (Deductions + Advance)
+      const grossSalary = basicSalary + bonus;
+      const netPayable = grossSalary - deductions - (editingSalary.advance || 0);
       
       if (netPayable < 0) {
         toast.error("Net payable cannot be negative. Adjust deductions or advance.");
@@ -545,8 +529,6 @@ const Salary = () => {
         .from("employee_salary_records")
         .update({
           basic_salary: basicSalary,
-          overtime_hours: overtimeHours,
-          overtime_amount: overtimeAmount,
           bonus: bonus,
           deductions: deductions,
           net_payable: netPayable,
@@ -756,14 +738,17 @@ const Salary = () => {
   };
 
   // Calculate summary metrics
-  // Gross salary = basic + overtime + bonus - deductions (BEFORE advance deduction)
+  // Gross salary = Basic + Bonus (before deductions and advance)
   const totalGrossSalary = salaryRecords.reduce((sum, r) => 
-    sum + r.basic_salary + r.overtime_amount + r.bonus - r.deductions, 0);
+    sum + r.basic_salary + r.bonus, 0);
+  
+  // Total deductions
+  const totalDeductions = salaryRecords.reduce((sum, r) => sum + r.deductions, 0);
   
   // Total advances deducted from salaries this month
   const totalAdvanceDeducted = salaryRecords.reduce((sum, r) => sum + (r.advance || 0), 0);
   
-  // Net payable = gross - advance deductions
+  // Net payable = (Basic + Bonus) - (Deductions + Advance)
   const totalNetPayable = salaryRecords.reduce((sum, r) => sum + r.net_payable, 0);
   
   // Salary payments marked as paid
@@ -989,32 +974,13 @@ const Salary = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Basic Salary</Label>
                     <Input
                       type="number"
                       value={formData.basic_salary}
                       onChange={(e) => setFormData({ ...formData, basic_salary: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Overtime (Hours)</Label>
-                    <Input
-                      type="number"
-                      value={formData.overtime_hours}
-                      onChange={(e) => setFormData({ ...formData, overtime_hours: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Overtime (Amount)</Label>
-                    <Input
-                      type="number"
-                      value={formData.overtime_amount}
-                      onChange={(e) => setFormData({ ...formData, overtime_amount: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1072,20 +1038,21 @@ const Salary = () => {
 
                 <div className="bg-muted p-4 rounded-lg space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Gross Salary</span>
+                    <span className="text-muted-foreground">Basic + Bonus</span>
                     <span>{formatCurrency(
                       safeParseFloat(formData.basic_salary, 0, 0, 100000000) +
-                      safeParseFloat(formData.overtime_amount, 0, 0, 100000000) +
-                      safeParseFloat(formData.bonus, 0, 0, 100000000) -
-                      safeParseFloat(formData.deductions, 0, 0, 100000000)
+                      safeParseFloat(formData.bonus, 0, 0, 100000000)
                     )}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Deductions</span>
+                    <span>- {formatCurrency(safeParseFloat(formData.deductions, 0, 0, 100000000))}</span>
                   </div>
                   {autoAdvanceDeduction > 0 && (
                     <div className="flex justify-between text-sm text-destructive">
                       <span>Advance Deduction</span>
                       <span>- {formatCurrency(Math.min(autoAdvanceDeduction, Math.max(0,
                         safeParseFloat(formData.basic_salary, 0, 0, 100000000) +
-                        safeParseFloat(formData.overtime_amount, 0, 0, 100000000) +
                         safeParseFloat(formData.bonus, 0, 0, 100000000) -
                         safeParseFloat(formData.deductions, 0, 0, 100000000)
                       )))}</span>
@@ -1115,18 +1082,18 @@ const Salary = () => {
 
       {/* Summary Cards - Redesigned for clarity */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Card 1: Gross Salary (before advance deduction) */}
+        {/* Card 1: Gross Salary (Basic + Bonus) */}
         <Card className="border-l-4 border-l-muted-foreground/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              Gross Salary
+              Basic + Bonus
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
             <p className="text-2xl font-bold">{formatCurrency(totalGrossSalary)}</p>
-            {totalAdvanceDeducted > 0 && (
+            {(totalDeductions > 0 || totalAdvanceDeducted > 0) && (
               <p className="text-xs text-muted-foreground">
-                - {formatCurrency(totalAdvanceDeducted)} advance = {formatCurrency(totalNetPayable)} net
+                - {formatCurrency(totalDeductions + totalAdvanceDeducted)} (ded+adv) = {formatCurrency(totalNetPayable)} net
               </p>
             )}
           </CardContent>
@@ -1222,7 +1189,6 @@ const Salary = () => {
             <TableRow>
               <TableHead className="whitespace-nowrap">Employee</TableHead>
               <TableHead className="text-right whitespace-nowrap">Basic</TableHead>
-              <TableHead className="text-right whitespace-nowrap">OT</TableHead>
               <TableHead className="text-right whitespace-nowrap">Bonus</TableHead>
               <TableHead className="text-right whitespace-nowrap">Deductions</TableHead>
               <TableHead className="text-right whitespace-nowrap">Advance</TableHead>
@@ -1234,13 +1200,13 @@ const Salary = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : salaryRecords.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="py-0">
+                <TableCell colSpan={8} className="py-0">
                   <EmptyState
                     icon={Banknote}
                     title="No salary records"
@@ -1261,9 +1227,6 @@ const Salary = () => {
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     {formatCurrency(record.basic_salary)}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    {formatCurrency(record.overtime_amount)}
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     {formatCurrency(record.bonus)}
@@ -1453,32 +1416,13 @@ const Salary = () => {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Basic Salary</Label>
                   <Input
                     type="number"
                     value={editSalaryForm.basic_salary}
                     onChange={(e) => setEditSalaryForm({ ...editSalaryForm, basic_salary: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Overtime (Hours)</Label>
-                  <Input
-                    type="number"
-                    value={editSalaryForm.overtime_hours}
-                    onChange={(e) => setEditSalaryForm({ ...editSalaryForm, overtime_hours: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Overtime (Amount)</Label>
-                  <Input
-                    type="number"
-                    value={editSalaryForm.overtime_amount}
-                    onChange={(e) => setEditSalaryForm({ ...editSalaryForm, overtime_amount: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1520,13 +1464,15 @@ const Salary = () => {
 
               <div className="bg-muted p-4 rounded-lg space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Gross Salary</span>
+                  <span className="text-muted-foreground">Basic + Bonus</span>
                   <span>{formatCurrency(
                     safeParseFloat(editSalaryForm.basic_salary, 0, 0, 100000000) +
-                    safeParseFloat(editSalaryForm.overtime_amount, 0, 0, 100000000) +
-                    safeParseFloat(editSalaryForm.bonus, 0, 0, 100000000) -
-                    safeParseFloat(editSalaryForm.deductions, 0, 0, 100000000)
+                    safeParseFloat(editSalaryForm.bonus, 0, 0, 100000000)
                   )}</span>
+                </div>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Deductions</span>
+                  <span>- {formatCurrency(safeParseFloat(editSalaryForm.deductions, 0, 0, 100000000))}</span>
                 </div>
                 {editingSalary.advance > 0 && (
                   <div className="flex justify-between text-sm text-destructive">
