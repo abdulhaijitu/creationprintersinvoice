@@ -3701,6 +3701,57 @@ export type Database = {
           },
         ]
       }
+      task_activity_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          new_value: Json | null
+          organization_id: string | null
+          performed_by: string | null
+          performed_by_email: string | null
+          previous_value: Json | null
+          task_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          organization_id?: string | null
+          performed_by?: string | null
+          performed_by_email?: string | null
+          previous_value?: Json | null
+          task_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          organization_id?: string | null
+          performed_by?: string | null
+          performed_by_email?: string | null
+          previous_value?: Json | null
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_activity_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_activity_logs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assigned_by: string | null
