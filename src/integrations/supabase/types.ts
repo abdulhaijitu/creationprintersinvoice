@@ -609,6 +609,7 @@ export type Database = {
           date: string
           employee_id: string
           id: string
+          is_overnight_shift: boolean | null
           notes: string | null
           organization_id: string | null
           status: Database["public"]["Enums"]["attendance_status"] | null
@@ -621,6 +622,7 @@ export type Database = {
           date?: string
           employee_id: string
           id?: string
+          is_overnight_shift?: boolean | null
           notes?: string | null
           organization_id?: string | null
           status?: Database["public"]["Enums"]["attendance_status"] | null
@@ -633,6 +635,7 @@ export type Database = {
           date?: string
           employee_id?: string
           id?: string
+          is_overnight_shift?: boolean | null
           notes?: string | null
           organization_id?: string | null
           status?: Database["public"]["Enums"]["attendance_status"] | null
@@ -1776,6 +1779,47 @@ export type Database = {
             foreignKeyName: "org_specific_permissions_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_attendance_settings: {
+        Row: {
+          created_at: string | null
+          half_day_threshold_hours: number | null
+          id: string
+          late_threshold_minutes: number | null
+          office_end_time: string | null
+          office_start_time: string | null
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          half_day_threshold_hours?: number | null
+          id?: string
+          late_threshold_minutes?: number | null
+          office_end_time?: string | null
+          office_start_time?: string | null
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          half_day_threshold_hours?: number | null
+          id?: string
+          late_threshold_minutes?: number | null
+          office_end_time?: string | null
+          office_start_time?: string | null
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_attendance_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -4230,6 +4274,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_attendance_status: {
+        Args: {
+          p_check_in: string
+          p_late_threshold_minutes: number
+          p_office_start_time: string
+        }
+        Returns: string
+      }
       calculate_org_usage_stats: {
         Args: { org_id: string }
         Returns: {
@@ -4466,7 +4518,13 @@ export type Database = {
         | "manager"
         | "accounts"
         | "sales_staff"
-      attendance_status: "present" | "absent" | "late" | "half_day"
+      attendance_status:
+        | "present"
+        | "absent"
+        | "late"
+        | "half_day"
+        | "holiday"
+        | "leave"
       audit_action_type:
         | "login"
         | "logout"
@@ -4683,7 +4741,14 @@ export const Constants = {
         "accounts",
         "sales_staff",
       ],
-      attendance_status: ["present", "absent", "late", "half_day"],
+      attendance_status: [
+        "present",
+        "absent",
+        "late",
+        "half_day",
+        "holiday",
+        "leave",
+      ],
       audit_action_type: [
         "login",
         "logout",
