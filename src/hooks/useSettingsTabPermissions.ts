@@ -24,6 +24,10 @@ export const SETTINGS_TAB_PERMISSIONS = {
     view: 'settings.invoice.view',
     manage: 'settings.invoice.manage',
   },
+  attendance: {
+    view: 'settings.attendance.view',
+    manage: 'settings.attendance.manage',
+  },
 } as const;
 
 export type SettingsTabKey = keyof typeof SETTINGS_TAB_PERMISSIONS;
@@ -39,6 +43,7 @@ export interface SettingsTabPermissions {
   logo: TabPermission;
   bank: TabPermission;
   invoice: TabPermission;
+  attendance: TabPermission;
   /** List of tabs the user can see */
   visibleTabs: SettingsTabKey[];
   /** Whether user can view at least one tab */
@@ -110,6 +115,7 @@ export const useSettingsTabPermissions = (): SettingsTabPermissions => {
     const logo = getTabPermission('logo');
     const bank = getTabPermission('bank');
     const invoice = getTabPermission('invoice');
+    const attendance = getTabPermission('attendance');
 
     // Determine visible tabs
     const visibleTabs: SettingsTabKey[] = [];
@@ -117,15 +123,17 @@ export const useSettingsTabPermissions = (): SettingsTabPermissions => {
     if (logo.canView) visibleTabs.push('logo');
     if (bank.canView) visibleTabs.push('bank');
     if (invoice.canView) visibleTabs.push('invoice');
+    if (attendance.canView) visibleTabs.push('attendance');
 
     const canViewAnyTab = visibleTabs.length > 0;
-    const canManageAnyTab = company.canManage || logo.canManage || bank.canManage || invoice.canManage;
+    const canManageAnyTab = company.canManage || logo.canManage || bank.canManage || invoice.canManage || attendance.canManage;
 
     return {
       company,
       logo,
       bank,
       invoice,
+      attendance,
       visibleTabs,
       canViewAnyTab,
       canManageAnyTab,

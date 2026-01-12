@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
 import { useOrgRolePermissions } from "@/hooks/useOrgRolePermissions";
+import { useWeeklyHolidays } from "@/hooks/useWeeklyHolidays";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,9 +30,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Clock, UserCheck, UserX, Users, Plus, ClipboardList, Moon, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, UserCheck, UserX, Users, Plus, ClipboardList, Moon, AlertTriangle, CalendarOff } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Database } from "@/integrations/supabase/types";
 import { EnhancedTimeInput } from "@/components/attendance/EnhancedTimeInput";
@@ -59,6 +60,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type AttendanceStatus = Database["public"]["Enums"]["attendance_status"];
 
@@ -89,6 +92,7 @@ const Attendance = () => {
   const { isAdmin, isSuperAdmin, user } = useAuth();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
   const { hasPermission } = useOrgRolePermissions();
+  const { isWeeklyHoliday, getWeekdayLabel, loading: holidaysLoading } = useWeeklyHolidays();
   
   // Database-driven permission checks
   const canViewAttendance = isSuperAdmin || hasPermission('attendance.view');
@@ -784,6 +788,22 @@ const Attendance = () => {
         )}
       </div>
 
+      {/* Weekly Holiday Alert */}
+      {!holidaysLoading && selectedDate && isWeeklyHoliday(parseISO(selectedDate)) && (
+        <Alert className="border-primary/50 bg-primary/5">
+          <CalendarOff className="h-4 w-4 text-primary" />
+          <AlertDescription className="flex items-center gap-2">
+            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+              Weekly Off
+            </Badge>
+            <span>
+              {format(parseISO(selectedDate), "EEEE, dd MMM yyyy")} is a weekly holiday. 
+              No attendance required - this day counts as a paid day.
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Attendance Table */}
       {loading ? (
         <AttendanceTableSkeleton rows={5} showActions={isAdmin} />
@@ -791,8 +811,12 @@ const Attendance = () => {
         <div className="border rounded-lg p-8">
           <EmptyState
             icon={ClipboardList}
-            title="No attendance records"
-            description="No attendance records found for the selected date"
+            title={isWeeklyHoliday(parseISO(selectedDate)) ? "Weekly Holiday" : "No attendance records"}
+            description={
+              isWeeklyHoliday(parseISO(selectedDate)) 
+                ? `${format(parseISO(selectedDate), "EEEE")} is a weekly holiday. No attendance is required.`
+                : "No attendance records found for the selected date"
+            }
           />
         </div>
       ) : (

@@ -14,7 +14,8 @@ import { useCompanySettings, CompanySettings } from '@/contexts/CompanySettingsC
 import { useSettingsTabPermissions, SettingsTabKey } from '@/hooks/useSettingsTabPermissions';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { UnsavedChangesWarning } from '@/components/settings/UnsavedChangesWarning';
-import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert, Eye, Lock } from 'lucide-react';
+import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert, Eye, Lock, Calendar } from 'lucide-react';
+import { WeeklyHolidaySettings } from '@/components/settings/WeeklyHolidaySettings';
 
 export default function Settings() {
   const { toast } = useToast();
@@ -351,6 +352,13 @@ export default function Settings() {
                   <FileText className="h-4 w-4" />
                   Invoice
                   {tabPermissions.invoice.isReadOnly && <Lock className="h-3 w-3 opacity-50" />}
+                </TabsTrigger>
+              )}
+              {tabPermissions.visibleTabs.includes('attendance') && (
+                <TabsTrigger value="attendance" className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Attendance
+                  {tabPermissions.attendance.isReadOnly && <Lock className="h-3 w-3 opacity-50" />}
                 </TabsTrigger>
               )}
             </TabsList>
@@ -775,6 +783,12 @@ export default function Settings() {
                     />
                   </CardContent>
                 </Card>
+              </TabsContent>
+            )}
+            
+            {tabPermissions.visibleTabs.includes('attendance') && (
+              <TabsContent value="attendance">
+                <WeeklyHolidaySettings isReadOnly={tabPermissions.attendance.isReadOnly} />
               </TabsContent>
             )}
           </Tabs>
