@@ -377,9 +377,8 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
     );
   }
 
-  const getModulesByCategory = (category: PermissionCategory) => 
-    ALL_MODULE_PERMISSIONS.filter(m => m.category === category);
-
+  // Use pre-computed PERMISSIONS_BY_CATEGORY from single source of truth
+  // This contains: main (5), business (3), hr_ops (6), system (3) = 17 total modules
   const RoleIcon = ROLE_CONFIG[selectedRole].icon;
 
   return (
@@ -482,7 +481,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
               {CATEGORY_ORDER.map((category) => {
                 const CategoryIcon = CATEGORY_ICONS[category];
                 const categoryLabel = CATEGORY_DISPLAY[category].label;
-                const modules = getModulesByCategory(category);
+                const modules = PERMISSIONS_BY_CATEGORY[category];
                 
                 if (modules.length === 0) return null;
                 
