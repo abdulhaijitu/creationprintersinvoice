@@ -79,13 +79,15 @@ export const useWeeklyHolidays = () => {
 
   /**
    * Toggle a weekday as holiday
+   * Returns { success: boolean, wasHoliday: boolean } to indicate the previous state
    */
-  const toggleHoliday = useCallback(async (dayOfWeek: number): Promise<boolean> => {
-    if (!organizationId) return false;
+  const toggleHoliday = useCallback(async (dayOfWeek: number): Promise<{ success: boolean; wasHoliday: boolean }> => {
+    if (!organizationId) return { success: false, wasHoliday: false };
 
     setSaving(true);
     try {
       const existingHoliday = weeklyHolidays.find(h => h.day_of_week === dayOfWeek);
+      const wasHoliday = existingHoliday?.is_active ?? false;
 
       if (existingHoliday) {
         // Toggle existing record
@@ -111,10 +113,10 @@ export const useWeeklyHolidays = () => {
       }
 
       await fetchWeeklyHolidays();
-      return true;
+      return { success: true, wasHoliday };
     } catch (error) {
       console.error('Error toggling weekly holiday:', error);
-      return false;
+      return { success: false, wasHoliday: false };
     } finally {
       setSaving(false);
     }
