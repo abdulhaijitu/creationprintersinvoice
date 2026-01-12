@@ -3752,6 +3752,63 @@ export type Database = {
           },
         ]
       }
+      task_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number
+          file_type: string
+          id: string
+          organization_id: string | null
+          storage_path: string
+          task_id: string
+          uploaded_by: string | null
+          uploaded_by_email: string | null
+          uploaded_by_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size: number
+          file_type: string
+          id?: string
+          organization_id?: string | null
+          storage_path: string
+          task_id: string
+          uploaded_by?: string | null
+          uploaded_by_email?: string | null
+          uploaded_by_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          organization_id?: string | null
+          storage_path?: string
+          task_id?: string
+          uploaded_by?: string | null
+          uploaded_by_email?: string | null
+          uploaded_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_attachments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_attachments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_comment_mentions: {
         Row: {
           comment_id: string
@@ -3873,6 +3930,10 @@ export type Database = {
           priority: Database["public"]["Enums"]["task_priority"] | null
           reference_id: string | null
           reference_type: string | null
+          sla_breach_sent: boolean | null
+          sla_breached: boolean | null
+          sla_deadline: string | null
+          sla_warning_sent: boolean | null
           status: Database["public"]["Enums"]["task_status"] | null
           title: string
           updated_at: string
@@ -3891,6 +3952,10 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"] | null
           reference_id?: string | null
           reference_type?: string | null
+          sla_breach_sent?: boolean | null
+          sla_breached?: boolean | null
+          sla_deadline?: string | null
+          sla_warning_sent?: boolean | null
           status?: Database["public"]["Enums"]["task_status"] | null
           title: string
           updated_at?: string
@@ -3909,6 +3974,10 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"] | null
           reference_id?: string | null
           reference_type?: string | null
+          sla_breach_sent?: boolean | null
+          sla_breached?: boolean | null
+          sla_deadline?: string | null
+          sla_warning_sent?: boolean | null
           status?: Database["public"]["Enums"]["task_status"] | null
           title?: string
           updated_at?: string

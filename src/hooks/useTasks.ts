@@ -6,8 +6,9 @@ import { useOrgRolePermissions } from '@/hooks/useOrgRolePermissions';
 import { toast } from 'sonner';
 import { WorkflowStatus, WORKFLOW_STATUSES, getNextStatus, isDelivered } from '@/components/tasks/ProductionWorkflow';
 import { logTaskActivity, createTaskNotification } from './useTaskActivityLogs';
+import { calculateSlaDeadline, type TaskPriorityLevel, SLA_DURATIONS } from '@/components/tasks/TaskPriorityBadge';
 
-export type TaskPriority = 'low' | 'medium' | 'high';
+export type TaskPriority = TaskPriorityLevel;
 
 export interface Task {
   id: string;
@@ -24,6 +25,8 @@ export interface Task {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  sla_deadline: string | null;
+  sla_breached: boolean | null;
   assignee?: { full_name: string } | null;
 }
 
@@ -230,6 +233,9 @@ export function useTasks() {
       const currentUserId = user?.id;
       console.log('[Tasks] Creating task with created_by:', currentUserId);
       
+      // Calculate SLA deadline based on priority
+      const slaDeadline = calculateSlaDeadline(new Date(), data.priority as TaskPriorityLevel);
+      
       const { data: newTask, error } = await supabase.from('tasks').insert({
         title: data.title,
         description: data.description || null,
@@ -242,6 +248,7 @@ export function useTasks() {
         reference_type: data.reference_type || null,
         reference_id: data.reference_id || null,
         organization_id: organization?.id,
+        sla_deadline: slaDeadline.toISOString(),
       }).select().single();
 
       if (error) {
@@ -370,8 +377,22 @@ export function useTasks() {
           }
         }
 
-        // Check for priority change
+        // Check for priority change - also recalculate SLA
         if (data.priority && data.priority !== previousPriority) {
+          // Recalculate SLA deadline based on new priority (from original creation time)
+          const newSlaDeadline = calculateSlaDeadline(currentTask.created_at, data.priority as TaskPriorityLevel);
+          
+          // Update SLA deadline in database
+          await supabase
+            .from('tasks')
+            .update({ 
+              sla_deadline: newSlaDeadline.toISOString(),
+              sla_breached: false, // Reset breach status on priority change
+              sla_warning_sent: false,
+              sla_breach_sent: false,
+            })
+            .eq('id', taskId);
+
           await logTaskActivity({
             taskId,
             organizationId: organization.id,
