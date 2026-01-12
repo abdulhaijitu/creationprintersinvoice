@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ImpersonationProvider } from "@/contexts/ImpersonationContext";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import { PermissionProvider } from "@/contexts/PermissionContext";
+import { CompanySettingsProvider } from "@/contexts/CompanySettingsContext";
 import { createQueryClient } from "@/hooks/useQueryConfig";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "./pages/Login";
@@ -52,6 +53,7 @@ const App = () => (
           <ImpersonationProvider>
             <OrganizationProvider>
               <PermissionProvider>
+                <CompanySettingsProvider>
                 <Routes>
                   {/* Public routes */}
                   <Route path="/login" element={<Login />} />
@@ -102,6 +104,7 @@ const App = () => (
                   {/* Catch-all redirect */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                </CompanySettingsProvider>
               </PermissionProvider>
             </OrganizationProvider>
           </ImpersonationProvider>
