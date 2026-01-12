@@ -34,7 +34,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { user, signOut, isSuperAdmin } = useAuth();
   const { organization, isOrgOwner } = useOrganization();
-  const { canView, refreshPermissions, loading: permissionsLoading } = useModulePermissions();
+  const { hasAnyModuleAccess, hasAnyModulePermission, refreshPermissions, loading: permissionsLoading } = useModulePermissions();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   
@@ -64,7 +64,8 @@ export function AppSidebar() {
   }, [location.pathname]);
 
   // Filter navigation items based on module permissions
-  // CRITICAL: No hardcoded role checks - only permission-based filtering
+  // CRITICAL: ANY-ON rule - show module if user has AT LEAST ONE permission enabled
+  // This checks view, create, edit, OR delete - if ANY is true, show the module
   const filteredNavGroups = useMemo(() => {
     return sidebarNavGroups.map((group): SidebarNavGroup => ({
       ...group,
@@ -78,11 +79,16 @@ export function AppSidebar() {
         // Owner bypass - always show all items
         if (isOrgOwner) return true;
         
-        // Check if user has VIEW permission for this module
-        return canView(item.permissionKey);
+        // DASHBOARD SPECIAL RULE: Show if user has at least ONE permission anywhere
+        if (item.requiresAnyPermission) {
+          return hasAnyModulePermission;
+        }
+        
+        // ANY-ON RULE: Check if user has ANY permission (view, create, edit, or delete) for this module
+        return hasAnyModuleAccess(item.permissionKey);
       }),
     })).filter((group) => group.items.length > 0); // Remove empty groups
-  }, [canView, isSuperAdmin, isOrgOwner, permissionsLoading]);
+  }, [hasAnyModuleAccess, hasAnyModulePermission, isSuperAdmin, isOrgOwner, permissionsLoading]);
 
   // Get current focused index
   const getFocusedIndex = useCallback(() => {

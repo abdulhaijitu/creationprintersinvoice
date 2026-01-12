@@ -97,6 +97,10 @@ const LoadingState: React.FC = () => (
 
 /**
  * Module Permission Guard - Protects content based on module permissions
+ * 
+ * CRITICAL: For route protection, uses ANY-ON rule
+ * - User can access route if they have ANY permission (view, create, edit, delete)
+ * - For specific actions (like create button), checks that specific action
  */
 export const ModulePermissionGuard: React.FC<ModulePermissionGuardProps> = ({
   children,
@@ -108,7 +112,11 @@ export const ModulePermissionGuard: React.FC<ModulePermissionGuardProps> = ({
   silent = false,
 }) => {
   const location = useLocation();
-  const { canView, canCreate, canEdit, canDelete, loading, isSuperAdmin, isOrgOwner } = useModulePermissions();
+  const { 
+    canView, canCreate, canEdit, canDelete, 
+    hasAnyModuleAccess, hasAnyModulePermission,
+    loading, isSuperAdmin, isOrgOwner 
+  } = useModulePermissions();
 
   // Determine which permission key to check
   let keyToCheck = permissionKey;
@@ -137,25 +145,45 @@ export const ModulePermissionGuard: React.FC<ModulePermissionGuardProps> = ({
     return <>{children}</>;
   }
 
-  // Check permission based on action
-  let hasPermission = false;
-  switch (action) {
-    case 'view':
-      hasPermission = canView(keyToCheck);
-      break;
-    case 'create':
-      hasPermission = canCreate(keyToCheck);
-      break;
-    case 'edit':
-      hasPermission = canEdit(keyToCheck);
-      break;
-    case 'delete':
-      hasPermission = canDelete(keyToCheck);
-      break;
+  // Special handling for Dashboard route - requires any permission in system
+  if (location.pathname === '/' && keyToCheck === 'main.dashboard') {
+    if (hasAnyModulePermission) {
+      return <>{children}</>;
+    } else {
+      // No permissions at all - show access denied
+      if (silent) return null;
+      if (redirectTo) return <Navigate to={redirectTo} replace />;
+      if (fallback) return <>{fallback}</>;
+      return <AccessDeniedFallback moduleName="Dashboard" action="access" />;
+    }
   }
 
-  if (hasPermission) {
-    return <>{children}</>;
+  // For route-level protection (autoDetect or view action), use ANY-ON rule
+  // This allows access if user has ANY permission (view, create, edit, delete) for the module
+  if (autoDetect || action === 'view') {
+    const hasAnyAccess = hasAnyModuleAccess(keyToCheck);
+    
+    if (hasAnyAccess) {
+      return <>{children}</>;
+    }
+  } else {
+    // For specific actions (create, edit, delete), check that specific permission
+    let hasPermission = false;
+    switch (action) {
+      case 'create':
+        hasPermission = canCreate(keyToCheck);
+        break;
+      case 'edit':
+        hasPermission = canEdit(keyToCheck);
+        break;
+      case 'delete':
+        hasPermission = canDelete(keyToCheck);
+        break;
+    }
+
+    if (hasPermission) {
+      return <>{children}</>;
+    }
   }
 
   // Permission denied - handle based on configuration
@@ -235,15 +263,23 @@ export const ActionGuard: React.FC<ActionGuardProps> = ({
 
 /**
  * Hook to check if a module action is accessible
+ * For action='view' or 'any', uses ANY-ON rule (any permission grants access)
  */
-export function useModuleAccess(permissionKey: string, action: PermissionAction = 'view'): {
+export function useModuleAccess(permissionKey: string, action: PermissionAction | 'any' = 'view'): {
   hasAccess: boolean;
+  hasAnyAccess: boolean;
   loading: boolean;
 } {
-  const { canView, canCreate, canEdit, canDelete, loading, isSuperAdmin, isOrgOwner } = useModulePermissions();
+  const { canView, canCreate, canEdit, canDelete, hasAnyModuleAccess, loading, isSuperAdmin, isOrgOwner } = useModulePermissions();
   
   if (isSuperAdmin || isOrgOwner) {
-    return { hasAccess: true, loading };
+    return { hasAccess: true, hasAnyAccess: true, loading };
+  }
+  
+  const anyAccess = hasAnyModuleAccess(permissionKey);
+  
+  if (action === 'any') {
+    return { hasAccess: anyAccess, hasAnyAccess: anyAccess, loading };
   }
   
   let hasAccess = false;
@@ -262,17 +298,19 @@ export function useModuleAccess(permissionKey: string, action: PermissionAction 
       break;
   }
   
-  return { hasAccess, loading };
+  return { hasAccess, hasAnyAccess: anyAccess, loading };
 }
 
 /**
  * Hook for all CRUD permissions for a module
+ * Includes hasAnyAccess for ANY-ON rule
  */
 export function useModuleCRUD(permissionKey: string): {
   canView: boolean;
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  hasAnyAccess: boolean;
   loading: boolean;
 } {
   const permissions = useModulePermissions();
@@ -283,6 +321,7 @@ export function useModuleCRUD(permissionKey: string): {
       canCreate: true,
       canEdit: true,
       canDelete: true,
+      hasAnyAccess: true,
       loading: permissions.loading,
     };
   }
@@ -292,6 +331,7 @@ export function useModuleCRUD(permissionKey: string): {
     canCreate: permissions.canCreate(permissionKey),
     canEdit: permissions.canEdit(permissionKey),
     canDelete: permissions.canDelete(permissionKey),
+    hasAnyAccess: permissions.hasAnyModuleAccess(permissionKey),
     loading: permissions.loading,
   };
 }
