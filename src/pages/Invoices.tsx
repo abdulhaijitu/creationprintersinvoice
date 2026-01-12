@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useActionPermission } from '@/components/guards/ActionGuard';
+import { ActionGuard, CreateGuard, EditGuard, DeleteGuard, ManageGuard } from '@/components/guards/ActionGuard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -47,7 +49,8 @@ import {
   Upload,
   MoreHorizontal,
   Filter,
-  Send
+  Send,
+  Edit
 } from 'lucide-react';
 import { format, isPast, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -77,6 +80,10 @@ const Invoices = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { organization } = useOrganization();
+  
+  // Use action permissions for this module
+  const invoicePerms = useActionPermission('invoices');
+  
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -472,33 +479,33 @@ const Invoices = () => {
   const partialCount = invoices.filter(i => getDisplayStatus(i) === 'partial').length;
   const totalDueAmount = invoices.reduce((sum, inv) => sum + getInvoiceStatusInfo(inv).dueAmount, 0);
 
+  // Bulk actions - only include actions user has permission for
   const bulkActions = [
-    {
+    // Edit permission needed for mark paid
+    ...(invoicePerms.canEdit ? [{
       id: 'mark-paid',
       label: 'Mark Paid',
       icon: CheckCircle,
       onClick: handleBulkMarkPaid,
-    },
+    }] : []),
+    // View permission for send reminder (just viewing contacts)
     {
       id: 'send-reminder',
       label: 'Send Reminder',
       icon: Send,
       onClick: handleBulkSendReminder,
     },
-    ...(isAdmin
-      ? [
-          {
-            id: 'delete',
-            label: 'Delete',
-            icon: Trash2,
-            variant: 'destructive' as const,
-            onClick: () => {
-              setBulkAction('delete');
-              setDeleteDialogOpen(true);
-            },
-          },
-        ]
-      : []),
+    // Delete permission needed for bulk delete
+    ...(invoicePerms.canDelete ? [{
+      id: 'delete',
+      label: 'Delete',
+      icon: Trash2,
+      variant: 'destructive' as const,
+      onClick: () => {
+        setBulkAction('delete');
+        setDeleteDialogOpen(true);
+      },
+    }] : []),
   ];
 
   return (
@@ -566,15 +573,18 @@ const Invoices = () => {
             </Select>
 
             <div className="flex items-center gap-2 sm:ml-auto">
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="h-10 gap-2 border-border/50" 
-                onClick={() => setImportOpen(true)}
-              >
-                <Upload className="h-4 w-4" />
-                <span className="hidden sm:inline">Import</span>
-              </Button>
+              {/* Import - requires create permission */}
+              {invoicePerms.canCreate && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="h-10 gap-2 border-border/50" 
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload className="h-4 w-4" />
+                  <span className="hidden sm:inline">Import</span>
+                </Button>
+              )}
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -593,14 +603,17 @@ const Invoices = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Button 
-                size="sm"
-                className="h-10 gap-2 shadow-sm" 
-                onClick={() => navigate('/invoices/new')}
-              >
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">New Invoice</span>
-              </Button>
+              {/* New Invoice - requires create permission */}
+              {invoicePerms.canCreate && (
+                <Button 
+                  size="sm"
+                  className="h-10 gap-2 shadow-sm" 
+                  onClick={() => navigate('/invoices/new')}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">New Invoice</span>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -748,7 +761,8 @@ const Invoices = () => {
                                 <TooltipContent>View Invoice</TooltipContent>
                               </Tooltip>
 
-                              {isAdmin && (
+                              {/* Delete button - only if user has delete permission */}
+                              {invoicePerms.canDelete && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -787,7 +801,7 @@ const Invoices = () => {
                                     <Download className="h-4 w-4 mr-2" />
                                     Export
                                   </DropdownMenuItem>
-                                  {isAdmin && (
+                                  {invoicePerms.canDelete && (
                                     <>
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem 
