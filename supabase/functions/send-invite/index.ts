@@ -388,6 +388,22 @@ Deno.serve(async (req) => {
           .eq('id', invite.id);
       }
 
+      // Check for domain verification error (403)
+      const isDomainError = emailErrorMessage.includes('403') && 
+        (emailErrorMessage.includes('verify a domain') || emailErrorMessage.includes('testing emails'));
+      
+      if (isDomainError) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Domain not verified',
+            code: 'DOMAIN_NOT_VERIFIED',
+            details: emailErrorMessage,
+            message: 'To send emails to external recipients, you need to verify a domain at resend.com/domains. For testing, you can only send to your own email address associated with your Resend account.'
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       return new Response(
         JSON.stringify({ 
           error: 'Failed to send invitation email',
