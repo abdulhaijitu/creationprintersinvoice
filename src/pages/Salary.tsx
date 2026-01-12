@@ -248,8 +248,8 @@ const Salary = () => {
       .eq("employee_id", employeeId)
       .eq("status", "active")
       .gt("remaining_balance", 0)
-      .lte("deduct_month", salaryMonthStr) // Only advances where deduct_month <= salary month
-      .order("deduct_month", { ascending: true });
+      .eq("deduct_month", salaryMonthStr) // Only advances where deduct_month == salary month (exact match)
+      .order("created_at", { ascending: true });
 
     if (data) {
       setPendingAdvances(data);
@@ -330,8 +330,8 @@ const Salary = () => {
         .eq("employee_id", formData.employee_id)
         .eq("status", "active")
         .gt("remaining_balance", 0)
-        .lte("deduct_month", salaryMonthStr) // Only advances where deduct_month <= salary month
-        .order("deduct_month", { ascending: true });
+        .eq("deduct_month", salaryMonthStr) // Only advances where deduct_month == salary month (exact match)
+        .order("created_at", { ascending: true });
 
       // Calculate advance deductions
       let remainingGross = grossSalary;
@@ -787,12 +787,11 @@ const Salary = () => {
 
   const getAdvanceStatusBadge = (advance: EmployeeAdvance) => {
     const remaining = advance.remaining_balance ?? advance.amount;
-    if (remaining === 0) {
+    if (remaining === 0 || advance.status === "settled") {
       return <Badge variant="default" className="bg-success">Settled</Badge>;
-    } else if (remaining < advance.amount) {
-      return <Badge variant="secondary" className="bg-warning text-warning-foreground">Partial</Badge>;
     }
-    return <Badge variant="outline">Pending</Badge>;
+    // Active means pending deduction in the specified deduct_month
+    return <Badge variant="outline">Active</Badge>;
   };
 
   if (authLoading) {
@@ -890,7 +889,7 @@ const Salary = () => {
                       onChange={(e) => setAdvanceFormData({ ...advanceFormData, deduct_month: e.target.value })}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Advance will be deducted starting from this month's salary
+                      Advance will be deducted ONLY when salary is generated for this exact month
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -905,7 +904,7 @@ const Salary = () => {
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Auto-Deduction</AlertTitle>
                     <AlertDescription>
-                      This advance will be automatically deducted from salary starting {advanceFormData.deduct_month}.
+                      This advance will be automatically deducted ONLY when generating salary for {advanceFormData.deduct_month}.
                     </AlertDescription>
                   </Alert>
                   <div className="flex justify-end gap-2">
