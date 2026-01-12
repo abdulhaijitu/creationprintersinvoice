@@ -23,7 +23,7 @@ const routeLabels: Record<string, string> = {
   'team-members': 'Team Members',
   'usage': 'Usage & Limits',
   'notification-settings': 'Notifications',
-  'white-label': 'White-Label',
+  
   'billing': 'Billing',
   'new': 'New',
   'edit': 'Edit',

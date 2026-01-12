@@ -25,7 +25,7 @@ export const getAdminRole = (role: AppRole | null): AdminRole | null => {
 // Define which sections each admin role can access
 const rolePermissions: Record<AdminRole, { sections: string[]; readOnlySections: string[] }> = {
   super_admin: {
-    sections: ['dashboard', 'organizations', 'users', 'role-permissions', 'plan-presets', 'upgrade-requests', 'analytics', 'billing', 'whitelabel', 'notifications', 'audit', 'investor'],
+    sections: ['dashboard', 'organizations', 'users', 'role-permissions', 'plan-presets', 'upgrade-requests', 'analytics', 'billing', 'notifications', 'audit', 'investor'],
     readOnlySections: [],
   },
   admin: {

@@ -29,7 +29,8 @@ import {
   Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuthPageBranding } from '@/hooks/useAuthPageBranding';
+import { APP_CONFIG } from '@/lib/appConfig';
+import appLogo from '@/assets/app-logo.jpg';
 import { ORG_ROLE_DISPLAY, OrgRole } from '@/lib/permissions/constants';
 
 interface PasswordRequirement {
@@ -70,7 +71,8 @@ const AcceptInvite = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const navigate = useNavigate();
-  const { appName, logoUrl } = useAuthPageBranding();
+  const appName = APP_CONFIG.name;
+  const logoUrl = appLogo;
   
   const [status, setStatus] = useState<InviteStatus>('loading');
   const [step, setStep] = useState<Step>('welcome');

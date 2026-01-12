@@ -94,7 +94,7 @@ const navGroups: NavGroup[] = [
     label: 'Platform Settings',
     defaultOpen: false,
     items: [
-      { id: 'whitelabel', label: 'White-Label', icon: Palette },
+      
       { id: 'notifications', label: 'Notifications', icon: Bell },
       { id: 'audit', label: 'Audit Logs', icon: FileText },
     ],

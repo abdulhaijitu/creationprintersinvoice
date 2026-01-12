@@ -62,10 +62,6 @@ export const ADMIN_PANEL_SECTIONS = {
     label: 'Plan Management',
     description: 'Configure subscription plans and limits',
   },
-  whitelabel: {
-    label: 'White Label',
-    description: 'Configure white-label branding options',
-  },
   audit: {
     label: 'Audit Logs',
     description: 'View platform-wide audit logs',

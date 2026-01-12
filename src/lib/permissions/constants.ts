@@ -88,7 +88,6 @@ export type PermissionModule =
   | 'team_members' 
   | 'settings'
   | 'billing'
-  | 'white_label'
   | 'analytics';
 
 export const MODULE_DISPLAY: Record<PermissionModule, string> = {
@@ -111,7 +110,7 @@ export const MODULE_DISPLAY: Record<PermissionModule, string> = {
   team_members: 'Team Members',
   settings: 'Settings',
   billing: 'Billing',
-  white_label: 'White-Label',
+  
   analytics: 'Analytics',
 };
 
@@ -340,11 +339,6 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     manage: ['owner'],
     edit: ['owner'],
   },
-  white_label: {
-    view: ['owner'],
-    manage: ['owner'],
-    edit: ['owner'],
-  },
   analytics: {
     view: ['owner', 'manager'],
     export: ['owner', 'manager'],
@@ -358,7 +352,6 @@ export const SUPER_ADMIN_CAPABILITIES = {
   MANAGE_ORGANIZATIONS: 'manage_organizations',
   MANAGE_PLANS: 'manage_plans',
   GLOBAL_ANALYTICS: 'global_analytics',
-  WHITE_LABEL_MANAGEMENT: 'white_label_management',
   DEMO_DATA_CONTROL: 'demo_data_control',
   VIEW_ALL_AUDIT_LOGS: 'view_all_audit_logs',
   IMPERSONATE_USERS: 'impersonate_users',
@@ -455,8 +448,6 @@ export const UI_VISIBILITY_RULES = {
   showTeamManagement: (role: OrgRole | null) => canRolePerform(role, 'team_members', 'view'),
   canEditTeamRoles: (role: OrgRole | null) => canRolePerform(role, 'team_members', 'manage'),
   
-  // White-Label - Owner only
-  showWhiteLabelSettings: (role: OrgRole | null) => role === 'owner',
   
   // Ownership Transfer - Owner only
   showOwnershipTransfer: (role: OrgRole | null) => role === 'owner',

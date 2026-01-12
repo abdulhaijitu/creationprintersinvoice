@@ -41,7 +41,6 @@ interface OrganizationContextType {
   organization: Organization | null;
   membership: OrganizationMember | null;
   loading: boolean;
-  needsOnboarding: boolean;
   isOrgOwner: boolean;
   isOrgManager: boolean;
   isOrgAdmin: boolean;
@@ -57,7 +56,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [membership, setMembership] = useState<OrganizationMember | null>(null);
   const [loading, setLoading] = useState(true);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   
   const fetchInProgress = useRef(false);
   const lastFetchUserId = useRef<string | null>(null);
@@ -70,7 +68,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!user) {
       setOrganization(null);
       setMembership(null);
-      setNeedsOnboarding(false);
       setLoading(false);
       lastFetchUserId.current = null;
       return;
@@ -93,20 +90,17 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       if (membershipError) {
         console.error('Error fetching membership:', membershipError);
-        setNeedsOnboarding(true);
         setLoading(false);
         return;
       }
 
       if (!membershipRows || membershipRows.length === 0) {
-        setNeedsOnboarding(true);
         setLoading(false);
         return;
       }
 
       const selectedMembership = membershipRows[0] as OrganizationMember;
       setMembership(selectedMembership);
-      setNeedsOnboarding(false);
 
       // Get the organization details
       const { data: orgData, error: orgError } = await supabase
@@ -185,7 +179,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } else if (!authLoading && !user) {
       setOrganization(null);
       setMembership(null);
-      setNeedsOnboarding(false);
       setLoading(false);
     }
   }, [user?.id, authLoading, fetchOrganization]);
@@ -199,7 +192,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     organization,
     membership,
     loading: loading || authLoading,
-    needsOnboarding,
     isOrgOwner,
     isOrgManager,
     isOrgAdmin,

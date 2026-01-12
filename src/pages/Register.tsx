@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Mail, Lock, User, Phone } from 'lucide-react';
-import { useAuthPageBranding } from '@/hooks/useAuthPageBranding';
+import { APP_CONFIG } from '@/lib/appConfig';
+import appLogo from '@/assets/app-logo.jpg';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -17,7 +18,9 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
-  const { appName, appTagline, logoUrl } = useAuthPageBranding();
+  const appName = APP_CONFIG.name;
+  const appTagline = APP_CONFIG.tagline;
+  const logoUrl = appLogo;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
