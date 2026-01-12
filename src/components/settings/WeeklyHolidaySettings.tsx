@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useWeeklyHolidays, WEEKDAYS } from '@/hooks/useWeeklyHolidays';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
+
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Calendar as CalendarIcon, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -93,20 +93,18 @@ export const WeeklyHolidaySettings = ({ isReadOnly = false }: WeeklyHolidaySetti
                 onClick={() => !isReadOnly && !saving && handleToggle(day.value)}
               >
                 <Checkbox
-                  id={`day-${day.value}`}
                   checked={isHoliday}
                   disabled={isReadOnly || saving}
                   className="pointer-events-none"
                 />
-                <Label
-                  htmlFor={`day-${day.value}`}
+                <span
                   className={`
-                    text-sm font-medium cursor-pointer
+                    text-sm font-medium select-none
                     ${isHoliday ? 'text-primary' : 'text-foreground'}
                   `}
                 >
                   {day.short}
-                </Label>
+                </span>
                 {isHoliday && (
                   <Badge variant="secondary" className="text-[10px] px-1.5">
                     Off
