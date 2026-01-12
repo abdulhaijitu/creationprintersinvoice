@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,65 +10,29 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useOrganization } from '@/contexts/OrganizationContext';
-import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert, Eye } from 'lucide-react';
-
-interface CompanySettings {
-  id: string;
-  company_name: string;
-  company_name_bn: string | null;
-  address: string | null;
-  address_bn: string | null;
-  phone: string | null;
-  email: string | null;
-  website: string | null;
-  logo_url: string | null;
-  bank_name: string | null;
-  bank_account_name: string | null;
-  bank_account_number: string | null;
-  bank_branch: string | null;
-  bank_routing_number: string | null;
-  mobile_banking: string | null;
-  invoice_prefix: string | null;
-  quotation_prefix: string | null;
-  invoice_footer: string | null;
-  invoice_terms: string | null;
-}
+import { useCompanySettings, CompanySettings } from '@/contexts/CompanySettingsContext';
+import { useSettingsTabPermissions, SettingsTabKey } from '@/hooks/useSettingsTabPermissions';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { UnsavedChangesWarning } from '@/components/settings/UnsavedChangesWarning';
+import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert, Eye, Lock } from 'lucide-react';
 
 export default function Settings() {
   const { toast } = useToast();
-  const { isAdmin, isSuperAdmin, hasPrivilegedAccess, user, loading: authLoading } = useAuth();
-  const { orgRole, isOrgOwner, isOrgManager, isOrgAdmin } = useOrganization();
-  const queryClient = useQueryClient();
+  const { loading: authLoading } = useAuth();
+  const { settings, loading: settingsLoading, refetchSettings, updateSettingsLocally } = useCompanySettings();
+  const tabPermissions = useSettingsTabPermissions();
+  
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState<SettingsTabKey>('company');
 
-  // Determine permissions based on role
-  const canManageSettings = useMemo(() => {
-    // Super admin always has access
-    if (isSuperAdmin) return true;
-    // Organization owner has access
-    if (isOrgOwner) return true;
-    // Admin role has access (from AuthContext)
-    if (isAdmin) return true;
-    // Manager role has access (from org_role)
-    if (isOrgManager) return true;
-    // Check privileged access
-    if (hasPrivilegedAccess) return true;
-    return false;
-  }, [isSuperAdmin, isOrgOwner, isAdmin, isOrgManager, hasPrivilegedAccess]);
-
-  const canViewSettings = useMemo(() => {
-    // Anyone with manage permission can view
-    if (canManageSettings) return true;
-    // Accounts can view but not edit
-    if (orgRole === 'accounts') return true;
-    return false;
-  }, [canManageSettings, orgRole]);
+  // Determine if current tab allows management
+  const currentTabCanManage = tabPermissions[activeTab]?.canManage ?? false;
 
   const form = useForm<CompanySettings>({
     defaultValues: {
+      id: '',
       company_name: '',
       company_name_bn: '',
       address: '',
@@ -90,122 +54,109 @@ export default function Settings() {
     },
   });
 
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ['company-settings'],
-    queryFn: async () => {
-      // Use maybeSingle() to handle 0 or 1 rows without error
-      const { data, error } = await supabase
-        .from('company_settings')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return data as CompanySettings | null;
-    },
+  // Watch form values for dirty detection
+  const formValues = form.watch();
+
+  // Unsaved changes tracking - only enabled if user can manage current tab
+  const {
+    isDirty,
+    markAsClean,
+    markAsDirty,
+    showBlockerDialog,
+    confirmNavigation,
+    cancelNavigation,
+    showTabSwitchWarning,
+    pendingTab,
+    requestTabSwitch,
+    confirmTabSwitch,
+    cancelTabSwitch,
+  } = useUnsavedChanges({
+    enabled: currentTabCanManage,
   });
 
+  // Track form changes
+  useEffect(() => {
+    const subscription = form.watch(() => {
+      if (currentTabCanManage) {
+        markAsDirty();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form, markAsDirty, currentTabCanManage]);
+
+  // Load settings into form
   useEffect(() => {
     if (settings) {
       form.reset(settings);
       if (settings.logo_url) {
         setLogoPreview(settings.logo_url);
       }
+      // Mark as clean after loading
+      markAsClean();
     }
-  }, [settings, form]);
+  }, [settings, form, markAsClean]);
+
+  // Set initial active tab to first visible tab
+  useEffect(() => {
+    if (tabPermissions.visibleTabs.length > 0 && !tabPermissions.visibleTabs.includes(activeTab)) {
+      setActiveTab(tabPermissions.visibleTabs[0]);
+    }
+  }, [tabPermissions.visibleTabs, activeTab]);
+
+  // Handle tab switch with unsaved changes check
+  const handleTabChange = useCallback((newTab: string) => {
+    if (isDirty && currentTabCanManage) {
+      const canSwitch = requestTabSwitch(newTab);
+      if (!canSwitch) return; // Warning dialog will show
+    }
+    setActiveTab(newTab as SettingsTabKey);
+  }, [isDirty, currentTabCanManage, requestTabSwitch]);
+
+  // Confirm tab switch after warning
+  const handleConfirmTabSwitch = useCallback(() => {
+    if (pendingTab) {
+      setActiveTab(pendingTab as SettingsTabKey);
+      // Reset form to last saved values
+      if (settings) {
+        form.reset(settings);
+      }
+    }
+    confirmTabSwitch();
+  }, [confirmTabSwitch, pendingTab, settings, form]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<CompanySettings>) => {
       console.log('[Settings] Save initiated');
-      console.log('[Settings] Existing settings ID:', settings?.id);
-      console.log('[Settings] Payload:', data);
 
-      let savedData: CompanySettings | null = null;
-
-      if (settings?.id) {
-        // UPDATE existing row - do NOT use .single() to avoid "Cannot coerce" error
-        const { data: updateResult, error: updateError } = await supabase
-          .from('company_settings')
-          .update(data)
-          .eq('id', settings.id)
-          .select();
-
-        console.log('[Settings] Update response:', { updateResult, updateError });
-
-        if (updateError) {
-          console.error('[Settings] Update error:', updateError);
-          throw new Error(updateError.message || 'Database update failed');
-        }
-
-        // Check if any rows were actually updated (RLS might block silently)
-        if (!updateResult || updateResult.length === 0) {
-          console.error('[Settings] Update returned no rows - likely RLS blocked the update');
-          throw new Error('Update failed: You may not have permission to modify company settings.');
-        }
-
-        savedData = updateResult[0] as CompanySettings;
-        console.log('[Settings] Update successful:', savedData);
-      } else {
-        // INSERT new row (first-time setup) - use upsert for safety
-        const { data: insertResult, error: insertError } = await supabase
-          .from('company_settings')
-          .upsert({
-            ...data,
-            company_name: data.company_name || 'My Company',
-          })
-          .select();
-
-        console.log('[Settings] Insert/Upsert response:', { insertResult, insertError });
-
-        if (insertError) {
-          console.error('[Settings] Insert error:', insertError);
-          throw new Error(insertError.message || 'Failed to create company settings');
-        }
-
-        if (!insertResult || insertResult.length === 0) {
-          console.error('[Settings] Insert returned no rows');
-          throw new Error('Failed to save settings: No data returned from database.');
-        }
-
-        savedData = insertResult[0] as CompanySettings;
-        console.log('[Settings] Insert successful:', savedData);
+      if (!settings?.id) {
+        throw new Error('Company settings not loaded');
       }
 
-      // VERIFICATION: Re-fetch to confirm data persisted
-      const { data: verifyData, error: verifyError } = await supabase
+      const { data: updateResult, error: updateError } = await supabase
         .from('company_settings')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
+        .update(data)
+        .eq('id', settings.id)
+        .select();
 
-      if (verifyError) {
-        console.error('[Settings] Verification failed:', verifyError);
-        throw new Error('Could not verify save. Please refresh the page.');
+      if (updateError) {
+        console.error('[Settings] Update error:', updateError);
+        throw new Error(updateError.message || 'Database update failed');
       }
 
-      if (!verifyData) {
-        console.error('[Settings] Verification returned no data');
-        throw new Error('Save verification failed: Data not found in database.');
+      if (!updateResult || updateResult.length === 0) {
+        throw new Error('Update failed: You may not have permission to modify company settings.');
       }
 
-      // Compare key fields to ensure persistence
-      const fieldsToVerify = ['company_name', 'phone', 'email', 'address'] as const;
-      for (const field of fieldsToVerify) {
-        if (data[field] !== undefined && verifyData[field] !== data[field]) {
-          console.error(`[Settings] Field ${field} mismatch: sent "${data[field]}", got "${verifyData[field]}"`);
-          throw new Error(`Save verification failed for ${field}. Data did not persist.`);
-        }
-      }
-
-      console.log('[Settings] Save verified successfully');
-      return savedData;
+      return updateResult[0] as CompanySettings;
     },
     onSuccess: (savedData) => {
-      // Invalidate and refetch to ensure UI shows fresh data from DB
-      queryClient.invalidateQueries({ queryKey: ['company-settings'] });
+      // Update global context immediately for live sync
+      updateSettingsLocally(savedData);
+      // Mark form as clean
+      markAsClean();
       toast({
         title: 'Settings saved',
-        description: 'Company settings saved and verified successfully',
+        description: 'Company settings saved successfully',
       });
     },
     onError: (error: Error) => {
@@ -215,7 +166,6 @@ export default function Settings() {
         title: 'Save Failed',
         description: error.message || 'Failed to save settings. Please check your permissions.',
       });
-      // Do NOT reset form on error - keep user's changes
     },
   });
 
@@ -228,6 +178,7 @@ export default function Settings() {
         setLogoPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+      markAsDirty();
     }
   };
 
@@ -239,7 +190,7 @@ export default function Settings() {
       const fileExt = logoFile.name.split('.').pop();
       const fileName = `logo-${Date.now()}.${fileExt}`;
       
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('company-assets')
         .upload(fileName, logoFile, { upsert: true });
       
@@ -264,7 +215,6 @@ export default function Settings() {
   };
 
   const onSubmit = async (data: CompanySettings) => {
-    // Validate ID before attempting save
     if (!settings?.id) {
       toast({
         variant: 'destructive',
@@ -274,8 +224,15 @@ export default function Settings() {
       return;
     }
 
-    console.log('[Settings] Form submitted with data:', data);
-    console.log('[Settings] Using settings ID:', settings.id);
+    // Check permission for current tab
+    if (!currentTabCanManage) {
+      toast({
+        variant: 'destructive',
+        title: 'Permission Denied',
+        description: 'You do not have permission to modify these settings.',
+      });
+      return;
+    }
 
     let logoUrl = data.logo_url;
 
@@ -283,22 +240,19 @@ export default function Settings() {
       const uploadedUrl = await uploadLogo();
       if (uploadedUrl) {
         logoUrl = uploadedUrl;
-      } else {
-        // Logo upload failed, but we can still save other fields
-        console.warn('[Settings] Logo upload failed, continuing with other fields');
       }
     }
 
-    // Use mutateAsync to properly await and handle errors
     try {
       await updateMutation.mutateAsync({ ...data, logo_url: logoUrl });
     } catch (error) {
-      // Error is already handled in onError callback
       console.error('[Settings] Submit error caught:', error);
     }
   };
 
-  if (isLoading || authLoading) {
+  const isLoading = settingsLoading || authLoading || tabPermissions.loading;
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -306,8 +260,8 @@ export default function Settings() {
     );
   }
 
-  // Access denied - no view permission
-  if (!canViewSettings) {
+  // Access denied - no view permission for any tab
+  if (!tabPermissions.canViewAnyTab) {
     return (
       <div className="space-y-6">
         <div>
@@ -337,8 +291,27 @@ export default function Settings() {
     );
   }
 
+  // Check if current tab is read-only
+  const isCurrentTabReadOnly = tabPermissions[activeTab]?.isReadOnly ?? true;
+
   return (
     <div className="space-y-6">
+      {/* Navigation blocker dialog */}
+      <UnsavedChangesWarning
+        open={showBlockerDialog}
+        onDiscard={confirmNavigation}
+        onContinueEditing={cancelNavigation}
+        context="navigation"
+      />
+
+      {/* Tab switch warning dialog */}
+      <UnsavedChangesWarning
+        open={showTabSwitchWarning}
+        onDiscard={handleConfirmTabSwitch}
+        onContinueEditing={cancelTabSwitch}
+        context="tab-switch"
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Company Settings</h1>
@@ -346,379 +319,492 @@ export default function Settings() {
             Customize company info, bank details, and invoice templates
           </p>
         </div>
-        {!canManageSettings && (
+        {isCurrentTabReadOnly && (
           <div className="flex items-center gap-2 text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 rounded-md">
             <Eye className="h-4 w-4" />
             <span className="text-sm font-medium">Read-only access</span>
+          </div>
+        )}
+        {isDirty && currentTabCanManage && (
+          <div className="flex items-center gap-2 text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 rounded-md">
+            <span className="text-sm font-medium">Unsaved changes</span>
           </div>
         )}
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Tabs defaultValue="company" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-6">
-              <TabsTrigger value="company" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Company
-              </TabsTrigger>
-              <TabsTrigger value="logo" className="flex items-center gap-2">
-                <Image className="h-4 w-4" />
-                Logo
-              </TabsTrigger>
-              <TabsTrigger value="bank" className="flex items-center gap-2">
-                <Landmark className="h-4 w-4" />
-                Bank
-              </TabsTrigger>
-              <TabsTrigger value="invoice" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Invoice
-              </TabsTrigger>
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <TabsList className={`grid w-full mb-6`} style={{ gridTemplateColumns: `repeat(${tabPermissions.visibleTabs.length}, minmax(0, 1fr))` }}>
+              {tabPermissions.visibleTabs.includes('company') && (
+                <TabsTrigger value="company" className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Company
+                  {tabPermissions.company.isReadOnly && <Lock className="h-3 w-3 opacity-50" />}
+                </TabsTrigger>
+              )}
+              {tabPermissions.visibleTabs.includes('logo') && (
+                <TabsTrigger value="logo" className="flex items-center gap-2">
+                  <Image className="h-4 w-4" />
+                  Logo
+                  {tabPermissions.logo.isReadOnly && <Lock className="h-3 w-3 opacity-50" />}
+                </TabsTrigger>
+              )}
+              {tabPermissions.visibleTabs.includes('bank') && (
+                <TabsTrigger value="bank" className="flex items-center gap-2">
+                  <Landmark className="h-4 w-4" />
+                  Bank
+                  {tabPermissions.bank.isReadOnly && <Lock className="h-3 w-3 opacity-50" />}
+                </TabsTrigger>
+              )}
+              {tabPermissions.visibleTabs.includes('invoice') && (
+                <TabsTrigger value="invoice" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Invoice
+                  {tabPermissions.invoice.isReadOnly && <Lock className="h-3 w-3 opacity-50" />}
+                </TabsTrigger>
+              )}
             </TabsList>
 
-            <TabsContent value="company">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Company Information</CardTitle>
-                  <CardDescription>
-                    Company name, address, and contact information
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="company_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Company Name (English)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Company Name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="company_name_bn"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Company Name (Bengali)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Company Name in Bengali" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="address"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Address (English)</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="Address" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="address_bn"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Address (Bengali)</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="Address in Bengali" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone</FormLabel>
-                          <FormControl>
-                            <Input placeholder="+880..." {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="email@company.com" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="website"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Website</FormLabel>
-                          <FormControl>
-                            <Input placeholder="www.company.com" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="logo">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Company Logo</CardTitle>
-                  <CardDescription>
-                    Upload a logo to display on invoices and quotations
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-6">
-                    <div className="w-32 h-32 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/30 overflow-hidden">
-                      {logoPreview ? (
-                        <img 
-                          src={logoPreview} 
-                          alt="Logo Preview" 
-                          className="w-full h-full object-contain"
-                        />
-                      ) : (
-                        <Upload className="h-8 w-8 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoChange}
-                        className="w-auto"
+            {tabPermissions.visibleTabs.includes('company') && (
+              <TabsContent value="company">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Company Information</CardTitle>
+                    <CardDescription>
+                      Company name, address, and contact information
+                      {tabPermissions.company.isReadOnly && ' (Read-only)'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="company_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Company Name (English)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Company Name" 
+                                {...field} 
+                                disabled={tabPermissions.company.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                      <p className="text-sm text-muted-foreground">
-                        PNG, JPG or SVG (max 2MB)
-                      </p>
+                      <FormField
+                        control={form.control}
+                        name="company_name_bn"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Company Name (Bengali)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Company Name in Bengali" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.company.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
 
-            <TabsContent value="bank">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Bank Information</CardTitle>
-                  <CardDescription>
-                    Bank account details for receiving payments
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="bank_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Bank Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Bank Name" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="bank_account_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Account Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Account Holder Name" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="address"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Address (English)</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="Address" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.company.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="address_bn"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Address (Bengali)</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="Address in Bengali" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.company.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="bank_account_number"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Account Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Account Number" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="bank_branch"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Branch</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Bank Branch" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phone</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="+880..." 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.company.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="email" 
+                                placeholder="email@company.com" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.company.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="website"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Website</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="www.company.com" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.company.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="bank_routing_number"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Routing Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Routing Number" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="mobile_banking"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Mobile Banking</FormLabel>
-                          <FormControl>
-                            <Input placeholder="bKash/Nagad Number" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="invoice">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Invoice Settings</CardTitle>
-                  <CardDescription>
-                    Invoice and quotation prefix, footer, and terms
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="invoice_prefix"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Invoice Prefix</FormLabel>
-                          <FormControl>
-                            <Input placeholder="INV" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="quotation_prefix"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Quotation Prefix</FormLabel>
-                          <FormControl>
-                            <Input placeholder="QUO" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="invoice_footer"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Invoice Footer</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Displayed at the bottom of invoices..." 
-                            rows={3}
-                            {...field} 
-                            value={field.value || ''} 
+            {tabPermissions.visibleTabs.includes('logo') && (
+              <TabsContent value="logo">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Company Logo</CardTitle>
+                    <CardDescription>
+                      Upload a logo to display on invoices and quotations
+                      {tabPermissions.logo.isReadOnly && ' (Read-only)'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-6">
+                      <div className="w-32 h-32 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/30 overflow-hidden">
+                        {logoPreview ? (
+                          <img 
+                            src={logoPreview} 
+                            alt="Logo Preview" 
+                            className="w-full h-full object-contain"
                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="invoice_terms"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Terms & Conditions</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Payment and delivery terms..." 
-                            rows={4}
-                            {...field} 
-                            value={field.value || ''} 
+                        ) : (
+                          <Upload className="h-8 w-8 text-muted-foreground" />
+                        )}
+                      </div>
+                      {!tabPermissions.logo.isReadOnly && (
+                        <div className="space-y-2">
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoChange}
+                            className="w-auto"
                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
+                          <p className="text-sm text-muted-foreground">
+                            PNG, JPG or SVG (max 2MB)
+                          </p>
+                        </div>
+                      )}
+                      {tabPermissions.logo.isReadOnly && (
+                        <p className="text-sm text-muted-foreground">
+                          You have read-only access to logo settings
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {tabPermissions.visibleTabs.includes('bank') && (
+              <TabsContent value="bank">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Bank Information</CardTitle>
+                    <CardDescription>
+                      Bank account details for receiving payments
+                      {tabPermissions.bank.isReadOnly && ' (Read-only)'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="bank_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Bank Name</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Bank Name" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.bank.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="bank_account_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Account Name</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Account Holder Name" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.bank.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="bank_account_number"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Account Number</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Account Number" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.bank.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="bank_branch"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Branch</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Bank Branch" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.bank.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="bank_routing_number"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Routing Number</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Routing Number" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.bank.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="mobile_banking"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Mobile Banking</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="bKash/Nagad Number" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.bank.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {tabPermissions.visibleTabs.includes('invoice') && (
+              <TabsContent value="invoice">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Invoice Settings</CardTitle>
+                    <CardDescription>
+                      Invoice and quotation prefix, footer, and terms
+                      {tabPermissions.invoice.isReadOnly && ' (Read-only)'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="invoice_prefix"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Invoice Prefix</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="INV" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.invoice.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="quotation_prefix"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Quotation Prefix</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="QUO" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={tabPermissions.invoice.isReadOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="invoice_footer"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Invoice Footer</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Displayed at the bottom of invoices..." 
+                              rows={3}
+                              {...field} 
+                              value={field.value || ''} 
+                              disabled={tabPermissions.invoice.isReadOnly}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="invoice_terms"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Terms & Conditions</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Payment and delivery terms..." 
+                              rows={4}
+                              {...field} 
+                              value={field.value || ''} 
+                              disabled={tabPermissions.invoice.isReadOnly}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
           </Tabs>
 
           <div className="flex justify-end gap-3 items-center">
-            {!canManageSettings && (
+            {isCurrentTabReadOnly && (
               <p className="text-sm text-muted-foreground">
-                You have read-only access to settings
+                You have read-only access to this tab
               </p>
             )}
             <Button 
               type="submit" 
-              disabled={!canManageSettings || updateMutation.isPending || uploading}
+              disabled={!currentTabCanManage || updateMutation.isPending || uploading}
               className="min-w-32"
             >
               {(updateMutation.isPending || uploading) && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {canManageSettings ? 'Save' : 'View Only'}
+              {currentTabCanManage ? 'Save' : 'View Only'}
             </Button>
           </div>
         </form>
