@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { useWeeklyHolidays, WEEKDAYS } from '@/hooks/useWeeklyHolidays';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Calendar, AlertCircle } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
 
 interface WeeklyHolidaySettingsProps {
   isReadOnly?: boolean;
@@ -51,11 +54,16 @@ export const WeeklyHolidaySettings = ({ isReadOnly = false }: WeeklyHolidaySetti
 
   const activeHolidays = getHolidayDays();
 
+  // Modifier for highlighting weekly holidays in the calendar
+  const holidayModifier = (date: Date) => {
+    return activeHolidays.includes(date.getDay());
+  };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-primary" />
+          <CalendarIcon className="h-5 w-5 text-primary" />
           <CardTitle>Weekly Holidays</CardTitle>
         </div>
         <CardDescription>
@@ -64,7 +72,7 @@ export const WeeklyHolidaySettings = ({ isReadOnly = false }: WeeklyHolidaySetti
           {isReadOnly && ' (Read-only)'}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
           {WEEKDAYS.map((day) => {
             const isHoliday = isDayHoliday(day.value);
@@ -105,6 +113,38 @@ export const WeeklyHolidaySettings = ({ isReadOnly = false }: WeeklyHolidaySetti
               </div>
             );
           })}
+        </div>
+
+        {/* Calendar Preview Section */}
+        <div className="space-y-3 pt-2 border-t">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Calendar Preview</span>
+          </div>
+          <div className="flex justify-center bg-muted/30 rounded-lg p-4">
+            <Calendar
+              mode="single"
+              modifiers={{ holiday: holidayModifier }}
+              modifiersClassNames={{
+                holiday: 'bg-destructive/20 text-destructive hover:bg-destructive/30 font-semibold'
+              }}
+              classNames={{
+                day_today: 'bg-primary text-primary-foreground',
+              }}
+              showOutsideDays={false}
+              className="rounded-md border bg-background"
+            />
+          </div>
+          <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-destructive/20 border border-destructive/30" />
+              <span>Weekly Holiday</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-primary" />
+              <span>Today</span>
+            </div>
+          </div>
         </div>
 
         {activeHolidays.length > 0 && (
