@@ -481,7 +481,7 @@ const Salary = () => {
         .eq("employee_id", advanceFormData.employee_id)
         .eq("year", deductYear)
         .eq("month", deductMonthNum)
-        .single();
+        .maybeSingle();
 
       if (existingSalary) {
         // Check if salary is already paid - block auto-sync if paid
