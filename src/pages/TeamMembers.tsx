@@ -22,9 +22,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Users, UserPlus, Mail, Shield, Crown, Briefcase, Calculator, ShieldAlert, Palette, UserCheck, RefreshCw, AlertCircle, Clock, RotateCw, X, Loader2, Check, ShieldCheck } from 'lucide-react';
+import { Users, UserPlus, Mail, Shield, Crown, Briefcase, Calculator, ShieldAlert, Palette, UserCheck, RefreshCw, AlertCircle, Clock, RotateCw, X, Loader2, Check, ShieldCheck, UserCog } from 'lucide-react';
 import { format } from 'date-fns';
 import { StaffPermissionsMatrix } from '@/components/team/StaffPermissionsMatrix';
+import { AddTeamMemberDialog } from '@/components/team/AddTeamMemberDialog';
 
 interface Profile {
   id: string;
@@ -105,20 +106,26 @@ const TeamMemberSkeleton = ({ canManageTeam }: { canManageTeam: boolean }) => (
 );
 
 // Empty state component
-const EmptyState = ({ onInvite, canInvite }: { onInvite: () => void; canInvite: boolean }) => (
+const EmptyState = ({ onInvite, onAddManually, canInvite }: { onInvite: () => void; onAddManually: () => void; canInvite: boolean }) => (
   <div className="flex flex-col items-center justify-center py-16 text-center">
     <div className="rounded-full bg-muted p-4 mb-4">
       <Users className="h-10 w-10 text-muted-foreground" />
     </div>
     <h3 className="text-lg font-semibold mb-2">No team members yet</h3>
     <p className="text-muted-foreground text-sm mb-6 max-w-sm">
-      Your team is empty. Start building your team by inviting members to collaborate.
+      Your team is empty. Start building your team by adding members manually or sending invitations.
     </p>
     {canInvite && (
-      <Button onClick={onInvite} className="transition-all hover:shadow-md active:scale-[0.98]">
-        <UserPlus className="h-4 w-4 mr-2" />
-        Invite Your First Staff
-      </Button>
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={onAddManually} className="transition-all hover:shadow-md active:scale-[0.98]">
+          <UserCog className="h-4 w-4 mr-2" />
+          Add Manually
+        </Button>
+        <Button onClick={onInvite} className="transition-all hover:shadow-md active:scale-[0.98]">
+          <Mail className="h-4 w-4 mr-2" />
+          Invite via Email
+        </Button>
+      </div>
     )}
   </div>
 );
@@ -304,6 +311,9 @@ const TeamMembers = () => {
   
   // Resend/Cancel loading states
   const [loadingInviteId, setLoadingInviteId] = useState<string | null>(null);
+  
+  // Manual add dialog state
+  const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
 
   const fetchData = useCallback(async (isRetry = false, force = false) => {
     if (!organization) return;
@@ -686,6 +696,30 @@ const TeamMembers = () => {
     }
   };
 
+  // Handle successful manual member addition
+  const handleManualMemberAdded = useCallback((member: { id: string; email: string; fullName: string; role: OrgRole; isNewUser: boolean }) => {
+    // Create a new TeamMember object
+    const newMember: TeamMember = {
+      id: crypto.randomUUID(), // Temporary ID, will be replaced on refetch
+      user_id: member.id,
+      role: member.role,
+      created_at: new Date().toISOString(),
+      profile: {
+        id: member.id,
+        full_name: member.fullName,
+        phone: null,
+      },
+      status: 'active',
+    };
+    
+    const newMembers = [...members, newMember];
+    setMembers(newMembers);
+    updateCache(newMembers, invites);
+    
+    // Force refresh to get accurate data
+    setTimeout(() => fetchData(false, true), 500);
+  }, [members, invites, updateCache, fetchData]);
+
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
   };
@@ -748,9 +782,21 @@ const TeamMembers = () => {
         </TabsList>
 
         <TabsContent value="members" className="space-y-4">
-          {/* Invite Button */}
+          {/* Action Buttons */}
           {canManageTeam && (
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              {/* Add Member Manually Button */}
+              <Button 
+                variant="outline"
+                disabled={totalCount >= userLimit}
+                onClick={() => setAddMemberDialogOpen(true)}
+                className="transition-all duration-200 hover:shadow-md active:scale-[0.98]"
+              >
+                <UserCog className="h-4 w-4 mr-2" />
+                Add Manually
+              </Button>
+              
+              {/* Invite via Email Button */}
               <Dialog open={inviteDialogOpen} onOpenChange={(open) => {
                 setInviteDialogOpen(open);
                 if (!open) {
@@ -765,8 +811,8 @@ const TeamMembers = () => {
                     disabled={totalCount >= userLimit} 
                     className="transition-all duration-200 hover:shadow-md active:scale-[0.98]"
                   >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Invite Member
+                    <Mail className="h-4 w-4 mr-2" />
+                    Invite via Email
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
@@ -873,7 +919,11 @@ const TeamMembers = () => {
               {isError && <ErrorState onRetry={handleRetry} isRetrying={isRetrying} />}
               
               {isEmpty && (
-                <EmptyState onInvite={() => setInviteDialogOpen(true)} canInvite={canManageTeam} />
+                <EmptyState 
+                  onInvite={() => setInviteDialogOpen(true)} 
+                  onAddManually={() => setAddMemberDialogOpen(true)}
+                  canInvite={canManageTeam} 
+                />
               )}
               
               {isLoading && (
@@ -1025,6 +1075,16 @@ const TeamMembers = () => {
           </TabsContent>
         )}
       </Tabs>
+      
+      {/* Add Team Member Dialog (Manual) */}
+      {organization && (
+        <AddTeamMemberDialog
+          open={addMemberDialogOpen}
+          onOpenChange={setAddMemberDialogOpen}
+          organizationId={organization.id}
+          onSuccess={handleManualMemberAdded}
+        />
+      )}
     </div>
   );
 };
