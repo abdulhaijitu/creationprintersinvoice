@@ -34,11 +34,11 @@ export const useWeeklyHolidays = () => {
     }
 
     try {
+      // Fetch ALL weekly holiday records (not just active ones) so we can toggle them
       const { data, error } = await supabase
         .from('weekly_holidays')
         .select('*')
-        .eq('organization_id', organizationId)
-        .eq('is_active', true);
+        .eq('organization_id', organizationId);
 
       if (error) throw error;
       setWeeklyHolidays(data || []);
@@ -59,7 +59,7 @@ export const useWeeklyHolidays = () => {
    * Get array of active holiday day numbers (0-6)
    */
   const getHolidayDays = useCallback((): number[] => {
-    return weeklyHolidays.map(h => h.day_of_week);
+    return weeklyHolidays.filter(h => h.is_active).map(h => h.day_of_week);
   }, [weeklyHolidays]);
 
   /**
@@ -96,13 +96,15 @@ export const useWeeklyHolidays = () => {
 
         if (error) throw error;
       } else {
-        // Create new record
+        // Create new record using upsert to handle race conditions
         const { error } = await supabase
           .from('weekly_holidays')
-          .insert({
+          .upsert({
             organization_id: organizationId,
             day_of_week: dayOfWeek,
             is_active: true,
+          }, {
+            onConflict: 'organization_id,day_of_week',
           });
 
         if (error) throw error;
