@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
@@ -17,10 +17,10 @@ interface OrgSpecificPermission {
   is_enabled: boolean;
 }
 
-// Cache for global role permissions
+// Module-level caches with proper invalidation
 let globalPermissionCache: OrgRolePermission[] | null = null;
 let globalCacheTimestamp = 0;
-const CACHE_DURATION = 60000; // 1 minute
+const CACHE_DURATION = 30000; // 30 seconds - shorter for better consistency
 
 // Cache for org-specific permissions per org
 const orgPermissionCache = new Map<string, {
@@ -28,11 +28,31 @@ const orgPermissionCache = new Map<string, {
   timestamp: number;
 }>();
 
+/**
+ * Invalidate all permission caches - call this after permission updates
+ */
+export const invalidatePermissionCaches = () => {
+  globalPermissionCache = null;
+  globalCacheTimestamp = 0;
+  orgPermissionCache.clear();
+  console.log('[Permissions] All caches invalidated');
+};
+
+/**
+ * Invalidate org-specific cache only
+ */
+export const invalidateOrgPermissionCache = (organizationId: string) => {
+  orgPermissionCache.delete(organizationId);
+  console.log(`[Permissions] Org cache invalidated for: ${organizationId}`);
+};
+
 export const useOrgRolePermissions = () => {
   const { orgRole, organization } = useOrganization();
   const [globalPermissions, setGlobalPermissions] = useState<OrgRolePermission[]>([]);
   const [orgPermissions, setOrgPermissions] = useState<OrgSpecificPermission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastFetch, setLastFetch] = useState<number>(0);
+  const isMountedRef = useRef(true);
 
   // Fetch global role permissions
   const fetchGlobalPermissions = useCallback(async (forceRefresh = false) => {
@@ -42,6 +62,7 @@ export const useOrgRolePermissions = () => {
     }
 
     try {
+      console.log('[Permissions] Fetching global permissions from database...');
       const { data, error } = await supabase
         .from('org_role_permissions')
         .select('role, permission_key, is_enabled, is_protected');
@@ -50,10 +71,13 @@ export const useOrgRolePermissions = () => {
 
       globalPermissionCache = data || [];
       globalCacheTimestamp = Date.now();
-      setGlobalPermissions(globalPermissionCache);
+      if (isMountedRef.current) {
+        setGlobalPermissions(globalPermissionCache);
+      }
+      console.log(`[Permissions] Loaded ${data?.length || 0} global permissions`);
       return globalPermissionCache;
     } catch (error) {
-      console.error('Error fetching global role permissions:', error);
+      console.error('[Permissions] Error fetching global role permissions:', error);
       return [];
     }
   }, []);
@@ -69,6 +93,7 @@ export const useOrgRolePermissions = () => {
     }
 
     try {
+      console.log(`[Permissions] Fetching org-specific permissions for org: ${organization.id}`);
       const { data, error } = await supabase
         .from('org_specific_permissions')
         .select('id, organization_id, role, permission_key, is_enabled')
@@ -81,27 +106,42 @@ export const useOrgRolePermissions = () => {
         permissions: perms,
         timestamp: Date.now(),
       });
-      setOrgPermissions(perms);
+      if (isMountedRef.current) {
+        setOrgPermissions(perms);
+      }
+      console.log(`[Permissions] Loaded ${perms.length} org-specific permissions`);
       return perms;
     } catch (error) {
-      console.error('Error fetching org-specific permissions:', error);
+      console.error('[Permissions] Error fetching org-specific permissions:', error);
       return [];
     }
   }, [organization?.id]);
 
-  // Initial fetch
+  // Initial fetch - with mounted check
   useEffect(() => {
+    isMountedRef.current = true;
+    
     const fetchAll = async () => {
       setLoading(true);
       await Promise.all([fetchGlobalPermissions(), fetchOrgPermissions()]);
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setLastFetch(Date.now());
+      }
     };
     fetchAll();
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [fetchGlobalPermissions, fetchOrgPermissions]);
 
   /**
    * Check if user has a specific permission
    * Checks org-specific override first, then falls back to global role permissions
+   * 
+   * CRITICAL: This now correctly returns the is_enabled value (true/false)
+   * rather than just checking for existence
    */
   const hasPermission = useCallback((permissionKey: string): boolean => {
     if (!orgRole) return false;
@@ -109,11 +149,12 @@ export const useOrgRolePermissions = () => {
     // Owner always has all permissions
     if (orgRole === 'owner') return true;
 
-    // Check org-specific override first
+    // Check org-specific override first - MUST respect the is_enabled value
     const orgOverride = orgPermissions.find(
       p => p.role === orgRole && p.permission_key === permissionKey
     );
-    if (orgOverride) {
+    if (orgOverride !== undefined) {
+      // We found an org-specific override, use its value
       return orgOverride.is_enabled;
     }
 
@@ -162,16 +203,28 @@ export const useOrgRolePermissions = () => {
   }, [globalPermissions, orgPermissions]);
 
   /**
-   * Force refresh permissions from database
+   * Force refresh permissions from database - CLEARS CACHE
    */
   const refreshPermissions = useCallback(async () => {
+    console.log('[Permissions] Force refreshing all permissions...');
+    // Clear caches first
+    if (organization?.id) {
+      invalidateOrgPermissionCache(organization.id);
+    }
+    globalPermissionCache = null;
+    globalCacheTimestamp = 0;
+    
     setLoading(true);
     await Promise.all([
       fetchGlobalPermissions(true),
       fetchOrgPermissions(true),
     ]);
-    setLoading(false);
-  }, [fetchGlobalPermissions, fetchOrgPermissions]);
+    if (isMountedRef.current) {
+      setLoading(false);
+      setLastFetch(Date.now());
+    }
+    console.log('[Permissions] Force refresh complete');
+  }, [fetchGlobalPermissions, fetchOrgPermissions, organization?.id]);
 
   /**
    * Get all visible sidebar modules based on permissions
@@ -203,12 +256,13 @@ export const useOrgRolePermissions = () => {
     refreshPermissions,
     visibleModules,
     orgRole,
+    lastFetch,
   };
 };
 
 /**
  * Utility function for non-hook contexts
- * Checks permission directly against the database
+ * Checks permission directly against the database (bypasses cache)
  */
 export const checkOrgRolePermission = async (
   role: string,

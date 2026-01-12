@@ -18,19 +18,25 @@ import {
 /**
  * Main permissions hook for checking user capabilities
  * Integrates with org-specific permission overrides from the database
+ * 
+ * FIXED: Now properly respects is_enabled=false from database
  */
 export function usePermissions() {
   const { isAdmin } = useAuth();
   const { orgRole, isOrgOwner, isOrgManager, isOrgAdmin, organization } = useOrganization();
-  const { hasPermission: hasOrgSpecificPermission, loading: permissionsLoading } = useOrgRolePermissions();
+  const { 
+    hasPermission: hasOrgSpecificPermission, 
+    loading: permissionsLoading,
+    refreshPermissions,
+  } = useOrgRolePermissions();
 
   /**
    * Check if user can perform an action on a module
    * Order of precedence:
    * 1. Super admin bypass
    * 2. Owner always has all permissions
-   * 3. Org-specific permission override (from database)
-   * 4. Default role-based permission matrix
+   * 3. Org-specific permission from database (respects is_enabled value)
+   * 4. Default role-based permission matrix (fallback)
    */
   const canPerform = useCallback(
     (module: PermissionModule, action: PermissionAction): boolean => {
@@ -40,16 +46,17 @@ export function usePermissions() {
       // Owner always has all permissions
       if (isOrgOwner) return true;
       
-      // Check org-specific permission override first
+      // Check org-specific permission - this now properly returns the is_enabled value
       const permissionKey = `${module}.${action}`;
-      if (hasOrgSpecificPermission(permissionKey)) {
-        return true;
-      }
+      const hasPermissionFromDb = hasOrgSpecificPermission(permissionKey);
       
-      // Fall back to default role-based permission
-      return canRolePerform(orgRole as OrgRole | null, module, action);
+      // The hasOrgSpecificPermission now correctly checks db values
+      // It returns true only if permission exists AND is_enabled is true
+      // It returns false if permission exists AND is_enabled is false
+      // It falls back to global permissions if no org-specific override exists
+      return hasPermissionFromDb;
     },
-    [orgRole, isAdmin, isOrgOwner, hasOrgSpecificPermission]
+    [isAdmin, isOrgOwner, hasOrgSpecificPermission]
   );
 
   /**
@@ -125,6 +132,7 @@ export function usePermissions() {
     showManage,
     hasAnyViewPermission,
     permissionsLoading,
+    refreshPermissions,
     orgRole,
     isOrgOwner,
     isOrgManager,

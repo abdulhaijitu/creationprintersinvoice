@@ -109,12 +109,21 @@ export const OrgRolePermissionsManager = () => {
     const newValue = !permission.is_enabled;
 
     try {
-      const { error } = await supabase
+      console.log(`[OrgRolePermissions] Updating permission ${permission.id}: ${permission.permission_key} to ${newValue}`);
+      
+      const { error, data } = await supabase
         .from('org_role_permissions')
-        .update({ is_enabled: newValue })
-        .eq('id', permission.id);
+        .update({ is_enabled: newValue, updated_at: new Date().toISOString() })
+        .eq('id', permission.id)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[OrgRolePermissions] Update error:', error);
+        throw error;
+      }
+
+      console.log('[OrgRolePermissions] Update successful:', data);
 
       // Update local state
       setPermissions(prev =>
@@ -136,8 +145,8 @@ export const OrgRolePermissionsManager = () => {
         `${permission.permission_label} ${newValue ? 'enabled' : 'disabled'} for ${ROLE_LABELS[permission.role as OrgRole]}`
       );
     } catch (error) {
-      console.error('Error updating permission:', error);
-      toast.error('Failed to update permission');
+      console.error('[OrgRolePermissions] Error updating permission:', error);
+      toast.error('Failed to update permission. Please try again.');
     } finally {
       setSaving(null);
     }
