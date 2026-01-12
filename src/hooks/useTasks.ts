@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrgRolePermissions } from '@/hooks/useOrgRolePermissions';
 import { toast } from 'sonner';
 import { WorkflowStatus, WORKFLOW_STATUSES, getNextStatus, isDelivered } from '@/components/tasks/ProductionWorkflow';
 
@@ -13,6 +14,7 @@ export interface Task {
   description: string | null;
   assigned_to: string | null;
   assigned_by: string | null;
+  created_by: string | null;
   deadline: string | null;
   priority: TaskPriority;
   status: WorkflowStatus;
@@ -30,11 +32,15 @@ export interface Employee {
 }
 
 export function useTasks() {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, isSuperAdmin, user } = useAuth();
   const { organization } = useOrganization();
+  const { hasPermission } = useOrgRolePermissions();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Check if user has global tasks.view permission
+  const hasTasksViewPermission = isSuperAdmin || isAdmin || hasPermission('tasks.view');
 
   const fetchTasks = useCallback(async () => {
     // Don't fetch without organization context
@@ -55,19 +61,33 @@ export function useTasks() {
       setEmployees(employeesData || []);
 
       // Fetch tasks - scoped to organization
+      // RLS ensures org-level isolation, frontend handles visibility rules
       let query = supabase
         .from('tasks')
         .select('*')
         .eq('organization_id', organization.id)
         .order('updated_at', { ascending: false });
 
-      if (!isAdmin) {
-        query = query.or(`assigned_to.eq.${user?.id},assigned_by.eq.${user?.id}`);
+      // VISIBILITY RULES:
+      // 1. Super admin / Admin / Users with tasks.view permission: See ALL org tasks
+      // 2. Other users: See only tasks they created OR are assigned to
+      if (!hasTasksViewPermission && user?.id) {
+        // User doesn't have global view permission
+        // Show tasks where user is creator OR assignee
+        query = query.or(`created_by.eq.${user.id},assigned_to.eq.${user.id},assigned_by.eq.${user.id}`);
+        console.log('[Tasks] Filtering for user visibility - created_by, assigned_to, or assigned_by:', user.id);
+      } else {
+        console.log('[Tasks] User has global view permission - showing all org tasks');
       }
 
       const { data: tasksData, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Tasks] Error fetching tasks:', error);
+        throw error;
+      }
+
+      console.log('[Tasks] Fetched tasks count:', tasksData?.length || 0);
 
       if (tasksData && employeesData) {
         const tasksWithEmployees = tasksData.map((task) => {
@@ -94,7 +114,7 @@ export function useTasks() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, user?.id, organization?.id]);
+  }, [hasTasksViewPermission, user?.id, organization?.id]);
 
   // Real-time subscription
   useEffect(() => {
@@ -166,27 +186,42 @@ export function useTasks() {
     reference_id?: string;
   }) => {
     try {
-      const { error } = await supabase.from('tasks').insert({
+      const currentUserId = user?.id;
+      console.log('[Tasks] Creating task with created_by:', currentUserId);
+      
+      const { data: newTask, error } = await supabase.from('tasks').insert({
         title: data.title,
         description: data.description || null,
         assigned_to: data.assigned_to || null,
+        assigned_by: currentUserId, // Set assigned_by to current user for backwards compatibility
+        created_by: currentUserId, // CRITICAL: Set created_by to current user
         deadline: data.deadline || null,
         priority: data.priority,
         status: 'design',
         reference_type: data.reference_type || null,
         reference_id: data.reference_id || null,
         organization_id: organization?.id,
-      });
+      }).select().single();
 
-      if (error) throw error;
-      toast.success('Task created');
+      if (error) {
+        console.error('[Tasks] Error creating task:', error);
+        throw error;
+      }
+      
+      console.log('[Tasks] Task created successfully:', newTask?.id);
+      
+      // Immediately refetch to ensure the new task appears
+      // The realtime subscription should also trigger this, but we do it explicitly for reliability
+      await fetchTasks();
+      
+      toast.success('Task created successfully');
       return true;
     } catch (error) {
       console.error('Error creating task:', error);
       toast.error('Failed to create task');
       return false;
     }
-  }, []);
+  }, [user?.id, organization?.id, fetchTasks]);
 
   const updateTask = useCallback(async (taskId: string, data: {
     title?: string;
