@@ -51,6 +51,8 @@ interface Bill {
   bill_date: string;
   description: string | null;
   amount: number;
+  discount: number;
+  net_amount: number;
   due_date: string | null;
   status: string;
   reference_no: string | null;
@@ -84,9 +86,14 @@ const VendorDetail = () => {
     bill_date: format(new Date(), "yyyy-MM-dd"),
     description: "",
     amount: "",
+    discount: "",
     due_date: "",
     reference_no: "",
   });
+
+  // Computed net amount for bill form
+  const billNetAmount = Math.max(0, (parseFloat(billForm.amount) || 0) - (parseFloat(billForm.discount) || 0));
+  const discountError = parseFloat(billForm.discount || "0") > parseFloat(billForm.amount || "0");
 
   const [paymentForm, setPaymentForm] = useState({
     payment_date: format(new Date(), "yyyy-MM-dd"),
@@ -150,13 +157,29 @@ const VendorDetail = () => {
     }
 
     try {
+      const amount = parseFloat(billForm.amount);
+      const discount = parseFloat(billForm.discount) || 0;
+      const netAmount = amount - discount;
+
+      // Validate discount
+      if (discount > amount) {
+        toast.error("Discount cannot exceed bill amount");
+        return;
+      }
+      if (discount < 0) {
+        toast.error("Discount cannot be negative");
+        return;
+      }
+
       if (editingBill) {
         const { error } = await supabase
           .from("vendor_bills")
           .update({
             bill_date: billForm.bill_date,
             description: billForm.description || null,
-            amount: parseFloat(billForm.amount),
+            amount: amount,
+            discount: discount,
+            net_amount: netAmount,
             due_date: billForm.due_date || null,
             reference_no: billForm.reference_no || null,
           })
@@ -169,7 +192,9 @@ const VendorDetail = () => {
           vendor_id: id,
           bill_date: billForm.bill_date,
           description: billForm.description || null,
-          amount: parseFloat(billForm.amount),
+          amount: amount,
+          discount: discount,
+          net_amount: netAmount,
           due_date: billForm.due_date || null,
           status: "unpaid",
           organization_id: organization?.id,
@@ -213,6 +238,7 @@ const VendorDetail = () => {
       bill_date: bill.bill_date,
       description: bill.description || "",
       amount: bill.amount.toString(),
+      discount: bill.discount?.toString() || "0",
       due_date: bill.due_date || "",
       reference_no: bill.reference_no || "",
     });
@@ -224,6 +250,7 @@ const VendorDetail = () => {
       bill_date: format(new Date(), "yyyy-MM-dd"),
       description: "",
       amount: "",
+      discount: "",
       due_date: "",
       reference_no: "",
     });
@@ -274,8 +301,9 @@ const VendorDetail = () => {
           if (bill) {
             const billPayments = payments.filter((p) => p.bill_id === bill.id);
             const totalPaid = billPayments.reduce((sum, p) => sum + p.amount, 0) + parseFloat(paymentForm.amount);
+            const billNetAmount = bill.net_amount ?? bill.amount;
             
-            if (totalPaid >= bill.amount) {
+            if (totalPaid >= billNetAmount) {
               await supabase
                 .from("vendor_bills")
                 .update({ status: "paid" })
@@ -353,7 +381,8 @@ const VendorDetail = () => {
     }).format(amount);
   };
 
-  const totalBills = bills.reduce((sum, b) => sum + b.amount, 0);
+  const totalBills = bills.reduce((sum, b) => sum + (b.net_amount ?? b.amount), 0);
+  const totalDiscount = bills.reduce((sum, b) => sum + (b.discount ?? 0), 0);
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const dueAmount = totalBills - totalPaid;
 
@@ -519,6 +548,30 @@ const VendorDetail = () => {
                             setBillForm({ ...billForm, amount: e.target.value })
                           }
                         />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Discount</Label>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          min="0"
+                          value={billForm.discount}
+                          onChange={(e) =>
+                            setBillForm({ ...billForm, discount: e.target.value })
+                          }
+                          className={discountError ? "border-destructive" : ""}
+                        />
+                        {discountError && (
+                          <p className="text-xs text-destructive">Discount cannot exceed amount</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Net Payable</Label>
+                        <div className="h-10 px-3 py-2 rounded-md border bg-muted/50 flex items-center font-medium">
+                          {formatCurrency(billNetAmount)}
+                        </div>
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -706,7 +759,7 @@ const VendorDetail = () => {
                       date: bill.bill_date,
                       reference_no: bill.reference_no,
                       description: bill.description || 'Bill',
-                      bill: bill.amount,
+                      bill: bill.net_amount ?? bill.amount,
                       payment: 0,
                       type: 'bill'
                     });
@@ -776,6 +829,8 @@ const VendorDetail = () => {
                   <TableHead>Description</TableHead>
                   <TableHead>Due Date</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Discount</TableHead>
+                  <TableHead className="text-right">Net Amount</TableHead>
                   <TableHead>Status</TableHead>
                   {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
@@ -783,7 +838,7 @@ const VendorDetail = () => {
               <TableBody>
                 {bills.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8 text-muted-foreground">
                       No bills
                     </TableCell>
                   </TableRow>
@@ -799,8 +854,14 @@ const VendorDetail = () => {
                           ? format(new Date(bill.due_date), "dd MMM yyyy")
                           : "-"}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right">
                         {formatCurrency(bill.amount)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {bill.discount > 0 ? formatCurrency(bill.discount) : "-"}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(bill.net_amount ?? bill.amount)}
                       </TableCell>
                       <TableCell>{getStatusBadge(bill.status)}</TableCell>
                       {isAdmin && (
