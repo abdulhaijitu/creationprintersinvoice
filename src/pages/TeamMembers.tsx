@@ -3,7 +3,7 @@
  * Uses module-level caching to prevent refetch on navigation (SPA standard)
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { OrgRole, ORG_ROLE_DISPLAY } from '@/lib/permissions/constants';
@@ -21,11 +21,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Users, UserPlus, Mail, Shield, Crown, Briefcase, Calculator, ShieldAlert, Palette, UserCheck, RefreshCw, AlertCircle, Clock, RotateCw, X, Loader2, Check, ShieldCheck, UserCog } from 'lucide-react';
+import { Users, UserPlus, Mail, Shield, Crown, Briefcase, Calculator, ShieldAlert, Palette, UserCheck, RefreshCw, AlertCircle, Clock, RotateCw, X, Loader2, Check, ShieldCheck, UserCog, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { StaffPermissionsMatrix } from '@/components/team/StaffPermissionsMatrix';
 import { AddTeamMemberDialog } from '@/components/team/AddTeamMemberDialog';
+import { EditTeamMemberDialog } from '@/components/team/EditTeamMemberDialog';
+import { DeleteMemberDialog } from '@/components/team/DeleteMemberDialog';
 
 interface Profile {
   id: string;
@@ -314,6 +317,14 @@ const TeamMembers = () => {
   
   // Manual add dialog state
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
+  
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
 
   const fetchData = useCallback(async (isRetry = false, force = false) => {
     if (!organization) return;
@@ -666,9 +677,12 @@ const TeamMembers = () => {
     }
   };
 
-  // Remove member
-  const removeMember = async (memberId: string, memberRole: OrgRole) => {
-    if (memberRole === 'owner') {
+  // Remove member with confirmation dialog
+  const handleDeleteMember = async (memberId: string): Promise<void> => {
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
+    
+    if (member.role === 'owner') {
       toast.error('Cannot remove organization owner');
       return;
     }
@@ -687,13 +701,56 @@ const TeamMembers = () => {
       
       if (error) throw error;
       
+      // Log audit
+      await supabase.from('audit_logs').insert({
+        organization_id: organization?.id,
+        user_id: user?.id,
+        entity_type: 'team_member',
+        entity_id: memberId,
+        action: 'delete',
+        details: {
+          removed_user: member.profile?.full_name || member.user_id,
+          removed_role: member.role,
+        },
+      });
+      
       toast.success('Member removed successfully');
     } catch (err) {
       console.error('[TeamMembers] Failed to remove member:', err);
       setMembers(previousMembers);
       updateCache(previousMembers, invites);
       toast.error('Failed to remove member');
+      throw err;
     }
+  };
+  
+  // Check if member is the last admin/manager
+  const isLastAdmin = useMemo(() => {
+    const admins = members.filter(m => m.role === 'owner' || m.role === 'manager');
+    return (memberId: string) => {
+      const member = members.find(m => m.id === memberId);
+      if (!member) return false;
+      if (member.role !== 'owner' && member.role !== 'manager') return false;
+      return admins.length <= 1;
+    };
+  }, [members]);
+  
+  // Open edit dialog
+  const handleEditClick = (member: TeamMember) => {
+    setEditingMember(member);
+    setEditDialogOpen(true);
+  };
+  
+  // Open delete dialog
+  const handleDeleteClick = (member: TeamMember) => {
+    setDeletingMember(member);
+    setDeleteDialogOpen(true);
+  };
+  
+  // Handle edit success
+  const handleEditSuccess = () => {
+    // Force refresh to get updated data
+    fetchData(false, true);
   };
 
   // Handle successful manual member addition
@@ -1018,16 +1075,31 @@ const TeamMembers = () => {
                           {canManageTeam && (
                             <TableCell className="py-4 text-right">
                               {isActiveMember(item) ? (
-                                item.role !== 'owner' && item.user_id !== user?.id && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => removeMember(item.id, item.role)}
-                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  >
-                                    Remove
-                                  </Button>
-                                )
+                                item.role !== 'owner' && item.user_id !== user?.id ? (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => handleEditClick(item)}>
+                                        <Pencil className="h-4 w-4 mr-2" />
+                                        Edit Member
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem 
+                                        onClick={() => handleDeleteClick(item)}
+                                        className="text-destructive focus:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Remove Member
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                ) : item.role === 'owner' ? (
+                                  <span className="text-xs text-muted-foreground">Owner</span>
+                                ) : null
                               ) : (
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
@@ -1085,6 +1157,26 @@ const TeamMembers = () => {
           onSuccess={handleManualMemberAdded}
         />
       )}
+      
+      {/* Edit Team Member Dialog */}
+      {organization && (
+        <EditTeamMemberDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          member={editingMember}
+          organizationId={organization.id}
+          onSuccess={handleEditSuccess}
+        />
+      )}
+      
+      {/* Delete Team Member Dialog */}
+      <DeleteMemberDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        member={deletingMember}
+        isLastAdmin={deletingMember ? isLastAdmin(deletingMember.id) : false}
+        onConfirm={handleDeleteMember}
+      />
     </div>
   );
 };

@@ -1,28 +1,16 @@
-import { useCallback, useRef } from 'react';
-import {
-  LayoutDashboard,
-  FileText,
-  FileCheck,
-  Calculator,
-  Wallet,
-  Users,
-  CalendarCheck,
-  Receipt,
-  ClipboardList,
-  Award,
-  ListTodo,
-  Building2,
-  LogOut,
-  BarChart3,
-  Settings,
-  Truck,
-  UserCog,
-} from 'lucide-react';
+import { useCallback, useRef, useMemo } from 'react';
+import { LogOut } from 'lucide-react';
 import creationPrintersLogo from '@/assets/creation-printers-logo.png';
 import appIconLogo from '@/assets/app-logo.jpg';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { usePermissions } from '@/lib/permissions/hooks';
+import {
+  sidebarNavGroups,
+  SidebarNavItem,
+  SidebarNavGroup,
+} from '@/lib/permissions/sidebarConfig';
 import {
   Sidebar,
   SidebarContent,
@@ -42,39 +30,11 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FavoritePages } from './FavoritePages';
 
-const mainNavItems = [
-  { title: 'Dashboard', url: '/', icon: LayoutDashboard },
-  { title: 'Invoices', url: '/invoices', icon: FileText },
-  { title: 'Quotations', url: '/quotations', icon: FileCheck },
-  { title: 'Price Calc', url: '/price-calculation', icon: Calculator },
-  { title: 'Challans', url: '/delivery-challans', icon: Truck },
-];
-
-const businessNavItems = [
-  { title: 'Customers', url: '/customers', icon: Users },
-  { title: 'Vendors', url: '/vendors', icon: Building2 },
-  { title: 'Expenses', url: '/expenses', icon: Wallet },
-];
-
-const hrNavItems = [
-  { title: 'Employees', url: '/employees', icon: Users },
-  { title: 'Attendance', url: '/attendance', icon: CalendarCheck },
-  { title: 'Salary', url: '/salary', icon: Receipt },
-  { title: 'Leave', url: '/leave', icon: ClipboardList },
-  { title: 'Performance', url: '/performance', icon: Award },
-  { title: 'Tasks', url: '/tasks', icon: ListTodo },
-];
-
-const settingsNavItems = [
-  { title: 'Reports', url: '/reports', icon: BarChart3 },
-  { title: 'Team', url: '/team-members', icon: UserCog },
-  { title: 'Settings', url: '/settings', icon: Settings },
-];
-
 export function AppSidebar() {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { organization } = useOrganization();
+  const { canPerform, isAdmin, orgRole } = usePermissions();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   
@@ -92,6 +52,24 @@ export function AppSidebar() {
       e.preventDefault();
     }
   }, [location.pathname]);
+
+  // Filter navigation items based on permissions
+  const filteredNavGroups = useMemo(() => {
+    return sidebarNavGroups.map((group): SidebarNavGroup => ({
+      ...group,
+      items: group.items.filter((item) => {
+        // If no permission required, always show
+        if (!item.permission) return true;
+        
+        // Admin bypass
+        if (isAdmin) return true;
+        
+        // Check if user has permission
+        const [module, action] = item.permission;
+        return canPerform(module, action);
+      }),
+    })).filter((group) => group.items.length > 0); // Remove empty groups
+  }, [canPerform, isAdmin, orgRole]);
 
   // Get current focused index
   const getFocusedIndex = useCallback(() => {
@@ -150,7 +128,7 @@ export function AppSidebar() {
     }
   }, [getFocusedIndex, location.pathname]);
 
-  const renderNavItems = (items: typeof mainNavItems, startIndex: number) => (
+  const renderNavItems = (items: SidebarNavItem[], startIndex: number) => (
     <SidebarMenu role="menu" className={cn(collapsed && "flex flex-col items-center")}>
       {items.map((item, idx) => {
         const globalIndex = startIndex + idx;
@@ -249,11 +227,8 @@ export function AppSidebar() {
     );
   };
 
-  // Calculate starting indices for each group
-  const mainStartIndex = 0;
-  const businessStartIndex = mainNavItems.length;
-  const hrStartIndex = businessStartIndex + businessNavItems.length;
-  const settingsStartIndex = hrStartIndex + hrNavItems.length;
+  // Calculate starting indices for each group dynamically
+  let currentIndex = 0;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/50">
@@ -310,37 +285,23 @@ export function AppSidebar() {
           aria-label="Main navigation"
           className={cn("space-y-4", collapsed && "space-y-2")}
         >
-          {/* Main Navigation */}
-          <SidebarGroup role="group" aria-labelledby="sidebar-group-main">
-            {renderGroupLabel('Main')}
-            <SidebarGroupContent className={cn(collapsed ? "space-y-1" : "space-y-0.5")}>
-              {renderNavItems(mainNavItems, mainStartIndex)}
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {/* Business */}
-          <SidebarGroup role="group" aria-labelledby="sidebar-group-business">
-            {renderGroupLabel('Business')}
-            <SidebarGroupContent className={cn(collapsed ? "space-y-1" : "space-y-0.5")}>
-              {renderNavItems(businessNavItems, businessStartIndex)}
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {/* HR & Operations */}
-          <SidebarGroup role="group" aria-labelledby="sidebar-group-hr-&-operations">
-            {renderGroupLabel('HR & Ops')}
-            <SidebarGroupContent className={cn(collapsed ? "space-y-1" : "space-y-0.5")}>
-              {renderNavItems(hrNavItems, hrStartIndex)}
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {/* System */}
-          <SidebarGroup role="group" aria-labelledby="sidebar-group-system">
-            {renderGroupLabel('System')}
-            <SidebarGroupContent className={cn(collapsed ? "space-y-1" : "space-y-0.5")}>
-              {renderNavItems(settingsNavItems, settingsStartIndex)}
-            </SidebarGroupContent>
-          </SidebarGroup>
+          {filteredNavGroups.map((group) => {
+            const startIndex = currentIndex;
+            currentIndex += group.items.length;
+            
+            return (
+              <SidebarGroup 
+                key={group.label} 
+                role="group" 
+                aria-labelledby={`sidebar-group-${group.label.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                {renderGroupLabel(group.label)}
+                <SidebarGroupContent className={cn(collapsed ? "space-y-1" : "space-y-0.5")}>
+                  {renderNavItems(group.items, startIndex)}
+                </SidebarGroupContent>
+              </SidebarGroup>
+            );
+          })}
         </nav>
       </SidebarContent>
 
