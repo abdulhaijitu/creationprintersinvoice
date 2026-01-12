@@ -616,20 +616,63 @@ const Salary = () => {
     }
   };
 
-  // Check if advance can be edited (only if never deducted)
-  const canEditAdvance = (advance: EmployeeAdvance) => {
-    return advance.remaining_balance === advance.amount;
+  // Check if advance can be edited - now allowed even if settled, but blocked if salary is paid
+  const canEditAdvance = async (advance: EmployeeAdvance): Promise<{ allowed: boolean; reason?: string; salaryPaid?: boolean }> => {
+    // If never deducted, always allow
+    if (advance.remaining_balance === advance.amount) {
+      return { allowed: true };
+    }
+    
+    // Check if related salary is marked as paid
+    if (advance.deducted_from_month && advance.deducted_from_year) {
+      const { data: salaryRecord } = await supabase
+        .from("employee_salary_records")
+        .select("id, status")
+        .eq("organization_id", organizationId)
+        .eq("employee_id", advance.employee_id)
+        .eq("month", advance.deducted_from_month)
+        .eq("year", advance.deducted_from_year)
+        .single();
+      
+      if (salaryRecord?.status === "paid") {
+        return { allowed: false, reason: "Cannot edit - related salary is marked as Paid", salaryPaid: true };
+      }
+    }
+    
+    return { allowed: true };
   };
 
-  // Check if advance can be deleted (only if never deducted)
-  const canDeleteAdvance = (advance: EmployeeAdvance) => {
-    return advance.remaining_balance === advance.amount;
+  // Check if advance can be deleted - now allowed even if settled, but blocked if salary is paid
+  const canDeleteAdvance = async (advance: EmployeeAdvance): Promise<{ allowed: boolean; reason?: string; salaryPaid?: boolean }> => {
+    // If never deducted, always allow
+    if (advance.remaining_balance === advance.amount) {
+      return { allowed: true };
+    }
+    
+    // Check if related salary is marked as paid
+    if (advance.deducted_from_month && advance.deducted_from_year) {
+      const { data: salaryRecord } = await supabase
+        .from("employee_salary_records")
+        .select("id, status")
+        .eq("organization_id", organizationId)
+        .eq("employee_id", advance.employee_id)
+        .eq("month", advance.deducted_from_month)
+        .eq("year", advance.deducted_from_year)
+        .single();
+      
+      if (salaryRecord?.status === "paid") {
+        return { allowed: false, reason: "Cannot delete - related salary is marked as Paid", salaryPaid: true };
+      }
+    }
+    
+    return { allowed: true };
   };
 
   // Open edit dialog for advance
-  const openEditAdvance = (advance: EmployeeAdvance) => {
-    if (!canEditAdvance(advance)) {
-      toast.error("Cannot edit advance after salary deduction has started.");
+  const openEditAdvance = async (advance: EmployeeAdvance) => {
+    const checkResult = await canEditAdvance(advance);
+    if (!checkResult.allowed) {
+      toast.error(checkResult.reason || "Cannot edit this advance");
       return;
     }
     setEditingAdvance(advance);
@@ -640,7 +683,7 @@ const Salary = () => {
     });
   };
 
-  // Handle edit advance submission
+  // Handle edit advance submission (with salary rollback for settled advances)
   const handleEditAdvance = async () => {
     if (!editingAdvance) return;
 
@@ -655,19 +698,101 @@ const Salary = () => {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from("employee_advances")
-        .update({
-          amount: validatedAmount,
-          remaining_balance: validatedAmount, // Update remaining_balance since never deducted
-          deduct_month: editAdvanceForm.deduct_month,
-          reason: editAdvanceForm.reason || null,
-        })
-        .eq("id", editingAdvance.id);
+      const wasDeducted = editingAdvance.remaining_balance !== editingAdvance.amount;
+      const oldDeductedAmount = editingAdvance.amount - (editingAdvance.remaining_balance ?? editingAdvance.amount);
+      
+      // If advance was already deducted, we need to update the related salary record
+      if (wasDeducted && editingAdvance.deducted_from_month && editingAdvance.deducted_from_year) {
+        // Find the related salary record
+        const { data: salaryRecord } = await supabase
+          .from("employee_salary_records")
+          .select("*")
+          .eq("organization_id", organizationId)
+          .eq("employee_id", editingAdvance.employee_id)
+          .eq("month", editingAdvance.deducted_from_month)
+          .eq("year", editingAdvance.deducted_from_year)
+          .single();
 
-      if (error) throw error;
+        if (salaryRecord) {
+          // Calculate new deduction amount (cap at gross - deductions)
+          const grossSalary = salaryRecord.basic_salary + salaryRecord.bonus;
+          const maxDeductible = Math.max(0, grossSalary - salaryRecord.deductions);
+          const newDeductedAmount = Math.min(validatedAmount, maxDeductible);
+          const newRemainingBalance = validatedAmount - newDeductedAmount;
+          
+          // Update salary record: remove old advance, apply new
+          const advanceDiff = newDeductedAmount - oldDeductedAmount;
+          const newAdvanceTotal = (salaryRecord.advance || 0) + advanceDiff;
+          const newNetPayable = grossSalary - salaryRecord.deductions - newAdvanceTotal;
+          
+          // Update advance_deduction_details
+          let deductionDetails: AdvanceDeductionDetail[] = [];
+          try {
+            if (salaryRecord.advance_deduction_details) {
+              if (typeof salaryRecord.advance_deduction_details === 'string') {
+                deductionDetails = JSON.parse(salaryRecord.advance_deduction_details);
+              } else if (Array.isArray(salaryRecord.advance_deduction_details)) {
+                deductionDetails = salaryRecord.advance_deduction_details as unknown as AdvanceDeductionDetail[];
+              }
+            }
+          } catch {
+            deductionDetails = [];
+          }
+          
+          // Update the specific advance entry in details
+          const detailIndex = deductionDetails.findIndex(d => d.advance_id === editingAdvance.id);
+          if (detailIndex >= 0) {
+            deductionDetails[detailIndex] = {
+              advance_id: editingAdvance.id,
+              amount_deducted: newDeductedAmount,
+              remaining_after: newRemainingBalance,
+            };
+          }
+          
+          // Update salary record
+          const { error: salaryError } = await supabase
+            .from("employee_salary_records")
+            .update({
+              advance: newAdvanceTotal,
+              net_payable: newNetPayable,
+              advance_deduction_details: JSON.stringify(deductionDetails),
+            })
+            .eq("id", salaryRecord.id);
+          
+          if (salaryError) throw salaryError;
+          
+          // Update advance record
+          const { error: advanceError } = await supabase
+            .from("employee_advances")
+            .update({
+              amount: validatedAmount,
+              remaining_balance: newRemainingBalance,
+              deduct_month: editAdvanceForm.deduct_month,
+              reason: editAdvanceForm.reason || null,
+              status: newRemainingBalance === 0 ? "settled" : "active",
+            })
+            .eq("id", editingAdvance.id);
+          
+          if (advanceError) throw advanceError;
+          
+          toast.success(`Advance updated. Salary recalculated: ${formatCurrency(newNetPayable)} net payable.`);
+        }
+      } else {
+        // Never deducted - simple update
+        const { error } = await supabase
+          .from("employee_advances")
+          .update({
+            amount: validatedAmount,
+            remaining_balance: validatedAmount,
+            deduct_month: editAdvanceForm.deduct_month,
+            reason: editAdvanceForm.reason || null,
+          })
+          .eq("id", editingAdvance.id);
 
-      toast.success("Advance updated successfully");
+        if (error) throw error;
+        toast.success("Advance updated successfully");
+      }
+      
       setEditingAdvance(null);
       fetchData();
     } catch (error) {
@@ -678,18 +803,79 @@ const Salary = () => {
     }
   };
 
-  // Handle delete advance
+  // Handle delete advance (with salary rollback for settled advances)
   const handleDeleteAdvance = async () => {
     if (!deletingAdvance) return;
 
-    if (!canDeleteAdvance(deletingAdvance)) {
-      toast.error("Cannot delete advance already used in salary.");
+    // Check if salary is paid
+    const checkResult = await canDeleteAdvance(deletingAdvance);
+    if (!checkResult.allowed) {
+      toast.error(checkResult.reason || "Cannot delete this advance");
       setDeletingAdvance(null);
       return;
     }
 
     setSubmitting(true);
     try {
+      const wasDeducted = deletingAdvance.remaining_balance !== deletingAdvance.amount;
+      const deductedAmount = deletingAdvance.amount - (deletingAdvance.remaining_balance ?? deletingAdvance.amount);
+      
+      // If advance was already deducted, we need to roll back the salary record
+      if (wasDeducted && deletingAdvance.deducted_from_month && deletingAdvance.deducted_from_year) {
+        // Find the related salary record
+        const { data: salaryRecord } = await supabase
+          .from("employee_salary_records")
+          .select("*")
+          .eq("organization_id", organizationId)
+          .eq("employee_id", deletingAdvance.employee_id)
+          .eq("month", deletingAdvance.deducted_from_month)
+          .eq("year", deletingAdvance.deducted_from_year)
+          .single();
+
+        if (salaryRecord) {
+          // Roll back: remove the advance deduction from salary
+          const newAdvanceTotal = Math.max(0, (salaryRecord.advance || 0) - deductedAmount);
+          const grossSalary = salaryRecord.basic_salary + salaryRecord.bonus;
+          const newNetPayable = grossSalary - salaryRecord.deductions - newAdvanceTotal;
+          
+          // Update advance_deduction_details - remove this advance
+          let deductionDetails: AdvanceDeductionDetail[] = [];
+          try {
+            if (salaryRecord.advance_deduction_details) {
+              if (typeof salaryRecord.advance_deduction_details === 'string') {
+                deductionDetails = JSON.parse(salaryRecord.advance_deduction_details);
+              } else if (Array.isArray(salaryRecord.advance_deduction_details)) {
+                deductionDetails = salaryRecord.advance_deduction_details as unknown as AdvanceDeductionDetail[];
+              }
+            }
+          } catch {
+            deductionDetails = [];
+          }
+          
+          // Remove the advance entry from details
+          deductionDetails = deductionDetails.filter(d => d.advance_id !== deletingAdvance.id);
+          
+          // Update advance_deducted_ids
+          const advanceIds = salaryRecord.advance_deducted_ids?.filter(id => id !== deletingAdvance.id) || null;
+          
+          // Update salary record
+          const { error: salaryError } = await supabase
+            .from("employee_salary_records")
+            .update({
+              advance: newAdvanceTotal,
+              net_payable: newNetPayable,
+              advance_deduction_details: deductionDetails.length > 0 ? JSON.stringify(deductionDetails) : null,
+              advance_deducted_ids: advanceIds && advanceIds.length > 0 ? advanceIds : null,
+            })
+            .eq("id", salaryRecord.id);
+          
+          if (salaryError) throw salaryError;
+          
+          toast.success(`Advance deleted. Salary updated: ${formatCurrency(deductedAmount)} restored to net payable.`);
+        }
+      }
+      
+      // Delete the advance record
       const { error } = await supabase
         .from("employee_advances")
         .delete()
@@ -697,7 +883,10 @@ const Salary = () => {
 
       if (error) throw error;
 
-      toast.success("Advance deleted successfully");
+      if (!wasDeducted) {
+        toast.success("Advance deleted successfully");
+      }
+      
       setDeletingAdvance(null);
       fetchData();
     } catch (error) {
@@ -1373,8 +1562,7 @@ const Salary = () => {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8"
-                              disabled={!canEditAdvance(advance)}
-                              title={!canEditAdvance(advance) ? "Cannot edit after deduction" : "Edit advance"}
+                              title={advance.status === "settled" ? "Edit (will recalculate salary)" : "Edit advance"}
                               onClick={() => openEditAdvance(advance)}
                             >
                               <Pencil className="h-4 w-4" />
@@ -1383,8 +1571,7 @@ const Salary = () => {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 text-destructive hover:text-destructive"
-                              disabled={!canDeleteAdvance(advance)}
-                              title={!canDeleteAdvance(advance) ? "Cannot delete after deduction" : "Delete advance"}
+                              title={advance.status === "settled" ? "Delete (will recalculate salary)" : "Delete advance"}
                               onClick={() => setDeletingAdvance(advance)}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1551,6 +1738,17 @@ const Salary = () => {
                 </p>
               </div>
 
+              {/* Warning for settled advances */}
+              {editingAdvance.remaining_balance !== editingAdvance.amount && (
+                <Alert className="border-warning bg-warning/10">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
+                  <AlertTitle className="text-warning">Salary Recalculation</AlertTitle>
+                  <AlertDescription className="text-sm">
+                    This advance has been deducted from salary. Editing will recalculate the related salary record.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="space-y-2">
                 <Label>Amount</Label>
                 <Input
@@ -1566,7 +1764,13 @@ const Salary = () => {
                   type="month"
                   value={editAdvanceForm.deduct_month}
                   onChange={(e) => setEditAdvanceForm({ ...editAdvanceForm, deduct_month: e.target.value })}
+                  disabled={editingAdvance.remaining_balance !== editingAdvance.amount}
                 />
+                {editingAdvance.remaining_balance !== editingAdvance.amount && (
+                  <p className="text-xs text-muted-foreground">
+                    Deduct month cannot be changed after deduction
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -1604,6 +1808,14 @@ const Salary = () => {
                   <p className="text-muted-foreground">
                     Amount: {formatCurrency(deletingAdvance.amount)}
                   </p>
+                  {deletingAdvance.remaining_balance !== deletingAdvance.amount && (
+                    <Alert className="mt-3 border-warning bg-warning/10">
+                      <AlertTriangle className="h-4 w-4 text-warning" />
+                      <AlertDescription className="text-warning text-xs">
+                        This advance has been deducted from salary. Deleting will recalculate the related salary record and restore {formatCurrency(deletingAdvance.amount - (deletingAdvance.remaining_balance ?? deletingAdvance.amount))} to net payable.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               )}
             </AlertDialogDescription>
