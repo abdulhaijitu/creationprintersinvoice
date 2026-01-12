@@ -21,8 +21,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
 // Permission actions
-type PermissionAction = 'view' | 'create' | 'edit' | 'delete';
-const PERMISSION_ACTIONS: PermissionAction[] = ['view', 'create', 'edit', 'delete'];
+type PermissionAction = 'view' | 'manage' | 'create' | 'edit' | 'delete';
+const PERMISSION_ACTIONS: PermissionAction[] = ['view', 'manage', 'create', 'edit', 'delete'];
 
 // Module name mappings - handles variations in database vs config
 // Key = config module name, Value = database module name(s)
@@ -33,12 +33,12 @@ const MODULE_NAME_ALIASES: Record<string, string[]> = {
   'quotations': ['quotations'],
   'price_calculation': ['price_calculation', 'price_calculations'],
   'challan': ['challan', 'delivery_challans'],
-  
+
   // Business modules
   'customers': ['customers'],
   'vendors': ['vendors'],
   'expenses': ['expenses'],
-  
+
   // HR modules
   'employees': ['employees'],
   'attendance': ['attendance'],
@@ -46,7 +46,7 @@ const MODULE_NAME_ALIASES: Record<string, string[]> = {
   'leave': ['leave'],
   'performance': ['performance'],
   'tasks': ['tasks'],
-  
+
   // System modules
   'reports': ['reports'],
   'team': ['team', 'team_members'],
@@ -122,7 +122,7 @@ export const extractModuleFromSidebarKey = (sidebarKey: string): string => {
 export function useEffectivePermissions() {
   const { user, isSuperAdmin } = useAuth();
   const { organization, orgRole, isOrgOwner, loading: orgLoading } = useOrganization();
-  
+
   const [permissionMap, setPermissionMap] = useState<Map<string, boolean>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -130,7 +130,9 @@ export function useEffectivePermissions() {
   const isMountedRef = useRef(true);
 
   /**
-   * Fetch and normalize permissions from database
+   * Fetch and normalize effective permissions:
+   * - role permissions (org_role_permissions)
+   * - overridden by org-specific permissions (org_specific_permissions)
    */
   const fetchPermissions = useCallback(async (forceRefresh = false) => {
     // Skip if no org or still loading org context
@@ -171,34 +173,43 @@ export function useEffectivePermissions() {
     }
 
     try {
-      console.log(`[EffectivePermissions] Fetching for org: ${organization.id}, role: ${orgRole}`);
-      
-      const { data, error: fetchError } = await supabase
-        .from('org_specific_permissions')
-        .select('permission_key, is_enabled')
-        .eq('organization_id', organization.id)
-        .eq('role', orgRole);
+      console.log(`[EffectivePermissions] Fetching effective permissions for org: ${organization.id}, role: ${orgRole}`);
 
-      if (fetchError) throw fetchError;
+      const [globalRes, orgRes] = await Promise.all([
+        supabase
+          .from('org_role_permissions')
+          .select('permission_key, is_enabled')
+          .eq('role', orgRole),
+        supabase
+          .from('org_specific_permissions')
+          .select('permission_key, is_enabled')
+          .eq('organization_id', organization.id)
+          .eq('role', orgRole),
+      ]);
 
-      // Normalize permissions into canonical form
+      if (globalRes.error) throw globalRes.error;
+      if (orgRes.error) throw orgRes.error;
+
       const normalizedMap = new Map<string, boolean>();
-      
-      (data || []).forEach(perm => {
-        // Parse the permission key (e.g., "invoices.view")
+
+      // 1) Global role permissions first
+      (globalRes.data || []).forEach((perm) => {
         const [moduleRaw, action] = perm.permission_key.split('.');
-        
-        if (moduleRaw && action) {
-          // Normalize module name to canonical form
-          const canonicalModule = normalizeModuleName(moduleRaw);
-          const canonicalKey = `${canonicalModule}.${action}`;
-          
-          // Store with canonical key
-          normalizedMap.set(canonicalKey, perm.is_enabled);
-          
-          // Also store with original key for backward compatibility
-          normalizedMap.set(perm.permission_key, perm.is_enabled);
-        }
+        if (!moduleRaw || !action) return;
+
+        const canonicalModule = normalizeModuleName(moduleRaw);
+        normalizedMap.set(`${canonicalModule}.${action}`, perm.is_enabled);
+        normalizedMap.set(perm.permission_key, perm.is_enabled);
+      });
+
+      // 2) Org-specific overrides overwrite global
+      (orgRes.data || []).forEach((perm) => {
+        const [moduleRaw, action] = perm.permission_key.split('.');
+        if (!moduleRaw || !action) return;
+
+        const canonicalModule = normalizeModuleName(moduleRaw);
+        normalizedMap.set(`${canonicalModule}.${action}`, perm.is_enabled);
+        normalizedMap.set(perm.permission_key, perm.is_enabled);
       });
 
       // Update cache
@@ -216,14 +227,9 @@ export function useEffectivePermissions() {
         setLoading(false);
       }
 
-      console.log(`[EffectivePermissions] Loaded ${normalizedMap.size} permissions for role: ${orgRole}`);
-      
-      // Debug log the permissions
-      const enabledPerms: string[] = [];
-      normalizedMap.forEach((enabled, key) => {
-        if (enabled) enabledPerms.push(key);
-      });
-      console.log('[EffectivePermissions] Enabled permissions:', enabledPerms);
+      console.log(
+        `[EffectivePermissions] Loaded effective permissions: global=${globalRes.data?.length || 0}, overrides=${orgRes.data?.length || 0}`
+      );
 
       return normalizedMap;
     } catch (err) {
@@ -239,11 +245,11 @@ export function useEffectivePermissions() {
   // Initial fetch and refetch on org/role change
   useEffect(() => {
     isMountedRef.current = true;
-    
+
     if (!orgLoading) {
       fetchPermissions();
     }
-    
+
     return () => {
       isMountedRef.current = false;
     };
@@ -251,7 +257,7 @@ export function useEffectivePermissions() {
 
   /**
    * Check if user has a specific permission
-   * @param permissionKey - Full key (e.g., "invoices.view") or partial (e.g., "invoices")
+   * @param permissionKey - Full key (e.g., "invoices.view")
    */
   const hasPermission = useCallback((permissionKey: string): boolean => {
     // Bypass for privileged users
@@ -264,7 +270,7 @@ export function useEffectivePermissions() {
   /**
    * Check if user has ANY permission for a sidebar module
    * This is the key function for sidebar visibility
-   * 
+   *
    * @param sidebarKey - Sidebar permission key (e.g., "main.invoices", "business.customers")
    */
   const hasModuleAccess = useCallback((sidebarKey: string): boolean => {
@@ -275,33 +281,116 @@ export function useEffectivePermissions() {
     // Extract module name from sidebar key
     const moduleName = extractModuleFromSidebarKey(sidebarKey);
     const canonicalName = normalizeModuleName(moduleName);
-    
+
     // Get all possible database aliases for this module
     const aliases = getModuleAliases(canonicalName);
-    
+
     // Check if ANY action is enabled for ANY alias
     for (const alias of aliases) {
       for (const action of PERMISSION_ACTIONS) {
         const key = `${alias}.${action}`;
         if (permissionMap.get(key) === true) {
-          console.log(`[EffectivePermissions] Module access GRANTED for ${sidebarKey} via ${key}`);
           return true;
         }
       }
     }
-    
+
     // Also check canonical form
     for (const action of PERMISSION_ACTIONS) {
       const key = `${canonicalName}.${action}`;
       if (permissionMap.get(key) === true) {
-        console.log(`[EffectivePermissions] Module access GRANTED for ${sidebarKey} via ${key}`);
         return true;
       }
     }
 
-    console.log(`[EffectivePermissions] Module access DENIED for ${sidebarKey}`);
     return false;
   }, [permissionMap, isSuperAdmin, isOrgOwner, orgRole]);
+
+  /**
+   * Check if user has at least one permission anywhere (for dashboard access)
+   */
+  const hasAnyPermission = useMemo((): boolean => {
+    if (isSuperAdmin || isOrgOwner) return true;
+    if (!orgRole) return false;
+
+    // Check if any permission is enabled
+    for (const enabled of permissionMap.values()) {
+      if (enabled) return true;
+    }
+    return false;
+  }, [permissionMap, isSuperAdmin, isOrgOwner, orgRole]);
+
+  /**
+   * Get all enabled modules (for debugging)
+   */
+  const getEnabledModules = useCallback((): string[] => {
+    const modules = new Set<string>();
+
+    permissionMap.forEach((enabled, key) => {
+      if (enabled) {
+        const [moduleName] = key.split('.');
+        if (moduleName) {
+          modules.add(normalizeModuleName(moduleName));
+        }
+      }
+    });
+
+    return Array.from(modules);
+  }, [permissionMap]);
+
+  /**
+   * Force refresh permissions
+   */
+  const refreshPermissions = useCallback(async () => {
+    console.log('[EffectivePermissions] Force refreshing...');
+    invalidateEffectivePermissions();
+    return fetchPermissions(true);
+  }, [fetchPermissions]);
+
+  /**
+   * Debug: Log current permission state
+   */
+  const debugPermissions = useCallback(() => {
+    console.log('=== EFFECTIVE PERMISSIONS DEBUG ===');
+    console.log('User ID:', user?.id);
+    console.log('Org ID:', organization?.id);
+    console.log('Org Role:', orgRole);
+    console.log('Is Super Admin:', isSuperAdmin);
+    console.log('Is Org Owner:', isOrgOwner);
+    console.log('Loading:', loading);
+    console.log('Permission Map Size:', permissionMap.size);
+    console.log('Enabled Modules:', getEnabledModules());
+    console.log('Has Any Permission:', hasAnyPermission);
+    console.log('=== END DEBUG ===');
+  }, [user?.id, organization?.id, orgRole, isSuperAdmin, isOrgOwner, loading, permissionMap.size, getEnabledModules, hasAnyPermission]);
+
+  return {
+    // Core permission checks
+    hasPermission,
+    hasModuleAccess,
+    hasAnyPermission,
+
+    // Raw data
+    permissionMap,
+
+    // State
+    loading: loading || orgLoading,
+    error,
+    lastFetch,
+
+    // Actions
+    refreshPermissions,
+
+    // Debug
+    getEnabledModules,
+    debugPermissions,
+
+    // Context info
+    orgRole,
+    organizationId: organization?.id,
+    isOrgOwner,
+    isSuperAdmin,
+  };
 
   /**
    * Check if user has at least one permission anywhere (for dashboard access)
