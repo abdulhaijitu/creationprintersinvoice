@@ -5,7 +5,7 @@ import appIconLogo from '@/assets/app-logo.jpg';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { useEffectivePermissions } from '@/hooks/useEffectivePermissions';
+import { usePermissionContext } from '@/contexts/PermissionContext';
 import {
   sidebarNavGroups,
   SidebarNavItem,
@@ -35,15 +35,16 @@ export function AppSidebar() {
   const { user, signOut, isSuperAdmin } = useAuth();
   const { organization, isOrgOwner, orgRole } = useOrganization();
   
-  // Use the new effective permissions hook - SINGLE SOURCE OF TRUTH
+  // Use the Permission Context - SINGLE SOURCE OF TRUTH with realtime updates
   const { 
     hasModuleAccess, 
     hasAnyPermission, 
     refreshPermissions, 
     loading: permissionsLoading,
-    debugPermissions,
     getEnabledModules,
-  } = useEffectivePermissions();
+    permissionsReady,
+    lastUpdated,
+  } = usePermissionContext();
   
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
@@ -54,11 +55,11 @@ export function AppSidebar() {
 
   // Debug permissions on load and when they change
   useEffect(() => {
-    if (!permissionsLoading) {
-      console.log('[AppSidebar] Permissions loaded. Enabled modules:', getEnabledModules());
-      debugPermissions();
+    if (permissionsReady) {
+      console.log('[AppSidebar] Permissions ready. Enabled modules:', getEnabledModules());
+      console.log('[AppSidebar] Last updated:', new Date(lastUpdated).toISOString());
     }
-  }, [permissionsLoading, debugPermissions, getEnabledModules]);
+  }, [permissionsReady, getEnabledModules, lastUpdated]);
 
   // Refresh permissions on route change to pick up any updates
   const lastPathRef = useRef(location.pathname);
@@ -81,51 +82,43 @@ export function AppSidebar() {
     }
   }, [location.pathname]);
 
-  // Filter navigation items based on EFFECTIVE PERMISSIONS
-  // CRITICAL: Uses hasModuleAccess which checks the normalized permission map
+  // Filter navigation items based on PERMISSION CONTEXT
+  // CRITICAL: Uses hasModuleAccess which checks the normalized permission map with realtime updates
   // ANY-ON rule: show module if user has AT LEAST ONE permission (view/create/edit/delete) enabled
   const filteredNavGroups = useMemo(() => {
-    console.log('[AppSidebar] Computing filtered nav groups...');
-    console.log('[AppSidebar] isSuperAdmin:', isSuperAdmin, 'isOrgOwner:', isOrgOwner, 'orgRole:', orgRole);
+    console.log('[AppSidebar] Computing filtered nav groups (update:', lastUpdated, ')');
     
     const result = sidebarNavGroups.map((group): SidebarNavGroup => ({
       ...group,
       items: group.items.filter((item) => {
         // If no permission key required, always show
         if (!item.permissionKey) {
-          console.log(`[AppSidebar] ${item.title}: SHOW (no permission required)`);
           return true;
         }
         
         // Super Admin bypass - always show all items
         if (isSuperAdmin) {
-          console.log(`[AppSidebar] ${item.title}: SHOW (super admin bypass)`);
           return true;
         }
         
         // Owner bypass - always show all items
         if (isOrgOwner) {
-          console.log(`[AppSidebar] ${item.title}: SHOW (owner bypass)`);
           return true;
         }
         
         // DASHBOARD SPECIAL RULE: Show if user has at least ONE permission anywhere
         if (item.requiresAnyPermission) {
-          const show = hasAnyPermission;
-          console.log(`[AppSidebar] ${item.title}: ${show ? 'SHOW' : 'HIDE'} (requiresAnyPermission: ${hasAnyPermission})`);
-          return show;
+          return hasAnyPermission;
         }
         
         // ANY-ON RULE: Check if user has ANY permission for this module
-        const hasAccess = hasModuleAccess(item.permissionKey);
-        console.log(`[AppSidebar] ${item.title} (${item.permissionKey}): ${hasAccess ? 'SHOW' : 'HIDE'}`);
-        return hasAccess;
+        return hasModuleAccess(item.permissionKey);
       }),
     })).filter((group) => group.items.length > 0); // Remove empty groups
     
     console.log('[AppSidebar] Filtered groups:', result.map(g => ({ label: g.label, items: g.items.map(i => i.title) })));
     return result;
-  }, [hasModuleAccess, hasAnyPermission, isSuperAdmin, isOrgOwner, orgRole, permissionsLoading]);
+  }, [hasModuleAccess, hasAnyPermission, isSuperAdmin, isOrgOwner, lastUpdated]);
 
   // Get current focused index
   const getFocusedIndex = useCallback(() => {
