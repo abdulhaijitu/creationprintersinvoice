@@ -302,7 +302,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
       }
 
       setOrgPermissions(newOrgPermissions);
-      invalidateModulePermissionCache(organization.id);
+      invalidateModulePermissionCache();
       onPermissionsChanged?.();
       
     } catch (error) {
