@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
@@ -34,6 +34,14 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Database } from "@/integrations/supabase/types";
+import { TimeInput } from "@/components/attendance/TimeInput";
+import {
+  formatDateTimeForDisplay,
+  extractTimeFromDateTime,
+  combineDateTime,
+  validateAttendanceTimes,
+  normalizeToTime24,
+} from "@/lib/timeUtils";
 
 type AttendanceStatus = Database["public"]["Enums"]["attendance_status"];
 
@@ -53,6 +61,11 @@ interface AttendanceRecord {
   employee?: Employee | null;
 }
 
+interface TimeErrors {
+  checkInError: string | null;
+  checkOutError: string | null;
+}
+
 const Attendance = () => {
   const { isAdmin } = useAuth();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
@@ -70,6 +83,13 @@ const Attendance = () => {
     status: "present" as AttendanceStatus,
     notes: "",
   });
+  const [formErrors, setFormErrors] = useState<TimeErrors>({
+    checkInError: null,
+    checkOutError: null,
+  });
+  
+  // Track which rows are being updated
+  const [updatingRows, setUpdatingRows] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (hasOrgContext && organizationId) {
@@ -114,16 +134,30 @@ const Attendance = () => {
       }
     } catch (error) {
       console.error("Error fetching attendance:", error);
+      toast.error("Failed to load attendance data");
     } finally {
       setLoading(false);
     }
   };
+
+  // Validate form times before submission
+  const validateFormTimes = useCallback((): boolean => {
+    const errors = validateAttendanceTimes(newAttendance.check_in, newAttendance.check_out);
+    setFormErrors(errors);
+    return !errors.checkInError && !errors.checkOutError;
+  }, [newAttendance.check_in, newAttendance.check_out]);
 
   const handleAddAttendance = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!newAttendance.employee_id) {
       toast.error("Please select an employee");
+      return;
+    }
+
+    // Validate times
+    if (!validateFormTimes()) {
+      toast.error("Please fix the time errors before saving");
       return;
     }
 
@@ -143,11 +177,15 @@ const Attendance = () => {
         return;
       }
 
+      // Combine date and time for storage (properly normalized)
+      const checkInTimestamp = combineDateTime(selectedDate, newAttendance.check_in);
+      const checkOutTimestamp = combineDateTime(selectedDate, newAttendance.check_out);
+
       const { error } = await supabase.from("employee_attendance").insert({
         employee_id: newAttendance.employee_id,
         date: selectedDate,
-        check_in: newAttendance.check_in ? `${selectedDate}T${newAttendance.check_in}:00` : null,
-        check_out: newAttendance.check_out ? `${selectedDate}T${newAttendance.check_out}:00` : null,
+        check_in: checkInTimestamp,
+        check_out: checkOutTimestamp,
         status: newAttendance.status,
         notes: newAttendance.notes || null,
         organization_id: organizationId,
@@ -155,15 +193,9 @@ const Attendance = () => {
 
       if (error) throw error;
 
-      toast.success("Attendance added");
+      toast.success("Attendance added successfully");
       setIsAddDialogOpen(false);
-      setNewAttendance({
-        employee_id: "",
-        check_in: "",
-        check_out: "",
-        status: "present",
-        notes: "",
-      });
+      resetForm();
       fetchData();
     } catch (error) {
       console.error("Error adding attendance:", error);
@@ -171,6 +203,17 @@ const Attendance = () => {
     } finally {
       setAddLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setNewAttendance({
+      employee_id: "",
+      check_in: "",
+      check_out: "",
+      status: "present",
+      notes: "",
+    });
+    setFormErrors({ checkInError: null, checkOutError: null });
   };
 
   const updateStatus = async (id: string, status: AttendanceStatus) => {
@@ -182,39 +225,125 @@ const Attendance = () => {
 
       if (error) throw error;
 
+      // Optimistic update
+      setAttendance(prev => 
+        prev.map(record => 
+          record.id === id ? { ...record, status } : record
+        )
+      );
       toast.success("Status updated");
-      fetchData();
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error("Failed to update status");
+      fetchData(); // Refresh on error
     }
   };
 
-  const updateCheckIn = async (id: string, time: string) => {
+  const updateCheckIn = async (id: string, time: string, recordDate: string) => {
+    // Validate time before updating
+    if (time) {
+      const normalized = normalizeToTime24(time);
+      if (!normalized) {
+        toast.error("Invalid time format");
+        return;
+      }
+      
+      // Get the current record to validate against check-out
+      const record = attendance.find(r => r.id === id);
+      if (record?.check_out) {
+        const checkOutTime = extractTimeFromDateTime(record.check_out);
+        const errors = validateAttendanceTimes(normalized, checkOutTime);
+        if (errors.checkInError) {
+          toast.error(errors.checkInError);
+          return;
+        }
+        if (errors.checkOutError) {
+          toast.error("Check-in time conflicts with check-out");
+          return;
+        }
+      }
+    }
+
+    setUpdatingRows(prev => new Set(prev).add(id));
+    
     try {
+      const timestamp = time ? combineDateTime(recordDate, time) : null;
+      
       const { error } = await supabase
         .from("employee_attendance")
-        .update({ check_in: time ? `${selectedDate}T${time}:00` : null })
+        .update({ check_in: timestamp })
         .eq("id", id);
 
       if (error) throw error;
-      fetchData();
+
+      // Optimistic update
+      setAttendance(prev => 
+        prev.map(record => 
+          record.id === id ? { ...record, check_in: timestamp } : record
+        )
+      );
     } catch (error) {
       console.error("Error updating check-in:", error);
+      toast.error("Failed to update check-in time");
+      fetchData(); // Refresh on error
+    } finally {
+      setUpdatingRows(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
-  const updateCheckOut = async (id: string, time: string) => {
+  const updateCheckOut = async (id: string, time: string, recordDate: string) => {
+    // Validate time before updating
+    if (time) {
+      const normalized = normalizeToTime24(time);
+      if (!normalized) {
+        toast.error("Invalid time format");
+        return;
+      }
+      
+      // Get the current record to validate against check-in
+      const record = attendance.find(r => r.id === id);
+      if (record?.check_in) {
+        const checkInTime = extractTimeFromDateTime(record.check_in);
+        const errors = validateAttendanceTimes(checkInTime, normalized);
+        if (errors.checkOutError) {
+          toast.error(errors.checkOutError);
+          return;
+        }
+      }
+    }
+
+    setUpdatingRows(prev => new Set(prev).add(id));
+    
     try {
+      const timestamp = time ? combineDateTime(recordDate, time) : null;
+      
       const { error } = await supabase
         .from("employee_attendance")
-        .update({ check_out: time ? `${selectedDate}T${time}:00` : null })
+        .update({ check_out: timestamp })
         .eq("id", id);
 
       if (error) throw error;
-      fetchData();
+
+      // Optimistic update
+      setAttendance(prev => 
+        prev.map(record => 
+          record.id === id ? { ...record, check_out: timestamp } : record
+        )
+      );
     } catch (error) {
       console.error("Error updating check-out:", error);
+      toast.error("Failed to update check-out time");
+      fetchData(); // Refresh on error
+    } finally {
+      setUpdatingRows(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -231,11 +360,16 @@ const Attendance = () => {
         return;
       }
 
+      // Use current time in 24-hour format for check-in
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const checkInTimestamp = combineDateTime(selectedDate, currentTime);
+
       const records = unmarked.map((emp) => ({
         employee_id: emp.id,
         date: selectedDate,
         status: "present" as AttendanceStatus,
-        check_in: new Date().toISOString(),
+        check_in: checkInTimestamp,
         organization_id: organizationId,
       }));
 
@@ -266,19 +400,19 @@ const Attendance = () => {
     }
   };
 
-  const formatTime = (dateString: string | null) => {
-    if (!dateString) return "-";
-    return format(new Date(dateString), "hh:mm a");
-  };
-
-  const getTimeValue = (dateString: string | null) => {
-    if (!dateString) return "";
-    return format(new Date(dateString), "HH:mm");
-  };
-
   const presentCount = attendance.filter((a) => a.status === "present").length;
   const absentCount = attendance.filter((a) => a.status === "absent").length;
   const lateCount = attendance.filter((a) => a.status === "late").length;
+
+  // Clear form errors when form values change
+  useEffect(() => {
+    if (newAttendance.check_in || newAttendance.check_out) {
+      const errors = validateAttendanceTimes(newAttendance.check_in, newAttendance.check_out);
+      setFormErrors(errors);
+    }
+  }, [newAttendance.check_in, newAttendance.check_out]);
+
+  const isFormValid = !formErrors.checkInError && !formErrors.checkOutError && newAttendance.employee_id;
 
   return (
     <div className="space-y-6">
@@ -293,9 +427,12 @@ const Attendance = () => {
               <UserCheck className="mr-2 h-4 w-4" />
               Mark All Present
             </Button>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+              setIsAddDialogOpen(open);
+              if (!open) resetForm();
+            }}>
               <DialogTrigger asChild>
-                <Button>
+                <Button type="button">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Attendance
                 </Button>
@@ -325,22 +462,20 @@ const Attendance = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Check In</Label>
-                      <Input
-                        type="time"
-                        value={newAttendance.check_in}
-                        onChange={(e) => setNewAttendance({ ...newAttendance, check_in: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Check Out</Label>
-                      <Input
-                        type="time"
-                        value={newAttendance.check_out}
-                        onChange={(e) => setNewAttendance({ ...newAttendance, check_out: e.target.value })}
-                      />
-                    </div>
+                    <TimeInput
+                      label="Check In"
+                      value={newAttendance.check_in}
+                      onChange={(v) => setNewAttendance({ ...newAttendance, check_in: v })}
+                      error={formErrors.checkInError}
+                      showPreview={true}
+                    />
+                    <TimeInput
+                      label="Check Out"
+                      value={newAttendance.check_out}
+                      onChange={(v) => setNewAttendance({ ...newAttendance, check_out: v })}
+                      error={formErrors.checkOutError}
+                      showPreview={true}
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -374,7 +509,7 @@ const Attendance = () => {
                     <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={addLoading}>
+                    <Button type="submit" disabled={addLoading || !isFormValid}>
                       {addLoading ? "Adding..." : "Add"}
                     </Button>
                   </div>
@@ -491,7 +626,7 @@ const Attendance = () => {
               </TableRow>
             ) : (
               attendance.map((record) => (
-                <TableRow key={record.id}>
+                <TableRow key={record.id} className={updatingRows.has(record.id) ? 'opacity-50' : ''}>
                   <TableCell className="whitespace-nowrap">
                     {format(new Date(record.date), "dd MMM yyyy")}
                   </TableCell>
@@ -502,24 +637,26 @@ const Attendance = () => {
                     {isAdmin ? (
                       <Input
                         type="time"
-                        value={getTimeValue(record.check_in)}
-                        onChange={(e) => updateCheckIn(record.id, e.target.value)}
+                        value={extractTimeFromDateTime(record.check_in)}
+                        onChange={(e) => updateCheckIn(record.id, e.target.value, record.date)}
                         className="w-[120px]"
+                        disabled={updatingRows.has(record.id)}
                       />
                     ) : (
-                      formatTime(record.check_in)
+                      formatDateTimeForDisplay(record.check_in)
                     )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {isAdmin ? (
                       <Input
                         type="time"
-                        value={getTimeValue(record.check_out)}
-                        onChange={(e) => updateCheckOut(record.id, e.target.value)}
+                        value={extractTimeFromDateTime(record.check_out)}
+                        onChange={(e) => updateCheckOut(record.id, e.target.value, record.date)}
                         className="w-[120px]"
+                        disabled={updatingRows.has(record.id)}
                       />
                     ) : (
-                      formatTime(record.check_out)
+                      formatDateTimeForDisplay(record.check_out)
                     )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{getStatusBadge(record.status)}</TableCell>
