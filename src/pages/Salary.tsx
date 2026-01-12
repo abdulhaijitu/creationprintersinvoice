@@ -460,13 +460,33 @@ const Salary = () => {
     }).format(amount);
   };
 
-  const totalPayable = salaryRecords.reduce((sum, r) => sum + r.net_payable, 0);
-  const totalPaid = salaryRecords
+  // Calculate summary metrics
+  // Gross salary = basic + overtime + bonus - deductions (BEFORE advance deduction)
+  const totalGrossSalary = salaryRecords.reduce((sum, r) => 
+    sum + r.basic_salary + r.overtime_amount + r.bonus - r.deductions, 0);
+  
+  // Total advances deducted from salaries this month
+  const totalAdvanceDeducted = salaryRecords.reduce((sum, r) => sum + (r.advance || 0), 0);
+  
+  // Net payable = gross - advance deductions
+  const totalNetPayable = salaryRecords.reduce((sum, r) => sum + r.net_payable, 0);
+  
+  // Salary payments marked as paid
+  const totalSalaryPaid = salaryRecords
     .filter((r) => r.status === "paid")
     .reduce((sum, r) => sum + r.net_payable, 0);
+  
+  // Pending salary = net payable that hasn't been paid yet
+  const totalPendingSalary = totalNetPayable - totalSalaryPaid;
+  
+  // Pending advances = advances not yet recovered from salary
   const totalPendingAdvances = advances
     .filter((a) => (a.remaining_balance ?? a.amount) > 0)
     .reduce((sum, a) => sum + (a.remaining_balance ?? a.amount), 0);
+  
+  // Total advances given out (for reference)
+  const totalAdvancesGiven = advances.reduce((sum, a) => sum + a.amount, 0);
+  const totalAdvancesRecovered = advances.reduce((sum, a) => sum + (a.amount - (a.remaining_balance ?? a.amount)), 0);
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
@@ -783,42 +803,67 @@ const Salary = () => {
         )}
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+      {/* Summary Cards - Redesigned for clarity */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Card 1: Gross Salary (before advance deduction) */}
+        <Card className="border-l-4 border-l-muted-foreground/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Payable
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              Gross Salary
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(totalPayable)}</p>
+          <CardContent className="space-y-1">
+            <p className="text-2xl font-bold">{formatCurrency(totalGrossSalary)}</p>
+            {totalAdvanceDeducted > 0 && (
+              <p className="text-xs text-muted-foreground">
+                - {formatCurrency(totalAdvanceDeducted)} advance = {formatCurrency(totalNetPayable)} net
+              </p>
+            )}
           </CardContent>
         </Card>
-        <Card>
+        
+        {/* Card 2: Salary Paid */}
+        <Card className="border-l-4 border-l-success">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-success">Paid</CardTitle>
+            <CardTitle className="text-sm font-medium text-success">Salary Paid</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-success">{formatCurrency(totalPaid)}</p>
+          <CardContent className="space-y-1">
+            <p className="text-2xl font-bold text-success">{formatCurrency(totalSalaryPaid)}</p>
+            {totalAdvancesRecovered > 0 && (
+              <p className="text-xs text-muted-foreground">
+                + {formatCurrency(totalAdvancesRecovered)} advance recovered
+              </p>
+            )}
           </CardContent>
         </Card>
-        <Card>
+        
+        {/* Card 3: Pending Salary */}
+        <Card className="border-l-4 border-l-destructive">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-destructive">Pending Salary</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-1">
             <p className="text-2xl font-bold text-destructive">
-              {formatCurrency(totalPayable - totalPaid)}
+              {formatCurrency(totalPendingSalary)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {salaryRecords.filter(r => r.status !== "paid").length} unpaid records
             </p>
           </CardContent>
         </Card>
-        <Card>
+        
+        {/* Card 4: Advances Status */}
+        <Card className="border-l-4 border-l-warning">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-warning">Pending Advances</CardTitle>
+            <CardTitle className="text-sm font-medium text-warning">Advances Outstanding</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-1">
             <p className="text-2xl font-bold text-warning">{formatCurrency(totalPendingAdvances)}</p>
+            {totalAdvancesGiven > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {formatCurrency(totalAdvancesRecovered)} of {formatCurrency(totalAdvancesGiven)} recovered
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
