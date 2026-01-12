@@ -180,9 +180,11 @@ const Employees = () => {
   const hasAddChanges = hasFormChanges(newEmployeeData, originalNewEmployeeData);
 
   // Handle dialog close with unsaved changes check
-  const handleEditDialogClose = (shouldClose: boolean) => {
-    if (!shouldClose) return;
+  const handleEditDialogClose = (open: boolean) => {
+    // Opening the dialog
+    if (open) return;
     
+    // Closing the dialog - check for unsaved changes
     if (hasEditChanges && !editLoading) {
       setPendingCloseAction("edit");
       setShowUnsavedDialog(true);
@@ -192,9 +194,14 @@ const Employees = () => {
     closeEditDialog();
   };
 
-  const handleAddDialogClose = (shouldClose: boolean) => {
-    if (!shouldClose) return;
+  const handleAddDialogClose = (open: boolean) => {
+    // Opening the dialog - allow it
+    if (open) {
+      setIsAddDialogOpen(true);
+      return;
+    }
     
+    // Closing the dialog - check for unsaved changes
     if (hasAddChanges && !addLoading) {
       setPendingCloseAction("add");
       setShowUnsavedDialog(true);
@@ -202,6 +209,15 @@ const Employees = () => {
     }
     
     closeAddDialog();
+  };
+
+  // Explicit open handler for the button
+  const handleOpenAddDialog = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("[Employees] New Employee button clicked");
+    resetAddForm();
+    setIsAddDialogOpen(true);
   };
 
   const closeEditDialog = () => {
@@ -472,10 +488,6 @@ const Employees = () => {
     setIsDialogOpen(true);
   };
 
-  const openAddDialog = () => {
-    resetAddForm();
-    setIsAddDialogOpen(true);
-  };
 
   const filteredEmployees = employees.filter(
     (emp) =>
@@ -533,13 +545,15 @@ const Employees = () => {
           <p className="text-muted-foreground">List of all employees</p>
         </div>
         {canCreate && (
-          <Dialog open={isAddDialogOpen} onOpenChange={handleAddDialogClose}>
-            <DialogTrigger asChild>
-              <Button onClick={openAddDialog}>
-                <UserPlus className="mr-2 h-4 w-4" />
-                New Employee
-              </Button>
-            </DialogTrigger>
+          <>
+            <Button 
+              type="button"
+              onClick={handleOpenAddDialog}
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              New Employee
+            </Button>
+            <Dialog open={isAddDialogOpen} onOpenChange={handleAddDialogClose}>
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Add New Employee</DialogTitle>
@@ -669,6 +683,7 @@ const Employees = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </>
         )}
       </div>
 
@@ -728,7 +743,10 @@ const Employees = () => {
                       : "Add your first employee to manage your workforce"}
                     action={canCreate && !searchTerm ? {
                       label: "Add Employee",
-                      onClick: openAddDialog,
+                      onClick: () => {
+                        resetAddForm();
+                        setIsAddDialogOpen(true);
+                      },
                       icon: UserPlus,
                     } : undefined}
                   />
