@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
+import { useWeeklyHolidays } from "@/hooks/useWeeklyHolidays";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,13 +30,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Calendar, Check, X, Trash2, FileText } from "lucide-react";
+import { Plus, Calendar, Check, X, Trash2, FileText, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, parseISO, eachDayOfInterval } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Database } from "@/integrations/supabase/types";
 import { createNotification } from "@/hooks/useNotifications";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type LeaveType = Database["public"]["Enums"]["leave_type"];
 type LeaveStatus = Database["public"]["Enums"]["leave_status"];
@@ -72,16 +74,39 @@ const leaveTypeLabels: Record<LeaveType, string> = {
 const Leave = () => {
   const { isAdmin, user } = useAuth();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
+  const { isWeeklyHoliday, getHolidayDays } = useWeeklyHolidays();
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [holidayWarning, setHolidayWarning] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     leave_type: "casual" as LeaveType,
     start_date: format(new Date(), "yyyy-MM-dd"),
     end_date: format(new Date(), "yyyy-MM-dd"),
     reason: "",
   });
+
+  // Check if selected dates include weekly holidays
+  const checkForWeeklyHolidays = (startDate: string, endDate: string) => {
+    try {
+      const dates = eachDayOfInterval({
+        start: parseISO(startDate),
+        end: parseISO(endDate),
+      });
+      const holidayDates = dates.filter(d => isWeeklyHoliday(d));
+      if (holidayDates.length > 0) {
+        const dayNames = holidayDates.map(d => format(d, "EEEE, dd MMM")).join(", ");
+        setHolidayWarning(`These dates are weekly holidays and cannot be included: ${dayNames}`);
+        return true;
+      }
+      setHolidayWarning(null);
+      return false;
+    } catch {
+      setHolidayWarning(null);
+      return false;
+    }
+  };
 
   useEffect(() => {
     if (hasOrgContext && organizationId) {
@@ -160,6 +185,12 @@ const Leave = () => {
 
     if (!formData.start_date || !formData.end_date) {
       toast.error("Please enter dates");
+      return;
+    }
+
+    // Block if dates include weekly holidays
+    if (checkForWeeklyHolidays(formData.start_date, formData.end_date)) {
+      toast.error("Cannot apply for leave on weekly holidays");
       return;
     }
 
