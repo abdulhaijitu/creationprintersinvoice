@@ -90,29 +90,75 @@ export default function Settings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<CompanySettings>) => {
-      if (!settings?.id) throw new Error('Settings not found');
-      
-      const { error } = await supabase
+      // CRITICAL: Validate settings ID exists before update
+      if (!settings?.id) {
+        throw new Error('Company settings ID not found. Cannot save.');
+      }
+
+      console.log('[Settings] Attempting update with ID:', settings.id);
+      console.log('[Settings] Update payload:', data);
+
+      // Use .select() to verify the update actually happened
+      const { data: updatedData, error, count } = await supabase
         .from('company_settings')
         .update(data)
-        .eq('id', settings.id);
-      
-      if (error) throw error;
+        .eq('id', settings.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[Settings] Update error:', error);
+        throw new Error(error.message || 'Database update failed');
+      }
+
+      // CRITICAL: Check if update actually affected a row
+      if (!updatedData) {
+        console.error('[Settings] Update returned no data - RLS may have blocked the update');
+        throw new Error('Update failed: You may not have permission to modify company settings.');
+      }
+
+      console.log('[Settings] Update successful, returned data:', updatedData);
+
+      // Verify the data was actually saved by re-fetching
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('company_settings')
+        .select('*')
+        .eq('id', settings.id)
+        .single();
+
+      if (verifyError) {
+        console.error('[Settings] Verification fetch failed:', verifyError);
+        throw new Error('Could not verify save. Please refresh and check.');
+      }
+
+      // Compare key fields to ensure persistence
+      const fieldsToVerify = ['company_name', 'phone', 'email', 'address'] as const;
+      for (const field of fieldsToVerify) {
+        if (data[field] !== undefined && verifyData[field] !== data[field]) {
+          console.error(`[Settings] Field ${field} mismatch: sent "${data[field]}", got "${verifyData[field]}"`);
+          throw new Error(`Save verification failed for ${field}. Please try again.`);
+        }
+      }
+
+      console.log('[Settings] Save verified successfully');
+      return updatedData;
     },
-    onSuccess: () => {
+    onSuccess: (updatedData) => {
+      // Invalidate and refetch to ensure UI shows fresh data from DB
       queryClient.invalidateQueries({ queryKey: ['company-settings'] });
       toast({
         title: 'Settings saved',
-        description: 'Company settings updated successfully',
+        description: 'Company settings updated and verified successfully',
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
+      console.error('[Settings] Mutation error:', error);
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to save settings',
+        title: 'Save Failed',
+        description: error.message || 'Failed to save settings. Please check your permissions.',
       });
-      console.error(error);
+      // Do NOT reset form on error - keep user's changes
     },
   });
 
@@ -161,16 +207,38 @@ export default function Settings() {
   };
 
   const onSubmit = async (data: CompanySettings) => {
+    // Validate ID before attempting save
+    if (!settings?.id) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Company settings not loaded. Please refresh the page.',
+      });
+      return;
+    }
+
+    console.log('[Settings] Form submitted with data:', data);
+    console.log('[Settings] Using settings ID:', settings.id);
+
     let logoUrl = data.logo_url;
-    
+
     if (logoFile) {
       const uploadedUrl = await uploadLogo();
       if (uploadedUrl) {
         logoUrl = uploadedUrl;
+      } else {
+        // Logo upload failed, but we can still save other fields
+        console.warn('[Settings] Logo upload failed, continuing with other fields');
       }
     }
-    
-    updateMutation.mutate({ ...data, logo_url: logoUrl });
+
+    // Use mutateAsync to properly await and handle errors
+    try {
+      await updateMutation.mutateAsync({ ...data, logo_url: logoUrl });
+    } catch (error) {
+      // Error is already handled in onError callback
+      console.error('[Settings] Submit error caught:', error);
+    }
   };
 
   if (isLoading || authLoading) {
