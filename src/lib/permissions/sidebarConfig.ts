@@ -4,10 +4,15 @@
  * This file defines all sidebar menu items and their required module permissions.
  * The sidebar dynamically shows/hides items based on user's module permissions.
  * 
- * CRITICAL RULES:
- * - If user lacks module permission, that menu item MUST NOT appear
+ * CRITICAL RULES (ANY-ON AGGREGATION):
+ * - For each sidebar module: if user has AT LEAST ONE permission (view/create/edit/delete)
+ *   enabled inside that module → SHOW the module in sidebar
+ * - If user has ZERO permissions enabled inside that module → HIDE completely
  * - No disabled or greyed-out menu items - completely hidden
  * - Sidebar MUST be generated from permission data, NOT hardcoded role checks
+ * 
+ * DASHBOARD SPECIAL RULE:
+ * - Dashboard appears ONLY if user has at least ONE enabled permission across the entire system
  */
 
 import {
@@ -34,8 +39,15 @@ export interface SidebarNavItem {
   title: string;
   url: string;
   icon: React.ComponentType<{ className?: string }>;
-  /** Required module permission key. If not specified, item is always shown. */
+  /** 
+   * Required module permission key. Format: "category.module" (e.g., "main.invoices", "business.customers")
+   * The sidebar visibility is determined by ANY-ON rule:
+   * - If user has ANY permission (view, create, edit, delete) for this module → show
+   * - If user has ZERO permissions for this module → hide completely
+   */
   permissionKey?: string;
+  /** If true, this item requires at least one permission anywhere (for Dashboard) */
+  requiresAnyPermission?: boolean;
 }
 
 export interface SidebarNavGroup {
@@ -47,6 +59,9 @@ export interface SidebarNavGroup {
 /**
  * Main navigation items with module permission requirements
  * Category: main
+ * 
+ * NOTE: Dashboard uses requiresAnyPermission=true (special rule)
+ * - Shows if user has at least ONE permission anywhere in the system
  */
 export const mainNavItems: SidebarNavItem[] = [
   { 
@@ -54,6 +69,7 @@ export const mainNavItems: SidebarNavItem[] = [
     url: '/', 
     icon: LayoutDashboard,
     permissionKey: 'main.dashboard',
+    requiresAnyPermission: true, // Special: show if user has ANY permission in system
   },
   { 
     title: 'Invoices', 
