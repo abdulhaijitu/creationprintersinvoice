@@ -274,6 +274,7 @@ export const TimeInput = React.forwardRef<HTMLInputElement, TimeInputProps>(
     const handleChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
         const next = e.target.value;
+        const cursorPos = e.target.selectionStart ?? next.length;
 
         if (localError) setLocalError(null);
 
@@ -288,6 +289,13 @@ export const TimeInput = React.forwardRef<HTMLInputElement, TimeInputProps>(
         }
 
         setLocalText(next);
+
+        // Preserve cursor position after React re-render
+        requestAnimationFrame(() => {
+          if (inputRef.current) {
+            inputRef.current.setSelectionRange(cursorPos, cursorPos);
+          }
+        });
 
         // Commit ONLY when full hh:mm exists
         const parsed = parseClockText(next);
