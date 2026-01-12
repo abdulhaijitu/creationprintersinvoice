@@ -4027,6 +4027,10 @@ export type Database = {
         Args: { end_date?: string; start_date?: string }
         Returns: Json
       }
+      can_manage_company_settings: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       can_view_org_member_profile: {
         Args: { profile_id: string; viewer_id: string }
         Returns: boolean
