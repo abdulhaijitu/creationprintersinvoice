@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
-import { hasPermission } from "@/lib/permissions";
+import { useOrgRolePermissions } from "@/hooks/useOrgRolePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,8 +81,15 @@ const months = [
 ];
 
 const Salary = () => {
-  const { isAdmin, role, loading: authLoading } = useAuth();
+  const { isAdmin, isSuperAdmin, loading: authLoading } = useAuth();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
+  const { hasPermission } = useOrgRolePermissions();
+  
+  // Database-driven permission checks
+  const canViewSalary = isSuperAdmin || hasPermission('salary.view');
+  const canCreateSalary = isSuperAdmin || hasPermission('salary.create');
+  const canEditSalary = isSuperAdmin || hasPermission('salary.edit');
+  
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [advances, setAdvances] = useState<EmployeeAdvance[]>([]);
@@ -374,7 +381,7 @@ const Salary = () => {
   }
 
   // Show access denied message for users without permission
-  if (!hasPermission(role, 'salary', 'view')) {
+  if (!canViewSalary) {
     return (
       <div className="space-y-6">
         <div>
@@ -393,8 +400,8 @@ const Salary = () => {
               <div className="space-y-2">
                 <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
                 <p className="text-muted-foreground max-w-md">
-                  Only admin users can view salary management. 
-                  Contact your system administrator if you need access.
+                  You don't have permission to view salary management. 
+                  Contact your administrator if you need access.
                 </p>
               </div>
             </div>
@@ -411,7 +418,7 @@ const Salary = () => {
           <h1 className="text-3xl font-bold">Salary</h1>
           <p className="text-muted-foreground">Employee salary management</p>
         </div>
-        {isAdmin && (
+        {(isAdmin || canCreateSalary) && (
           <div className="flex gap-2">
             <Dialog open={isAdvanceDialogOpen} onOpenChange={setIsAdvanceDialogOpen}>
               <DialogTrigger asChild>
