@@ -26,14 +26,16 @@ export const WeeklyHolidaySettings = ({ isReadOnly = false }: WeeklyHolidaySetti
   const handleToggle = async (dayOfWeek: number) => {
     if (isReadOnly) return;
     
+    // Capture current state BEFORE the toggle
+    const wasHoliday = isDayHoliday(dayOfWeek);
+    const dayName = WEEKDAYS.find(w => w.value === dayOfWeek)?.label;
+    
     const success = await toggleHoliday(dayOfWeek);
     if (success) {
-      const dayName = WEEKDAYS.find(w => w.value === dayOfWeek)?.label;
-      const isNowHoliday = !isDayHoliday(dayOfWeek);
       toast.success(
-        isNowHoliday 
-          ? `${dayName} set as weekly holiday` 
-          : `${dayName} removed from weekly holidays`
+        wasHoliday 
+          ? `${dayName} removed from weekly holidays` 
+          : `${dayName} set as weekly holiday`
       );
     } else {
       toast.error('Failed to update weekly holiday');
