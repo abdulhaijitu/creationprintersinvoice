@@ -4,6 +4,9 @@
  * Provides module-based permission checking for the application.
  * This is the SINGLE SOURCE OF TRUTH for permission checks.
  * 
+ * PERMISSION KEY FORMAT: "moduleName.action"
+ * Examples: "customers.view", "invoices.create", "expenses.edit", "vendors.delete"
+ * 
  * CRITICAL RULES:
  * - Super Admin always has all permissions (locked ON)
  * - Owner role always has all permissions (locked ON)
@@ -25,6 +28,10 @@ interface OrgModulePermission {
   is_enabled: boolean;
 }
 
+// Permission actions
+type PermissionAction = 'view' | 'create' | 'edit' | 'delete';
+const PERMISSION_ACTIONS: PermissionAction[] = ['view', 'create', 'edit', 'delete'];
+
 // Cache configuration
 const CACHE_DURATION = 30000; // 30 seconds
 
@@ -45,6 +52,25 @@ export const invalidateModulePermissionCache = (organizationId?: string) => {
     permissionCache = null;
   }
   console.log('[ModulePermissions] Cache invalidated');
+};
+
+/**
+ * Build permission key from module and action
+ * Input: moduleKey (e.g., "main.dashboard" or "business.customers"), action (e.g., "view")
+ * Output: "dashboard.view" or "customers.view"
+ */
+export const buildPermissionKey = (moduleKey: string, action: PermissionAction): string => {
+  const moduleName = moduleKey.split('.')[1] || moduleKey;
+  return `${moduleName}.${action}`;
+};
+
+/**
+ * Extract module name from full module key
+ * Input: "main.dashboard" or "business.customers"
+ * Output: "dashboard" or "customers"
+ */
+export const extractModuleName = (moduleKey: string): string => {
+  return moduleKey.split('.')[1] || moduleKey;
 };
 
 export function useModulePermissions() {
@@ -127,12 +153,12 @@ export function useModulePermissions() {
   }, [fetchPermissions]);
 
   /**
-   * Check if user has a specific module permission
+   * Check if user has a specific permission
    * 
-   * @param permissionKey - The module permission key (e.g., "main.dashboard", "business.customers")
-   * @returns boolean - true if user has permission, false otherwise
+   * @param permissionKey - Full permission key (e.g., "customers.view", "invoices.create")
+   * @returns boolean - true if user has permission
    */
-  const hasModulePermission = useCallback((permissionKey: string): boolean => {
+  const hasPermission = useCallback((permissionKey: string): boolean => {
     // Super Admin always has all permissions
     if (isSuperAdmin) return true;
     
@@ -152,15 +178,73 @@ export function useModulePermissions() {
       return orgPerm.is_enabled;
     }
 
-    // Default: if no explicit permission, check if the module exists
-    // and grant access based on role defaults
-    // For now, if no explicit permission is set, we default to false for safety
-    // This means permissions MUST be explicitly granted
+    // Default: no explicit permission = no access
     return false;
   }, [isSuperAdmin, isOrgOwner, orgRole, permissions]);
 
   /**
-   * Check if user has at least one module permission (for dashboard access)
+   * Check if user can view a module (has view permission)
+   * 
+   * @param moduleKey - Full module key (e.g., "main.dashboard", "business.customers")
+   *                    or short module name (e.g., "customers", "invoices")
+   */
+  const canView = useCallback((moduleKey: string): boolean => {
+    const moduleName = extractModuleName(moduleKey);
+    return hasPermission(`${moduleName}.view`);
+  }, [hasPermission]);
+
+  /**
+   * Check if user can create in a module
+   */
+  const canCreate = useCallback((moduleKey: string): boolean => {
+    const moduleName = extractModuleName(moduleKey);
+    return hasPermission(`${moduleName}.create`);
+  }, [hasPermission]);
+
+  /**
+   * Check if user can edit in a module
+   */
+  const canEdit = useCallback((moduleKey: string): boolean => {
+    const moduleName = extractModuleName(moduleKey);
+    return hasPermission(`${moduleName}.edit`);
+  }, [hasPermission]);
+
+  /**
+   * Check if user can delete in a module
+   */
+  const canDelete = useCallback((moduleKey: string): boolean => {
+    const moduleName = extractModuleName(moduleKey);
+    return hasPermission(`${moduleName}.delete`);
+  }, [hasPermission]);
+
+  /**
+   * Check if user has any permission for a module
+   */
+  const hasAnyModuleAccess = useCallback((moduleKey: string): boolean => {
+    const moduleName = extractModuleName(moduleKey);
+    return PERMISSION_ACTIONS.some(action => 
+      hasPermission(`${moduleName}.${action}`)
+    );
+  }, [hasPermission]);
+
+  /**
+   * Legacy compatibility: Check if user has module permission
+   * Maps to view permission for backward compatibility
+   */
+  const hasModulePermission = useCallback((permissionKey: string): boolean => {
+    // If it already has an action, check directly
+    if (permissionKey.includes('.view') || 
+        permissionKey.includes('.create') || 
+        permissionKey.includes('.edit') || 
+        permissionKey.includes('.delete')) {
+      return hasPermission(permissionKey);
+    }
+    // Otherwise, check for view permission
+    return canView(permissionKey);
+  }, [hasPermission, canView]);
+
+  /**
+   * Check if user has at least one permission (for dashboard access)
    */
   const hasAnyModulePermission = useMemo((): boolean => {
     if (isSuperAdmin || isOrgOwner) return true;
@@ -173,11 +257,19 @@ export function useModulePermissions() {
   }, [isSuperAdmin, isOrgOwner, orgRole, permissions]);
 
   /**
-   * Get all enabled modules for current user
+   * Get all enabled permission keys for current user
    */
-  const enabledModules = useMemo((): string[] => {
+  const enabledPermissions = useMemo((): string[] => {
     if (isSuperAdmin || isOrgOwner) {
-      return ALL_MODULE_PERMISSIONS.map(p => p.key);
+      // Return all possible permissions
+      const allPerms: string[] = [];
+      for (const mod of ALL_MODULE_PERMISSIONS) {
+        const moduleName = extractModuleName(mod.key);
+        for (const action of PERMISSION_ACTIONS) {
+          allPerms.push(`${moduleName}.${action}`);
+        }
+      }
+      return allPerms;
     }
     
     if (!orgRole) return [];
@@ -188,10 +280,39 @@ export function useModulePermissions() {
   }, [isSuperAdmin, isOrgOwner, orgRole, permissions]);
 
   /**
+   * Get enabled modules (that user can at least view)
+   */
+  const enabledModules = useMemo((): string[] => {
+    if (isSuperAdmin || isOrgOwner) {
+      return ALL_MODULE_PERMISSIONS.map(p => p.key);
+    }
+    
+    if (!orgRole) return [];
+
+    const modules = new Set<string>();
+    permissions
+      .filter(p => p.role === orgRole && p.is_enabled && p.permission_key.endsWith('.view'))
+      .forEach(p => {
+        const moduleName = p.permission_key.replace('.view', '');
+        // Find the full module key
+        const fullModule = ALL_MODULE_PERMISSIONS.find(m => extractModuleName(m.key) === moduleName);
+        if (fullModule) {
+          modules.add(fullModule.key);
+        }
+      });
+
+    return Array.from(modules);
+  }, [isSuperAdmin, isOrgOwner, orgRole, permissions]);
+
+  /**
    * Get permissions grouped by category for the current role
    */
-  const getPermissionsByCategory = useCallback((): Record<PermissionCategory, { key: string; label: string; enabled: boolean }[]> => {
-    const result: Record<PermissionCategory, { key: string; label: string; enabled: boolean }[]> = {
+  const getPermissionsByCategory = useCallback((): Record<PermissionCategory, { 
+    key: string; 
+    label: string; 
+    permissions: Record<PermissionAction, boolean>;
+  }[]> => {
+    const result: Record<PermissionCategory, { key: string; label: string; permissions: Record<PermissionAction, boolean> }[]> = {
       main: [],
       business: [],
       hr_ops: [],
@@ -199,15 +320,23 @@ export function useModulePermissions() {
     };
 
     for (const [category, modules] of Object.entries(PERMISSIONS_BY_CATEGORY)) {
-      result[category as PermissionCategory] = modules.map(mod => ({
-        key: mod.key,
-        label: mod.label,
-        enabled: hasModulePermission(mod.key),
-      }));
+      result[category as PermissionCategory] = modules.map(mod => {
+        const moduleName = extractModuleName(mod.key);
+        return {
+          key: mod.key,
+          label: mod.label,
+          permissions: {
+            view: hasPermission(`${moduleName}.view`),
+            create: hasPermission(`${moduleName}.create`),
+            edit: hasPermission(`${moduleName}.edit`),
+            delete: hasPermission(`${moduleName}.delete`),
+          },
+        };
+      });
     }
 
     return result;
-  }, [hasModulePermission]);
+  }, [hasPermission]);
 
   /**
    * Force refresh permissions from database
@@ -220,13 +349,22 @@ export function useModulePermissions() {
 
   return {
     // Permission checks
-    hasModulePermission,
+    hasPermission,
+    hasModulePermission, // Legacy compatibility
+    canView,
+    canCreate,
+    canEdit,
+    canDelete,
+    hasAnyModuleAccess,
     hasAnyModulePermission,
+    
+    // Permission data
+    permissions,
+    enabledPermissions,
     enabledModules,
     getPermissionsByCategory,
     
     // State
-    permissions,
     loading,
     error,
     
