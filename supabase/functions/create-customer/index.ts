@@ -56,8 +56,8 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Check role permission (owner, manager can create customers)
-    const allowedRoles = ['owner', 'manager']
+    // Check role permission (owner, manager, designer, staff can create customers)
+    const allowedRoles = ['owner', 'manager', 'designer', 'staff']
     if (!allowedRoles.includes(membership.role)) {
       return new Response(
         JSON.stringify({ error: 'Insufficient permissions to create customers' }),
