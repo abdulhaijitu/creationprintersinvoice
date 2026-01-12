@@ -655,6 +655,54 @@ export type Database = {
           },
         ]
       }
+      employee_salary_history: {
+        Row: {
+          created_at: string
+          effective_date: string
+          employee_id: string
+          id: string
+          notes: string | null
+          organization_id: string | null
+          salary_amount: number
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          effective_date?: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          organization_id?: string | null
+          salary_amount: number
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          effective_date?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string | null
+          salary_amount?: number
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_salary_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_salary_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_salary_records: {
         Row: {
           advance: number | null
