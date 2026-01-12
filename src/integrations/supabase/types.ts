@@ -3752,6 +3752,112 @@ export type Database = {
           },
         ]
       }
+      task_comment_mentions: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          mentioned_by: string | null
+          mentioned_user_id: string
+          notified: boolean | null
+          organization_id: string | null
+          task_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          mentioned_by?: string | null
+          mentioned_user_id: string
+          notified?: boolean | null
+          organization_id?: string | null
+          task_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          mentioned_by?: string | null
+          mentioned_user_id?: string
+          notified?: boolean | null
+          organization_id?: string | null
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comment_mentions_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "task_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comment_mentions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comment_mentions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_comments: {
+        Row: {
+          comment_text: string
+          created_at: string
+          created_by: string | null
+          created_by_email: string | null
+          created_by_name: string | null
+          id: string
+          organization_id: string | null
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          comment_text: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          created_by_name?: string | null
+          id?: string
+          organization_id?: string | null
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          comment_text?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          created_by_name?: string | null
+          id?: string
+          organization_id?: string | null
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assigned_by: string | null
@@ -3762,6 +3868,7 @@ export type Database = {
           deadline: string | null
           description: string | null
           id: string
+          last_overdue_notification_at: string | null
           organization_id: string | null
           priority: Database["public"]["Enums"]["task_priority"] | null
           reference_id: string | null
@@ -3779,6 +3886,7 @@ export type Database = {
           deadline?: string | null
           description?: string | null
           id?: string
+          last_overdue_notification_at?: string | null
           organization_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"] | null
           reference_id?: string | null
@@ -3796,6 +3904,7 @@ export type Database = {
           deadline?: string | null
           description?: string | null
           id?: string
+          last_overdue_notification_at?: string | null
           organization_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"] | null
           reference_id?: string | null
