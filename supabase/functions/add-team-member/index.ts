@@ -6,13 +6,17 @@ const corsHeaders = {
 };
 
 interface AddTeamMemberRequest {
-  email: string;
-  fullName: string;
+  action?: 'add' | 'reset-password';
+  email?: string;
+  fullName?: string;
   phone?: string;
-  role: string;
-  password: string;
+  role?: string;
+  password?: string;
   organizationId: string;
   forcePasswordReset?: boolean;
+  // For password reset
+  userId?: string;
+  newPassword?: string;
 }
 
 // Generate a random password if not provided
@@ -62,6 +66,115 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const body: AddTeamMemberRequest = await req.json();
+    const action = body.action || 'add';
+
+    // Handle password reset action
+    if (action === 'reset-password') {
+      const { userId, newPassword, organizationId } = body;
+
+      if (!userId || !newPassword) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'User ID and new password are required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (newPassword.length < 8) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Password must be at least 8 characters' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Check if requesting user has permission (owner/manager of the org or super_admin)
+      const { data: memberData } = await supabaseAdmin
+        .from('organization_members')
+        .select('role')
+        .eq('user_id', requestingUser.id)
+        .eq('organization_id', organizationId)
+        .single();
+
+      const { data: roleData } = await supabaseAdmin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', requestingUser.id)
+        .single();
+
+      const isSuperAdmin = roleData?.role === 'super_admin';
+      const isOwnerOrManager = ['owner', 'manager'].includes(memberData?.role || '');
+
+      if (!isSuperAdmin && !isOwnerOrManager) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Only owners and managers can reset passwords' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Verify target user is in the same organization (for non-super-admins)
+      if (!isSuperAdmin) {
+        const { data: targetMember } = await supabaseAdmin
+          .from('organization_members')
+          .select('role')
+          .eq('user_id', userId)
+          .eq('organization_id', organizationId)
+          .single();
+
+        if (!targetMember) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Target user is not a member of this organization' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Prevent resetting owner password by non-super-admin
+        if (targetMember.role === 'owner' && !isSuperAdmin) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Cannot reset owner password' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      // Reset the password using admin API
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password: newPassword,
+      });
+
+      if (updateError) {
+        console.error('[add-team-member] Password reset error:', updateError);
+        return new Response(
+          JSON.stringify({ success: false, error: updateError.message || 'Failed to reset password' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Optionally set must_reset_password flag
+      await supabaseAdmin
+        .from('user_roles')
+        .update({ must_reset_password: true })
+        .eq('user_id', userId);
+
+      // Log the action
+      await supabaseAdmin.from('audit_logs').insert({
+        user_id: requestingUser.id,
+        organization_id: organizationId,
+        action: 'reset_team_member_password',
+        entity_type: 'user',
+        entity_id: userId,
+        details: { 
+          reset_by: requestingUser.email,
+        },
+      });
+
+      console.log('[add-team-member] Password reset successful for user:', userId);
+
+      return new Response(
+        JSON.stringify({ success: true, message: 'Password reset successfully' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Original add team member logic
     const { 
       email, 
       fullName, 
@@ -102,7 +215,7 @@ Deno.serve(async (req) => {
     }
 
     const validRoles = ['manager', 'accounts', 'sales_staff', 'designer', 'employee'];
-    if (!validRoles.includes(role)) {
+    if (!validRoles.includes(role || '')) {
       return new Response(
         JSON.stringify({ success: false, error: `Invalid role. Must be one of: ${validRoles.join(', ')}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
