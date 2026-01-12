@@ -2,7 +2,7 @@
  * Module Permissions Hook
  * 
  * Provides module-based permission checking for the application.
- * This is the SINGLE SOURCE OF TRUTH for permission checks.
+ * This hook wraps useEffectivePermissions to maintain backward compatibility.
  * 
  * PERMISSION KEY FORMAT: "moduleName.action"
  * Examples: "customers.view", "invoices.create", "expenses.edit", "vendors.delete"
@@ -10,7 +10,7 @@
  * CRITICAL RULES:
  * - Super Admin always has all permissions (locked ON)
  * - Owner role always has all permissions (locked ON)
- * - Other roles check org_specific_permissions table
+ * - Other roles check org_specific_permissions table via useEffectivePermissions
  * - Permissions are loaded from database, NOT hardcoded
  */
 
@@ -19,6 +19,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { ALL_MODULE_PERMISSIONS, PERMISSIONS_BY_CATEGORY, type PermissionCategory } from '@/lib/permissions/modulePermissions';
+import { 
+  useEffectivePermissions, 
+  invalidateEffectivePermissions,
+  normalizeModuleName,
+  extractModuleFromSidebarKey,
+} from './useEffectivePermissions';
 
 interface OrgModulePermission {
   id: string;
@@ -32,27 +38,8 @@ interface OrgModulePermission {
 type PermissionAction = 'view' | 'create' | 'edit' | 'delete';
 const PERMISSION_ACTIONS: PermissionAction[] = ['view', 'create', 'edit', 'delete'];
 
-// Cache configuration
-const CACHE_DURATION = 30000; // 30 seconds
-
-// Module-level cache
-let permissionCache: {
-  orgId: string;
-  permissions: OrgModulePermission[];
-  timestamp: number;
-} | null = null;
-
-/**
- * Invalidate the permission cache
- */
-export const invalidateModulePermissionCache = (organizationId?: string) => {
-  if (organizationId && permissionCache?.orgId === organizationId) {
-    permissionCache = null;
-  } else if (!organizationId) {
-    permissionCache = null;
-  }
-  console.log('[ModulePermissions] Cache invalidated');
-};
+// Re-export cache invalidation for backward compatibility
+export const invalidateModulePermissionCache = invalidateEffectivePermissions;
 
 /**
  * Build permission key from module and action
@@ -60,7 +47,7 @@ export const invalidateModulePermissionCache = (organizationId?: string) => {
  * Output: "dashboard.view" or "customers.view"
  */
 export const buildPermissionKey = (moduleKey: string, action: PermissionAction): string => {
-  const moduleName = moduleKey.split('.')[1] || moduleKey;
+  const moduleName = extractModuleFromSidebarKey(moduleKey);
   return `${moduleName}.${action}`;
 };
 
@@ -70,38 +57,34 @@ export const buildPermissionKey = (moduleKey: string, action: PermissionAction):
  * Output: "dashboard" or "customers"
  */
 export const extractModuleName = (moduleKey: string): string => {
-  return moduleKey.split('.')[1] || moduleKey;
+  return extractModuleFromSidebarKey(moduleKey);
 };
 
 export function useModulePermissions() {
   const { isSuperAdmin } = useAuth();
   const { orgRole, organization, isOrgOwner } = useOrganization();
   
+  // Use the effective permissions hook as the source of truth
+  const effectivePerms = useEffectivePermissions();
+  
   const [permissions, setPermissions] = useState<OrgModulePermission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
-  const lastFetchRef = useRef<number>(0);
+
+  // Sync loading state with effective permissions
+  useEffect(() => {
+    setLoading(effectivePerms.loading);
+  }, [effectivePerms.loading]);
 
   /**
-   * Fetch permissions from database
+   * Fetch permissions from database (legacy - now uses effectivePerms internally)
    */
   const fetchPermissions = useCallback(async (forceRefresh = false) => {
     if (!organization?.id) {
       setPermissions([]);
       setLoading(false);
       return [];
-    }
-
-    // Check cache
-    if (
-      !forceRefresh &&
-      permissionCache?.orgId === organization.id &&
-      Date.now() - permissionCache.timestamp < CACHE_DURATION
-    ) {
-      setPermissions(permissionCache.permissions);
-      setLoading(false);
-      return permissionCache.permissions;
     }
 
     try {
@@ -114,17 +97,9 @@ export function useModulePermissions() {
       if (fetchError) throw fetchError;
 
       const perms = data || [];
-      
-      // Update cache
-      permissionCache = {
-        orgId: organization.id,
-        permissions: perms,
-        timestamp: Date.now(),
-      };
 
       if (isMountedRef.current) {
         setPermissions(perms);
-        lastFetchRef.current = Date.now();
         setError(null);
       }
       
@@ -154,33 +129,14 @@ export function useModulePermissions() {
 
   /**
    * Check if user has a specific permission
+   * Uses the effective permissions hook
    * 
    * @param permissionKey - Full permission key (e.g., "customers.view", "invoices.create")
    * @returns boolean - true if user has permission
    */
   const hasPermission = useCallback((permissionKey: string): boolean => {
-    // Super Admin always has all permissions
-    if (isSuperAdmin) return true;
-    
-    // Owner always has all permissions
-    if (isOrgOwner) return true;
-    
-    // No role means no permission
-    if (!orgRole) return false;
-
-    // Check org-specific permission from database
-    const orgPerm = permissions.find(
-      p => p.role === orgRole && p.permission_key === permissionKey
-    );
-
-    // If we have an explicit override, use it
-    if (orgPerm !== undefined) {
-      return orgPerm.is_enabled;
-    }
-
-    // Default: no explicit permission = no access
-    return false;
-  }, [isSuperAdmin, isOrgOwner, orgRole, permissions]);
+    return effectivePerms.hasPermission(permissionKey);
+  }, [effectivePerms]);
 
   /**
    * Check if user can view a module (has view permission)
@@ -190,42 +146,44 @@ export function useModulePermissions() {
    */
   const canView = useCallback((moduleKey: string): boolean => {
     const moduleName = extractModuleName(moduleKey);
-    return hasPermission(`${moduleName}.view`);
-  }, [hasPermission]);
+    const normalizedModule = normalizeModuleName(moduleName);
+    return effectivePerms.hasPermission(`${normalizedModule}.view`);
+  }, [effectivePerms]);
 
   /**
    * Check if user can create in a module
    */
   const canCreate = useCallback((moduleKey: string): boolean => {
     const moduleName = extractModuleName(moduleKey);
-    return hasPermission(`${moduleName}.create`);
-  }, [hasPermission]);
+    const normalizedModule = normalizeModuleName(moduleName);
+    return effectivePerms.hasPermission(`${normalizedModule}.create`);
+  }, [effectivePerms]);
 
   /**
    * Check if user can edit in a module
    */
   const canEdit = useCallback((moduleKey: string): boolean => {
     const moduleName = extractModuleName(moduleKey);
-    return hasPermission(`${moduleName}.edit`);
-  }, [hasPermission]);
+    const normalizedModule = normalizeModuleName(moduleName);
+    return effectivePerms.hasPermission(`${normalizedModule}.edit`);
+  }, [effectivePerms]);
 
   /**
    * Check if user can delete in a module
    */
   const canDelete = useCallback((moduleKey: string): boolean => {
     const moduleName = extractModuleName(moduleKey);
-    return hasPermission(`${moduleName}.delete`);
-  }, [hasPermission]);
+    const normalizedModule = normalizeModuleName(moduleName);
+    return effectivePerms.hasPermission(`${normalizedModule}.delete`);
+  }, [effectivePerms]);
 
   /**
    * Check if user has any permission for a module
+   * Uses the effective permissions hook's hasModuleAccess
    */
   const hasAnyModuleAccess = useCallback((moduleKey: string): boolean => {
-    const moduleName = extractModuleName(moduleKey);
-    return PERMISSION_ACTIONS.some(action => 
-      hasPermission(`${moduleName}.${action}`)
-    );
-  }, [hasPermission]);
+    return effectivePerms.hasModuleAccess(moduleKey);
+  }, [effectivePerms]);
 
   /**
    * Legacy compatibility: Check if user has module permission
@@ -246,15 +204,7 @@ export function useModulePermissions() {
   /**
    * Check if user has at least one permission (for dashboard access)
    */
-  const hasAnyModulePermission = useMemo((): boolean => {
-    if (isSuperAdmin || isOrgOwner) return true;
-    if (!orgRole) return false;
-
-    // Check if user has at least one enabled permission
-    return permissions.some(
-      p => p.role === orgRole && p.is_enabled
-    );
-  }, [isSuperAdmin, isOrgOwner, orgRole, permissions]);
+  const hasAnyModulePermission = effectivePerms.hasAnyPermission;
 
   /**
    * Get all enabled permission keys for current user
@@ -283,26 +233,12 @@ export function useModulePermissions() {
    * Get enabled modules (that user can at least view)
    */
   const enabledModules = useMemo((): string[] => {
-    if (isSuperAdmin || isOrgOwner) {
-      return ALL_MODULE_PERMISSIONS.map(p => p.key);
-    }
-    
-    if (!orgRole) return [];
-
-    const modules = new Set<string>();
-    permissions
-      .filter(p => p.role === orgRole && p.is_enabled && p.permission_key.endsWith('.view'))
-      .forEach(p => {
-        const moduleName = p.permission_key.replace('.view', '');
-        // Find the full module key
-        const fullModule = ALL_MODULE_PERMISSIONS.find(m => extractModuleName(m.key) === moduleName);
-        if (fullModule) {
-          modules.add(fullModule.key);
-        }
-      });
-
-    return Array.from(modules);
-  }, [isSuperAdmin, isOrgOwner, orgRole, permissions]);
+    return effectivePerms.getEnabledModules().map(m => {
+      // Find the full module key
+      const fullModule = ALL_MODULE_PERMISSIONS.find(p => extractModuleName(p.key) === m);
+      return fullModule?.key || m;
+    });
+  }, [effectivePerms]);
 
   /**
    * Get permissions grouped by category for the current role
@@ -322,30 +258,32 @@ export function useModulePermissions() {
     for (const [category, modules] of Object.entries(PERMISSIONS_BY_CATEGORY)) {
       result[category as PermissionCategory] = modules.map(mod => {
         const moduleName = extractModuleName(mod.key);
+        const normalizedModule = normalizeModuleName(moduleName);
         return {
           key: mod.key,
           label: mod.label,
           permissions: {
-            view: hasPermission(`${moduleName}.view`),
-            create: hasPermission(`${moduleName}.create`),
-            edit: hasPermission(`${moduleName}.edit`),
-            delete: hasPermission(`${moduleName}.delete`),
+            view: effectivePerms.hasPermission(`${normalizedModule}.view`),
+            create: effectivePerms.hasPermission(`${normalizedModule}.create`),
+            edit: effectivePerms.hasPermission(`${normalizedModule}.edit`),
+            delete: effectivePerms.hasPermission(`${normalizedModule}.delete`),
           },
         };
       });
     }
 
     return result;
-  }, [hasPermission]);
+  }, [effectivePerms]);
 
   /**
    * Force refresh permissions from database
    */
   const refreshPermissions = useCallback(async () => {
     console.log('[ModulePermissions] Force refreshing...');
-    invalidateModulePermissionCache(organization?.id);
+    invalidateModulePermissionCache();
+    await effectivePerms.refreshPermissions();
     return fetchPermissions(true);
-  }, [fetchPermissions, organization?.id]);
+  }, [fetchPermissions, effectivePerms]);
 
   return {
     // Permission checks
