@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, FileText } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, FileText, AlertTriangle } from "lucide-react";
 import { ReferenceSelect, ReferenceLink } from "@/components/tasks/ReferenceSelect";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,7 @@ import {
   type WorkflowStatus 
 } from "@/components/tasks/ProductionWorkflow";
 import { TaskDetailDrawer } from "@/components/tasks/TaskDetailDrawer";
+import { TaskDueDateBadge, isTaskOverdue } from "@/components/tasks/TaskDueDateBadge";
 import { PageHeader, TableSkeleton, EmptyState, ConfirmDialog } from "@/components/shared";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -415,7 +416,10 @@ const Tasks = () => {
                         {task.assignee?.full_name || 'Unassigned'}
                       </p>
                     </div>
-                    {getPriorityBadge(task.priority)}
+                    <div className="flex flex-col items-end gap-1">
+                      {getPriorityBadge(task.priority)}
+                      <TaskDueDateBadge deadline={task.deadline} status={task.status} compact />
+                    </div>
                   </div>
                   
                   <div className="mb-3">
@@ -452,10 +456,10 @@ const Tasks = () => {
               <TableRow>
                 <TableHead>Job / Task</TableHead>
                 <TableHead>Assigned To</TableHead>
+                <TableHead>Due Date</TableHead>
                 <TableHead>Progress</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Priority</TableHead>
-                <TableHead>Updated</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -486,15 +490,15 @@ const Tasks = () => {
                     </TableCell>
                     <TableCell>{task.assignee?.full_name || "-"}</TableCell>
                     <TableCell>
+                      <TaskDueDateBadge deadline={task.deadline} status={task.status} compact />
+                    </TableCell>
+                    <TableCell>
                       <WorkflowStepper currentStatus={task.status} compact />
                     </TableCell>
                     <TableCell>
                       <ProductionStatusBadge status={task.status} />
                     </TableCell>
                     <TableCell>{getPriorityBadge(task.priority)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(task.updated_at), "dd MMM, HH:mm")}
-                    </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                         {canEdit && nextStatus && (

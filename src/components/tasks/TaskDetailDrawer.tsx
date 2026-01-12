@@ -20,8 +20,10 @@ import {
 } from './ProductionWorkflow';
 import { ReferenceLink } from './ReferenceSelect';
 import { TaskActivityTimeline } from './TaskActivityTimeline';
+import { TaskComments } from './TaskComments';
+import { TaskDueDateBadge } from './TaskDueDateBadge';
 import { Task } from '@/hooks/useTasks';
-import { ArrowRight, Calendar, User, AlertCircle, Lock, Link, History, Info } from 'lucide-react';
+import { ArrowRight, Calendar, User, AlertCircle, Lock, Link, History, Info, MessageSquare } from 'lucide-react';
 
 interface TaskDetailDrawerProps {
   task: Task | null;
@@ -66,6 +68,7 @@ export function TaskDetailDrawer({
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <ProductionStatusBadge status={task.status} />
                 {getPriorityBadge(task.priority)}
+                <TaskDueDateBadge deadline={task.deadline} status={task.status} compact />
                 {taskIsDelivered && (
                   <Badge variant="outline" className="gap-1">
                     <Lock className="h-3 w-3" />
@@ -80,20 +83,24 @@ export function TaskDetailDrawer({
           </div>
         </DrawerHeader>
 
-        <div className="p-4 sm:p-6 overflow-y-auto">
-          <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="details" className="gap-2">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+          <Tabs defaultValue="details" className="w-full h-full flex flex-col">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsTrigger value="details" className="gap-1.5">
                 <Info className="h-4 w-4" />
-                Details
+                <span className="hidden sm:inline">Details</span>
               </TabsTrigger>
-              <TabsTrigger value="activity" className="gap-2">
+              <TabsTrigger value="comments" className="gap-1.5">
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">Comments</span>
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="gap-1.5">
                 <History className="h-4 w-4" />
-                Activity
+                <span className="hidden sm:inline">Activity</span>
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="details" className="space-y-6 mt-0">
+            <TabsContent value="details" className="space-y-6 mt-0 flex-1">
               {/* Workflow Progress */}
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-muted-foreground">Production Progress</h3>
@@ -116,11 +123,14 @@ export function TaskDetailDrawer({
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      Deadline
+                      Due Date
                     </div>
-                    <p className="text-sm font-medium">
-                      {format(new Date(task.deadline), 'dd MMM yyyy')}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">
+                        {format(new Date(task.deadline), 'dd MMM yyyy')}
+                      </p>
+                      <TaskDueDateBadge deadline={task.deadline} status={task.status} compact showIcon={false} />
+                    </div>
                   </div>
                 )}
 
@@ -156,7 +166,11 @@ export function TaskDetailDrawer({
               )}
             </TabsContent>
 
-            <TabsContent value="activity" className="mt-0">
+            <TabsContent value="comments" className="mt-0 flex-1 min-h-[300px]">
+              <TaskComments taskId={task.id} />
+            </TabsContent>
+
+            <TabsContent value="activity" className="mt-0 flex-1">
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-muted-foreground">Activity Log</h3>
                 <TaskActivityTimeline taskId={task.id} />
