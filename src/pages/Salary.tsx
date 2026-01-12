@@ -458,19 +458,106 @@ const Salary = () => {
     setSubmitting(true);
 
     try {
-      const { error } = await supabase.from("employee_advances").insert({
+      // Insert the advance record
+      const { data: newAdvance, error } = await supabase.from("employee_advances").insert({
         employee_id: advanceFormData.employee_id,
         amount: validatedAmount,
-        remaining_balance: validatedAmount, // Initialize remaining_balance = amount
+        remaining_balance: validatedAmount,
         reason: advanceFormData.reason || null,
-        deduct_month: advanceFormData.deduct_month, // When to start deducting
+        deduct_month: advanceFormData.deduct_month,
         status: "active",
         organization_id: organizationId,
-      });
+      }).select().single();
 
       if (error) throw error;
 
-      toast.success("Advance recorded. It will be auto-deducted on next salary generation.");
+      // AUTO-SYNC: Check if a salary record already exists for this employee + deduct_month
+      const [deductYear, deductMonthNum] = advanceFormData.deduct_month.split('-').map(Number);
+      
+      const { data: existingSalary } = await supabase
+        .from("employee_salary_records")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .eq("employee_id", advanceFormData.employee_id)
+        .eq("year", deductYear)
+        .eq("month", deductMonthNum)
+        .single();
+
+      if (existingSalary) {
+        // Check if salary is already paid - block auto-sync if paid
+        if (existingSalary.status === "paid") {
+          toast.warning("Advance created but salary for that month is already paid. Manual adjustment may be needed.");
+        } else {
+          // Recalculate and update the salary record
+          const currentAdvance = existingSalary.advance || 0;
+          const newTotalAdvance = currentAdvance + validatedAmount;
+          
+          // Net Payable = (Basic + Bonus) - (Deductions + Advance)
+          const grossSalary = (existingSalary.basic_salary || 0) + (existingSalary.bonus || 0);
+          const newNetPayable = grossSalary - (existingSalary.deductions || 0) - newTotalAdvance;
+
+          // Parse existing advance_deduction_details
+          let existingDetails: AdvanceDeductionDetail[] = [];
+          if (existingSalary.advance_deduction_details) {
+            try {
+              if (typeof existingSalary.advance_deduction_details === 'string') {
+                existingDetails = JSON.parse(existingSalary.advance_deduction_details);
+              } else if (Array.isArray(existingSalary.advance_deduction_details)) {
+                existingDetails = existingSalary.advance_deduction_details as unknown as AdvanceDeductionDetail[];
+              }
+            } catch {
+              console.error("Failed to parse existing advance_deduction_details");
+            }
+          }
+
+          // Add new advance to deduction details
+          const newDetail: AdvanceDeductionDetail = {
+            advance_id: newAdvance.id,
+            amount_deducted: validatedAmount,
+            remaining_after: 0,
+          };
+          const updatedDetails = [...existingDetails, newDetail];
+
+          // Update existing advance_deducted_ids
+          const existingIds = existingSalary.advance_deducted_ids || [];
+          const updatedIds = [...existingIds, newAdvance.id];
+
+          // Update salary record
+          const { error: salaryUpdateError } = await supabase
+            .from("employee_salary_records")
+            .update({
+              advance: newTotalAdvance,
+              net_payable: newNetPayable,
+              advance_deducted_ids: updatedIds,
+              advance_deduction_details: JSON.stringify(updatedDetails),
+            })
+            .eq("id", existingSalary.id);
+
+          if (salaryUpdateError) {
+            console.error("Error updating salary:", salaryUpdateError);
+            toast.error("Advance created but failed to sync with existing salary record.");
+          } else {
+            // Mark the advance as settled since it's been deducted
+            await supabase
+              .from("employee_advances")
+              .update({
+                remaining_balance: 0,
+                status: "settled",
+                deducted_from_month: deductMonthNum,
+                deducted_from_year: deductYear,
+              })
+              .eq("id", newAdvance.id);
+
+            toast.success(`Advance created and auto-synced with existing salary. Net payable reduced by ${formatCurrency(validatedAmount)}`);
+            setIsAdvanceDialogOpen(false);
+            resetAdvanceForm();
+            fetchData();
+            return;
+          }
+        }
+      }
+
+      toast.success("Advance recorded. It will be auto-deducted when salary is generated.");
       setIsAdvanceDialogOpen(false);
       resetAdvanceForm();
       fetchData();
