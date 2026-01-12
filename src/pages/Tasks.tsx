@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrgRolePermissions } from "@/hooks/useOrgRolePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,9 +53,16 @@ const priorityLabels: Record<TaskPriority, string> = {
 };
 
 const Tasks = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, isSuperAdmin, user } = useAuth();
+  const { hasPermission } = useOrgRolePermissions();
   const isMobile = useIsMobile();
   const { tasks, employees, loading, advanceStatus, createTask, updateTask, deleteTask } = useTasks();
+  
+  // Database-driven permission checks
+  const canViewTasks = isSuperAdmin || hasPermission('tasks.view');
+  const canCreateTasks = isSuperAdmin || hasPermission('tasks.create');
+  const canEditTasks = isSuperAdmin || hasPermission('tasks.edit');
+  const canDeleteTasks = isSuperAdmin || hasPermission('tasks.delete');
   
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -160,7 +168,8 @@ const Tasks = () => {
 
   const canEditTask = (task: Task) => {
     if (isDelivered(task.status)) return false;
-    return isAdmin || task.assigned_to === user?.id;
+    // Can edit if: super admin, has edit permission, or is assigned to the task
+    return isAdmin || isSuperAdmin || canEditTasks || task.assigned_to === user?.id;
   };
 
   const filteredTasks = useMemo(() => {
@@ -194,7 +203,7 @@ const Tasks = () => {
         title="Production Tasks"
         description="Track jobs through the printing workflow"
         actions={
-          isAdmin && (
+          (isAdmin || canCreateTasks) && (
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) resetForm();
@@ -382,7 +391,7 @@ const Tasks = () => {
           description={searchTerm || filterStatus !== 'all' 
             ? "Try adjusting your search or filter" 
             : "Create your first production task to get started"}
-          action={isAdmin ? { label: "New Task", onClick: () => setIsDialogOpen(true) } : undefined}
+          action={(isAdmin || canCreateTasks) ? { label: "New Task", onClick: () => setIsDialogOpen(true) } : undefined}
         />
       ) : isMobile ? (
         // Mobile Card View

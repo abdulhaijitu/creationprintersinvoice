@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import { canRolePerform, OrgRole } from "@/lib/permissions/constants";
+import { useOrgRolePermissions } from "@/hooks/useOrgRolePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,12 +73,13 @@ const initialFormData = {
 const Employees = () => {
   const { user, loading: authLoading, isSuperAdmin } = useAuth();
   const { orgRole, organization } = useOrganization();
+  const { hasPermission } = useOrgRolePermissions();
   
-  // Permission checks using proper role system
-  const canView = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'view');
-  const canCreate = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'create');
-  const canEdit = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'edit');
-  const canDelete = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'employees', 'delete');
+  // Permission checks using database-driven permissions
+  const canView = isSuperAdmin || hasPermission('employees.view');
+  const canCreate = isSuperAdmin || hasPermission('employees.create');
+  const canEdit = isSuperAdmin || hasPermission('employees.edit');
+  const canDelete = isSuperAdmin || hasPermission('employees.delete');
   
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);

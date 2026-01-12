@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
+import { useOrgRolePermissions } from "@/hooks/useOrgRolePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Clock, UserCheck, UserX, Users, Plus, ClipboardList } from "lucide-react";
+import { Calendar, Clock, UserCheck, UserX, Users, Plus, ClipboardList, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -67,8 +68,15 @@ interface TimeErrors {
 }
 
 const Attendance = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin, user } = useAuth();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
+  const { hasPermission } = useOrgRolePermissions();
+  
+  // Database-driven permission checks
+  const canViewAttendance = isSuperAdmin || hasPermission('attendance.view');
+  const canCreateAttendance = isSuperAdmin || hasPermission('attendance.create');
+  const canEditAttendance = isSuperAdmin || hasPermission('attendance.edit');
+  
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +84,7 @@ const Attendance = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
+  const [currentUserEmployeeId, setCurrentUserEmployeeId] = useState<string | null>(null);
   const [newAttendance, setNewAttendance] = useState({
     employee_id: "",
     check_in: "",
@@ -91,11 +100,32 @@ const Attendance = () => {
   // Track which rows are being updated
   const [updatingRows, setUpdatingRows] = useState<Set<string>>(new Set());
 
+  // Check if current user is linked to an employee record
+  useEffect(() => {
+    const findUserEmployee = async () => {
+      if (!organizationId || !user?.email) return;
+      
+      const { data } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("email", user.email)
+        .eq("is_active", true)
+        .maybeSingle();
+      
+      setCurrentUserEmployeeId(data?.id || null);
+    };
+    
+    if (hasOrgContext && organizationId && !isAdmin && !isSuperAdmin) {
+      findUserEmployee();
+    }
+  }, [organizationId, hasOrgContext, user?.email, isAdmin, isSuperAdmin]);
+
   useEffect(() => {
     if (hasOrgContext && organizationId) {
       fetchData();
     }
-  }, [selectedDate, selectedEmployee, organizationId, hasOrgContext]);
+  }, [selectedDate, selectedEmployee, organizationId, hasOrgContext, currentUserEmployeeId, isAdmin, isSuperAdmin]);
 
   const fetchData = async () => {
     if (!organizationId) return;
@@ -119,7 +149,19 @@ const Attendance = () => {
         .eq("date", selectedDate)
         .order("created_at", { ascending: false });
 
-      if (selectedEmployee !== "all") {
+      // For non-admin users, only show their own attendance (if linked to employee)
+      if (!isAdmin && !isSuperAdmin) {
+        if (currentUserEmployeeId) {
+          // User is linked to an employee - show only their records
+          query = query.eq("employee_id", currentUserEmployeeId);
+        } else {
+          // User is not linked to any employee - show nothing
+          setAttendance([]);
+          setLoading(false);
+          return;
+        }
+      } else if (selectedEmployee !== "all") {
+        // Admin filtering by specific employee
         query = query.eq("employee_id", selectedEmployee);
       }
 
@@ -421,7 +463,7 @@ const Attendance = () => {
           <h1 className="text-3xl font-bold">Attendance</h1>
           <p className="text-muted-foreground">Employee attendance tracking</p>
         </div>
-        {isAdmin && (
+        {(isAdmin || canCreateAttendance) && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={markAllPresent}>
               <UserCheck className="mr-2 h-4 w-4" />
