@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo } from 'react';
+import { useCallback, useRef, useMemo, useEffect } from 'react';
 import { LogOut } from 'lucide-react';
 import creationPrintersLogo from '@/assets/creation-printers-logo.png';
 import appIconLogo from '@/assets/app-logo.jpg';
@@ -34,13 +34,23 @@ export function AppSidebar() {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { organization } = useOrganization();
-  const { canPerform, isAdmin, orgRole } = usePermissions();
+  const { canPerform, isAdmin, orgRole, refreshPermissions, permissionsLoading } = usePermissions();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   
   // Ref to track menu items for keyboard navigation
   const menuItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
   const navContainerRef = useRef<HTMLElement>(null);
+
+  // Refresh permissions on route change to pick up any updates
+  const lastPathRef = useRef(location.pathname);
+  useEffect(() => {
+    if (lastPathRef.current !== location.pathname) {
+      lastPathRef.current = location.pathname;
+      // Silently refresh permissions to pick up changes
+      refreshPermissions?.();
+    }
+  }, [location.pathname, refreshPermissions]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -69,7 +79,7 @@ export function AppSidebar() {
         return canPerform(module, action);
       }),
     })).filter((group) => group.items.length > 0); // Remove empty groups
-  }, [canPerform, isAdmin, orgRole]);
+  }, [canPerform, isAdmin, orgRole, permissionsLoading]);
 
   // Get current focused index
   const getFocusedIndex = useCallback(() => {

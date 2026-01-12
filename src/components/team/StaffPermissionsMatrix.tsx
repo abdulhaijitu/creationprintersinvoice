@@ -1,12 +1,13 @@
 /**
  * Staff Permissions Matrix Component
  * Allows organization owners to configure role-based permissions
- * Uses module-level caching to prevent refetch on navigation
+ * FIXED: Now properly persists permissions and invalidates caches
  */
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { invalidateOrgPermissionCache } from '@/hooks/useOrgRolePermissions';
 import { 
   OrgRole, 
   ORG_ROLE_DISPLAY, 
@@ -34,6 +35,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { 
   Eye, 
   Plus, 
@@ -44,7 +46,9 @@ import {
   Loader2,
   Shield,
   ShieldCheck,
-  Info
+  Info,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -103,37 +107,25 @@ const getPermissionKey = (module: PermissionModule, action: PermissionAction): s
   return `${module}.${action}`;
 };
 
-// Module-level cache for permissions data
-const permissionsCache = new Map<string, {
-  orgPermissions: OrgSpecificPermission[];
-  permissionState: Map<string, boolean>;
-  fetchedAt: number;
-}>();
-
-const CACHE_TTL = 60000; // 60 seconds
+// NO module-level cache - always fetch fresh from DB to avoid stale data
+const CACHE_TTL = 30000; // 30 seconds
 
 interface StaffPermissionsMatrixProps {
   className?: string;
+  onPermissionsChanged?: () => void;
 }
 
-export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProps) {
+export function StaffPermissionsMatrix({ className, onPermissionsChanged }: StaffPermissionsMatrixProps) {
   const { organization, isOrgOwner } = useOrganization();
   
-  // Check cache on mount
-  const cachedData = organization ? permissionsCache.get(organization.id) : null;
-  const isCacheValid = cachedData && (Date.now() - cachedData.fetchedAt < CACHE_TTL);
-  
-  const [orgPermissions, setOrgPermissions] = useState<OrgSpecificPermission[]>(
-    isCacheValid ? cachedData.orgPermissions : []
-  );
-  const [loading, setLoading] = useState(!isCacheValid);
+  const [orgPermissions, setOrgPermissions] = useState<OrgSpecificPermission[]>([]);
+  const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
-  const hasFetchedRef = useRef(isCacheValid);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const isMountedRef = useRef(true);
   
   // Local permission state: Map<"module.action.role", boolean>
-  const [permissionState, setPermissionState] = useState<Map<string, boolean>>(
-    isCacheValid ? cachedData.permissionState : new Map()
-  );
+  const [permissionState, setPermissionState] = useState<Map<string, boolean>>(new Map());
 
   // Build initial state from PERMISSION_MATRIX and org-specific overrides
   const buildPermissionState = useCallback((orgPerms: OrgSpecificPermission[]): Map<string, boolean> => {
@@ -159,27 +151,13 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
     return state;
   }, []);
 
-  // Helper to update cache
-  const updateCache = useCallback((orgPerms: OrgSpecificPermission[], permState: Map<string, boolean>) => {
-    if (organization) {
-      permissionsCache.set(organization.id, {
-        orgPermissions: orgPerms,
-        permissionState: permState,
-        fetchedAt: Date.now(),
-      });
-    }
-  }, [organization]);
-
-  const fetchPermissions = useCallback(async () => {
+  // Fetch permissions from database - ALWAYS fresh
+  const fetchPermissions = useCallback(async (showToast = false) => {
     if (!organization) return;
-    
-    // Skip if we already have cached data
-    if (hasFetchedRef.current) {
-      return;
-    }
     
     setLoading(true);
     try {
+      console.log(`[StaffPermissionsMatrix] Fetching permissions for org: ${organization.id}`);
       const { data, error } = await supabase
         .from('org_specific_permissions')
         .select('*')
@@ -190,22 +168,33 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
       const perms = data || [];
       const state = buildPermissionState(perms);
       
-      setOrgPermissions(perms);
-      setPermissionState(state);
-      updateCache(perms, state);
-      hasFetchedRef.current = true;
+      if (isMountedRef.current) {
+        setOrgPermissions(perms);
+        setPermissionState(state);
+        setHasUnsavedChanges(false);
+      }
+      console.log(`[StaffPermissionsMatrix] Loaded ${perms.length} org-specific permissions`);
+      if (showToast) {
+        toast.success('Permissions refreshed');
+      }
     } catch (error) {
-      console.error('Error fetching permissions:', error);
+      console.error('[StaffPermissionsMatrix] Error fetching permissions:', error);
       toast.error('Failed to load permissions');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  }, [organization, buildPermissionState, updateCache]);
+  }, [organization, buildPermissionState]);
 
   useEffect(() => {
-    if (organization && !hasFetchedRef.current) {
+    isMountedRef.current = true;
+    if (organization) {
       fetchPermissions();
     }
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [organization?.id]);
 
   // Check if permission is enabled
@@ -225,7 +214,7 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
     return !!PERMISSION_MATRIX[module]?.[action];
   }, [isOrgOwner]);
 
-  // Handle permission toggle with optimistic update
+  // Handle permission toggle with IMMEDIATE database persistence
   const handleToggle = async (module: PermissionModule, action: PermissionAction, role: OrgRole) => {
     if (!organization || !canToggle(role, module, action)) return;
 
@@ -250,19 +239,27 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
       let newOrgPermissions: OrgSpecificPermission[];
 
       if (existing) {
-        // Update existing
-        const { error } = await supabase
+        // Update existing permission
+        console.log(`[StaffPermissionsMatrix] Updating permission ${permKey} for role ${role} to ${newValue}`);
+        const { error, data } = await supabase
           .from('org_specific_permissions')
           .update({ is_enabled: newValue, updated_at: new Date().toISOString() })
-          .eq('id', existing.id);
+          .eq('id', existing.id)
+          .select()
+          .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('[StaffPermissionsMatrix] Update error:', error);
+          throw error;
+        }
 
+        console.log('[StaffPermissionsMatrix] Update successful:', data);
         newOrgPermissions = orgPermissions.map(p => 
           p.id === existing.id ? { ...p, is_enabled: newValue } : p
         );
       } else {
-        // Create new
+        // Create new permission
+        console.log(`[StaffPermissionsMatrix] Creating permission ${permKey} for role ${role} with value ${newValue}`);
         const { data, error } = await supabase
           .from('org_specific_permissions')
           .insert({
@@ -274,22 +271,31 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('[StaffPermissionsMatrix] Insert error:', error);
+          throw error;
+        }
 
+        console.log('[StaffPermissionsMatrix] Insert successful:', data);
         newOrgPermissions = [...orgPermissions, data];
       }
 
       setOrgPermissions(newOrgPermissions);
-      updateCache(newOrgPermissions, newPermissionState);
-      toast.success('Permission updated', { duration: 1500 });
+      
+      // Invalidate the global permission cache so sidebar updates
+      invalidateOrgPermissionCache(organization.id);
+      
+      // Notify parent that permissions changed
+      onPermissionsChanged?.();
+      
+      toast.success(`Permission ${newValue ? 'enabled' : 'disabled'}`, { duration: 1500 });
     } catch (error) {
-      console.error('Error updating permission:', error);
+      console.error('[StaffPermissionsMatrix] Error updating permission:', error);
       // Revert on failure
       const revertedState = new Map(permissionState);
       revertedState.set(stateKey, currentValue);
       setPermissionState(revertedState);
-      updateCache(orgPermissions, revertedState);
-      toast.error('Failed to update permission');
+      toast.error('Failed to save permission. Please try again.');
     } finally {
       setSavingKey(null);
     }
@@ -344,12 +350,24 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
     <TooltipProvider>
       <Card className={cn('overflow-hidden', className)}>
         <CardHeader className="border-b">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-primary" />
-            <CardTitle>Staff Permissions</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <CardTitle>Staff Permissions</CardTitle>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchPermissions(true)}
+              disabled={loading}
+              className="gap-2"
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+              Refresh
+            </Button>
           </div>
           <CardDescription>
-            Configure what each role can access. Changes are saved instantly.
+            Configure what each role can access. Changes are saved to database immediately.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -489,11 +507,15 @@ export function StaffPermissionsMatrix({ className }: StaffPermissionsMatrixProp
           </div>
           
           {/* Footer */}
-          <div className="px-4 py-3 border-t bg-muted/20 text-xs text-muted-foreground">
-            <p>
-              <strong>Note:</strong> Permission changes take effect immediately. 
-              Team members may need to refresh their browser to see updated access.
-            </p>
+          <div className="px-4 py-3 border-t bg-muted/20">
+            <div className="flex items-start gap-2 text-xs text-muted-foreground">
+              <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <p>
+                <strong>Important:</strong> Permission changes are saved to the database immediately. 
+                Team members will see updated access after refreshing their browser or logging in again.
+                Sidebar visibility updates on next page navigation.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
