@@ -25,7 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { toast } from 'sonner';
 import { Users, UserPlus, Mail, Shield, Crown, Briefcase, Calculator, ShieldAlert, Palette, UserCheck, RefreshCw, AlertCircle, Clock, RotateCw, X, Loader2, Check, ShieldCheck, UserCog, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { StaffPermissionsMatrix } from '@/components/team/StaffPermissionsMatrix';
+import { ModulePermissionsMatrix } from '@/components/team/ModulePermissionsMatrix';
 import { AddTeamMemberDialog } from '@/components/team/AddTeamMemberDialog';
 import { EditTeamMemberDialog } from '@/components/team/EditTeamMemberDialog';
 import { DeleteMemberDialog } from '@/components/team/DeleteMemberDialog';
@@ -1143,7 +1143,7 @@ const TeamMembers = () => {
         {/* Permissions Tab */}
         {isOrgOwner && (
           <TabsContent value="permissions">
-            <StaffPermissionsMatrix />
+            <ModulePermissionsMatrix />
           </TabsContent>
         )}
       </Tabs>
