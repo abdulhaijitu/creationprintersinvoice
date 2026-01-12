@@ -34,7 +34,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { user, signOut, isSuperAdmin } = useAuth();
   const { organization, isOrgOwner } = useOrganization();
-  const { hasModulePermission, refreshPermissions, loading: permissionsLoading } = useModulePermissions();
+  const { canView, refreshPermissions, loading: permissionsLoading } = useModulePermissions();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   
@@ -78,11 +78,11 @@ export function AppSidebar() {
         // Owner bypass - always show all items
         if (isOrgOwner) return true;
         
-        // Check if user has the module permission
-        return hasModulePermission(item.permissionKey);
+        // Check if user has VIEW permission for this module
+        return canView(item.permissionKey);
       }),
     })).filter((group) => group.items.length > 0); // Remove empty groups
-  }, [hasModulePermission, isSuperAdmin, isOrgOwner, permissionsLoading]);
+  }, [canView, isSuperAdmin, isOrgOwner, permissionsLoading]);
 
   // Get current focused index
   const getFocusedIndex = useCallback(() => {
