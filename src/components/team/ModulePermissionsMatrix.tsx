@@ -32,7 +32,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { 
   Lock,
   Loader2,
@@ -476,7 +476,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
           </div>
 
           {/* Permissions Grid */}
-          <ScrollArea className="max-h-[600px]">
+          <div>
             <div className="divide-y">
               {CATEGORY_ORDER.map((category) => {
                 const CategoryIcon = CATEGORY_ICONS[category];
@@ -488,7 +488,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
                 return (
                   <div key={category} className="animate-fade-in">
                     {/* Category Header */}
-                    <div className="px-4 py-3 bg-muted/40 border-b sticky top-0 z-10 backdrop-blur-sm">
+                    <div className="px-4 py-3 bg-muted/40 border-b">
                       <div className="flex items-center gap-2">
                         <CategoryIcon className="h-4 w-4 text-primary" />
                         <span className="font-semibold text-sm uppercase tracking-wider text-foreground">
@@ -614,7 +614,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
                 );
               })}
             </div>
-          </ScrollArea>
+          </div>
           
           {/* Footer */}
           <div className="px-4 py-3 border-t bg-muted/20 flex items-center justify-between gap-4">
