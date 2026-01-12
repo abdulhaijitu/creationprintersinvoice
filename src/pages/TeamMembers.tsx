@@ -411,7 +411,7 @@ const TeamMembers = () => {
     return emailRegex.test(email);
   };
 
-  // Send invite
+  // Send invite via Edge Function
   const handleSendInvite = async () => {
     setInviteError('');
     
@@ -446,29 +446,59 @@ const TeamMembers = () => {
     setIsSendingInvite(true);
     
     try {
-      const { data, error } = await supabase
-        .from('organization_invites')
-        .insert({
-          organization_id: organization!.id,
+      // Call edge function to send invite with email
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      
+      if (!token) {
+        setInviteError('Authentication required. Please log in again.');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('send-invite', {
+        body: {
           email: inviteEmail.toLowerCase().trim(),
           role: inviteRole,
           note: inviteNote.trim() || null,
-          invited_by: user?.id,
-        })
-        .select()
-        .single();
+          organizationId: organization!.id,
+        },
+      });
       
-      if (error) throw error;
+      if (response.error) {
+        console.error('[TeamMembers] Edge function error:', response.error);
+        throw new Error(response.error.message || 'Failed to send invitation');
+      }
       
-      // Optimistic update
+      const result = response.data;
+      
+      if (!result.success) {
+        // Handle specific error codes
+        if (result.code === 'EMAIL_NOT_CONFIGURED') {
+          setInviteError('Email service is not configured. Please contact your administrator.');
+          toast.error('Email service not configured', {
+            description: 'Invitation emails cannot be sent until email is configured.',
+          });
+          return;
+        }
+        if (result.code === 'EMAIL_SEND_FAILED') {
+          setInviteError('Failed to send email. The invitation was not created.');
+          toast.error('Email delivery failed', {
+            description: result.details || 'Please check email configuration.',
+          });
+          return;
+        }
+        throw new Error(result.error || 'Failed to send invitation');
+      }
+      
+      // Success - add invite to UI
       const newInvite: PendingInvite = {
-        id: data.id,
-        email: data.email,
-        role: data.role as OrgRole,
-        note: data.note,
+        id: result.invite.id,
+        email: result.invite.email,
+        role: result.invite.role as OrgRole,
+        note: inviteNote.trim() || null,
         status: 'pending',
-        created_at: data.created_at,
-        expires_at: data.expires_at,
+        created_at: result.invite.created_at,
+        expires_at: result.invite.expires_at,
       };
       
       const newInvites = [newInvite, ...invites];
@@ -478,37 +508,77 @@ const TeamMembers = () => {
       setInviteEmail('');
       setInviteRole('employee');
       setInviteNote('');
-      toast.success('Invitation sent successfully');
+      toast.success('Invitation sent successfully', {
+        description: `Email sent to ${newInvite.email}`,
+      });
     } catch (err: any) {
       console.error('[TeamMembers] Failed to send invite:', err);
-      if (err.code === '23505') {
+      const errorMessage = err?.message || 'Failed to send invitation. Please try again.';
+      
+      if (errorMessage.includes('already been sent') || errorMessage.includes('already pending')) {
         setInviteError('An invitation has already been sent to this email');
+      } else if (errorMessage.includes('already a member')) {
+        setInviteError('This user is already a member of the organization');
       } else {
-        setInviteError('Failed to send invitation. Please try again.');
+        setInviteError(errorMessage);
       }
     } finally {
       setIsSendingInvite(false);
     }
   };
 
-  // Resend invite
+  // Resend invite via Edge Function
   const handleResendInvite = async (inviteId: string) => {
     setLoadingInviteId(inviteId);
     try {
-      const { error } = await supabase
-        .from('organization_invites')
-        .update({ 
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', inviteId);
+      const response = await supabase.functions.invoke('send-invite', {
+        body: {
+          organizationId: organization!.id,
+          resend: true,
+          inviteId: inviteId,
+        },
+      });
       
-      if (error) throw error;
+      if (response.error) {
+        console.error('[TeamMembers] Resend error:', response.error);
+        throw new Error(response.error.message || 'Failed to resend invitation');
+      }
       
-      toast.success('Invitation resent successfully');
-    } catch (err) {
+      const result = response.data;
+      
+      if (!result.success) {
+        if (result.code === 'EMAIL_NOT_CONFIGURED') {
+          toast.error('Email service not configured', {
+            description: 'Please configure email settings to resend invitations.',
+          });
+          return;
+        }
+        if (result.code === 'EMAIL_SEND_FAILED') {
+          toast.error('Failed to send email', {
+            description: result.details || 'Please check email configuration.',
+          });
+          return;
+        }
+        throw new Error(result.error || 'Failed to resend invitation');
+      }
+      
+      // Update expires_at in local state
+      const updatedInvites = invites.map(inv => 
+        inv.id === inviteId 
+          ? { ...inv, expires_at: result.invite.expires_at }
+          : inv
+      );
+      setInvites(updatedInvites);
+      updateCache(members, updatedInvites);
+      
+      toast.success('Invitation resent successfully', {
+        description: `Email sent to ${result.invite.email}`,
+      });
+    } catch (err: any) {
       console.error('[TeamMembers] Failed to resend invite:', err);
-      toast.error('Failed to resend invitation');
+      toast.error('Failed to resend invitation', {
+        description: err?.message || 'Please try again.',
+      });
     } finally {
       setLoadingInviteId(null);
     }
