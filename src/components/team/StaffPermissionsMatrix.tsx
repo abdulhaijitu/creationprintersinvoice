@@ -76,8 +76,9 @@ const DISPLAY_MODULES: PermissionModule[] = [
   'tasks',
 ];
 
-const ACTION_ICONS: Record<PermissionAction, React.ComponentType<{ className?: string }>> = {
+const ACTION_ICONS: Partial<Record<PermissionAction, React.ComponentType<{ className?: string }>>> = {
   view: Eye,
+  manage: Edit,
   create: Plus,
   edit: Edit,
   delete: Trash2,
@@ -86,8 +87,9 @@ const ACTION_ICONS: Record<PermissionAction, React.ComponentType<{ className?: s
   export: Eye,
 };
 
-const ACTION_LABELS: Record<PermissionAction, string> = {
+const ACTION_LABELS: Partial<Record<PermissionAction, string>> = {
   view: 'View',
+  manage: 'Manage',
   create: 'Create',
   edit: 'Edit',
   delete: 'Delete',
