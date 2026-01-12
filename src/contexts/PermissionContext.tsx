@@ -17,28 +17,30 @@ import { toast } from 'sonner';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // Permission actions
-export type PermissionAction = 'view' | 'create' | 'edit' | 'delete';
-const PERMISSION_ACTIONS: PermissionAction[] = ['view', 'create', 'edit', 'delete'];
+export type PermissionAction = 'view' | 'create' | 'edit' | 'delete' | 'manage' | 'access';
+const PERMISSION_ACTIONS: PermissionAction[] = ['view', 'create', 'edit', 'delete', 'manage', 'access'];
 
-// Module name mappings
+// Module name mappings - handles different key formats from database
+// Format 1 (org_specific_permissions): "invoices.view", "customers.create"
+// Format 2 (org_role_permissions): "sales.invoices", "hr.attendance", "dashboard.access"
 const MODULE_NAME_ALIASES: Record<string, string[]> = {
-  dashboard: ['dashboard'],
-  invoices: ['invoices'],
-  quotations: ['quotations'],
-  price_calculation: ['price_calculation', 'price_calculations'],
-  challan: ['challan', 'delivery_challans'],
-  customers: ['customers'],
-  vendors: ['vendors'],
-  expenses: ['expenses'],
-  employees: ['employees'],
-  attendance: ['attendance'],
-  salary: ['salary'],
-  leave: ['leave'],
-  performance: ['performance'],
-  tasks: ['tasks'],
-  reports: ['reports'],
-  team: ['team', 'team_members'],
-  settings: ['settings'],
+  dashboard: ['dashboard', 'main.dashboard'],
+  invoices: ['invoices', 'sales.invoices'],
+  quotations: ['quotations', 'sales.quotations'],
+  price_calculation: ['price_calculation', 'price_calculations', 'sales.price_calculations'],
+  challan: ['challan', 'delivery_challans', 'sales.delivery_challans'],
+  customers: ['customers', 'sales.customers'],
+  vendors: ['vendors', 'expenses.vendors'],
+  expenses: ['expenses', 'expenses.expenses'],
+  employees: ['employees', 'hr.employees'],
+  attendance: ['attendance', 'hr.attendance'],
+  salary: ['salary', 'hr.payroll'],
+  leave: ['leave', 'hr.leave_management'],
+  performance: ['performance', 'hr.performance'],
+  tasks: ['tasks', 'hr.tasks'],
+  reports: ['reports', 'reports.financial', 'reports.hr'],
+  team: ['team', 'team_members', 'settings.team_members'],
+  settings: ['settings', 'settings.organization_settings'],
 };
 
 // Reverse lookup
@@ -48,6 +50,40 @@ Object.entries(MODULE_NAME_ALIASES).forEach(([canonical, aliases]) => {
     DB_TO_CANONICAL[alias] = canonical;
   });
 });
+
+// Map org_role_permissions keys to canonical module names
+// These are category-based keys like "sales.invoices" that map to module "invoices"
+const CATEGORY_KEY_TO_MODULE: Record<string, string> = {
+  'sales.invoices': 'invoices',
+  'sales.quotations': 'quotations', 
+  'sales.price_calculations': 'price_calculation',
+  'sales.delivery_challans': 'challan',
+  'sales.customers': 'customers',
+  'expenses.vendors': 'vendors',
+  'expenses.expenses': 'expenses',
+  'hr.employees': 'employees',
+  'hr.attendance': 'attendance',
+  'hr.payroll': 'salary',
+  'hr.leave_management': 'leave',
+  'hr.performance': 'performance',
+  'hr.tasks': 'tasks',
+  'reports.financial': 'reports',
+  'reports.hr': 'reports',
+  'settings.team_members': 'team',
+  'settings.organization_settings': 'settings',
+  'settings.billing': 'settings',
+  'settings.notifications': 'settings',
+  'settings.role_management': 'settings',
+  'settings.usage_limits': 'settings',
+  'settings.white_label': 'settings',
+  'settings.platform_admin': 'settings',
+  'dashboard.access': 'dashboard',
+  'sales_billing.access': 'invoices',
+  'expenses.access': 'expenses',
+  'hr_workforce.access': 'employees',
+  'reports.access': 'reports',
+  'settings.access': 'settings',
+};
 
 // Module to route mapping for redirect safety
 const MODULE_ROUTES: Record<string, string> = {
@@ -142,6 +178,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   /**
    * Fetch permissions from database
+   * Priority: org_specific_permissions OVERRIDES org_role_permissions
    */
   const fetchPermissions = useCallback(async () => {
     if (!organization?.id || orgLoading) {
@@ -179,23 +216,60 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       console.log(`[PermissionContext] Fetching permissions for org: ${organization.id}, role: ${orgRole}`);
       
-      const { data, error } = await supabase
-        .from('org_specific_permissions')
-        .select('permission_key, is_enabled')
-        .eq('organization_id', organization.id)
-        .eq('role', orgRole);
+      // Fetch BOTH tables in parallel
+      const [globalRes, orgRes] = await Promise.all([
+        supabase
+          .from('org_role_permissions')
+          .select('permission_key, is_enabled')
+          .eq('role', orgRole)
+          .eq('is_enabled', true),
+        supabase
+          .from('org_specific_permissions')
+          .select('permission_key, is_enabled')
+          .eq('organization_id', organization.id)
+          .eq('role', orgRole),
+      ]);
 
-      if (error) throw error;
+      if (globalRes.error) throw globalRes.error;
+      if (orgRes.error) throw orgRes.error;
 
       const normalizedMap = new Map<string, boolean>();
-      
-      (data || []).forEach(perm => {
+
+      // STEP 1: Process global role permissions (org_role_permissions)
+      // These use category-based keys like "sales.invoices", "hr.attendance"
+      (globalRes.data || []).forEach(perm => {
+        const key = perm.permission_key;
+        
+        // Check if this is a category-based key
+        const canonicalModule = CATEGORY_KEY_TO_MODULE[key];
+        if (canonicalModule) {
+          // Grant view access for the module (category keys imply view access)
+          normalizedMap.set(`${canonicalModule}.view`, true);
+          normalizedMap.set(`${canonicalModule}.access`, true);
+          // Also store original key
+          normalizedMap.set(key, true);
+          console.log(`[PermissionContext] Global: ${key} -> ${canonicalModule}.view`);
+        } else {
+          // Standard module.action format
+          const [moduleRaw, action] = key.split('.');
+          if (moduleRaw && action) {
+            const normalized = normalizeModuleName(moduleRaw);
+            normalizedMap.set(`${normalized}.${action}`, perm.is_enabled);
+            normalizedMap.set(key, perm.is_enabled);
+          }
+        }
+      });
+
+      // STEP 2: Process org-specific permissions (org_specific_permissions)
+      // These OVERRIDE global permissions and use module.action format
+      (orgRes.data || []).forEach(perm => {
         const [moduleRaw, action] = perm.permission_key.split('.');
         
         if (moduleRaw && action) {
           const canonicalModule = normalizeModuleName(moduleRaw);
           const canonicalKey = `${canonicalModule}.${action}`;
           
+          // Org-specific ALWAYS overrides
           normalizedMap.set(canonicalKey, perm.is_enabled);
           normalizedMap.set(perm.permission_key, perm.is_enabled);
         }
@@ -225,7 +299,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setPermissionsReady(true);
       }
 
-      console.log(`[PermissionContext] Loaded ${normalizedMap.size} permissions for role: ${orgRole}`);
+      console.log(`[PermissionContext] Loaded permissions: global=${globalRes.data?.length || 0}, org-specific=${orgRes.data?.length || 0}, total map size=${normalizedMap.size}`);
     } catch (err) {
       console.error('[PermissionContext] Error fetching permissions:', err);
       if (isMountedRef.current) {
