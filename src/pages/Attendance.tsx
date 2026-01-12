@@ -35,6 +35,7 @@ import { format } from "date-fns";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Database } from "@/integrations/supabase/types";
 import { EnhancedTimeInput } from "@/components/attendance/EnhancedTimeInput";
+import { TimeInput } from "@/components/attendance/TimeInput";
 import { AttendanceStatusBadge } from "@/components/attendance/AttendanceStatusBadge";
 import { MarkAllPresentDialog } from "@/components/attendance/MarkAllPresentDialog";
 import { AttendanceTableSkeleton } from "@/components/attendance/AttendanceTableSkeleton";
@@ -837,12 +838,14 @@ const Attendance = () => {
                     <TableCell className="whitespace-nowrap">
                       {(isAdmin || canEditAttendance) ? (
                         <div className="flex flex-col gap-1">
-                          <Input
-                            type="time"
+                          <TimeInput
                             value={checkInTime}
-                            onChange={(e) => updateCheckIn(record.id, e.target.value, record.date)}
-                            className="w-[120px]"
+                            onChange={(val) => updateCheckIn(record.id, val, record.date)}
                             disabled={isUpdating}
+                            showPicker={false}
+                            showErrorText={false}
+                            className="w-[160px] space-y-0"
+                            placeholder="HH:MM"
                           />
                         </div>
                       ) : (
@@ -852,12 +855,14 @@ const Attendance = () => {
                     <TableCell className="whitespace-nowrap">
                       {(isAdmin || canEditAttendance) ? (
                         <div className="flex flex-col gap-1">
-                          <Input
-                            type="time"
+                          <TimeInput
                             value={checkOutTime}
-                            onChange={(e) => updateCheckOut(record.id, e.target.value, record.date)}
-                            className="w-[120px]"
+                            onChange={(val) => updateCheckOut(record.id, val, record.date)}
                             disabled={isUpdating}
+                            showPicker={false}
+                            showErrorText={false}
+                            className="w-[160px] space-y-0"
+                            placeholder="HH:MM"
                           />
                         </div>
                       ) : (
