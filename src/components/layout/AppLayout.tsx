@@ -86,7 +86,7 @@ const PageLoadingFallback = () => (
 
 const AppLayout = () => {
   const { user, loading: authLoading } = useAuth();
-  const { loading: orgLoading, needsOnboarding } = useOrganization();
+  const { loading: orgLoading } = useOrganization();
 
   // Only block on auth loading - show shell immediately
   // Organization loading can happen in background
@@ -98,10 +98,6 @@ const AppLayout = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Redirect to onboarding if user has no organization
-  if (needsOnboarding && !orgLoading) {
-    return <Navigate to="/onboarding" replace />;
-  }
 
   return (
     <TooltipProvider delayDuration={0}>

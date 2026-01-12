@@ -53,8 +53,6 @@ import {
 import { format, subMonths, startOfMonth, endOfMonth, isToday, parseISO } from 'date-fns';
 import { formatCurrency, formatChartCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
-import { WalkthroughTooltip } from '@/components/onboarding/WalkthroughTooltip';
 
 interface DashboardStats {
   todaySales: number;
@@ -438,11 +436,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Onboarding Checklist */}
-      <OnboardingChecklist />
-
-      {/* Walkthrough Tooltip */}
-      <WalkthroughTooltip pageKey="dashboard" />
 
       {/* Alerts Section */}
       {alerts.length > 0 && (

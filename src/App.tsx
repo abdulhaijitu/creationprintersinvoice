@@ -36,7 +36,7 @@ import NotFound from "./pages/NotFound";
 import DeliveryChallans from "./pages/DeliveryChallans";
 import ChallanPrintTemplate from "./components/delivery-challan/ChallanPrintTemplate";
 import ResetPassword from "./pages/ResetPassword";
-import Onboarding from "./pages/Onboarding";
+
 
 // Create a single QueryClient instance with optimized settings
 const queryClient = createQueryClient();
@@ -54,7 +54,7 @@ const App = () => (
                 {/* Public routes */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/onboarding" element={<Onboarding />} />
+                
                 <Route
                   path="/delivery-challans/:id/print"
                   element={<ChallanPrintTemplate />}

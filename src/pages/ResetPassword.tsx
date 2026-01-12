@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { Lock, Eye, EyeOff, CheckCircle, XCircle, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuthPageBranding } from '@/hooks/useAuthPageBranding';
+import { APP_CONFIG } from '@/lib/appConfig';
+import appLogo from '@/assets/app-logo.jpg';
 
 interface PasswordRequirement {
   label: string;
@@ -33,7 +34,8 @@ const ResetPassword = () => {
   const [checkingStatus, setCheckingStatus] = useState(true);
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { appName, logoUrl } = useAuthPageBranding();
+  const appName = APP_CONFIG.name;
+  const logoUrl = appLogo;
 
   // Check if user needs password reset
   useEffect(() => {
