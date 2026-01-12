@@ -30,7 +30,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Calendar, ShieldAlert, Loader2, Banknote, AlertTriangle } from "lucide-react";
+import { Plus, Calendar, ShieldAlert, Loader2, Banknote, AlertTriangle, Pencil, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -111,6 +121,29 @@ const Salary = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("salary");
+  
+  // Edit/Delete state for salary records
+  const [editingSalary, setEditingSalary] = useState<SalaryRecord | null>(null);
+  const [deletingSalary, setDeletingSalary] = useState<SalaryRecord | null>(null);
+  const [deletingAdvance, setDeletingAdvance] = useState<EmployeeAdvance | null>(null);
+  const [editingAdvance, setEditingAdvance] = useState<EmployeeAdvance | null>(null);
+  
+  // Edit form for salary (excludes employee_id and month/year)
+  const [editSalaryForm, setEditSalaryForm] = useState({
+    basic_salary: "",
+    overtime_hours: "0",
+    overtime_amount: "0",
+    bonus: "0",
+    deductions: "0",
+    notes: "",
+  });
+  
+  // Edit form for advance
+  const [editAdvanceForm, setEditAdvanceForm] = useState({
+    amount: "",
+    deduct_month: "",
+    reason: "",
+  });
   
   // Pending advances for selected employee
   const [pendingAdvances, setPendingAdvances] = useState<EmployeeAdvance[]>([]);
@@ -455,6 +488,239 @@ const Salary = () => {
     } catch (error) {
       console.error("Error saving advance:", error);
       toast.error("Failed to save advance");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Open edit dialog for salary record
+  const openEditSalary = (record: SalaryRecord) => {
+    setEditingSalary(record);
+    setEditSalaryForm({
+      basic_salary: record.basic_salary.toString(),
+      overtime_hours: record.overtime_hours?.toString() || "0",
+      overtime_amount: record.overtime_amount?.toString() || "0",
+      bonus: record.bonus?.toString() || "0",
+      deductions: record.deductions?.toString() || "0",
+      notes: record.notes || "",
+    });
+  };
+
+  // Calculate net payable for edit form (advance stays unchanged)
+  const calculateEditNetPayable = () => {
+    if (!editingSalary) return 0;
+    const basic = safeParseFloat(editSalaryForm.basic_salary, 0, 0, 100000000);
+    const overtime = safeParseFloat(editSalaryForm.overtime_amount, 0, 0, 100000000);
+    const bonus = safeParseFloat(editSalaryForm.bonus, 0, 0, 100000000);
+    const deductions = safeParseFloat(editSalaryForm.deductions, 0, 0, 100000000);
+    const grossSalary = basic + overtime + bonus - deductions;
+    // Advance deduction remains unchanged from original record
+    return grossSalary - (editingSalary.advance || 0);
+  };
+
+  // Handle edit salary submission
+  const handleEditSalary = async () => {
+    if (!editingSalary) return;
+
+    setSubmitting(true);
+    try {
+      const basicSalary = safeParseFloat(editSalaryForm.basic_salary, 0, 0, 100000000);
+      const overtimeHours = safeParseFloat(editSalaryForm.overtime_hours, 0, 0, 1000);
+      const overtimeAmount = safeParseFloat(editSalaryForm.overtime_amount, 0, 0, 100000000);
+      const bonus = safeParseFloat(editSalaryForm.bonus, 0, 0, 100000000);
+      const deductions = safeParseFloat(editSalaryForm.deductions, 0, 0, 100000000);
+      
+      // Gross salary recalculation
+      const grossSalary = basicSalary + overtimeAmount + bonus - deductions;
+      // Advance deduction stays unchanged
+      const netPayable = grossSalary - (editingSalary.advance || 0);
+      
+      if (netPayable < 0) {
+        toast.error("Net payable cannot be negative. Adjust deductions or advance.");
+        setSubmitting(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from("employee_salary_records")
+        .update({
+          basic_salary: basicSalary,
+          overtime_hours: overtimeHours,
+          overtime_amount: overtimeAmount,
+          bonus: bonus,
+          deductions: deductions,
+          net_payable: netPayable,
+          notes: editSalaryForm.notes || null,
+        })
+        .eq("id", editingSalary.id);
+
+      if (error) throw error;
+
+      toast.success("Salary record updated successfully");
+      setEditingSalary(null);
+      fetchData();
+    } catch (error) {
+      console.error("Error updating salary:", error);
+      toast.error("Failed to update salary record");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle delete salary with advance reversal
+  const handleDeleteSalary = async () => {
+    if (!deletingSalary) return;
+
+    setSubmitting(true);
+    try {
+      // If there's advance deducted, we need to reverse it
+      if (deletingSalary.advance > 0 && deletingSalary.advance_deduction_details) {
+        let deductionDetails: AdvanceDeductionDetail[] = [];
+        
+        try {
+          if (typeof deletingSalary.advance_deduction_details === 'string') {
+            deductionDetails = JSON.parse(deletingSalary.advance_deduction_details);
+          } else if (Array.isArray(deletingSalary.advance_deduction_details)) {
+            deductionDetails = deletingSalary.advance_deduction_details as unknown as AdvanceDeductionDetail[];
+          }
+        } catch {
+          console.error("Failed to parse advance_deduction_details");
+        }
+
+        // Reverse each advance deduction
+        for (const detail of deductionDetails) {
+          // Get current advance state
+          const { data: advanceData } = await supabase
+            .from("employee_advances")
+            .select("*")
+            .eq("id", detail.advance_id)
+            .single();
+
+          if (advanceData) {
+            // Add back the deducted amount
+            const newBalance = (advanceData.remaining_balance ?? 0) + detail.amount_deducted;
+            
+            await supabase
+              .from("employee_advances")
+              .update({
+                remaining_balance: newBalance,
+                status: "active", // Reactivate the advance
+              })
+              .eq("id", detail.advance_id);
+          }
+        }
+      }
+
+      // Now delete the salary record
+      const { error } = await supabase
+        .from("employee_salary_records")
+        .delete()
+        .eq("id", deletingSalary.id);
+
+      if (error) throw error;
+
+      toast.success(
+        deletingSalary.advance > 0
+          ? `Salary deleted. ${formatCurrency(deletingSalary.advance)} advance restored to balance.`
+          : "Salary record deleted"
+      );
+      setDeletingSalary(null);
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting salary:", error);
+      toast.error("Failed to delete salary record");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Check if advance can be edited (only if never deducted)
+  const canEditAdvance = (advance: EmployeeAdvance) => {
+    return advance.remaining_balance === advance.amount;
+  };
+
+  // Check if advance can be deleted (only if never deducted)
+  const canDeleteAdvance = (advance: EmployeeAdvance) => {
+    return advance.remaining_balance === advance.amount;
+  };
+
+  // Open edit dialog for advance
+  const openEditAdvance = (advance: EmployeeAdvance) => {
+    if (!canEditAdvance(advance)) {
+      toast.error("Cannot edit advance after salary deduction has started.");
+      return;
+    }
+    setEditingAdvance(advance);
+    setEditAdvanceForm({
+      amount: advance.amount.toString(),
+      deduct_month: advance.deduct_month || format(new Date(), "yyyy-MM"),
+      reason: advance.reason || "",
+    });
+  };
+
+  // Handle edit advance submission
+  const handleEditAdvance = async () => {
+    if (!editingAdvance) return;
+
+    // Validate amount
+    let validatedAmount: number;
+    try {
+      validatedAmount = parseValidatedFloat(editAdvanceForm.amount, 'Advance amount', 0.01, 100000000);
+    } catch (validationError: any) {
+      toast.error(validationError.message);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("employee_advances")
+        .update({
+          amount: validatedAmount,
+          remaining_balance: validatedAmount, // Update remaining_balance since never deducted
+          deduct_month: editAdvanceForm.deduct_month,
+          reason: editAdvanceForm.reason || null,
+        })
+        .eq("id", editingAdvance.id);
+
+      if (error) throw error;
+
+      toast.success("Advance updated successfully");
+      setEditingAdvance(null);
+      fetchData();
+    } catch (error) {
+      console.error("Error updating advance:", error);
+      toast.error("Failed to update advance");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle delete advance
+  const handleDeleteAdvance = async () => {
+    if (!deletingAdvance) return;
+
+    if (!canDeleteAdvance(deletingAdvance)) {
+      toast.error("Cannot delete advance already used in salary.");
+      setDeletingAdvance(null);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("employee_advances")
+        .delete()
+        .eq("id", deletingAdvance.id);
+
+      if (error) throw error;
+
+      toast.success("Advance deleted successfully");
+      setDeletingAdvance(null);
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting advance:", error);
+      toast.error("Failed to delete advance");
     } finally {
       setSubmitting(false);
     }
@@ -1021,16 +1287,36 @@ const Salary = () => {
                   </TableCell>
                   {isAdmin && (
                     <TableCell className="whitespace-nowrap">
-                      {record.status !== "paid" && (
-                        <Button size="sm" onClick={() => markAsPaid(record.id)}>
-                          Mark Paid
-                        </Button>
-                      )}
-                      {record.status === "paid" && record.paid_date && (
-                        <span className="text-sm text-muted-foreground">
-                          {format(new Date(record.paid_date), "dd MMM")}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {record.status !== "paid" && (
+                          <>
+                            <Button size="sm" onClick={() => markAsPaid(record.id)}>
+                              Mark Paid
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => openEditSalary(record)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => setDeletingSalary(record)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        {record.status === "paid" && record.paid_date && (
+                          <span className="text-sm text-muted-foreground">
+                            {format(new Date(record.paid_date), "dd MMM")}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>
@@ -1054,6 +1340,7 @@ const Salary = () => {
                   <TableHead>Status</TableHead>
                   <TableHead>Last Deduction</TableHead>
                   <TableHead className="max-w-[150px]">Reason</TableHead>
+                  {isAdmin && <TableHead>Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1117,6 +1404,32 @@ const Salary = () => {
                       <TableCell className="max-w-[150px]">
                         <p className="line-clamp-1 text-sm text-muted-foreground">{advance.reason || "-"}</p>
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              disabled={!canEditAdvance(advance)}
+                              title={!canEditAdvance(advance) ? "Cannot edit after deduction" : "Edit advance"}
+                              onClick={() => openEditAdvance(advance)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              disabled={!canDeleteAdvance(advance)}
+                              title={!canDeleteAdvance(advance) ? "Cannot delete after deduction" : "Delete advance"}
+                              onClick={() => setDeletingAdvance(advance)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
@@ -1125,6 +1438,244 @@ const Salary = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Salary Dialog */}
+      <Dialog open={!!editingSalary} onOpenChange={(open) => !open && setEditingSalary(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Salary Record</DialogTitle>
+          </DialogHeader>
+          {editingSalary && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <p className="font-medium">{editingSalary.employee?.full_name || "Employee"}</p>
+                <p className="text-sm text-muted-foreground">
+                  {months[editingSalary.month - 1]} {editingSalary.year}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Basic Salary</Label>
+                  <Input
+                    type="number"
+                    value={editSalaryForm.basic_salary}
+                    onChange={(e) => setEditSalaryForm({ ...editSalaryForm, basic_salary: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Overtime (Hours)</Label>
+                  <Input
+                    type="number"
+                    value={editSalaryForm.overtime_hours}
+                    onChange={(e) => setEditSalaryForm({ ...editSalaryForm, overtime_hours: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Overtime (Amount)</Label>
+                  <Input
+                    type="number"
+                    value={editSalaryForm.overtime_amount}
+                    onChange={(e) => setEditSalaryForm({ ...editSalaryForm, overtime_amount: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Bonus</Label>
+                  <Input
+                    type="number"
+                    value={editSalaryForm.bonus}
+                    onChange={(e) => setEditSalaryForm({ ...editSalaryForm, bonus: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Deductions</Label>
+                  <Input
+                    type="number"
+                    value={editSalaryForm.deductions}
+                    onChange={(e) => setEditSalaryForm({ ...editSalaryForm, deductions: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {editingSalary.advance > 0 && (
+                <Alert className="border-warning bg-warning/10">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
+                  <AlertTitle className="text-warning">Advance Locked</AlertTitle>
+                  <AlertDescription className="text-sm">
+                    Advance deduction ({formatCurrency(editingSalary.advance)}) cannot be changed.
+                    It was already deducted when this salary was generated.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea
+                  value={editSalaryForm.notes}
+                  onChange={(e) => setEditSalaryForm({ ...editSalaryForm, notes: e.target.value })}
+                />
+              </div>
+
+              <div className="bg-muted p-4 rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Gross Salary</span>
+                  <span>{formatCurrency(
+                    safeParseFloat(editSalaryForm.basic_salary, 0, 0, 100000000) +
+                    safeParseFloat(editSalaryForm.overtime_amount, 0, 0, 100000000) +
+                    safeParseFloat(editSalaryForm.bonus, 0, 0, 100000000) -
+                    safeParseFloat(editSalaryForm.deductions, 0, 0, 100000000)
+                  )}</span>
+                </div>
+                {editingSalary.advance > 0 && (
+                  <div className="flex justify-between text-sm text-destructive">
+                    <span>Advance (locked)</span>
+                    <span>- {formatCurrency(editingSalary.advance)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t pt-2">
+                  <span className="text-muted-foreground">Net Payable</span>
+                  <span className="text-2xl font-bold">{formatCurrency(calculateEditNetPayable())}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditingSalary(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleEditSalary} disabled={submitting}>
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Salary Confirmation */}
+      <AlertDialog open={!!deletingSalary} onOpenChange={(open) => !open && setDeletingSalary(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Salary Record</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>Are you sure you want to delete this salary record?</p>
+              {deletingSalary && (
+                <div className="bg-muted p-3 rounded-lg text-foreground text-sm">
+                  <p><strong>{deletingSalary.employee?.full_name}</strong></p>
+                  <p className="text-muted-foreground">
+                    {months[deletingSalary.month - 1]} {deletingSalary.year} - {formatCurrency(deletingSalary.net_payable)}
+                  </p>
+                  {deletingSalary.advance > 0 && (
+                    <p className="text-warning mt-2">
+                      ⚠️ {formatCurrency(deletingSalary.advance)} advance will be restored to employee balance.
+                    </p>
+                  )}
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteSalary}
+              disabled={submitting}
+            >
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Advance Dialog */}
+      <Dialog open={!!editingAdvance} onOpenChange={(open) => !open && setEditingAdvance(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Advance</DialogTitle>
+          </DialogHeader>
+          {editingAdvance && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <p className="font-medium">{editingAdvance.employee?.full_name || "Employee"}</p>
+                <p className="text-sm text-muted-foreground">
+                  Created: {format(new Date(editingAdvance.date), "dd MMM yyyy")}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <Input
+                  type="number"
+                  value={editAdvanceForm.amount}
+                  onChange={(e) => setEditAdvanceForm({ ...editAdvanceForm, amount: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Deduct From Month</Label>
+                <Input
+                  type="month"
+                  value={editAdvanceForm.deduct_month}
+                  onChange={(e) => setEditAdvanceForm({ ...editAdvanceForm, deduct_month: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Reason (Optional)</Label>
+                <Textarea
+                  value={editAdvanceForm.reason}
+                  onChange={(e) => setEditAdvanceForm({ ...editAdvanceForm, reason: e.target.value })}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditingAdvance(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleEditAdvance} disabled={submitting}>
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Advance Confirmation */}
+      <AlertDialog open={!!deletingAdvance} onOpenChange={(open) => !open && setDeletingAdvance(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Advance</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>Are you sure you want to delete this advance?</p>
+              {deletingAdvance && (
+                <div className="bg-muted p-3 rounded-lg text-foreground text-sm">
+                  <p><strong>{deletingAdvance.employee?.full_name}</strong></p>
+                  <p className="text-muted-foreground">
+                    Amount: {formatCurrency(deletingAdvance.amount)}
+                  </p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteAdvance}
+              disabled={submitting}
+            >
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
