@@ -213,7 +213,7 @@ const Dashboard = () => {
             .eq('organization_id', orgId)
             .gte('invoice_date', lastMonthStartStr)
             .lte('invoice_date', lastMonthEndStr),
-          supabase.from('company_settings').select('company_name').eq('id', orgId).single(),
+          supabase.from('company_settings').select('company_name').limit(1).single(),
         ]);
 
         // Calculate stats
