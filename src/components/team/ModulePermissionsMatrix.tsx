@@ -1,14 +1,8 @@
 /**
  * Module Permissions Matrix Component
  * 
- * Premium UI/UX design for managing module-based permissions.
- * Supports View / Create / Edit / Delete actions per module.
- * 
- * DESIGN PRINCIPLES:
- * - Clean, professional Swiss design
- * - Clear visual hierarchy
- * - Smooth micro-interactions
- * - Accessible and responsive
+ * Premium UI/UX - Global Standard Design
+ * Clean, professional Swiss design with modern aesthetics.
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -16,15 +10,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { invalidateModulePermissionCache } from '@/hooks/useModulePermissions';
-import { 
-  PERMISSIONS_BY_CATEGORY,
-  CATEGORY_DISPLAY,
-  type ModulePermission,
-  type PermissionCategory,
-} from '@/lib/permissions/modulePermissions';
 import { OrgRole, ORG_ROLE_DISPLAY } from '@/lib/permissions/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import {
   Tooltip,
   TooltipContent,
@@ -34,7 +23,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
   Lock,
   Loader2,
@@ -45,9 +35,24 @@ import {
   Plus,
   Pencil,
   Trash2,
-  ChevronRight,
+  LayoutDashboard,
+  FileText,
+  Calculator,
+  Truck,
   Users,
-  Layers,
+  Wallet,
+  UserCog,
+  Clock,
+  BanknoteIcon,
+  PalmtreeIcon,
+  BarChart3,
+  ClipboardList,
+  Settings,
+  Crown,
+  Briefcase,
+  Building2,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -71,68 +76,91 @@ const ACTION_CONFIG: Record<PermissionAction, {
   label: string; 
   shortLabel: string;
   icon: React.ComponentType<{ className?: string }>; 
-  bgColor: string;
-  iconColor: string;
-  hoverColor: string;
+  colorClass: string;
 }> = {
   view: { 
     label: 'View', 
     shortLabel: 'V',
     icon: Eye, 
-    bgColor: 'bg-blue-50 dark:bg-blue-950/30',
-    iconColor: 'text-blue-600 dark:text-blue-400',
-    hoverColor: 'group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50'
+    colorClass: 'text-blue-500',
   },
   create: { 
     label: 'Create', 
     shortLabel: 'C',
     icon: Plus, 
-    bgColor: 'bg-emerald-50 dark:bg-emerald-950/30',
-    iconColor: 'text-emerald-600 dark:text-emerald-400',
-    hoverColor: 'group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50'
+    colorClass: 'text-emerald-500',
   },
   edit: { 
     label: 'Edit', 
     shortLabel: 'E',
     icon: Pencil, 
-    bgColor: 'bg-amber-50 dark:bg-amber-950/30',
-    iconColor: 'text-amber-600 dark:text-amber-400',
-    hoverColor: 'group-hover:bg-amber-100 dark:group-hover:bg-amber-900/50'
+    colorClass: 'text-amber-500',
   },
   delete: { 
     label: 'Delete', 
     shortLabel: 'D',
     icon: Trash2, 
-    bgColor: 'bg-red-50 dark:bg-red-950/30',
-    iconColor: 'text-red-600 dark:text-red-400',
-    hoverColor: 'group-hover:bg-red-100 dark:group-hover:bg-red-900/50'
+    colorClass: 'text-red-500',
   },
 };
 
-// Role colors
-const ROLE_COLORS: Record<OrgRole, string> = {
-  owner: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
-  manager: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
-  accounts: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
-  sales_staff: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800',
-  designer: 'bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800',
-  employee: 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700',
+// Role styling
+const ROLE_CONFIG: Record<OrgRole, { color: string; icon: React.ComponentType<{ className?: string }> }> = {
+  owner: { color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800', icon: Crown },
+  manager: { color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800', icon: Shield },
+  accounts: { color: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800', icon: Calculator },
+  sales_staff: { color: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800', icon: Users },
+  designer: { color: 'bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-200 dark:border-pink-800', icon: Briefcase },
+  employee: { color: 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-700', icon: Briefcase },
 };
 
-// Ordered categories for display
-const CATEGORY_ORDER: PermissionCategory[] = ['main', 'business', 'hr_ops', 'system'];
+// Module definitions grouped by category
+type ModuleCategory = 'main' | 'business' | 'hr_ops' | 'system';
 
-const CATEGORY_ICONS: Record<PermissionCategory, React.ComponentType<{ className?: string }>> = {
-  main: Layers,
-  business: Users,
-  hr_ops: Users,
-  system: Shield,
+interface ModuleInfo {
+  key: string;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  category: ModuleCategory;
+}
+
+const MODULES: ModuleInfo[] = [
+  // Main
+  { key: 'dashboard', label: 'Dashboard', description: 'Main dashboard overview', icon: LayoutDashboard, category: 'main' },
+  { key: 'invoices', label: 'Invoices', description: 'Invoice management', icon: FileText, category: 'main' },
+  { key: 'quotations', label: 'Quotations', description: 'Quotation management', icon: FileText, category: 'main' },
+  { key: 'price_calculation', label: 'Price Calculation', description: 'Calculate pricing', icon: Calculator, category: 'main' },
+  { key: 'challan', label: 'Delivery Challan', description: 'Delivery documents', icon: Truck, category: 'main' },
+  
+  // Business
+  { key: 'customers', label: 'Customers', description: 'Customer management', icon: Users, category: 'business' },
+  { key: 'vendors', label: 'Vendors', description: 'Vendor management', icon: Building2, category: 'business' },
+  { key: 'expenses', label: 'Expenses', description: 'Expense tracking', icon: Wallet, category: 'business' },
+  
+  // HR & Ops
+  { key: 'employees', label: 'Employees', description: 'Employee records', icon: UserCog, category: 'hr_ops' },
+  { key: 'attendance', label: 'Attendance', description: 'Attendance tracking', icon: Clock, category: 'hr_ops' },
+  { key: 'salary', label: 'Salary', description: 'Salary management', icon: BanknoteIcon, category: 'hr_ops' },
+  { key: 'leave', label: 'Leave', description: 'Leave management', icon: PalmtreeIcon, category: 'hr_ops' },
+  { key: 'performance', label: 'Performance', description: 'Performance reviews', icon: BarChart3, category: 'hr_ops' },
+  { key: 'tasks', label: 'Tasks', description: 'Task management', icon: ClipboardList, category: 'hr_ops' },
+  
+  // System
+  { key: 'reports', label: 'Reports', description: 'Reports & analytics', icon: BarChart3, category: 'system' },
+  { key: 'team', label: 'Team', description: 'Team management', icon: Users, category: 'system' },
+  { key: 'settings', label: 'Settings', description: 'App settings', icon: Settings, category: 'system' },
+];
+
+const CATEGORY_CONFIG: Record<ModuleCategory, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
+  main: { label: 'Main', icon: LayoutDashboard },
+  business: { label: 'Business', icon: Briefcase },
+  hr_ops: { label: 'HR & Operations', icon: Users },
+  system: { label: 'System', icon: Settings },
 };
 
-// Build permission key: module.action (e.g., "customers.view")
 const buildPermissionKey = (moduleKey: string, action: PermissionAction): string => {
-  const moduleName = moduleKey.split('.')[1] || moduleKey;
-  return `${moduleName}.${action}`;
+  return `${moduleKey}.${action}`;
 };
 
 interface ModulePermissionsMatrixProps {
@@ -147,6 +175,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
   const [orgPermissions, setOrgPermissions] = useState<OrgModulePermission[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<OrgRole>('manager');
   const isMountedRef = useRef(true);
   
   // Permission state: Map<"module.action.role", boolean>
@@ -155,25 +184,19 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
   const buildPermissionState = useCallback((orgPerms: OrgModulePermission[]): Map<string, boolean> => {
     const state = new Map<string, boolean>();
     
-    for (const category of CATEGORY_ORDER) {
-      for (const perm of PERMISSIONS_BY_CATEGORY[category]) {
-        for (const action of PERMISSION_ACTIONS) {
-          for (const role of STAFF_ROLES) {
-            const permKey = buildPermissionKey(perm.key, action);
-            const stateKey = `${permKey}.${role}`;
-            state.set(stateKey, false);
-          }
+    for (const module of MODULES) {
+      for (const action of PERMISSION_ACTIONS) {
+        for (const role of STAFF_ROLES) {
+          const permKey = buildPermissionKey(module.key, action);
+          const stateKey = `${permKey}.${role}`;
+          state.set(stateKey, false);
         }
       }
     }
     
     for (const perm of orgPerms) {
-      for (const role of STAFF_ROLES) {
-        if (perm.role === role) {
-          const stateKey = `${perm.permission_key}.${role}`;
-          state.set(stateKey, perm.is_enabled);
-        }
-      }
+      const stateKey = `${perm.permission_key}.${perm.role}`;
+      state.set(stateKey, perm.is_enabled);
     }
     
     return state;
@@ -221,9 +244,10 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
     };
   }, [organization?.id]);
 
-  const isChecked = useCallback((permissionKey: string, role: OrgRole): boolean => {
+  const isChecked = useCallback((moduleKey: string, action: PermissionAction, role: OrgRole): boolean => {
     if (role === 'owner') return true;
-    return permissionState.get(`${permissionKey}.${role}`) ?? false;
+    const permKey = buildPermissionKey(moduleKey, action);
+    return permissionState.get(`${permKey}.${role}`) ?? false;
   }, [permissionState]);
 
   const canToggle = useCallback((role: OrgRole): boolean => {
@@ -232,10 +256,11 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
     return true;
   }, [isOrgOwner, isSuperAdmin]);
 
-  const handleToggle = async (permissionKey: string, role: OrgRole) => {
+  const handleToggle = async (moduleKey: string, action: PermissionAction, role: OrgRole) => {
     if (!organization || !canToggle(role)) return;
 
-    const stateKey = `${permissionKey}.${role}`;
+    const permKey = buildPermissionKey(moduleKey, action);
+    const stateKey = `${permKey}.${role}`;
     const currentValue = permissionState.get(stateKey) ?? false;
     const newValue = !currentValue;
     
@@ -247,7 +272,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
 
     try {
       const existing = orgPermissions.find(
-        p => p.permission_key === permissionKey && p.role === role
+        p => p.permission_key === permKey && p.role === role
       );
 
       let newOrgPermissions: OrgModulePermission[];
@@ -269,7 +294,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
           .insert({
             organization_id: organization.id,
             role,
-            permission_key: permissionKey,
+            permission_key: permKey,
             is_enabled: newValue,
           })
           .select()
@@ -294,13 +319,33 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
     }
   };
 
+  // Enable/disable all actions for a module
+  const handleToggleAllActions = async (moduleKey: string, role: OrgRole, enable: boolean) => {
+    if (!organization || !canToggle(role)) return;
+    
+    for (const action of PERMISSION_ACTIONS) {
+      const permKey = buildPermissionKey(moduleKey, action);
+      const stateKey = `${permKey}.${role}`;
+      const currentValue = permissionState.get(stateKey) ?? false;
+      
+      if (currentValue !== enable) {
+        await handleToggle(moduleKey, action, role);
+      }
+    }
+  };
+
+  // Count enabled permissions for a module
+  const getModulePermissionCount = (moduleKey: string, role: OrgRole): number => {
+    return PERMISSION_ACTIONS.filter(action => isChecked(moduleKey, action, role)).length;
+  };
+
   // Access control
   if (!isOrgOwner && !isSuperAdmin) {
     return (
       <Card className={cn("border-border/50", className)}>
         <CardContent className="pt-6">
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <Shield className="h-8 w-8 text-muted-foreground" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Access Restricted</h3>
@@ -319,38 +364,41 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="space-y-2">
-              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-7 w-48" />
               <Skeleton className="h-4 w-72" />
             </div>
             <Skeleton className="h-9 w-24" />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="space-y-2">
-              <Skeleton className="h-8 w-32" />
-              <Skeleton className="h-20 w-full" />
-            </div>
+          <Skeleton className="h-10 w-full" />
+          {[1, 2, 3, 4].map(i => (
+            <Skeleton key={i} className="h-16 w-full" />
           ))}
         </CardContent>
       </Card>
     );
   }
 
+  const getModulesByCategory = (category: ModuleCategory) => 
+    MODULES.filter(m => m.category === category);
+
+  const RoleIcon = ROLE_CONFIG[selectedRole].icon;
+
   return (
     <TooltipProvider delayDuration={200}>
       <Card className={cn('border-border/50 shadow-sm overflow-hidden', className)}>
         {/* Header */}
-        <CardHeader className="pb-4 bg-gradient-to-r from-background to-muted/20">
-          <div className="flex items-center justify-between">
+        <CardHeader className="pb-4 border-b bg-gradient-to-r from-primary/5 via-background to-primary/5">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <ShieldCheck className="h-5 w-5 text-primary" />
+              <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shadow-sm">
+                <ShieldCheck className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <CardTitle className="text-lg">Module Permissions</CardTitle>
+                <CardTitle className="text-xl font-semibold">Staff Permissions</CardTitle>
                 <CardDescription className="mt-0.5">
-                  Configure access for each role
+                  Configure module access for each role
                 </CardDescription>
               </div>
             </div>
@@ -359,7 +407,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
               size="sm"
               onClick={() => fetchPermissions(true)}
               disabled={loading}
-              className="gap-2 h-9"
+              className="gap-2 h-9 shrink-0"
             >
               <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
               <span className="hidden sm:inline">Refresh</span>
@@ -368,189 +416,219 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
         </CardHeader>
 
         <CardContent className="p-0">
-          {/* Action Legend */}
-          <div className="px-4 py-3 border-y bg-muted/30 flex flex-wrap items-center gap-3">
-            <span className="text-xs font-medium text-muted-foreground mr-2">Actions:</span>
+          {/* Role Selector Tabs */}
+          <div className="border-b bg-muted/30 p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-sm font-medium text-muted-foreground">Select Role:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {STAFF_ROLES.map((role) => {
+                const config = ROLE_CONFIG[role];
+                const Icon = config.icon;
+                const isActive = selectedRole === role;
+                
+                // Count total enabled permissions for this role
+                const enabledCount = MODULES.reduce((acc, m) => 
+                  acc + getModulePermissionCount(m.key, role), 0
+                );
+                const totalCount = MODULES.length * PERMISSION_ACTIONS.length;
+                
+                return (
+                  <button
+                    key={role}
+                    onClick={() => setSelectedRole(role)}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 transition-all duration-200",
+                      "hover:shadow-md active:scale-[0.98]",
+                      isActive 
+                        ? cn(config.color, "border-current shadow-sm") 
+                        : "bg-card border-transparent hover:border-border hover:bg-muted/50"
+                    )}
+                  >
+                    <Icon className={cn("h-4 w-4", isActive ? '' : 'text-muted-foreground')} />
+                    <span className={cn("font-medium text-sm", !isActive && "text-muted-foreground")}>
+                      {ORG_ROLE_DISPLAY[role]}
+                    </span>
+                    <Badge 
+                      variant="secondary" 
+                      className={cn(
+                        "text-[10px] px-1.5 py-0 h-5",
+                        isActive ? "bg-background/50" : "bg-muted"
+                      )}
+                    >
+                      {enabledCount}/{totalCount}
+                    </Badge>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Actions Legend */}
+          <div className="px-4 py-3 border-b bg-background flex flex-wrap items-center gap-4 text-xs">
+            <span className="font-medium text-muted-foreground">Actions:</span>
             {PERMISSION_ACTIONS.map(action => {
               const config = ACTION_CONFIG[action];
               const Icon = config.icon;
               return (
-                <div 
-                  key={action} 
-                  className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium",
-                    config.bgColor
-                  )}
-                >
-                  <Icon className={cn("h-3 w-3", config.iconColor)} />
-                  <span className={config.iconColor}>{config.label}</span>
+                <div key={action} className="flex items-center gap-1.5">
+                  <Icon className={cn("h-3.5 w-3.5", config.colorClass)} />
+                  <span className="text-muted-foreground">{config.label}</span>
                 </div>
               );
             })}
-            <div className="flex items-center gap-1.5 ml-auto text-xs text-muted-foreground">
-              <Lock className="h-3 w-3" />
-              <span>Owner = Locked</span>
-            </div>
           </div>
 
           {/* Permissions Grid */}
-          <ScrollArea className="w-full">
-            <div className="min-w-[700px]">
-              {/* Role Header */}
-              <div className="grid grid-cols-[240px_repeat(5,1fr)] border-b bg-muted/20 sticky top-0 z-10">
-                <div className="px-4 py-3 font-medium text-sm text-muted-foreground">
-                  Module / Action
-                </div>
-                {STAFF_ROLES.map((role) => (
-                  <div key={role} className="px-2 py-3 text-center">
-                    <Badge 
-                      variant="outline" 
-                      className={cn("text-[10px] font-medium px-2 py-0.5", ROLE_COLORS[role])}
-                    >
-                      {ORG_ROLE_DISPLAY[role]}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-
-              {/* Category Groups */}
-              {CATEGORY_ORDER.map((category) => {
-                const CategoryIcon = CATEGORY_ICONS[category];
+          <ScrollArea className="max-h-[600px]">
+            <div className="divide-y">
+              {(['main', 'business', 'hr_ops', 'system'] as ModuleCategory[]).map((category) => {
+                const categoryConfig = CATEGORY_CONFIG[category];
+                const CategoryIcon = categoryConfig.icon;
+                const modules = getModulesByCategory(category);
+                
+                if (modules.length === 0) return null;
+                
                 return (
                   <div key={category} className="animate-fade-in">
                     {/* Category Header */}
-                    <div className="grid grid-cols-[240px_repeat(5,1fr)] bg-muted/40 border-b">
-                      <div className="px-4 py-2.5 flex items-center gap-2">
-                        <CategoryIcon className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
-                          {CATEGORY_DISPLAY[category].label}
+                    <div className="px-4 py-3 bg-muted/40 border-b sticky top-0 z-10 backdrop-blur-sm">
+                      <div className="flex items-center gap-2">
+                        <CategoryIcon className="h-4 w-4 text-primary" />
+                        <span className="font-semibold text-sm uppercase tracking-wider text-foreground">
+                          {categoryConfig.label}
                         </span>
+                        <Badge variant="outline" className="text-[10px] h-5">
+                          {modules.length} modules
+                        </Badge>
                       </div>
-                      {STAFF_ROLES.map((role) => (
-                        <div key={role} className="px-2 py-2.5" />
-                      ))}
                     </div>
                     
                     {/* Module Rows */}
-                    {PERMISSIONS_BY_CATEGORY[category].map((perm, permIdx) => (
-                      <div 
-                        key={perm.key}
-                        className={cn(
-                          "grid grid-cols-[240px_repeat(5,1fr)] border-b transition-colors hover:bg-muted/20",
-                          permIdx % 2 === 0 ? "bg-background" : "bg-muted/5"
-                        )}
-                      >
-                        {/* Module Info */}
-                        <div className="px-4 py-3 border-r border-border/50">
-                          <div className="flex items-start gap-2">
-                            <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                            <div className="min-w-0">
-                              <div className="font-medium text-sm truncate">{perm.label}</div>
-                              <div className="text-xs text-muted-foreground truncate mt-0.5">
-                                {perm.description}
-                              </div>
-                              {/* Action Pills */}
-                              <div className="flex items-center gap-1 mt-2">
-                                {PERMISSION_ACTIONS.map(action => {
-                                  const config = ACTION_CONFIG[action];
-                                  const Icon = config.icon;
-                                  return (
-                                    <Tooltip key={action}>
+                    <div className="divide-y divide-border/50">
+                      {modules.map((module) => {
+                        const ModuleIcon = module.icon;
+                        const enabledCount = getModulePermissionCount(module.key, selectedRole);
+                        const allEnabled = enabledCount === PERMISSION_ACTIONS.length;
+                        const someEnabled = enabledCount > 0;
+                        
+                        return (
+                          <div 
+                            key={module.key}
+                            className="px-4 py-4 hover:bg-muted/30 transition-colors"
+                          >
+                            <div className="flex items-start gap-4">
+                              {/* Module Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                    <ModuleIcon className="h-4.5 w-4.5 text-primary" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="font-medium text-sm">{module.label}</div>
+                                    <div className="text-xs text-muted-foreground truncate">
+                                      {module.description}
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Quick Toggle All */}
+                                  <div className="ml-auto flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground hidden sm:block">
+                                      {enabledCount}/{PERMISSION_ACTIONS.length} enabled
+                                    </span>
+                                    <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className={cn(
-                                          "h-5 w-5 rounded flex items-center justify-center",
-                                          config.bgColor
-                                        )}>
-                                          <Icon className={cn("h-3 w-3", config.iconColor)} />
-                                        </div>
+                                        <button
+                                          onClick={() => handleToggleAllActions(module.key, selectedRole, !allEnabled)}
+                                          className={cn(
+                                            "h-7 px-2.5 rounded-md text-xs font-medium transition-all",
+                                            "border flex items-center gap-1.5",
+                                            allEnabled 
+                                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-500/20" 
+                                              : "bg-muted/50 text-muted-foreground border-border hover:bg-muted"
+                                          )}
+                                        >
+                                          {allEnabled ? (
+                                            <>
+                                              <CheckCircle2 className="h-3.5 w-3.5" />
+                                              <span className="hidden sm:inline">All On</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <XCircle className="h-3.5 w-3.5" />
+                                              <span className="hidden sm:inline">Enable All</span>
+                                            </>
+                                          )}
+                                        </button>
                                       </TooltipTrigger>
-                                      <TooltipContent side="top" className="text-xs">
-                                        {config.label}
+                                      <TooltipContent>
+                                        {allEnabled ? 'Disable all permissions' : 'Enable all permissions'}
                                       </TooltipContent>
                                     </Tooltip>
-                                  );
-                                })}
+                                  </div>
+                                </div>
+                                
+                                {/* Permission Actions Grid */}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                  {PERMISSION_ACTIONS.map(action => {
+                                    const actionConfig = ACTION_CONFIG[action];
+                                    const ActionIcon = actionConfig.icon;
+                                    const permKey = buildPermissionKey(module.key, action);
+                                    const stateKey = `${permKey}.${selectedRole}`;
+                                    const checked = isChecked(module.key, action, selectedRole);
+                                    const isSaving = savingKey === stateKey;
+                                    
+                                    return (
+                                      <button
+                                        key={action}
+                                        onClick={() => handleToggle(module.key, action, selectedRole)}
+                                        disabled={isSaving}
+                                        className={cn(
+                                          "flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all duration-200",
+                                          "hover:shadow-sm active:scale-[0.98]",
+                                          checked 
+                                            ? "bg-primary/10 border-primary/30 text-primary" 
+                                            : "bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted/50"
+                                        )}
+                                      >
+                                        {isSaving ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <ActionIcon className={cn("h-4 w-4", checked && actionConfig.colorClass)} />
+                                        )}
+                                        <span className="text-sm font-medium">{actionConfig.label}</span>
+                                        <div className="ml-auto">
+                                          {checked ? (
+                                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                          ) : (
+                                            <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30" />
+                                          )}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-
-                        {/* Permission Checkboxes per Role */}
-                        {STAFF_ROLES.map((role) => (
-                          <div key={role} className="px-2 py-3 flex flex-col items-center justify-center gap-1.5">
-                            {PERMISSION_ACTIONS.map(action => {
-                              const permKey = buildPermissionKey(perm.key, action);
-                              const stateKey = `${permKey}.${role}`;
-                              const checked = isChecked(permKey, role);
-                              const toggleable = canToggle(role);
-                              const isSaving = savingKey === stateKey;
-                              const config = ACTION_CONFIG[action];
-
-                              return (
-                                <div 
-                                  key={action}
-                                  className="group relative"
-                                >
-                                  {isSaving ? (
-                                    <div className="h-5 w-5 flex items-center justify-center">
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                                    </div>
-                                  ) : (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <div 
-                                          className={cn(
-                                            "h-5 w-5 rounded transition-all duration-200 flex items-center justify-center cursor-pointer",
-                                            checked ? config.bgColor : "bg-muted/50",
-                                            toggleable && "hover:ring-2 hover:ring-primary/20",
-                                            !toggleable && "cursor-not-allowed opacity-60"
-                                          )}
-                                          onClick={() => toggleable && handleToggle(permKey, role)}
-                                        >
-                                          <Checkbox
-                                            checked={checked}
-                                            disabled={!toggleable}
-                                            className={cn(
-                                              "h-3.5 w-3.5 border-0 bg-transparent data-[state=checked]:bg-transparent",
-                                              checked ? config.iconColor : "text-muted-foreground/50"
-                                            )}
-                                            onCheckedChange={() => {}}
-                                          />
-                                        </div>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top" className="text-xs">
-                                        <p className="font-medium">{config.label}</p>
-                                        {!toggleable && (
-                                          <p className="text-muted-foreground">
-                                            {role === 'owner' ? 'Owner is protected' : 'View only'}
-                                          </p>
-                                        )}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </div>
-                    ))}
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
             </div>
-            <ScrollBar orientation="horizontal" />
           </ScrollArea>
-
+          
           {/* Footer */}
-          <div className="px-4 py-3 border-t bg-gradient-to-r from-amber-50/50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/20">
-            <div className="flex items-center gap-2 text-xs text-amber-800 dark:text-amber-200">
-              <div className="h-5 w-5 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0">
-                <Shield className="h-3 w-3" />
-              </div>
-              <p>
-                Changes save instantly. Staff will see updated permissions after refreshing.
-              </p>
+          <div className="px-4 py-3 border-t bg-muted/20 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Lock className="h-3.5 w-3.5" />
+              <span>Owner permissions are always enabled</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Changes saved automatically</span>
             </div>
           </div>
         </CardContent>
@@ -558,5 +636,3 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
     </TooltipProvider>
   );
 }
-
-export default ModulePermissionsMatrix;
