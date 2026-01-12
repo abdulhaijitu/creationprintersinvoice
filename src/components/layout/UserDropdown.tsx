@@ -20,20 +20,29 @@ export const UserDropdown = () => {
   const navigate = useNavigate();
 
   // Get the display role - prioritize organization membership role
+  const formatRoleLabel = (role: string) =>
+    role
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
   const getDisplayRole = (): string => {
     // Super admin takes precedence
     if (isSuperAdmin) return 'Super Admin';
-    
+
     // Use organization membership role
     if (membership?.role) {
-      return ORG_ROLE_DISPLAY[membership.role as keyof typeof ORG_ROLE_DISPLAY] || 'Member';
+      const roleKey = String(membership.role);
+      return (
+        (ORG_ROLE_DISPLAY as Record<string, string>)[roleKey] ||
+        formatRoleLabel(roleKey)
+      );
     }
-    
+
     // Fallback based on organization context flags
     if (isOrgOwner) return 'Owner';
     if (isOrgAdmin) return 'Admin';
     if (isOrgManager) return 'Manager';
-    
+
     return 'Member';
   };
 
