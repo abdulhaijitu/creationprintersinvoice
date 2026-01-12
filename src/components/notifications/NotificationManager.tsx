@@ -10,6 +10,31 @@ export const NotificationManager = () => {
   const notifiedInvoices = useRef<Set<string>>(new Set());
   const notifiedTasks = useRef<Set<string>>(new Set());
   const notifiedLeaves = useRef<Set<string>>(new Set());
+  const slaCheckDone = useRef(false);
+
+  // Trigger SLA/overdue check on app load (once per session)
+  useEffect(() => {
+    if (!user || slaCheckDone.current) return;
+
+    const triggerSlaCheck = async () => {
+      try {
+        // Call the edge function to check for overdue tasks and SLA breaches
+        const { error } = await supabase.functions.invoke('check-overdue-tasks');
+        if (error) {
+          console.warn('[NotificationManager] SLA check failed:', error);
+        } else {
+          console.log('[NotificationManager] SLA check triggered successfully');
+        }
+        slaCheckDone.current = true;
+      } catch (err) {
+        console.warn('[NotificationManager] Failed to trigger SLA check:', err);
+      }
+    };
+
+    // Delay the check slightly to not block app startup
+    const timeout = setTimeout(triggerSlaCheck, 3000);
+    return () => clearTimeout(timeout);
+  }, [user]);
 
   // Check for invoice reminders
   useEffect(() => {

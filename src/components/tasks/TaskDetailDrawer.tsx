@@ -22,8 +22,11 @@ import { ReferenceLink } from './ReferenceSelect';
 import { TaskActivityTimeline } from './TaskActivityTimeline';
 import { TaskComments } from './TaskComments';
 import { TaskDueDateBadge } from './TaskDueDateBadge';
+import { TaskAttachments } from './TaskAttachments';
+import { TaskPriorityBadge } from './TaskPriorityBadge';
+import { TaskSlaIndicator } from './TaskSlaIndicator';
 import { Task } from '@/hooks/useTasks';
-import { ArrowRight, Calendar, User, AlertCircle, Lock, Link, History, Info, MessageSquare } from 'lucide-react';
+import { ArrowRight, Calendar, User, AlertCircle, Lock, Link, History, Info, MessageSquare, Paperclip } from 'lucide-react';
 
 interface TaskDetailDrawerProps {
   task: Task | null;
@@ -45,17 +48,6 @@ export function TaskDetailDrawer({
   const nextStatus = getNextStatus(task.status);
   const taskIsDelivered = isDelivered(task.status);
 
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return <Badge variant="destructive">High Priority</Badge>;
-      case 'medium':
-        return <Badge variant="secondary">Medium</Badge>;
-      default:
-        return <Badge variant="outline">Low</Badge>;
-    }
-  };
-
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[90vh]">
@@ -67,8 +59,14 @@ export function TaskDetailDrawer({
               </DrawerTitle>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <ProductionStatusBadge status={task.status} />
-                {getPriorityBadge(task.priority)}
+                <TaskPriorityBadge priority={task.priority} />
                 <TaskDueDateBadge deadline={task.deadline} status={task.status} compact />
+                <TaskSlaIndicator 
+                  slaDeadline={task.sla_deadline} 
+                  taskStatus={task.status} 
+                  priority={task.priority}
+                  compact 
+                />
                 {taskIsDelivered && (
                   <Badge variant="outline" className="gap-1">
                     <Lock className="h-3 w-3" />
@@ -85,10 +83,14 @@ export function TaskDetailDrawer({
 
         <div className="p-4 sm:p-6 overflow-y-auto flex-1">
           <Tabs defaultValue="details" className="w-full h-full flex flex-col">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsList className="grid w-full grid-cols-4 mb-4">
               <TabsTrigger value="details" className="gap-1.5">
                 <Info className="h-4 w-4" />
                 <span className="hidden sm:inline">Details</span>
+              </TabsTrigger>
+              <TabsTrigger value="attachments" className="gap-1.5">
+                <Paperclip className="h-4 w-4" />
+                <span className="hidden sm:inline">Files</span>
               </TabsTrigger>
               <TabsTrigger value="comments" className="gap-1.5">
                 <MessageSquare className="h-4 w-4" />
@@ -106,6 +108,18 @@ export function TaskDetailDrawer({
                 <h3 className="text-sm font-medium text-muted-foreground">Production Progress</h3>
                 <WorkflowStepper currentStatus={task.status} />
               </div>
+
+              {/* SLA Status */}
+              {task.sla_deadline && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">SLA Status</h3>
+                  <TaskSlaIndicator 
+                    slaDeadline={task.sla_deadline} 
+                    taskStatus={task.status} 
+                    priority={task.priority}
+                  />
+                </div>
+              )}
 
               {/* Details Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -164,6 +178,17 @@ export function TaskDetailDrawer({
                   </p>
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="attachments" className="mt-0 flex-1 min-h-[300px]">
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Attachments</h3>
+                <TaskAttachments 
+                  taskId={task.id} 
+                  taskCreatorId={task.created_by}
+                  taskAssigneeId={task.assigned_to}
+                />
+              </div>
             </TabsContent>
 
             <TabsContent value="comments" className="mt-0 flex-1 min-h-[300px]">

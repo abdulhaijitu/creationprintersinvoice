@@ -51,6 +51,7 @@ const priorityLabels: Record<TaskPriority, string> = {
   low: "Low",
   medium: "Medium",
   high: "High",
+  urgent: "Urgent",
 };
 
 const Tasks = () => {
@@ -158,8 +159,10 @@ const Tasks = () => {
 
   const getPriorityBadge = (priority: TaskPriority) => {
     switch (priority) {
+      case "urgent":
+        return <Badge variant="destructive" className="animate-pulse">Urgent</Badge>;
       case "high":
-        return <Badge variant="destructive">{priorityLabels[priority]}</Badge>;
+        return <Badge className="bg-orange-500 hover:bg-orange-600 text-white">{priorityLabels[priority]}</Badge>;
       case "medium":
         return <Badge variant="secondary">{priorityLabels[priority]}</Badge>;
       default:
@@ -282,6 +285,7 @@ const Tasks = () => {
                           <SelectItem value="low">Low</SelectItem>
                           <SelectItem value="medium">Medium</SelectItem>
                           <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

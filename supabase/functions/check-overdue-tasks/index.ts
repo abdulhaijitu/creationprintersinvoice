@@ -6,6 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// SLA durations in hours based on priority
+const SLA_DURATIONS: Record<string, number> = {
+  low: 72,
+  medium: 48,
+  high: 24,
+  urgent: 8,
+};
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -19,16 +27,14 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get current date in UTC
+    const now = new Date();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayIso = today.toISOString().split('T')[0];
 
-    console.log('[OverdueTasks] Checking for overdue tasks as of:', todayIso);
+    console.log('[OverdueTasks] Checking for overdue tasks and SLA breaches as of:', now.toISOString());
 
-    // Find all overdue tasks that:
-    // 1. Have a deadline before today
-    // 2. Are not delivered/completed
-    // 3. Haven't been notified today
+    // ===== PART 1: Overdue Tasks (based on deadline) =====
     const { data: overdueTasks, error: fetchError } = await supabase
       .from('tasks')
       .select('id, title, deadline, created_by, assigned_to, organization_id, last_overdue_notification_at, status')
@@ -37,7 +43,7 @@ serve(async (req) => {
       .or(`last_overdue_notification_at.is.null,last_overdue_notification_at.lt.${todayIso}`);
 
     if (fetchError) {
-      console.error('[OverdueTasks] Error fetching tasks:', fetchError);
+      console.error('[OverdueTasks] Error fetching overdue tasks:', fetchError);
       throw fetchError;
     }
 
@@ -92,7 +98,7 @@ serve(async (req) => {
             console.error('[OverdueTasks] Error creating notification:', notifError);
             errors.push(`Failed to notify ${userId} for task ${task.id}`);
           } else {
-            notificationsSent.push(`${task.id}:${userId}`);
+            notificationsSent.push(`overdue:${task.id}:${userId}`);
           }
         }
 
@@ -108,10 +114,108 @@ serve(async (req) => {
       }
     }
 
+    // ===== PART 2: SLA Breach Alerts =====
+    // Find tasks where SLA is at risk (80% elapsed) or breached
+    const { data: slaTasks, error: slaError } = await supabase
+      .from('tasks')
+      .select('id, title, priority, sla_deadline, sla_warning_sent, sla_breach_sent, sla_breached, created_by, assigned_to, organization_id, status, created_at')
+      .not('status', 'in', '("delivered","completed")')
+      .not('sla_deadline', 'is', null);
+
+    if (slaError) {
+      console.error('[SLA] Error fetching SLA tasks:', slaError);
+      throw slaError;
+    }
+
+    console.log('[SLA] Found tasks with SLA deadlines:', slaTasks?.length || 0);
+
+    for (const task of slaTasks || []) {
+      try {
+        const slaDeadline = new Date(task.sla_deadline);
+        const createdAt = new Date(task.created_at);
+        const totalDuration = slaDeadline.getTime() - createdAt.getTime();
+        const elapsed = now.getTime() - createdAt.getTime();
+        const percentElapsed = (elapsed / totalDuration) * 100;
+        const isBreached = now > slaDeadline;
+
+        const usersToNotify = new Set<string>();
+        if (task.created_by) usersToNotify.add(task.created_by);
+        if (task.assigned_to) usersToNotify.add(task.assigned_to);
+
+        // SLA Breach (100% elapsed)
+        if (isBreached && !task.sla_breach_sent) {
+          console.log('[SLA] Task breached SLA:', task.id, task.title);
+
+          for (const userId of usersToNotify) {
+            const { error: notifError } = await supabase.from('notifications').insert({
+              user_id: userId,
+              organization_id: task.organization_id,
+              type: 'sla_breach',
+              title: 'SLA Breached',
+              message: `Task "${task.title}" has breached its SLA deadline`,
+              reference_type: 'task',
+              reference_id: task.id,
+              is_read: false,
+            });
+
+            if (notifError) {
+              errors.push(`Failed to notify ${userId} for SLA breach on task ${task.id}`);
+            } else {
+              notificationsSent.push(`sla_breach:${task.id}:${userId}`);
+            }
+          }
+
+          // Mark as breached and notification sent
+          await supabase
+            .from('tasks')
+            .update({ 
+              sla_breached: true, 
+              sla_breach_sent: true 
+            })
+            .eq('id', task.id);
+        }
+        // SLA Warning (80% elapsed but not yet breached)
+        else if (percentElapsed >= 80 && !isBreached && !task.sla_warning_sent) {
+          console.log('[SLA] Task at risk:', task.id, task.title, 'percent:', percentElapsed.toFixed(1));
+
+          for (const userId of usersToNotify) {
+            const { error: notifError } = await supabase.from('notifications').insert({
+              user_id: userId,
+              organization_id: task.organization_id,
+              type: 'sla_warning',
+              title: 'SLA At Risk',
+              message: `Task "${task.title}" is approaching its SLA deadline`,
+              reference_type: 'task',
+              reference_id: task.id,
+              is_read: false,
+            });
+
+            if (notifError) {
+              errors.push(`Failed to notify ${userId} for SLA warning on task ${task.id}`);
+            } else {
+              notificationsSent.push(`sla_warning:${task.id}:${userId}`);
+            }
+          }
+
+          // Mark warning sent
+          await supabase
+            .from('tasks')
+            .update({ sla_warning_sent: true })
+            .eq('id', task.id);
+        }
+
+      } catch (slaTaskError) {
+        console.error('[SLA] Error processing task:', task.id, slaTaskError);
+        errors.push(`Error processing SLA for task ${task.id}`);
+      }
+    }
+
     const result = {
       success: true,
-      tasksProcessed: overdueTasks?.length || 0,
+      overdueTasksProcessed: overdueTasks?.length || 0,
+      slaTasksProcessed: slaTasks?.length || 0,
       notificationsSent: notificationsSent.length,
+      details: notificationsSent,
       errors: errors.length > 0 ? errors : undefined,
     };
 
