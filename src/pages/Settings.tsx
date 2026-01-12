@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert } from 'lucide-react';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert, Eye } from 'lucide-react';
 
 interface CompanySettings {
   id: string;
@@ -36,11 +37,35 @@ interface CompanySettings {
 
 export default function Settings() {
   const { toast } = useToast();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, isSuperAdmin, hasPrivilegedAccess, user, loading: authLoading } = useAuth();
+  const { orgRole, isOrgOwner, isOrgManager, isOrgAdmin } = useOrganization();
   const queryClient = useQueryClient();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // Determine permissions based on role
+  const canManageSettings = useMemo(() => {
+    // Super admin always has access
+    if (isSuperAdmin) return true;
+    // Organization owner has access
+    if (isOrgOwner) return true;
+    // Admin role has access (from AuthContext)
+    if (isAdmin) return true;
+    // Manager role has access (from org_role)
+    if (isOrgManager) return true;
+    // Check privileged access
+    if (hasPrivilegedAccess) return true;
+    return false;
+  }, [isSuperAdmin, isOrgOwner, isAdmin, isOrgManager, hasPrivilegedAccess]);
+
+  const canViewSettings = useMemo(() => {
+    // Anyone with manage permission can view
+    if (canManageSettings) return true;
+    // Accounts can view but not edit
+    if (orgRole === 'accounts') return true;
+    return false;
+  }, [canManageSettings, orgRole]);
 
   const form = useForm<CompanySettings>({
     defaultValues: {
@@ -281,7 +306,8 @@ export default function Settings() {
     );
   }
 
-  if (!isAdmin) {
+  // Access denied - no view permission
+  if (!canViewSettings) {
     return (
       <div className="space-y-6">
         <div>
@@ -300,7 +326,7 @@ export default function Settings() {
               <div className="space-y-2">
                 <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
                 <p className="text-muted-foreground max-w-md">
-                  Only admin users can modify company settings. 
+                  You don't have permission to view company settings. 
                   Please contact your system administrator for access.
                 </p>
               </div>
@@ -313,11 +339,19 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Company Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Customize company info, bank details, and invoice templates
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Company Settings</h1>
+          <p className="text-muted-foreground mt-1">
+            Customize company info, bank details, and invoice templates
+          </p>
+        </div>
+        {!canManageSettings && (
+          <div className="flex items-center gap-2 text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 rounded-md">
+            <Eye className="h-4 w-4" />
+            <span className="text-sm font-medium">Read-only access</span>
+          </div>
+        )}
       </div>
 
       <Form {...form}>
@@ -670,16 +704,21 @@ export default function Settings() {
             </TabsContent>
           </Tabs>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-3 items-center">
+            {!canManageSettings && (
+              <p className="text-sm text-muted-foreground">
+                You have read-only access to settings
+              </p>
+            )}
             <Button 
               type="submit" 
-              disabled={updateMutation.isPending || uploading}
+              disabled={!canManageSettings || updateMutation.isPending || uploading}
               className="min-w-32"
             >
               {(updateMutation.isPending || uploading) && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Save
+              {canManageSettings ? 'Save' : 'View Only'}
             </Button>
           </div>
         </form>
