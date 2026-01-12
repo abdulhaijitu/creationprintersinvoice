@@ -1,10 +1,13 @@
 /**
- * Sidebar Navigation Configuration with Permission Requirements
+ * Sidebar Navigation Configuration with Module-Based Permissions
  * 
- * This file defines all sidebar menu items with their required permissions.
- * The sidebar dynamically shows/hides items based on user permissions.
+ * This file defines all sidebar menu items and their required module permissions.
+ * The sidebar dynamically shows/hides items based on user's module permissions.
  * 
- * Permission keys follow the format: module.action (e.g., 'invoices.view')
+ * CRITICAL RULES:
+ * - If user lacks module permission, that menu item MUST NOT appear
+ * - No disabled or greyed-out menu items - completely hidden
+ * - Sidebar MUST be generated from permission data, NOT hardcoded role checks
  */
 
 import {
@@ -25,14 +28,14 @@ import {
   Truck,
   UserCog,
 } from 'lucide-react';
-import { PermissionModule, PermissionAction, PermissionCategory } from './constants';
+import { PermissionCategory, ModulePermission, CATEGORY_DISPLAY } from './modulePermissions';
 
 export interface SidebarNavItem {
   title: string;
   url: string;
   icon: React.ComponentType<{ className?: string }>;
-  /** Required permission - [module, action]. If not specified, item is always shown. */
-  permission?: [PermissionModule, PermissionAction];
+  /** Required module permission key. If not specified, item is always shown. */
+  permissionKey?: string;
 }
 
 export interface SidebarNavGroup {
@@ -42,132 +45,132 @@ export interface SidebarNavGroup {
 }
 
 /**
- * Main navigation items with permission requirements
- * Category: MAIN
+ * Main navigation items with module permission requirements
+ * Category: main
  */
 export const mainNavItems: SidebarNavItem[] = [
   { 
     title: 'Dashboard', 
     url: '/', 
     icon: LayoutDashboard,
-    permission: ['dashboard', 'view'],
+    permissionKey: 'main.dashboard',
   },
   { 
     title: 'Invoices', 
     url: '/invoices', 
     icon: FileText,
-    permission: ['invoices', 'view'],
+    permissionKey: 'main.invoices',
   },
   { 
     title: 'Quotations', 
     url: '/quotations', 
     icon: FileCheck,
-    permission: ['quotations', 'view'],
+    permissionKey: 'main.quotations',
   },
   { 
     title: 'Price Calc', 
     url: '/price-calculation', 
     icon: Calculator,
-    permission: ['price_calculations', 'view'],
+    permissionKey: 'main.price_calculation',
   },
   { 
     title: 'Challans', 
     url: '/delivery-challans', 
     icon: Truck,
-    permission: ['delivery_challans', 'view'],
+    permissionKey: 'main.challan',
   },
 ];
 
 /**
- * Business navigation items with permission requirements
- * Category: BUSINESS
+ * Business navigation items with module permission requirements
+ * Category: business
  */
 export const businessNavItems: SidebarNavItem[] = [
   { 
     title: 'Customers', 
     url: '/customers', 
     icon: Users,
-    permission: ['customers', 'view'],
+    permissionKey: 'business.customers',
   },
   { 
     title: 'Vendors', 
     url: '/vendors', 
     icon: Building2,
-    permission: ['vendors', 'view'],
+    permissionKey: 'business.vendors',
   },
   { 
     title: 'Expenses', 
     url: '/expenses', 
     icon: Wallet,
-    permission: ['expenses', 'view'],
+    permissionKey: 'business.expenses',
   },
 ];
 
 /**
- * HR & Operations navigation items with permission requirements
- * Category: HR_OPS
+ * HR & Operations navigation items with module permission requirements
+ * Category: hr_ops
  */
 export const hrNavItems: SidebarNavItem[] = [
   { 
     title: 'Employees', 
     url: '/employees', 
     icon: Users,
-    permission: ['employees', 'view'],
+    permissionKey: 'hr.employees',
   },
   { 
     title: 'Attendance', 
     url: '/attendance', 
     icon: CalendarCheck,
-    permission: ['attendance', 'view'],
+    permissionKey: 'hr.attendance',
   },
   { 
     title: 'Salary', 
     url: '/salary', 
     icon: Receipt,
-    permission: ['salary', 'view'],
+    permissionKey: 'hr.salary',
   },
   { 
     title: 'Leave', 
     url: '/leave', 
     icon: ClipboardList,
-    permission: ['leave', 'view'],
+    permissionKey: 'hr.leave',
   },
   { 
     title: 'Performance', 
     url: '/performance', 
     icon: Award,
-    permission: ['performance', 'view'],
+    permissionKey: 'hr.performance',
   },
   { 
     title: 'Tasks', 
     url: '/tasks', 
     icon: ListTodo,
-    permission: ['tasks', 'view'],
+    permissionKey: 'hr.tasks',
   },
 ];
 
 /**
- * System/Settings navigation items with permission requirements
- * Category: SYSTEM
+ * System/Settings navigation items with module permission requirements
+ * Category: system
  */
 export const settingsNavItems: SidebarNavItem[] = [
   { 
     title: 'Reports', 
     url: '/reports', 
     icon: BarChart3,
-    permission: ['reports', 'view'],
+    permissionKey: 'system.reports',
   },
   { 
     title: 'Team', 
     url: '/team-members', 
     icon: UserCog,
-    permission: ['team_members', 'view'],
+    permissionKey: 'system.team',
   },
   { 
     title: 'Settings', 
     url: '/settings', 
     icon: Settings,
-    permission: ['settings', 'view'],
+    permissionKey: 'system.settings',
   },
 ];
 
@@ -175,25 +178,42 @@ export const settingsNavItems: SidebarNavItem[] = [
  * All navigation groups for the sidebar
  */
 export const sidebarNavGroups: SidebarNavGroup[] = [
-  { label: 'Main', category: 'MAIN', items: mainNavItems },
-  { label: 'Business', category: 'BUSINESS', items: businessNavItems },
-  { label: 'HR & Ops', category: 'HR_OPS', items: hrNavItems },
-  { label: 'System', category: 'SYSTEM', items: settingsNavItems },
+  { label: 'Main', category: 'main', items: mainNavItems },
+  { label: 'Business', category: 'business', items: businessNavItems },
+  { label: 'HR & Ops', category: 'hr_ops', items: hrNavItems },
+  { label: 'System', category: 'system', items: settingsNavItems },
 ];
 
 /**
- * Get all unique modules from sidebar config
+ * Get all unique permission keys from sidebar config
  */
-export function getSidebarModules(): PermissionModule[] {
-  const modules = new Set<PermissionModule>();
+export function getSidebarPermissionKeys(): string[] {
+  const keys = new Set<string>();
   
   for (const group of sidebarNavGroups) {
     for (const item of group.items) {
-      if (item.permission) {
-        modules.add(item.permission[0]);
+      if (item.permissionKey) {
+        keys.add(item.permissionKey);
       }
     }
   }
   
-  return Array.from(modules);
+  return Array.from(keys);
+}
+
+/**
+ * Get route to permission key mapping
+ */
+export function getRoutePermissionMap(): Map<string, string> {
+  const map = new Map<string, string>();
+  
+  for (const group of sidebarNavGroups) {
+    for (const item of group.items) {
+      if (item.permissionKey) {
+        map.set(item.url, item.permissionKey);
+      }
+    }
+  }
+  
+  return map;
 }

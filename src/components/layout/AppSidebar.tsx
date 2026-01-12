@@ -5,7 +5,7 @@ import appIconLogo from '@/assets/app-logo.jpg';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { usePermissions } from '@/lib/permissions/hooks';
+import { useModulePermissions } from '@/hooks/useModulePermissions';
 import {
   sidebarNavGroups,
   SidebarNavItem,
@@ -32,9 +32,9 @@ import { FavoritePages } from './FavoritePages';
 
 export function AppSidebar() {
   const location = useLocation();
-  const { user, signOut } = useAuth();
-  const { organization } = useOrganization();
-  const { canPerform, isAdmin, orgRole, refreshPermissions, permissionsLoading } = usePermissions();
+  const { user, signOut, isSuperAdmin } = useAuth();
+  const { organization, isOrgOwner } = useOrganization();
+  const { hasModulePermission, refreshPermissions, loading: permissionsLoading } = useModulePermissions();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   
@@ -63,23 +63,26 @@ export function AppSidebar() {
     }
   }, [location.pathname]);
 
-  // Filter navigation items based on permissions
+  // Filter navigation items based on module permissions
+  // CRITICAL: No hardcoded role checks - only permission-based filtering
   const filteredNavGroups = useMemo(() => {
     return sidebarNavGroups.map((group): SidebarNavGroup => ({
       ...group,
       items: group.items.filter((item) => {
-        // If no permission required, always show
-        if (!item.permission) return true;
+        // If no permission key required, always show
+        if (!item.permissionKey) return true;
         
-        // Admin bypass
-        if (isAdmin) return true;
+        // Super Admin bypass - always show all items
+        if (isSuperAdmin) return true;
         
-        // Check if user has permission
-        const [module, action] = item.permission;
-        return canPerform(module, action);
+        // Owner bypass - always show all items
+        if (isOrgOwner) return true;
+        
+        // Check if user has the module permission
+        return hasModulePermission(item.permissionKey);
       }),
     })).filter((group) => group.items.length > 0); // Remove empty groups
-  }, [canPerform, isAdmin, orgRole, permissionsLoading]);
+  }, [hasModulePermission, isSuperAdmin, isOrgOwner, permissionsLoading]);
 
   // Get current focused index
   const getFocusedIndex = useCallback(() => {
