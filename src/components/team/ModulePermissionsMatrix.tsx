@@ -3,6 +3,8 @@
  * 
  * Premium UI/UX - Global Standard Design
  * Clean, professional Swiss design with modern aesthetics.
+ * 
+ * Uses modulePermissions.ts as SINGLE SOURCE OF TRUTH
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -10,6 +12,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { invalidateModulePermissionCache } from '@/hooks/useModulePermissions';
+import { 
+  ALL_MODULE_PERMISSIONS, 
+  PERMISSIONS_BY_CATEGORY, 
+  CATEGORY_DISPLAY,
+  type ModulePermission,
+  type PermissionCategory 
+} from '@/lib/permissions/modulePermissions';
 import { OrgRole, ORG_ROLE_DISPLAY } from '@/lib/permissions/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,7 +33,6 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
   Lock,
   Loader2,
@@ -114,53 +122,42 @@ const ROLE_CONFIG: Record<OrgRole, { color: string; icon: React.ComponentType<{ 
   employee: { color: 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-700', icon: Briefcase },
 };
 
-// Module definitions grouped by category
-type ModuleCategory = 'main' | 'business' | 'hr_ops' | 'system';
-
-interface ModuleInfo {
-  key: string;
-  label: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  category: ModuleCategory;
-}
-
-const MODULES: ModuleInfo[] = [
-  // Main
-  { key: 'dashboard', label: 'Dashboard', description: 'Main dashboard overview', icon: LayoutDashboard, category: 'main' },
-  { key: 'invoices', label: 'Invoices', description: 'Invoice management', icon: FileText, category: 'main' },
-  { key: 'quotations', label: 'Quotations', description: 'Quotation management', icon: FileText, category: 'main' },
-  { key: 'price_calculation', label: 'Price Calculation', description: 'Calculate pricing', icon: Calculator, category: 'main' },
-  { key: 'challan', label: 'Delivery Challan', description: 'Delivery documents', icon: Truck, category: 'main' },
-  
-  // Business
-  { key: 'customers', label: 'Customers', description: 'Customer management', icon: Users, category: 'business' },
-  { key: 'vendors', label: 'Vendors', description: 'Vendor management', icon: Building2, category: 'business' },
-  { key: 'expenses', label: 'Expenses', description: 'Expense tracking', icon: Wallet, category: 'business' },
-  
-  // HR & Ops
-  { key: 'employees', label: 'Employees', description: 'Employee records', icon: UserCog, category: 'hr_ops' },
-  { key: 'attendance', label: 'Attendance', description: 'Attendance tracking', icon: Clock, category: 'hr_ops' },
-  { key: 'salary', label: 'Salary', description: 'Salary management', icon: BanknoteIcon, category: 'hr_ops' },
-  { key: 'leave', label: 'Leave', description: 'Leave management', icon: PalmtreeIcon, category: 'hr_ops' },
-  { key: 'performance', label: 'Performance', description: 'Performance reviews', icon: BarChart3, category: 'hr_ops' },
-  { key: 'tasks', label: 'Tasks', description: 'Task management', icon: ClipboardList, category: 'hr_ops' },
-  
-  // System
-  { key: 'reports', label: 'Reports', description: 'Reports & analytics', icon: BarChart3, category: 'system' },
-  { key: 'team', label: 'Team', description: 'Team management', icon: Users, category: 'system' },
-  { key: 'settings', label: 'Settings', description: 'App settings', icon: Settings, category: 'system' },
-];
-
-const CATEGORY_CONFIG: Record<ModuleCategory, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
-  main: { label: 'Main', icon: LayoutDashboard },
-  business: { label: 'Business', icon: Briefcase },
-  hr_ops: { label: 'HR & Operations', icon: Users },
-  system: { label: 'System', icon: Settings },
+// Module icons mapping
+const MODULE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  dashboard: LayoutDashboard,
+  invoices: FileText,
+  quotations: FileText,
+  price_calculations: Calculator,
+  delivery_challans: Truck,
+  customers: Users,
+  vendors: Building2,
+  expenses: Wallet,
+  employees: UserCog,
+  attendance: Clock,
+  salary: BanknoteIcon,
+  leave: PalmtreeIcon,
+  performance: BarChart3,
+  tasks: ClipboardList,
+  reports: BarChart3,
+  team_members: Users,
+  settings: Settings,
 };
 
+const CATEGORY_ICONS: Record<PermissionCategory, React.ComponentType<{ className?: string }>> = {
+  main: LayoutDashboard,
+  business: Briefcase,
+  hr_ops: Users,
+  system: Settings,
+};
+
+const CATEGORY_ORDER: PermissionCategory[] = ['main', 'business', 'hr_ops', 'system'];
+
+// Build permission key for storage: module.action
 const buildPermissionKey = (moduleKey: string, action: PermissionAction): string => {
-  return `${moduleKey}.${action}`;
+  // Extract module name from key (e.g., "main.dashboard" -> "dashboard")
+  const parts = moduleKey.split('.');
+  const moduleName = parts.length > 1 ? parts[1] : moduleKey;
+  return `${moduleName}.${action}`;
 };
 
 interface ModulePermissionsMatrixProps {
@@ -184,7 +181,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
   const buildPermissionState = useCallback((orgPerms: OrgModulePermission[]): Map<string, boolean> => {
     const state = new Map<string, boolean>();
     
-    for (const module of MODULES) {
+    for (const module of ALL_MODULE_PERMISSIONS) {
       for (const action of PERMISSION_ACTIONS) {
         for (const role of STAFF_ROLES) {
           const permKey = buildPermissionKey(module.key, action);
@@ -380,8 +377,8 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
     );
   }
 
-  const getModulesByCategory = (category: ModuleCategory) => 
-    MODULES.filter(m => m.category === category);
+  const getModulesByCategory = (category: PermissionCategory) => 
+    ALL_MODULE_PERMISSIONS.filter(m => m.category === category);
 
   const RoleIcon = ROLE_CONFIG[selectedRole].icon;
 
@@ -428,10 +425,10 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
                 const isActive = selectedRole === role;
                 
                 // Count total enabled permissions for this role
-                const enabledCount = MODULES.reduce((acc, m) => 
+                const enabledCount = ALL_MODULE_PERMISSIONS.reduce((acc, m) => 
                   acc + getModulePermissionCount(m.key, role), 0
                 );
-                const totalCount = MODULES.length * PERMISSION_ACTIONS.length;
+                const totalCount = ALL_MODULE_PERMISSIONS.length * PERMISSION_ACTIONS.length;
                 
                 return (
                   <button
@@ -482,9 +479,9 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
           {/* Permissions Grid */}
           <ScrollArea className="max-h-[600px]">
             <div className="divide-y">
-              {(['main', 'business', 'hr_ops', 'system'] as ModuleCategory[]).map((category) => {
-                const categoryConfig = CATEGORY_CONFIG[category];
-                const CategoryIcon = categoryConfig.icon;
+              {CATEGORY_ORDER.map((category) => {
+                const CategoryIcon = CATEGORY_ICONS[category];
+                const categoryLabel = CATEGORY_DISPLAY[category].label;
                 const modules = getModulesByCategory(category);
                 
                 if (modules.length === 0) return null;
@@ -496,7 +493,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
                       <div className="flex items-center gap-2">
                         <CategoryIcon className="h-4 w-4 text-primary" />
                         <span className="font-semibold text-sm uppercase tracking-wider text-foreground">
-                          {categoryConfig.label}
+                          {categoryLabel}
                         </span>
                         <Badge variant="outline" className="text-[10px] h-5">
                           {modules.length} modules
@@ -507,7 +504,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
                     {/* Module Rows */}
                     <div className="divide-y divide-border/50">
                       {modules.map((module) => {
-                        const ModuleIcon = module.icon;
+                        const ModuleIcon = MODULE_ICONS[module.module] || Briefcase;
                         const enabledCount = getModulePermissionCount(module.key, selectedRole);
                         const allEnabled = enabledCount === PERMISSION_ACTIONS.length;
                         const someEnabled = enabledCount > 0;
