@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef } from 'react';
 import { useWeeklyHolidays, WEEKDAYS } from '@/hooks/useWeeklyHolidays';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -23,21 +23,30 @@ export const WeeklyHolidaySettings = ({ isReadOnly = false }: WeeklyHolidaySetti
     getHolidayDays,
   } = useWeeklyHolidays();
 
+  // Prevent double-click / fast repeated clicks from toggling twice before `saving` state updates
+  const toggleLockRef = useRef(false);
+
   const handleToggle = async (dayOfWeek: number) => {
-    if (isReadOnly) return;
-    
-    const dayName = WEEKDAYS.find(w => w.value === dayOfWeek)?.label;
-    
-    // toggleHoliday now returns { success, wasHoliday } so we get the correct previous state
-    const result = await toggleHoliday(dayOfWeek);
-    if (result.success) {
-      toast.success(
-        result.wasHoliday 
-          ? `${dayName} removed from weekly holidays` 
-          : `${dayName} set as weekly holiday`
-      );
-    } else {
-      toast.error('Failed to update weekly holiday');
+    if (isReadOnly || saving) return;
+    if (toggleLockRef.current) return;
+
+    toggleLockRef.current = true;
+    try {
+      const dayName = WEEKDAYS.find(w => w.value === dayOfWeek)?.label;
+
+      // toggleHoliday returns { success, wasHoliday } so we get a stable previous state
+      const result = await toggleHoliday(dayOfWeek);
+      if (result.success) {
+        toast.success(
+          result.wasHoliday
+            ? `${dayName} removed from weekly holidays`
+            : `${dayName} set as weekly holiday`
+        );
+      } else {
+        toast.error('Failed to update weekly holiday');
+      }
+    } finally {
+      toggleLockRef.current = false;
     }
   };
 
