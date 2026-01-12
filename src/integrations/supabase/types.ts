@@ -94,6 +94,174 @@ export type Database = {
           },
         ]
       }
+      attendance_audit_logs: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string
+          after_state: Json | null
+          attendance_id: string | null
+          before_state: Json | null
+          correction_request_id: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          organization_id: string
+          target_employee_id: string | null
+          target_employee_name: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id: string
+          after_state?: Json | null
+          attendance_id?: string | null
+          before_state?: Json | null
+          correction_request_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id: string
+          target_employee_id?: string | null
+          target_employee_name?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string
+          after_state?: Json | null
+          attendance_id?: string | null
+          before_state?: Json | null
+          correction_request_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          target_employee_id?: string | null
+          target_employee_name?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_audit_logs_attendance_id_fkey"
+            columns: ["attendance_id"]
+            isOneToOne: false
+            referencedRelation: "employee_attendance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_audit_logs_correction_request_id_fkey"
+            columns: ["correction_request_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_correction_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_audit_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_audit_logs_target_employee_id_fkey"
+            columns: ["target_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_correction_requests: {
+        Row: {
+          attendance_date: string
+          attendance_id: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          organization_id: string
+          original_check_in: string | null
+          original_check_out: string | null
+          original_status: string | null
+          reason: string
+          requested_by: string
+          requested_check_in: string | null
+          requested_check_out: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["correction_request_status"]
+          updated_at: string
+        }
+        Insert: {
+          attendance_date: string
+          attendance_id?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          organization_id: string
+          original_check_in?: string | null
+          original_check_out?: string | null
+          original_status?: string | null
+          reason: string
+          requested_by: string
+          requested_check_in?: string | null
+          requested_check_out?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["correction_request_status"]
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          attendance_id?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          original_check_in?: string | null
+          original_check_out?: string | null
+          original_status?: string | null
+          reason?: string
+          requested_by?: string
+          requested_check_in?: string | null
+          requested_check_out?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["correction_request_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_correction_requests_attendance_id_fkey"
+            columns: ["attendance_id"]
+            isOneToOne: false
+            referencedRelation: "employee_attendance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_correction_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_correction_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -651,6 +819,66 @@ export type Database = {
           },
           {
             foreignKeyName: "employee_attendance_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_device_registrations: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          browser_info: string | null
+          created_at: string
+          device_fingerprint: string
+          device_name: string | null
+          employee_id: string
+          id: string
+          is_approved: boolean
+          last_used_at: string | null
+          organization_id: string
+          os_info: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          browser_info?: string | null
+          created_at?: string
+          device_fingerprint: string
+          device_name?: string | null
+          employee_id: string
+          id?: string
+          is_approved?: boolean
+          last_used_at?: string | null
+          organization_id: string
+          os_info?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          browser_info?: string | null
+          created_at?: string
+          device_fingerprint?: string
+          device_name?: string | null
+          employee_id?: string
+          id?: string
+          is_approved?: boolean
+          last_used_at?: string | null
+          organization_id?: string
+          os_info?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_device_registrations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_device_registrations_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1786,7 +2014,9 @@ export type Database = {
       }
       organization_attendance_settings: {
         Row: {
+          auto_approve_first_device: boolean
           created_at: string | null
+          device_restriction_enabled: boolean
           half_day_threshold_hours: number | null
           id: string
           late_threshold_minutes: number | null
@@ -1796,7 +2026,9 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          auto_approve_first_device?: boolean
           created_at?: string | null
+          device_restriction_enabled?: boolean
           half_day_threshold_hours?: number | null
           id?: string
           late_threshold_minutes?: number | null
@@ -1806,7 +2038,9 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          auto_approve_first_device?: boolean
           created_at?: string | null
+          device_restriction_enabled?: boolean
           half_day_threshold_hours?: number | null
           id?: string
           late_threshold_minutes?: number | null
@@ -4541,6 +4775,7 @@ export type Database = {
         | "impersonate_start"
         | "impersonate_end"
       audit_source: "ui" | "api" | "system" | "edge_function" | "webhook"
+      correction_request_status: "pending" | "approved" | "rejected"
       invoice_status: "unpaid" | "partial" | "paid"
       leave_status: "pending" | "approved" | "rejected"
       leave_type: "casual" | "sick" | "annual" | "other"
@@ -4766,6 +5001,7 @@ export const Constants = {
         "impersonate_end",
       ],
       audit_source: ["ui", "api", "system", "edge_function", "webhook"],
+      correction_request_status: ["pending", "approved", "rejected"],
       invoice_status: ["unpaid", "partial", "paid"],
       leave_status: ["pending", "approved", "rejected"],
       leave_type: ["casual", "sick", "annual", "other"],
