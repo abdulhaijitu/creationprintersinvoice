@@ -243,13 +243,13 @@ export function useTasks() {
         assigned_by: currentUserId, // Set assigned_by to current user for backwards compatibility
         created_by: currentUserId, // CRITICAL: Set created_by to current user
         deadline: data.deadline || null,
-        priority: data.priority,
+        priority: data.priority as any, // Cast to any until types are regenerated
         status: 'design',
         reference_type: data.reference_type || null,
         reference_id: data.reference_id || null,
         organization_id: organization?.id,
         sla_deadline: slaDeadline.toISOString(),
-      }).select().single();
+      } as any).select().single();
 
       if (error) {
         console.error('[Tasks] Error creating task:', error);
@@ -319,8 +319,9 @@ export function useTasks() {
         .from('tasks')
         .update({
           ...data,
+          priority: data.priority as any, // Cast to any until types are regenerated
           updated_at: new Date().toISOString()
-        })
+        } as any)
         .eq('id', taskId);
 
       if (error) throw error;
