@@ -2,7 +2,7 @@
  * Module Permissions Matrix Component
  * 
  * Allows organization owners to configure module-based permissions for staff roles.
- * Uses the new module-based permission system (main.dashboard, business.customers, etc.)
+ * Supports View / Create / Edit / Delete actions per module.
  * 
  * CRITICAL RULES:
  * - Super Admin always has all permissions (locked ON)
@@ -11,13 +11,12 @@
  * - Sidebar visibility updates on next navigation
  */
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { invalidateModulePermissionCache } from '@/hooks/useModulePermissions';
 import { 
-  ALL_MODULE_PERMISSIONS,
   PERMISSIONS_BY_CATEGORY,
   CATEGORY_DISPLAY,
   type ModulePermission,
@@ -52,6 +51,10 @@ import {
   Info,
   RefreshCw,
   AlertTriangle,
+  Eye,
+  Plus,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -67,8 +70,26 @@ interface OrgModulePermission {
 // Staff roles that can have permissions configured (excluding owner)
 const STAFF_ROLES: OrgRole[] = ['manager', 'accounts', 'sales_staff', 'designer', 'employee'];
 
+// Permission actions
+type PermissionAction = 'view' | 'create' | 'edit' | 'delete';
+const PERMISSION_ACTIONS: PermissionAction[] = ['view', 'create', 'edit', 'delete'];
+
+const ACTION_CONFIG: Record<PermissionAction, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
+  view: { label: 'View', icon: Eye, color: 'text-blue-600' },
+  create: { label: 'Create', icon: Plus, color: 'text-green-600' },
+  edit: { label: 'Edit', icon: Pencil, color: 'text-amber-600' },
+  delete: { label: 'Delete', icon: Trash2, color: 'text-red-600' },
+};
+
 // Ordered categories for display
 const CATEGORY_ORDER: PermissionCategory[] = ['main', 'business', 'hr_ops', 'system'];
+
+// Build permission key: module.action (e.g., "customers.view")
+const buildPermissionKey = (moduleKey: string, action: PermissionAction): string => {
+  // Extract module name from key like "main.dashboard" -> "dashboard"
+  const moduleName = moduleKey.split('.')[1] || moduleKey;
+  return `${moduleName}.${action}`;
+};
 
 interface ModulePermissionsMatrixProps {
   className?: string;
@@ -84,7 +105,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const isMountedRef = useRef(true);
   
-  // Permission state: Map<"permissionKey.role", boolean>
+  // Permission state: Map<"module.action.role", boolean>
   const [permissionState, setPermissionState] = useState<Map<string, boolean>>(new Map());
 
   /**
@@ -94,17 +115,26 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
     const state = new Map<string, boolean>();
     
     // Initialize all permissions as false (no access by default)
-    for (const perm of ALL_MODULE_PERMISSIONS) {
-      for (const role of STAFF_ROLES) {
-        const key = `${perm.key}.${role}`;
-        state.set(key, false);
+    for (const category of CATEGORY_ORDER) {
+      for (const perm of PERMISSIONS_BY_CATEGORY[category]) {
+        for (const action of PERMISSION_ACTIONS) {
+          for (const role of STAFF_ROLES) {
+            const permKey = buildPermissionKey(perm.key, action);
+            const stateKey = `${permKey}.${role}`;
+            state.set(stateKey, false);
+          }
+        }
       }
     }
     
     // Override with org-specific permissions from database
     for (const perm of orgPerms) {
-      const key = `${perm.permission_key}.${perm.role}`;
-      state.set(key, perm.is_enabled);
+      for (const role of STAFF_ROLES) {
+        if (perm.role === role) {
+          const stateKey = `${perm.permission_key}.${role}`;
+          state.set(stateKey, perm.is_enabled);
+        }
+      }
     }
     
     return state;
@@ -243,7 +273,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
       // Notify parent
       onPermissionsChanged?.();
       
-      toast.success(`${newValue ? 'Enabled' : 'Disabled'} ${permissionKey.split('.')[1]} access`, { 
+      toast.success(`Permission ${newValue ? 'enabled' : 'disabled'}`, { 
         duration: 1500 
       });
     } catch (error) {
@@ -316,25 +346,33 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
             </Button>
           </div>
           <CardDescription>
-            Control which modules each role can access. Super Admin and Owner always have full access.
+            Configure View / Create / Edit / Delete permissions for each module per role.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {/* Legend */}
-          <div className="px-4 py-3 bg-muted/30 border-b flex items-center gap-6 text-xs text-muted-foreground">
+          <div className="px-4 py-3 bg-muted/30 border-b flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
               <div className="h-4 w-4 rounded border bg-primary/20 flex items-center justify-center">
                 <Check className="h-3 w-3 text-primary" />
               </div>
-              <span>Has Access</span>
+              <span>Enabled</span>
             </div>
             <div className="flex items-center gap-2">
               <Lock className="h-3.5 w-3.5" />
-              <span>Owner (Locked ON)</span>
+              <span>Owner (Locked)</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Info className="h-3.5 w-3.5" />
-              <span>Disabled = Hidden from sidebar</span>
+            <div className="flex items-center gap-1.5 border-l pl-4">
+              {PERMISSION_ACTIONS.map(action => {
+                const config = ACTION_CONFIG[action];
+                const Icon = config.icon;
+                return (
+                  <div key={action} className="flex items-center gap-1">
+                    <Icon className={cn("h-3 w-3", config.color)} />
+                    <span>{config.label}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -342,11 +380,12 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 bg-background z-10 min-w-[200px] font-semibold">
+                  <TableHead className="sticky left-0 bg-background z-10 min-w-[180px] font-semibold">
                     Module
                   </TableHead>
+                  <TableHead className="min-w-[80px] text-center font-semibold">Action</TableHead>
                   {STAFF_ROLES.map((role) => (
-                    <TableHead key={role} className="text-center min-w-[100px]">
+                    <TableHead key={role} className="text-center min-w-[90px]">
                       <Badge variant="outline" className="text-xs font-normal">
                         {ORG_ROLE_DISPLAY[role]}
                       </Badge>
@@ -358,10 +397,10 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
                 {CATEGORY_ORDER.map((category) => (
                   <React.Fragment key={category}>
                     {/* Category Header */}
-                    <TableRow className="bg-muted/20">
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
                       <TableCell 
-                        colSpan={STAFF_ROLES.length + 1} 
-                        className="font-medium text-xs text-muted-foreground uppercase tracking-wider py-2"
+                        colSpan={STAFF_ROLES.length + 2} 
+                        className="font-semibold text-xs text-muted-foreground uppercase tracking-wider py-2"
                       >
                         {CATEGORY_DISPLAY[category].label}
                       </TableCell>
@@ -369,64 +408,91 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
                     
                     {/* Permission Rows */}
                     {PERMISSIONS_BY_CATEGORY[category].map((perm) => (
-                      <TableRow 
-                        key={perm.key}
-                        className="hover:bg-muted/30 transition-colors"
-                      >
-                        <TableCell className="sticky left-0 bg-background border-r">
-                          <div className="flex flex-col">
-                            <span className="font-medium text-sm">{perm.label}</span>
-                            <span className="text-xs text-muted-foreground">{perm.description}</span>
-                          </div>
-                        </TableCell>
-                        
-                        {STAFF_ROLES.map((role) => {
-                          const stateKey = `${perm.key}.${role}`;
-                          const checked = isChecked(perm.key, role);
-                          const toggleable = canToggle(role);
-                          const isSaving = savingKey === stateKey;
+                      <React.Fragment key={perm.key}>
+                        {PERMISSION_ACTIONS.map((action, actionIdx) => {
+                          const permKey = buildPermissionKey(perm.key, action);
+                          const ActionIcon = ACTION_CONFIG[action].icon;
+                          const isFirstAction = actionIdx === 0;
                           
                           return (
-                            <TableCell key={role} className="text-center py-3">
-                              <div className="flex items-center justify-center">
-                                {isSaving ? (
-                                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                ) : (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div className="relative">
-                                        <Checkbox
-                                          checked={checked}
-                                          onCheckedChange={() => {
-                                            if (toggleable) {
-                                              handleToggle(perm.key, role);
-                                            }
-                                          }}
-                                          disabled={!toggleable}
-                                          className={cn(
-                                            'transition-all duration-200',
-                                            !toggleable && 'opacity-60 cursor-not-allowed'
+                            <TableRow 
+                              key={`${perm.key}-${action}`}
+                              className={cn(
+                                "hover:bg-muted/30 transition-colors",
+                                actionIdx === PERMISSION_ACTIONS.length - 1 && "border-b-2"
+                              )}
+                            >
+                              {/* Module name - only show on first action row */}
+                              <TableCell className="sticky left-0 bg-background border-r">
+                                {isFirstAction ? (
+                                  <div className="flex flex-col">
+                                    <span className="font-medium text-sm">{perm.label}</span>
+                                    <span className="text-xs text-muted-foreground truncate max-w-[160px]">
+                                      {perm.description}
+                                    </span>
+                                  </div>
+                                ) : null}
+                              </TableCell>
+                              
+                              {/* Action */}
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <ActionIcon className={cn("h-3.5 w-3.5", ACTION_CONFIG[action].color)} />
+                                  <span className="text-xs font-medium">{ACTION_CONFIG[action].label}</span>
+                                </div>
+                              </TableCell>
+                              
+                              {/* Role checkboxes */}
+                              {STAFF_ROLES.map((role) => {
+                                const stateKey = `${permKey}.${role}`;
+                                const checked = isChecked(permKey, role);
+                                const toggleable = canToggle(role);
+                                const isSaving = savingKey === stateKey;
+                                
+                                return (
+                                  <TableCell key={role} className="text-center py-2">
+                                    <div className="flex items-center justify-center">
+                                      {isSaving ? (
+                                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                      ) : (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <div className="relative">
+                                              <Checkbox
+                                                checked={checked}
+                                                onCheckedChange={() => {
+                                                  if (toggleable) {
+                                                    handleToggle(permKey, role);
+                                                  }
+                                                }}
+                                                disabled={!toggleable}
+                                                className={cn(
+                                                  'transition-all duration-200',
+                                                  !toggleable && 'opacity-60 cursor-not-allowed'
+                                                )}
+                                              />
+                                            </div>
+                                          </TooltipTrigger>
+                                          {!toggleable && (
+                                            <TooltipContent>
+                                              <p className="text-xs">
+                                                {role === 'owner' 
+                                                  ? 'Owner permissions are protected'
+                                                  : 'Only owners can edit permissions'
+                                                }
+                                              </p>
+                                            </TooltipContent>
                                           )}
-                                        />
-                                      </div>
-                                    </TooltipTrigger>
-                                    {!toggleable && (
-                                      <TooltipContent>
-                                        <p className="text-xs">
-                                          {role === 'owner' 
-                                            ? 'Owner permissions are protected'
-                                            : 'Only owners can edit permissions'
-                                          }
-                                        </p>
-                                      </TooltipContent>
-                                    )}
-                                  </Tooltip>
-                                )}
-                              </div>
-                            </TableCell>
+                                        </Tooltip>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
                           );
                         })}
-                      </TableRow>
+                      </React.Fragment>
                     ))}
                   </React.Fragment>
                 ))}
@@ -440,8 +506,7 @@ export function ModulePermissionsMatrix({ className, onPermissionsChanged }: Mod
               <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
               <p>
                 <strong>Important:</strong> Changes are saved immediately. 
-                Staff will see updated sidebar access after refreshing their browser.
-                Disabled modules will be completely hidden (no greyed-out items).
+                Staff will see updated access after refreshing their browser.
               </p>
             </div>
           </div>
