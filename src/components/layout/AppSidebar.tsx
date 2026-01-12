@@ -1,11 +1,10 @@
 import { useCallback, useRef, useMemo, useEffect } from 'react';
-import { LogOut } from 'lucide-react';
-import creationPrintersLogo from '@/assets/creation-printers-logo.png';
-import appIconLogo from '@/assets/app-logo.jpg';
+import { LogOut, Building2 } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { usePermissionContext } from '@/contexts/PermissionContext';
+import { useCompanySettings } from '@/contexts/CompanySettingsContext';
 import {
   sidebarNavGroups,
   SidebarNavItem,
@@ -29,11 +28,13 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FavoritePages } from './FavoritePages';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function AppSidebar() {
   const location = useLocation();
   const { user, signOut, isSuperAdmin } = useAuth();
   const { organization, isOrgOwner, orgRole } = useOrganization();
+  const { settings: companySettings, loading: companyLoading } = useCompanySettings();
   
   // Use the Permission Context - SINGLE SOURCE OF TRUTH with realtime updates
   const { 
@@ -281,7 +282,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/50">
-      {/* Header with Logo - clickable to navigate to Dashboard */}
+      {/* Header with Dynamic Company Name */}
       <SidebarHeader className={cn(
         "h-16 flex items-center border-b border-sidebar-border/30 shrink-0 transition-all duration-200",
         collapsed ? "justify-center px-2" : "px-4"
@@ -292,30 +293,49 @@ export function AppSidebar() {
               to="/"
               onClick={handleLogoClick}
               className={cn(
-                "flex items-center rounded-md transition-all duration-200 ease-out",
-                "hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1",
-                collapsed ? "justify-center p-1" : "gap-3"
+                "flex items-center rounded-lg transition-all duration-200 ease-out group",
+                "hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1",
+                collapsed ? "justify-center p-2" : "gap-3 p-2 w-full"
               )}
               aria-label="Go to Dashboard"
             >
-              {collapsed ? (
-                <img 
-                  src={appIconLogo}
-                  alt="Creation Printers"
-                  className="h-8 w-8 object-contain rounded"
-                />
-              ) : (
-                <img 
-                  src={creationPrintersLogo}
-                  alt="Creation Printers - All Printing Solution"
-                  className="h-9 w-auto object-contain max-w-[180px]"
-                />
+              {/* Icon Container */}
+              <div className={cn(
+                "flex items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm transition-transform duration-200",
+                "group-hover:scale-105 group-hover:shadow-md",
+                collapsed ? "h-8 w-8" : "h-9 w-9"
+              )}>
+                <Building2 className={cn(collapsed ? "h-4 w-4" : "h-5 w-5")} />
+              </div>
+              
+              {/* Company Name - Only show when expanded */}
+              {!collapsed && (
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  {companyLoading ? (
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  ) : (
+                    <>
+                      <h1 className="text-sm font-semibold text-sidebar-foreground truncate leading-tight">
+                        {companySettings?.company_name || 'Your Company'}
+                      </h1>
+                      <p className="text-[10px] text-sidebar-foreground/50 truncate">
+                        Business Management
+                      </p>
+                    </>
+                  )}
+                </div>
               )}
             </Link>
           </TooltipTrigger>
           {collapsed && (
             <TooltipContent side="right" sideOffset={12} className="font-medium">
-              Creation Printers - Dashboard
+              <div className="flex flex-col">
+                <span>{companySettings?.company_name || 'Your Company'}</span>
+                <span className="text-xs text-muted-foreground">Go to Dashboard</span>
+              </div>
             </TooltipContent>
           )}
         </Tooltip>
