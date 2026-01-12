@@ -30,13 +30,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Calendar, ShieldAlert, Loader2, Banknote, FileText } from "lucide-react";
+import { Plus, Calendar, ShieldAlert, Loader2, Banknote, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { safeParseFloat, parseValidatedFloat } from "@/lib/validation";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+interface AdvanceDeductionDetail {
+  advance_id: string;
+  amount_deducted: number;
+  remaining_after: number;
+}
 
 interface SalaryRecord {
   id: string;
@@ -53,6 +60,8 @@ interface SalaryRecord {
   status: string;
   paid_date: string | null;
   notes: string | null;
+  advance_deducted_ids: string[] | null;
+  advance_deduction_details: unknown;
   employee?: { full_name: string } | null;
 }
 
@@ -66,6 +75,7 @@ interface EmployeeAdvance {
   id: string;
   employee_id: string;
   amount: number;
+  remaining_balance: number;
   date: string;
   reason: string | null;
   status: string;
@@ -94,11 +104,17 @@ const Salary = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [advances, setAdvances] = useState<EmployeeAdvance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("salary");
+  
+  // Pending advances for selected employee
+  const [pendingAdvances, setPendingAdvances] = useState<EmployeeAdvance[]>([]);
+  const [autoAdvanceDeduction, setAutoAdvanceDeduction] = useState(0);
+  
   const [formData, setFormData] = useState({
     employee_id: "",
     month: new Date().getMonth() + 1,
@@ -108,15 +124,12 @@ const Salary = () => {
     overtime_amount: "0",
     bonus: "0",
     deductions: "0",
-    advance: "0",
     notes: "",
   });
   const [advanceFormData, setAdvanceFormData] = useState({
     employee_id: "",
     amount: "",
     reason: "",
-    deduction_month: new Date().getMonth() + 1,
-    deduction_year: new Date().getFullYear(),
   });
 
   const fetchData = useCallback(async () => {
@@ -150,7 +163,7 @@ const Salary = () => {
         setSalaryRecords(recordsWithEmployee);
       }
 
-      // Fetch advances
+      // Fetch advances with remaining_balance
       const { data: advancesData } = await supabase
         .from("employee_advances")
         .select("*")
@@ -160,7 +173,11 @@ const Salary = () => {
       if (advancesData && employeesData) {
         const advancesWithEmployee = advancesData.map((advance) => {
           const employee = employeesData.find((e) => e.id === advance.employee_id);
-          return { ...advance, employee: employee ? { full_name: employee.full_name } : null };
+          return { 
+            ...advance, 
+            remaining_balance: advance.remaining_balance ?? advance.amount,
+            employee: employee ? { full_name: employee.full_name } : null 
+          };
         });
         setAdvances(advancesWithEmployee);
       }
@@ -177,23 +194,55 @@ const Salary = () => {
     }
   }, [fetchData, organizationId, hasOrgContext]);
 
+  // Fetch pending advances when employee is selected
+  const fetchPendingAdvances = useCallback(async (employeeId: string) => {
+    if (!employeeId || !organizationId) {
+      setPendingAdvances([]);
+      setAutoAdvanceDeduction(0);
+      return;
+    }
+
+    const { data } = await supabase
+      .from("employee_advances")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .eq("employee_id", employeeId)
+      .gt("remaining_balance", 0)
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      setPendingAdvances(data);
+      const totalPending = data.reduce((sum, adv) => sum + (adv.remaining_balance ?? adv.amount), 0);
+      setAutoAdvanceDeduction(totalPending);
+    } else {
+      setPendingAdvances([]);
+      setAutoAdvanceDeduction(0);
+    }
+  }, [organizationId]);
+
   const calculateNetPayable = () => {
     const basic = safeParseFloat(formData.basic_salary, 0, 0, 100000000);
     const overtime = safeParseFloat(formData.overtime_amount, 0, 0, 100000000);
     const bonus = safeParseFloat(formData.bonus, 0, 0, 100000000);
     const deductions = safeParseFloat(formData.deductions, 0, 0, 100000000);
-    const advance = safeParseFloat(formData.advance, 0, 0, 100000000);
+    const grossSalary = basic + overtime + bonus - deductions;
+    
+    // Auto-calculate advance deduction (capped at gross salary)
+    const advanceToDeduct = Math.min(autoAdvanceDeduction, Math.max(0, grossSalary));
 
-    return basic + overtime + bonus - deductions - advance;
+    return grossSalary - advanceToDeduct;
   };
 
-  const handleEmployeeSelect = (employeeId: string) => {
+  const handleEmployeeSelect = async (employeeId: string) => {
     const employee = employees.find((e) => e.id === employeeId);
     setFormData({
       ...formData,
       employee_id: employeeId,
       basic_salary: employee?.basic_salary?.toString() || "0",
     });
+    
+    // Fetch pending advances for this employee
+    await fetchPendingAdvances(employeeId);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -204,18 +253,61 @@ const Salary = () => {
       return;
     }
 
-    try {
-      const netPayable = calculateNetPayable();
+    setSubmitting(true);
 
-      // Validate all numeric fields
+    try {
+      // Calculate gross salary
       const basicSalary = safeParseFloat(formData.basic_salary, 0, 0, 100000000);
       const overtimeHours = safeParseFloat(formData.overtime_hours, 0, 0, 1000);
       const overtimeAmount = safeParseFloat(formData.overtime_amount, 0, 0, 100000000);
       const bonus = safeParseFloat(formData.bonus, 0, 0, 100000000);
       const deductions = safeParseFloat(formData.deductions, 0, 0, 100000000);
-      const advance = safeParseFloat(formData.advance, 0, 0, 100000000);
+      const grossSalary = basicSalary + overtimeAmount + bonus - deductions;
 
-      const { error } = await supabase.from("employee_salary_records").insert({
+      // Fetch FRESH pending advances for this employee (prevent stale data)
+      const { data: freshAdvances } = await supabase
+        .from("employee_advances")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .eq("employee_id", formData.employee_id)
+        .gt("remaining_balance", 0)
+        .order("created_at", { ascending: true });
+
+      // Calculate advance deductions
+      let remainingGross = grossSalary;
+      let totalAdvanceDeducted = 0;
+      const advanceDeductionDetails: AdvanceDeductionDetail[] = [];
+      const advanceIdsToUpdate: { id: string; newBalance: number; fullySettled: boolean }[] = [];
+
+      if (freshAdvances) {
+        for (const adv of freshAdvances) {
+          if (remainingGross <= 0) break;
+          
+          const currentBalance = adv.remaining_balance ?? adv.amount;
+          const deductAmount = Math.min(currentBalance, remainingGross);
+          const newBalance = currentBalance - deductAmount;
+          
+          totalAdvanceDeducted += deductAmount;
+          remainingGross -= deductAmount;
+          
+          advanceDeductionDetails.push({
+            advance_id: adv.id,
+            amount_deducted: deductAmount,
+            remaining_after: newBalance,
+          });
+          
+          advanceIdsToUpdate.push({
+            id: adv.id,
+            newBalance,
+            fullySettled: newBalance === 0,
+          });
+        }
+      }
+
+      const netPayable = grossSalary - totalAdvanceDeducted;
+
+      // Insert salary record with advance snapshot
+      const salaryInsertData = {
         employee_id: formData.employee_id,
         month: formData.month,
         year: formData.year,
@@ -224,16 +316,39 @@ const Salary = () => {
         overtime_amount: overtimeAmount,
         bonus: bonus,
         deductions: deductions,
-        advance: advance,
+        advance: totalAdvanceDeducted,
         net_payable: netPayable,
         status: "pending",
         notes: formData.notes || null,
         organization_id: organizationId,
-      });
+        advance_deducted_ids: advanceIdsToUpdate.length > 0 ? advanceIdsToUpdate.map(a => a.id) : null,
+        advance_deduction_details: advanceDeductionDetails.length > 0 ? JSON.stringify(advanceDeductionDetails) : null,
+      };
+      
+      const { error: salaryError } = await supabase
+        .from("employee_salary_records")
+        .insert(salaryInsertData as any);
 
-      if (error) throw error;
+      if (salaryError) throw salaryError;
 
-      toast.success("Salary record saved");
+      // Update advance balances in database
+      for (const adv of advanceIdsToUpdate) {
+        const { error: advError } = await supabase
+          .from("employee_advances")
+          .update({
+            remaining_balance: adv.newBalance,
+            status: adv.fullySettled ? "settled" : "partial",
+            deducted_from_month: formData.month,
+            deducted_from_year: formData.year,
+          })
+          .eq("id", adv.id);
+
+        if (advError) {
+          console.error("Error updating advance:", advError);
+        }
+      }
+
+      toast.success(`Salary record saved. Advance deducted: ${formatCurrency(totalAdvanceDeducted)}`);
       setIsDialogOpen(false);
       resetForm();
       fetchData();
@@ -244,6 +359,8 @@ const Salary = () => {
       } else {
         toast.error("Failed to save salary record");
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -257,9 +374,10 @@ const Salary = () => {
       overtime_amount: "0",
       bonus: "0",
       deductions: "0",
-      advance: "0",
       notes: "",
     });
+    setPendingAdvances([]);
+    setAutoAdvanceDeduction(0);
   };
 
   const resetAdvanceForm = () => {
@@ -267,8 +385,6 @@ const Salary = () => {
       employee_id: "",
       amount: "",
       reason: "",
-      deduction_month: new Date().getMonth() + 1,
-      deduction_year: new Date().getFullYear(),
     });
   };
 
@@ -289,47 +405,29 @@ const Salary = () => {
       return;
     }
 
+    setSubmitting(true);
+
     try {
       const { error } = await supabase.from("employee_advances").insert({
         employee_id: advanceFormData.employee_id,
         amount: validatedAmount,
+        remaining_balance: validatedAmount, // Initialize remaining_balance = amount
         reason: advanceFormData.reason || null,
         status: "pending",
-        deducted_from_month: advanceFormData.deduction_month,
-        deducted_from_year: advanceFormData.deduction_year,
         organization_id: organizationId,
       });
 
       if (error) throw error;
 
-      toast.success("Advance recorded");
+      toast.success("Advance recorded. It will be auto-deducted on next salary generation.");
       setIsAdvanceDialogOpen(false);
       resetAdvanceForm();
       fetchData();
     } catch (error) {
       console.error("Error saving advance:", error);
       toast.error("Failed to save advance");
-    }
-  };
-
-  const markAdvanceDeducted = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from("employee_advances")
-        .update({
-          status: "deducted",
-          deducted_from_month: selectedMonth,
-          deducted_from_year: selectedYear,
-        })
-        .eq("id", id);
-
-      if (error) throw error;
-
-      toast.success("Marked as deducted");
-      fetchData();
-    } catch (error) {
-      console.error("Error updating advance:", error);
-      toast.error("Update failed");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -367,10 +465,20 @@ const Salary = () => {
     .filter((r) => r.status === "paid")
     .reduce((sum, r) => sum + r.net_payable, 0);
   const totalPendingAdvances = advances
-    .filter((a) => a.status === "pending")
-    .reduce((sum, a) => sum + a.amount, 0);
+    .filter((a) => (a.remaining_balance ?? a.amount) > 0)
+    .reduce((sum, a) => sum + (a.remaining_balance ?? a.amount), 0);
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
+
+  const getAdvanceStatusBadge = (advance: EmployeeAdvance) => {
+    const remaining = advance.remaining_balance ?? advance.amount;
+    if (remaining === 0) {
+      return <Badge variant="default" className="bg-success">Settled</Badge>;
+    } else if (remaining < advance.amount) {
+      return <Badge variant="secondary" className="bg-warning text-warning-foreground">Partial</Badge>;
+    }
+    return <Badge variant="outline">Pending</Badge>;
+  };
 
   if (authLoading) {
     return (
@@ -459,44 +567,6 @@ const Salary = () => {
                       onChange={(e) => setAdvanceFormData({ ...advanceFormData, amount: e.target.value })}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Deduction Month</Label>
-                      <Select
-                        value={advanceFormData.deduction_month.toString()}
-                        onValueChange={(v) => setAdvanceFormData({ ...advanceFormData, deduction_month: parseInt(v) })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {months.map((m, i) => (
-                            <SelectItem key={i} value={(i + 1).toString()}>
-                              {m}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Deduction Year</Label>
-                      <Select
-                        value={advanceFormData.deduction_year.toString()}
-                        onValueChange={(v) => setAdvanceFormData({ ...advanceFormData, deduction_year: parseInt(v) })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {years.map((y) => (
-                            <SelectItem key={y} value={y.toString()}>
-                              {y}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
                   <div className="space-y-2">
                     <Label>Reason (Optional)</Label>
                     <Textarea
@@ -505,16 +575,29 @@ const Salary = () => {
                       onChange={(e) => setAdvanceFormData({ ...advanceFormData, reason: e.target.value })}
                     />
                   </div>
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Auto-Deduction</AlertTitle>
+                    <AlertDescription>
+                      This advance will be automatically deducted when generating the employee's next salary.
+                    </AlertDescription>
+                  </Alert>
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" onClick={() => setIsAdvanceDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit">Save</Button>
+                    <Button type="submit" disabled={submitting}>
+                      {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Save
+                    </Button>
                   </div>
                 </form>
               </DialogContent>
             </Dialog>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
@@ -627,14 +710,27 @@ const Salary = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Advance Deduction</Label>
-                  <Input
-                    type="number"
-                    value={formData.advance}
-                    onChange={(e) => setFormData({ ...formData, advance: e.target.value })}
-                  />
-                </div>
+                {/* Auto Advance Deduction Display */}
+                {pendingAdvances.length > 0 && (
+                  <Alert className="border-warning bg-warning/10">
+                    <AlertTriangle className="h-4 w-4 text-warning" />
+                    <AlertTitle className="text-warning">Pending Advances</AlertTitle>
+                    <AlertDescription className="text-sm">
+                      <div className="mt-2 space-y-1">
+                        {pendingAdvances.map((adv) => (
+                          <div key={adv.id} className="flex justify-between text-xs">
+                            <span>{format(new Date(adv.date), "dd MMM yyyy")}</span>
+                            <span className="font-medium">{formatCurrency(adv.remaining_balance ?? adv.amount)}</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between font-bold border-t pt-1 mt-2">
+                          <span>Total to Deduct:</span>
+                          <span className="text-destructive">{formatCurrency(autoAdvanceDeduction)}</span>
+                        </div>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 <div className="space-y-2">
                   <Label>Notes</Label>
@@ -644,16 +740,41 @@ const Salary = () => {
                   />
                 </div>
 
-                <div className="bg-muted p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Net Payable</p>
-                  <p className="text-2xl font-bold">{formatCurrency(calculateNetPayable())}</p>
+                <div className="bg-muted p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Gross Salary</span>
+                    <span>{formatCurrency(
+                      safeParseFloat(formData.basic_salary, 0, 0, 100000000) +
+                      safeParseFloat(formData.overtime_amount, 0, 0, 100000000) +
+                      safeParseFloat(formData.bonus, 0, 0, 100000000) -
+                      safeParseFloat(formData.deductions, 0, 0, 100000000)
+                    )}</span>
+                  </div>
+                  {autoAdvanceDeduction > 0 && (
+                    <div className="flex justify-between text-sm text-destructive">
+                      <span>Advance Deduction</span>
+                      <span>- {formatCurrency(Math.min(autoAdvanceDeduction, Math.max(0,
+                        safeParseFloat(formData.basic_salary, 0, 0, 100000000) +
+                        safeParseFloat(formData.overtime_amount, 0, 0, 100000000) +
+                        safeParseFloat(formData.bonus, 0, 0, 100000000) -
+                        safeParseFloat(formData.deductions, 0, 0, 100000000)
+                      )))}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="text-muted-foreground">Net Payable</span>
+                    <span className="text-2xl font-bold">{formatCurrency(calculateNetPayable())}</span>
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit">Save</Button>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save
+                  </Button>
                 </div>
               </form>
             </DialogContent>
@@ -796,7 +917,9 @@ const Salary = () => {
                     {formatCurrency(record.deductions)}
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    {formatCurrency(record.advance)}
+                    <span className={record.advance > 0 ? "text-destructive font-medium" : ""}>
+                      {formatCurrency(record.advance)}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right font-bold whitespace-nowrap">
                     {formatCurrency(record.net_payable)}
@@ -835,22 +958,23 @@ const Salary = () => {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Employee</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Original</TableHead>
+                  <TableHead className="text-right">Remaining</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Status</TableHead>
-                  {isAdmin && <TableHead>Action</TableHead>}
+                  <TableHead>Last Deduction</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : advances.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-0">
+                    <TableCell colSpan={7} className="py-0">
                       <EmptyState
                         icon={Banknote}
                         title="No advances recorded"
@@ -870,31 +994,29 @@ const Salary = () => {
                       <TableCell className="font-medium">
                         {advance.employee?.full_name || "-"}
                       </TableCell>
-                      <TableCell className="text-right font-bold">
+                      <TableCell className="text-right">
                         {formatCurrency(advance.amount)}
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        <span className={(advance.remaining_balance ?? advance.amount) > 0 ? "text-warning" : "text-success"}>
+                          {formatCurrency(advance.remaining_balance ?? advance.amount)}
+                        </span>
                       </TableCell>
                       <TableCell className="max-w-[200px]">
                         <p className="line-clamp-1">{advance.reason || "-"}</p>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={advance.status === "deducted" ? "default" : "secondary"}>
-                          {advance.status === "deducted" ? "Deducted" : "Pending"}
-                        </Badge>
+                        {getAdvanceStatusBadge(advance)}
                       </TableCell>
-                      {isAdmin && (
-                        <TableCell>
-                          {advance.status === "pending" && (
-                            <Button size="sm" onClick={() => markAdvanceDeducted(advance.id)}>
-                              Mark Deducted
-                            </Button>
-                          )}
-                          {advance.status === "deducted" && advance.deducted_from_month && (
-                            <span className="text-sm text-muted-foreground">
-                              {months[advance.deducted_from_month - 1]} {advance.deducted_from_year}
-                            </span>
-                          )}
-                        </TableCell>
-                      )}
+                      <TableCell>
+                        {advance.deducted_from_month && advance.deducted_from_year ? (
+                          <span className="text-sm text-muted-foreground">
+                            {months[advance.deducted_from_month - 1]} {advance.deducted_from_year}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}

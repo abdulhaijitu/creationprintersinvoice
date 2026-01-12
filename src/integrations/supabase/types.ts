@@ -723,6 +723,7 @@ export type Database = {
           id: string
           organization_id: string | null
           reason: string | null
+          remaining_balance: number
           status: string | null
           updated_at: string | null
         }
@@ -736,6 +737,7 @@ export type Database = {
           id?: string
           organization_id?: string | null
           reason?: string | null
+          remaining_balance?: number
           status?: string | null
           updated_at?: string | null
         }
@@ -749,6 +751,7 @@ export type Database = {
           id?: string
           organization_id?: string | null
           reason?: string | null
+          remaining_balance?: number
           status?: string | null
           updated_at?: string | null
         }
@@ -937,6 +940,8 @@ export type Database = {
       employee_salary_records: {
         Row: {
           advance: number | null
+          advance_deducted_ids: string[] | null
+          advance_deduction_details: Json | null
           basic_salary: number
           bonus: number | null
           created_at: string | null
@@ -956,6 +961,8 @@ export type Database = {
         }
         Insert: {
           advance?: number | null
+          advance_deducted_ids?: string[] | null
+          advance_deduction_details?: Json | null
           basic_salary: number
           bonus?: number | null
           created_at?: string | null
@@ -975,6 +982,8 @@ export type Database = {
         }
         Update: {
           advance?: number | null
+          advance_deducted_ids?: string[] | null
+          advance_deduction_details?: Json | null
           basic_salary?: number
           bonus?: number | null
           created_at?: string | null
