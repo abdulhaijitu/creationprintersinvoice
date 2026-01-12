@@ -73,6 +73,7 @@ const Employees = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [addLoading, setAddLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     full_name: "",
@@ -122,42 +123,69 @@ const Employees = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!editingEmployee) return;
+    if (!editingEmployee || !organization?.id) return;
+
+    // Validate required field
+    if (!formData.full_name.trim()) {
+      toast.error("Employee name is required");
+      return;
+    }
+
+    // Prevent double submission
+    if (editLoading) return;
+
+    // Validate salary
+    let validatedSalary: number;
+    try {
+      validatedSalary = parseValidatedFloat(formData.basic_salary, 'Basic salary', 0, 10000000);
+    } catch (validationError: any) {
+      toast.error(validationError.message);
+      return;
+    }
+
+    setEditLoading(true);
 
     try {
-      // Validate salary
-      let validatedSalary: number;
-      try {
-        validatedSalary = parseValidatedFloat(formData.basic_salary, 'Basic salary', 0, 10000000);
-      } catch (validationError: any) {
-        toast.error(validationError.message);
-        return;
-      }
+      const updateData = {
+        full_name: formData.full_name.trim(),
+        phone: formData.phone.trim() || null,
+        email: formData.email.trim() || null,
+        designation: formData.designation.trim() || null,
+        department: formData.department.trim() || null,
+        joining_date: formData.joining_date || null,
+        basic_salary: validatedSalary,
+        address: formData.address.trim() || null,
+        nid: formData.nid.trim() || null,
+      };
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("employees")
-        .update({
-          full_name: formData.full_name,
-          phone: formData.phone || null,
-          email: formData.email || null,
-          designation: formData.designation || null,
-          department: formData.department || null,
-          joining_date: formData.joining_date || null,
-          basic_salary: validatedSalary,
-          address: formData.address || null,
-          nid: formData.nid || null,
-        })
-        .eq("id", editingEmployee.id);
+        .update(updateData)
+        .eq("id", editingEmployee.id)
+        .eq("organization_id", organization.id)
+        .select()
+        .single();
 
       if (error) throw error;
 
-      toast.success("Employee information updated");
+      // Optimistic UI update - update the local state immediately
+      setEmployees(prev => 
+        prev.map(emp => 
+          emp.id === editingEmployee.id 
+            ? { ...emp, ...updateData, basic_salary: validatedSalary }
+            : emp
+        )
+      );
+
+      toast.success("Employee updated successfully");
       setIsDialogOpen(false);
       resetForm();
-      fetchEmployees();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating employee:", error);
-      toast.error("Failed to update information");
+      toast.error(error.message || "Failed to update employee");
+      // Keep modal open on error - don't close
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -631,10 +659,17 @@ const Employees = () => {
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsDialogOpen(false)}
+                disabled={editLoading}
+              >
                 Cancel
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={editLoading}>
+                {editLoading ? "Saving..." : "Save Changes"}
+              </Button>
             </div>
           </form>
         </DialogContent>
