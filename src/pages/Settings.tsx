@@ -68,14 +68,15 @@ export default function Settings() {
   const { data: settings, isLoading } = useQuery({
     queryKey: ['company-settings'],
     queryFn: async () => {
+      // Use maybeSingle() to handle 0 or 1 rows without error
       const { data, error } = await supabase
         .from('company_settings')
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
-      return data as CompanySettings;
+      return data as CompanySettings | null;
     },
   });
 
@@ -90,45 +91,76 @@ export default function Settings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<CompanySettings>) => {
-      // CRITICAL: Validate settings ID exists before update
-      if (!settings?.id) {
-        throw new Error('Company settings ID not found. Cannot save.');
+      console.log('[Settings] Save initiated');
+      console.log('[Settings] Existing settings ID:', settings?.id);
+      console.log('[Settings] Payload:', data);
+
+      let savedData: CompanySettings | null = null;
+
+      if (settings?.id) {
+        // UPDATE existing row - do NOT use .single() to avoid "Cannot coerce" error
+        const { data: updateResult, error: updateError } = await supabase
+          .from('company_settings')
+          .update(data)
+          .eq('id', settings.id)
+          .select();
+
+        console.log('[Settings] Update response:', { updateResult, updateError });
+
+        if (updateError) {
+          console.error('[Settings] Update error:', updateError);
+          throw new Error(updateError.message || 'Database update failed');
+        }
+
+        // Check if any rows were actually updated (RLS might block silently)
+        if (!updateResult || updateResult.length === 0) {
+          console.error('[Settings] Update returned no rows - likely RLS blocked the update');
+          throw new Error('Update failed: You may not have permission to modify company settings.');
+        }
+
+        savedData = updateResult[0] as CompanySettings;
+        console.log('[Settings] Update successful:', savedData);
+      } else {
+        // INSERT new row (first-time setup) - use upsert for safety
+        const { data: insertResult, error: insertError } = await supabase
+          .from('company_settings')
+          .upsert({
+            ...data,
+            company_name: data.company_name || 'My Company',
+          })
+          .select();
+
+        console.log('[Settings] Insert/Upsert response:', { insertResult, insertError });
+
+        if (insertError) {
+          console.error('[Settings] Insert error:', insertError);
+          throw new Error(insertError.message || 'Failed to create company settings');
+        }
+
+        if (!insertResult || insertResult.length === 0) {
+          console.error('[Settings] Insert returned no rows');
+          throw new Error('Failed to save settings: No data returned from database.');
+        }
+
+        savedData = insertResult[0] as CompanySettings;
+        console.log('[Settings] Insert successful:', savedData);
       }
 
-      console.log('[Settings] Attempting update with ID:', settings.id);
-      console.log('[Settings] Update payload:', data);
-
-      // Use .select() to verify the update actually happened
-      const { data: updatedData, error, count } = await supabase
-        .from('company_settings')
-        .update(data)
-        .eq('id', settings.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('[Settings] Update error:', error);
-        throw new Error(error.message || 'Database update failed');
-      }
-
-      // CRITICAL: Check if update actually affected a row
-      if (!updatedData) {
-        console.error('[Settings] Update returned no data - RLS may have blocked the update');
-        throw new Error('Update failed: You may not have permission to modify company settings.');
-      }
-
-      console.log('[Settings] Update successful, returned data:', updatedData);
-
-      // Verify the data was actually saved by re-fetching
+      // VERIFICATION: Re-fetch to confirm data persisted
       const { data: verifyData, error: verifyError } = await supabase
         .from('company_settings')
         .select('*')
-        .eq('id', settings.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (verifyError) {
-        console.error('[Settings] Verification fetch failed:', verifyError);
-        throw new Error('Could not verify save. Please refresh and check.');
+        console.error('[Settings] Verification failed:', verifyError);
+        throw new Error('Could not verify save. Please refresh the page.');
+      }
+
+      if (!verifyData) {
+        console.error('[Settings] Verification returned no data');
+        throw new Error('Save verification failed: Data not found in database.');
       }
 
       // Compare key fields to ensure persistence
@@ -136,19 +168,19 @@ export default function Settings() {
       for (const field of fieldsToVerify) {
         if (data[field] !== undefined && verifyData[field] !== data[field]) {
           console.error(`[Settings] Field ${field} mismatch: sent "${data[field]}", got "${verifyData[field]}"`);
-          throw new Error(`Save verification failed for ${field}. Please try again.`);
+          throw new Error(`Save verification failed for ${field}. Data did not persist.`);
         }
       }
 
       console.log('[Settings] Save verified successfully');
-      return updatedData;
+      return savedData;
     },
-    onSuccess: (updatedData) => {
+    onSuccess: (savedData) => {
       // Invalidate and refetch to ensure UI shows fresh data from DB
       queryClient.invalidateQueries({ queryKey: ['company-settings'] });
       toast({
         title: 'Settings saved',
-        description: 'Company settings updated and verified successfully',
+        description: 'Company settings saved and verified successfully',
       });
     },
     onError: (error: Error) => {
