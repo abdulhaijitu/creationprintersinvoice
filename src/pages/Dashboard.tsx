@@ -134,6 +134,7 @@ const Dashboard = () => {
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
   const [alerts, setAlerts] = useState<{ type: string; message: string; count: number; href: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [companyName, setCompanyName] = useState<string | null>(null);
 
   useEffect(() => {
     // Don't fetch data without organization context
@@ -175,6 +176,7 @@ const Dashboard = () => {
           expenseCategoriesRes,
           lastMonthExpensesRes,
           lastMonthInvoicesRes,
+          companySettingsRes,
         ] = await Promise.all([
           supabase.from('invoices').select('total, paid_amount, status, invoice_date, due_date').eq('organization_id', orgId),
           supabase.from('quotations').select('status').eq('organization_id', orgId).eq('status', 'pending'),
@@ -211,6 +213,7 @@ const Dashboard = () => {
             .eq('organization_id', orgId)
             .gte('invoice_date', lastMonthStartStr)
             .lte('invoice_date', lastMonthEndStr),
+          supabase.from('company_settings').select('company_name').eq('id', orgId).single(),
         ]);
 
         // Calculate stats
@@ -358,6 +361,11 @@ const Dashboard = () => {
         });
 
         setRecentInvoices(recentInvoicesRes.data || []);
+        
+        // Set company name from company settings
+        if (companySettingsRes.data?.company_name) {
+          setCompanyName(companySettingsRes.data.company_name);
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -422,7 +430,7 @@ const Dashboard = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            {organization?.name || 'Dashboard'}
+            {companyName || organization?.name || 'Dashboard'}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
