@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useBlocker } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export interface UseUnsavedChangesOptions {
   /** Initial form values to compare against */
@@ -21,12 +21,6 @@ export interface UseUnsavedChangesReturn {
   markAsClean: () => void;
   /** Mark form as dirty (on change) */
   markAsDirty: () => void;
-  /** Whether the navigation blocker dialog should be shown */
-  showBlockerDialog: boolean;
-  /** Confirm navigation (discard changes) */
-  confirmNavigation: () => void;
-  /** Cancel navigation (keep editing) */
-  cancelNavigation: () => void;
   /** Whether tab switch warning should be shown */
   showTabSwitchWarning: boolean;
   /** Pending tab to switch to */
@@ -44,9 +38,11 @@ export interface UseUnsavedChangesReturn {
  * 
  * Features:
  * - Tracks dirty state of form
- * - Blocks browser navigation (back/forward) when dirty
  * - Warns before browser tab close when dirty
  * - Provides tab switch warning for multi-tab forms
+ * 
+ * Note: Uses beforeunload for browser navigation warning (back/forward/close)
+ * For in-app route changes, components should check isDirty before navigating
  */
 export const useUnsavedChanges = (options: UseUnsavedChangesOptions = {}): UseUnsavedChangesReturn => {
   const { 
@@ -81,30 +77,7 @@ export const useUnsavedChanges = (options: UseUnsavedChangesOptions = {}): UseUn
     }
   }, [initialValues]);
 
-  // Block navigation with react-router-dom v7
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) => 
-      enabled && isDirty && currentLocation.pathname !== nextLocation.pathname
-  );
-
-  const showBlockerDialog = blocker.state === 'blocked';
-
-  // Confirm navigation (discard changes)
-  const confirmNavigation = useCallback(() => {
-    if (blocker.state === 'blocked') {
-      setIsDirty(false);
-      blocker.proceed();
-    }
-  }, [blocker]);
-
-  // Cancel navigation (keep editing)
-  const cancelNavigation = useCallback(() => {
-    if (blocker.state === 'blocked') {
-      blocker.reset();
-    }
-  }, [blocker]);
-
-  // Browser tab close warning
+  // Browser tab close/refresh warning
   useEffect(() => {
     if (!enabled) return;
 
@@ -162,9 +135,6 @@ export const useUnsavedChanges = (options: UseUnsavedChangesOptions = {}): UseUn
     setIsDirty,
     markAsClean,
     markAsDirty,
-    showBlockerDialog,
-    confirmNavigation,
-    cancelNavigation,
     showTabSwitchWarning,
     pendingTab,
     requestTabSwitch,
