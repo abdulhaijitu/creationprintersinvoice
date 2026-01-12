@@ -9,6 +9,7 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from '@/components/ui/drawer';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   WorkflowStepper, 
   ProductionStatusBadge, 
@@ -18,8 +19,9 @@ import {
   type WorkflowStatus 
 } from './ProductionWorkflow';
 import { ReferenceLink } from './ReferenceSelect';
+import { TaskActivityTimeline } from './TaskActivityTimeline';
 import { Task } from '@/hooks/useTasks';
-import { ArrowRight, Calendar, User, AlertCircle, Lock, FileText, Link } from 'lucide-react';
+import { ArrowRight, Calendar, User, AlertCircle, Lock, Link, History, Info } from 'lucide-react';
 
 interface TaskDetailDrawerProps {
   task: Task | null;
@@ -78,67 +80,89 @@ export function TaskDetailDrawer({
           </div>
         </DrawerHeader>
 
-        <div className="p-4 sm:p-6 space-y-6 overflow-y-auto">
-          {/* Workflow Progress */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground">Production Progress</h3>
-            <WorkflowStepper currentStatus={task.status} />
-          </div>
+        <div className="p-4 sm:p-6 overflow-y-auto">
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="details" className="gap-2">
+                <Info className="h-4 w-4" />
+                Details
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="gap-2">
+                <History className="h-4 w-4" />
+                Activity
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Details Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <User className="h-4 w-4" />
-                Assigned To
+            <TabsContent value="details" className="space-y-6 mt-0">
+              {/* Workflow Progress */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Production Progress</h3>
+                <WorkflowStepper currentStatus={task.status} />
               </div>
-              <p className="text-sm font-medium">
-                {task.assignee?.full_name || 'Unassigned'}
-              </p>
-            </div>
 
-            {task.deadline && (
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  Deadline
+              {/* Details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <User className="h-4 w-4" />
+                    Assigned To
+                  </div>
+                  <p className="text-sm font-medium">
+                    {task.assignee?.full_name || 'Unassigned'}
+                  </p>
                 </div>
-                <p className="text-sm font-medium">
-                  {format(new Date(task.deadline), 'dd MMM yyyy')}
-                </p>
-              </div>
-            )}
 
-            {task.reference_type && task.reference_id && (
-              <div className="space-y-1 sm:col-span-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Link className="h-4 w-4" />
-                  Linked Order
+                {task.deadline && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      Deadline
+                    </div>
+                    <p className="text-sm font-medium">
+                      {format(new Date(task.deadline), 'dd MMM yyyy')}
+                    </p>
+                  </div>
+                )}
+
+                {task.reference_type && task.reference_id && (
+                  <div className="space-y-1 sm:col-span-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Link className="h-4 w-4" />
+                      Linked Order
+                    </div>
+                    <ReferenceLink referenceType={task.reference_type} referenceId={task.reference_id} />
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    Last Updated
+                  </div>
+                  <p className="text-sm font-medium">
+                    {format(new Date(task.updated_at), 'dd MMM yyyy, HH:mm')}
+                  </p>
                 </div>
-                <ReferenceLink referenceType={task.reference_type} referenceId={task.reference_id} />
               </div>
-            )}
 
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                Last Updated
+              {/* Description */}
+              {task.description && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Notes / Instructions</h3>
+                  <p className="text-sm bg-muted/50 p-3 rounded-lg whitespace-pre-wrap">
+                    {task.description}
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="activity" className="mt-0">
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Activity Log</h3>
+                <TaskActivityTimeline taskId={task.id} />
               </div>
-              <p className="text-sm font-medium">
-                {format(new Date(task.updated_at), 'dd MMM yyyy, HH:mm')}
-              </p>
-            </div>
-          </div>
-
-          {/* Description */}
-          {task.description && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Notes / Instructions</h3>
-              <p className="text-sm bg-muted/50 p-3 rounded-lg whitespace-pre-wrap">
-                {task.description}
-              </p>
-            </div>
-          )}
+            </TabsContent>
+          </Tabs>
         </div>
 
         <DrawerFooter className="border-t pt-4">

@@ -5,6 +5,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgRolePermissions } from '@/hooks/useOrgRolePermissions';
 import { toast } from 'sonner';
 import { WorkflowStatus, WORKFLOW_STATUSES, getNextStatus, isDelivered } from '@/components/tasks/ProductionWorkflow';
+import { logTaskActivity, createTaskNotification } from './useTaskActivityLogs';
 
 export type TaskPriority = 'low' | 'medium' | 'high';
 
@@ -39,8 +40,13 @@ export function useTasks() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Check if user has global tasks.view permission
-  const hasTasksViewPermission = isSuperAdmin || isAdmin || hasPermission('tasks.view');
+  // VISIBILITY RULES (per requirements):
+  // A task is visible if:
+  // 1. User created the task (created_by = user)
+  // 2. User is assigned to the task (assigned_to = user)
+  // 3. User has tasks.manage permission
+  // 4. User is Super Admin
+  const hasTasksManagePermission = isSuperAdmin || isAdmin || hasPermission('tasks.manage');
 
   const fetchTasks = useCallback(async () => {
     // Don't fetch without organization context
@@ -68,16 +74,16 @@ export function useTasks() {
         .eq('organization_id', organization.id)
         .order('updated_at', { ascending: false });
 
-      // VISIBILITY RULES:
-      // 1. Super admin / Admin / Users with tasks.view permission: See ALL org tasks
-      // 2. Other users: See only tasks they created OR are assigned to
-      if (!hasTasksViewPermission && user?.id) {
-        // User doesn't have global view permission
-        // Show tasks where user is creator OR assignee
+      // HARD VISIBILITY RULES (NON-NEGOTIABLE):
+      // - Super Admin / Admin / Users with tasks.manage: See ALL org tasks
+      // - Other users: See only tasks they created OR are assigned to
+      if (!hasTasksManagePermission && user?.id) {
+        // User doesn't have manage permission
+        // Show tasks where user is creator OR assignee OR assigned_by
         query = query.or(`created_by.eq.${user.id},assigned_to.eq.${user.id},assigned_by.eq.${user.id}`);
         console.log('[Tasks] Filtering for user visibility - created_by, assigned_to, or assigned_by:', user.id);
       } else {
-        console.log('[Tasks] User has global view permission - showing all org tasks');
+        console.log('[Tasks] User has tasks.manage permission - showing all org tasks');
       }
 
       const { data: tasksData, error } = await query;
@@ -114,7 +120,7 @@ export function useTasks() {
     } finally {
       setLoading(false);
     }
-  }, [hasTasksViewPermission, user?.id, organization?.id]);
+  }, [hasTasksManagePermission, user?.id, organization?.id]);
 
   // Real-time subscription
   useEffect(() => {
@@ -151,6 +157,9 @@ export function useTasks() {
     if (!nextStatus) return false;
 
     try {
+      // Get the current task for activity logging and notifications
+      const currentTask = tasks.find(t => t.id === taskId);
+      
       const updateData: { status: WorkflowStatus; updated_at: string; completed_at?: string } = {
         status: nextStatus,
         updated_at: new Date().toISOString()
@@ -167,6 +176,38 @@ export function useTasks() {
 
       if (error) throw error;
 
+      // Log activity
+      if (organization?.id && user?.id) {
+        await logTaskActivity({
+          taskId,
+          organizationId: organization.id,
+          actionType: 'status_changed',
+          previousValue: { status: currentStatus },
+          newValue: { status: nextStatus },
+          performedBy: user.id,
+          performedByEmail: user.email,
+        });
+
+        // Notify creator and assignee about status change
+        if (currentTask) {
+          const usersToNotify = new Set<string>();
+          if (currentTask.created_by) usersToNotify.add(currentTask.created_by);
+          if (currentTask.assigned_to) usersToNotify.add(currentTask.assigned_to);
+          
+          for (const recipientId of usersToNotify) {
+            await createTaskNotification({
+              organizationId: organization.id,
+              taskId,
+              taskTitle: currentTask.title,
+              type: 'task_status_changed',
+              recipientUserId: recipientId,
+              performedByUserId: user.id,
+              message: `Task "${currentTask.title}" status changed to ${nextStatus.replace('_', ' ')}`,
+            });
+          }
+        }
+      }
+
       toast.success(`Status updated to ${nextStatus.replace('_', ' ')}`);
       return true;
     } catch (error) {
@@ -174,7 +215,7 @@ export function useTasks() {
       toast.error('Failed to update status');
       return false;
     }
-  }, []);
+  }, [tasks, organization?.id, user?.id, user?.email]);
 
   const createTask = useCallback(async (data: {
     title: string;
@@ -209,9 +250,38 @@ export function useTasks() {
       }
       
       console.log('[Tasks] Task created successfully:', newTask?.id);
+
+      // Log activity
+      if (organization?.id && currentUserId && newTask) {
+        await logTaskActivity({
+          taskId: newTask.id,
+          organizationId: organization.id,
+          actionType: 'created',
+          newValue: { 
+            title: data.title, 
+            priority: data.priority,
+            assigned_to: data.assigned_to,
+          },
+          performedBy: currentUserId,
+          performedByEmail: user?.email,
+        });
+
+        // Notify assignee if different from creator
+        if (data.assigned_to && data.assigned_to !== currentUserId) {
+          const assigneeName = employees.find(e => e.id === data.assigned_to)?.full_name || 'someone';
+          await createTaskNotification({
+            organizationId: organization.id,
+            taskId: newTask.id,
+            taskTitle: data.title,
+            type: 'task_assigned',
+            recipientUserId: data.assigned_to,
+            performedByUserId: currentUserId,
+            message: `You have been assigned to task "${data.title}"`,
+          });
+        }
+      }
       
       // Immediately refetch to ensure the new task appears
-      // The realtime subscription should also trigger this, but we do it explicitly for reliability
       await fetchTasks();
       
       toast.success('Task created successfully');
@@ -221,7 +291,7 @@ export function useTasks() {
       toast.error('Failed to create task');
       return false;
     }
-  }, [user?.id, organization?.id, fetchTasks]);
+  }, [user?.id, user?.email, organization?.id, fetchTasks, employees]);
 
   const updateTask = useCallback(async (taskId: string, data: {
     title?: string;
@@ -233,6 +303,11 @@ export function useTasks() {
     reference_id?: string;
   }) => {
     try {
+      // Get current task state for comparison
+      const currentTask = tasks.find(t => t.id === taskId);
+      const previousAssignee = currentTask?.assigned_to;
+      const previousPriority = currentTask?.priority;
+
       const { error } = await supabase
         .from('tasks')
         .update({
@@ -242,6 +317,99 @@ export function useTasks() {
         .eq('id', taskId);
 
       if (error) throw error;
+
+      // Log activities and send notifications
+      if (organization?.id && user?.id && currentTask) {
+        // Check for assignment change
+        if (data.assigned_to !== undefined && data.assigned_to !== previousAssignee) {
+          const prevAssigneeName = employees.find(e => e.id === previousAssignee)?.full_name;
+          const newAssigneeName = employees.find(e => e.id === data.assigned_to)?.full_name;
+
+          await logTaskActivity({
+            taskId,
+            organizationId: organization.id,
+            actionType: 'assigned',
+            previousValue: { 
+              assigned_to: previousAssignee,
+              assigned_to_name: prevAssigneeName || 'Unassigned',
+            },
+            newValue: { 
+              assigned_to: data.assigned_to,
+              assigned_to_name: newAssigneeName || 'Unassigned',
+            },
+            performedBy: user.id,
+            performedByEmail: user.email,
+          });
+
+          // Notify new assignee
+          if (data.assigned_to) {
+            await createTaskNotification({
+              organizationId: organization.id,
+              taskId,
+              taskTitle: currentTask.title,
+              type: previousAssignee ? 'task_reassigned' : 'task_assigned',
+              recipientUserId: data.assigned_to,
+              performedByUserId: user.id,
+              message: previousAssignee 
+                ? `Task "${currentTask.title}" has been reassigned to you`
+                : `You have been assigned to task "${currentTask.title}"`,
+            });
+          }
+
+          // Notify previous assignee about reassignment
+          if (previousAssignee && previousAssignee !== data.assigned_to) {
+            await createTaskNotification({
+              organizationId: organization.id,
+              taskId,
+              taskTitle: currentTask.title,
+              type: 'task_reassigned',
+              recipientUserId: previousAssignee,
+              performedByUserId: user.id,
+              message: `Task "${currentTask.title}" has been reassigned to ${newAssigneeName || 'someone else'}`,
+            });
+          }
+        }
+
+        // Check for priority change
+        if (data.priority && data.priority !== previousPriority) {
+          await logTaskActivity({
+            taskId,
+            organizationId: organization.id,
+            actionType: 'priority_changed',
+            previousValue: { priority: previousPriority },
+            newValue: { priority: data.priority },
+            performedBy: user.id,
+            performedByEmail: user.email,
+          });
+        }
+
+        // Log general update if other fields changed
+        const hasOtherChanges = 
+          (data.title && data.title !== currentTask.title) ||
+          (data.description !== undefined && data.description !== currentTask.description) ||
+          (data.deadline && data.deadline !== currentTask.deadline);
+
+        if (hasOtherChanges) {
+          await logTaskActivity({
+            taskId,
+            organizationId: organization.id,
+            actionType: 'updated',
+            previousValue: {
+              title: currentTask.title,
+              description: currentTask.description,
+              deadline: currentTask.deadline,
+            },
+            newValue: {
+              title: data.title || currentTask.title,
+              description: data.description !== undefined ? data.description : currentTask.description,
+              deadline: data.deadline || currentTask.deadline,
+            },
+            performedBy: user.id,
+            performedByEmail: user.email,
+          });
+        }
+      }
+
       toast.success('Task updated');
       return true;
     } catch (error) {
@@ -249,10 +417,24 @@ export function useTasks() {
       toast.error('Failed to update task');
       return false;
     }
-  }, []);
+  }, [tasks, employees, organization?.id, user?.id, user?.email]);
 
   const deleteTask = useCallback(async (taskId: string) => {
     try {
+      const currentTask = tasks.find(t => t.id === taskId);
+
+      // Log deletion before deleting (since cascade will delete the log too if we do it after)
+      if (organization?.id && user?.id && currentTask) {
+        await logTaskActivity({
+          taskId,
+          organizationId: organization.id,
+          actionType: 'deleted',
+          previousValue: { title: currentTask.title },
+          performedBy: user.id,
+          performedByEmail: user.email,
+        });
+      }
+
       const { error } = await supabase.from('tasks').delete().eq('id', taskId);
       if (error) throw error;
       toast.success('Task deleted');
@@ -262,7 +444,7 @@ export function useTasks() {
       toast.error('Failed to delete task');
       return false;
     }
-  }, []);
+  }, [tasks, organization?.id, user?.id, user?.email]);
 
   return {
     tasks,
