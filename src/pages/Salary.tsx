@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Calendar, ShieldAlert, Loader2, Banknote, AlertTriangle, Pencil, Trash2 } from "lucide-react";
+import { Plus, Calendar, ShieldAlert, Loader2, Banknote, AlertTriangle, Pencil, Trash2, RefreshCw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1511,9 +1511,36 @@ const Salary = () => {
                     {formatCurrency(record.deductions)}
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    <span className={record.advance > 0 ? "text-destructive font-medium" : ""}>
-                      {formatCurrency(record.advance)}
-                    </span>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <span className={record.advance > 0 ? "text-destructive font-medium" : ""}>
+                        {formatCurrency(record.advance)}
+                      </span>
+                      {record.advance > 0 && record.advance_deduction_details && (() => {
+                        // Check if any advance was auto-synced (created after salary record)
+                        try {
+                          let details: AdvanceDeductionDetail[] = [];
+                          if (typeof record.advance_deduction_details === 'string') {
+                            details = JSON.parse(record.advance_deduction_details);
+                          } else if (Array.isArray(record.advance_deduction_details)) {
+                            details = record.advance_deduction_details as unknown as AdvanceDeductionDetail[];
+                          }
+                          // Check if record was updated after creation (indicates auto-sync)
+                          const advanceIds = record.advance_deducted_ids || [];
+                          const hasMultipleAdvances = advanceIds.length > 1 || details.length > 0;
+                          if (hasMultipleAdvances) {
+                            return (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-0.5 border-primary/50 text-primary">
+                                <RefreshCw className="h-3 w-3" />
+                                Synced
+                              </Badge>
+                            );
+                          }
+                        } catch {
+                          return null;
+                        }
+                        return null;
+                      })()}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right font-bold whitespace-nowrap">
                     {formatCurrency(record.net_payable)}
