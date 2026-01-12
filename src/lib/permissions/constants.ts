@@ -49,59 +49,149 @@ export const ORG_ROLE_DESCRIPTIONS: Record<OrgRole, string> = {
 // All organization roles for UI selection
 export const ALL_ORG_ROLES: OrgRole[] = ['owner', 'manager', 'accounts', 'sales_staff', 'designer', 'employee'];
 
+// ============= PERMISSION CATEGORIES =============
+
+export type PermissionCategory = 'MAIN' | 'BUSINESS' | 'HR_OPS' | 'SYSTEM';
+
+export const PERMISSION_CATEGORY_DISPLAY: Record<PermissionCategory, string> = {
+  MAIN: 'Main',
+  BUSINESS: 'Business',
+  HR_OPS: 'HR & Operations',
+  SYSTEM: 'System',
+};
+
+export const PERMISSION_CATEGORY_ORDER: PermissionCategory[] = ['MAIN', 'BUSINESS', 'HR_OPS', 'SYSTEM'];
+
 // ============= PERMISSION ACTIONS =============
 
-export type PermissionAction = 'view' | 'create' | 'edit' | 'delete' | 'bulk' | 'import' | 'export';
+export type PermissionAction = 'view' | 'manage' | 'create' | 'edit' | 'delete' | 'bulk' | 'import' | 'export';
 
 // ============= MODULE DEFINITIONS =============
 
 export type PermissionModule = 
   | 'dashboard' 
+  | 'invoices'
+  | 'quotations'
+  | 'price_calculations'
+  | 'delivery_challans'
   | 'customers' 
-  | 'invoices' 
-  | 'quotations' 
+  | 'vendors' 
   | 'expenses'
   | 'expense_categories'
-  | 'vendors' 
-  | 'delivery_challans' 
   | 'employees' 
   | 'attendance'
   | 'salary' 
   | 'leave' 
+  | 'performance'
   | 'tasks' 
   | 'reports' 
-  | 'settings'
   | 'team_members' 
+  | 'settings'
   | 'billing'
   | 'white_label'
-  | 'analytics'
-  | 'price_calculations';
+  | 'analytics';
 
 export const MODULE_DISPLAY: Record<PermissionModule, string> = {
   dashboard: 'Dashboard',
-  customers: 'Customers',
   invoices: 'Invoices',
   quotations: 'Quotations',
+  price_calculations: 'Price Calculations',
+  delivery_challans: 'Delivery Challans',
+  customers: 'Customers',
+  vendors: 'Vendors',
   expenses: 'Expenses',
   expense_categories: 'Expense Categories',
-  vendors: 'Vendors',
-  delivery_challans: 'Delivery Challans',
   employees: 'Employees',
   attendance: 'Attendance',
   salary: 'Salary',
   leave: 'Leave Management',
+  performance: 'Performance',
   tasks: 'Tasks',
   reports: 'Reports',
-  settings: 'Settings',
   team_members: 'Team Members',
+  settings: 'Settings',
   billing: 'Billing',
   white_label: 'White-Label',
   analytics: 'Analytics',
-  price_calculations: 'Price Calculations',
 };
+
+// ============= SERIAL PERMISSION STRUCTURE =============
+// Organized by category for clear display and configuration
+
+export interface PermissionDefinition {
+  key: string;
+  module: PermissionModule;
+  action: PermissionAction;
+  label: string;
+  description: string;
+  category: PermissionCategory;
+}
+
+export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
+  // ===== MAIN =====
+  { key: 'dashboard.view', module: 'dashboard', action: 'view', label: 'View Dashboard', description: 'Access dashboard with widgets based on sub-permissions', category: 'MAIN' },
+  { key: 'invoices.view', module: 'invoices', action: 'view', label: 'View Invoices', description: 'View invoice list and details', category: 'MAIN' },
+  { key: 'invoices.manage', module: 'invoices', action: 'manage', label: 'Manage Invoices', description: 'Create, edit, and delete invoices', category: 'MAIN' },
+  { key: 'quotations.view', module: 'quotations', action: 'view', label: 'View Quotations', description: 'View quotation list and details', category: 'MAIN' },
+  { key: 'quotations.manage', module: 'quotations', action: 'manage', label: 'Manage Quotations', description: 'Create, edit, and delete quotations', category: 'MAIN' },
+  { key: 'price_calculations.view', module: 'price_calculations', action: 'view', label: 'View Price Calculations', description: 'Access price calculation tool', category: 'MAIN' },
+  { key: 'delivery_challans.view', module: 'delivery_challans', action: 'view', label: 'View Challans', description: 'View delivery challans', category: 'MAIN' },
+  { key: 'delivery_challans.manage', module: 'delivery_challans', action: 'manage', label: 'Manage Challans', description: 'Create, edit, and delete challans', category: 'MAIN' },
+
+  // ===== BUSINESS =====
+  { key: 'customers.view', module: 'customers', action: 'view', label: 'View Customers', description: 'View customer list and details', category: 'BUSINESS' },
+  { key: 'customers.manage', module: 'customers', action: 'manage', label: 'Manage Customers', description: 'Add, edit, and delete customers', category: 'BUSINESS' },
+  { key: 'vendors.view', module: 'vendors', action: 'view', label: 'View Vendors', description: 'View vendor list and details', category: 'BUSINESS' },
+  { key: 'vendors.manage', module: 'vendors', action: 'manage', label: 'Manage Vendors', description: 'Add, edit, and delete vendors', category: 'BUSINESS' },
+  { key: 'expenses.view', module: 'expenses', action: 'view', label: 'View Expenses', description: 'View expense records', category: 'BUSINESS' },
+  { key: 'expenses.manage', module: 'expenses', action: 'manage', label: 'Manage Expenses', description: 'Add, edit, and delete expenses', category: 'BUSINESS' },
+
+  // ===== HR & OPS =====
+  { key: 'employees.view', module: 'employees', action: 'view', label: 'View Employees', description: 'View employee list and details', category: 'HR_OPS' },
+  { key: 'employees.manage', module: 'employees', action: 'manage', label: 'Manage Employees', description: 'Add, edit, and delete employees', category: 'HR_OPS' },
+  { key: 'attendance.view', module: 'attendance', action: 'view', label: 'View Attendance', description: 'View attendance records', category: 'HR_OPS' },
+  { key: 'attendance.manage', module: 'attendance', action: 'manage', label: 'Manage Attendance', description: 'Mark and edit attendance', category: 'HR_OPS' },
+  { key: 'salary.view', module: 'salary', action: 'view', label: 'View Salary', description: 'View salary records', category: 'HR_OPS' },
+  { key: 'salary.manage', module: 'salary', action: 'manage', label: 'Manage Salary', description: 'Update salary records', category: 'HR_OPS' },
+  { key: 'leave.view', module: 'leave', action: 'view', label: 'View Leave', description: 'View leave records', category: 'HR_OPS' },
+  { key: 'leave.manage', module: 'leave', action: 'manage', label: 'Manage Leave', description: 'Approve and reject leave requests', category: 'HR_OPS' },
+  { key: 'performance.view', module: 'performance', action: 'view', label: 'View Performance', description: 'View performance data', category: 'HR_OPS' },
+  { key: 'performance.manage', module: 'performance', action: 'manage', label: 'Manage Performance', description: 'Update performance records', category: 'HR_OPS' },
+  { key: 'tasks.view', module: 'tasks', action: 'view', label: 'View Tasks', description: 'View task list', category: 'HR_OPS' },
+  { key: 'tasks.manage', module: 'tasks', action: 'manage', label: 'Manage Tasks', description: 'Create, assign, and update tasks', category: 'HR_OPS' },
+
+  // ===== SYSTEM =====
+  { key: 'reports.view', module: 'reports', action: 'view', label: 'View Reports', description: 'Access reports and analytics', category: 'SYSTEM' },
+  { key: 'team_members.view', module: 'team_members', action: 'view', label: 'View Team', description: 'View team members', category: 'SYSTEM' },
+  { key: 'team_members.manage', module: 'team_members', action: 'manage', label: 'Manage Team', description: 'Add, edit, and delete team members', category: 'SYSTEM' },
+  { key: 'settings.view', module: 'settings', action: 'view', label: 'View Settings', description: 'View system settings', category: 'SYSTEM' },
+  { key: 'settings.manage', module: 'settings', action: 'manage', label: 'Manage Settings', description: 'Update system settings', category: 'SYSTEM' },
+];
+
+// Get permissions grouped by category
+export function getPermissionsByCategory(): Record<PermissionCategory, PermissionDefinition[]> {
+  const result: Record<PermissionCategory, PermissionDefinition[]> = {
+    MAIN: [],
+    BUSINESS: [],
+    HR_OPS: [],
+    SYSTEM: [],
+  };
+  
+  for (const perm of PERMISSION_DEFINITIONS) {
+    result[perm.category].push(perm);
+  }
+  
+  return result;
+}
+
+// Get permission definition by key
+export function getPermissionByKey(key: string): PermissionDefinition | undefined {
+  return PERMISSION_DEFINITIONS.find(p => p.key === key);
+}
 
 // ============= EDGE-ENFORCED PERMISSION MATRIX =============
 // This matrix MUST be mirrored in Edge Functions
+// Maps module + action to allowed roles
 
 export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<PermissionAction, OrgRole[]>>> = {
   dashboard: {
@@ -109,6 +199,7 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
   },
   customers: {
     view: ['owner', 'manager', 'accounts', 'sales_staff', 'employee'],
+    manage: ['owner', 'manager', 'sales_staff'],
     create: ['owner', 'manager', 'sales_staff'],
     edit: ['owner', 'manager', 'sales_staff'],
     delete: ['owner', 'manager'],
@@ -118,6 +209,7 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
   },
   invoices: {
     view: ['owner', 'manager', 'accounts', 'sales_staff', 'employee'],
+    manage: ['owner', 'manager', 'accounts', 'sales_staff'],
     create: ['owner', 'manager', 'accounts', 'sales_staff'],
     edit: ['owner', 'manager', 'accounts', 'sales_staff'],
     delete: ['owner', 'manager'],
@@ -127,6 +219,7 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
   },
   quotations: {
     view: ['owner', 'manager', 'sales_staff', 'designer'],
+    manage: ['owner', 'manager', 'sales_staff'],
     create: ['owner', 'manager', 'sales_staff'],
     edit: ['owner', 'manager', 'sales_staff'],
     delete: ['owner', 'manager'],
@@ -134,8 +227,26 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     import: ['owner', 'manager'],
     export: ['owner', 'manager'],
   },
+  price_calculations: {
+    view: ['owner', 'manager', 'accounts', 'sales_staff', 'designer'],
+    manage: ['owner', 'manager'],
+    create: ['owner', 'manager'],
+    edit: ['owner', 'manager'],
+    delete: ['owner', 'manager'],
+    export: ['owner', 'manager'],
+  },
+  delivery_challans: {
+    view: ['owner', 'manager', 'accounts', 'sales_staff', 'employee'],
+    manage: ['owner', 'manager', 'sales_staff'],
+    create: ['owner', 'manager', 'sales_staff'],
+    edit: ['owner', 'manager', 'sales_staff'],
+    delete: ['owner', 'manager'],
+    bulk: ['owner', 'manager'],
+    export: ['owner', 'manager'],
+  },
   expenses: {
     view: ['owner', 'manager', 'accounts'],
+    manage: ['owner', 'manager', 'accounts'],
     create: ['owner', 'manager', 'accounts'],
     edit: ['owner', 'manager'],
     delete: ['owner'],
@@ -145,12 +256,14 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
   },
   expense_categories: {
     view: ['owner', 'manager', 'accounts'],
+    manage: ['owner', 'manager'],
     create: ['owner', 'manager'],
     edit: ['owner', 'manager'],
     delete: ['owner', 'manager'],
   },
   vendors: {
     view: ['owner', 'manager', 'accounts'],
+    manage: ['owner', 'manager', 'accounts'],
     create: ['owner', 'manager', 'accounts'],
     edit: ['owner', 'manager'],
     delete: ['owner'],
@@ -158,16 +271,9 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     import: ['owner', 'manager'],
     export: ['owner', 'manager'],
   },
-  delivery_challans: {
-    view: ['owner', 'manager', 'accounts', 'sales_staff', 'employee'],
-    create: ['owner', 'manager', 'sales_staff'],
-    edit: ['owner', 'manager', 'sales_staff'],
-    delete: ['owner', 'manager'],
-    bulk: ['owner', 'manager'],
-    export: ['owner', 'manager'],
-  },
   employees: {
     view: ['owner', 'manager', 'accounts'],
+    manage: ['owner', 'manager'],
     create: ['owner', 'manager'],
     edit: ['owner', 'manager'],
     delete: ['owner'],
@@ -177,6 +283,7 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
   },
   attendance: {
     view: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
+    manage: ['owner', 'manager'],
     create: ['owner', 'manager'],
     edit: ['owner', 'manager'],
     delete: ['owner'],
@@ -185,6 +292,7 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
   },
   salary: {
     view: ['owner', 'accounts'],
+    manage: ['owner'],
     create: ['owner'],
     edit: ['owner'],
     delete: ['owner'],
@@ -192,12 +300,21 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
   },
   leave: {
     view: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
+    manage: ['owner', 'manager'],
     create: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
+    edit: ['owner', 'manager'],
+    delete: ['owner'],
+  },
+  performance: {
+    view: ['owner', 'manager'],
+    manage: ['owner', 'manager'],
+    create: ['owner', 'manager'],
     edit: ['owner', 'manager'],
     delete: ['owner'],
   },
   tasks: {
     view: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
+    manage: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
     create: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
     edit: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
     delete: ['owner', 'manager'],
@@ -208,31 +325,28 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
   },
   settings: {
     view: ['owner', 'manager'],
+    manage: ['owner'],
     edit: ['owner'],
   },
   team_members: {
     view: ['owner', 'manager'],
+    manage: ['owner'],
     create: ['owner'],
     edit: ['owner'],
     delete: ['owner'],
   },
   billing: {
     view: ['owner'],
+    manage: ['owner'],
     edit: ['owner'],
   },
   white_label: {
     view: ['owner'],
+    manage: ['owner'],
     edit: ['owner'],
   },
   analytics: {
     view: ['owner', 'manager'],
-    export: ['owner', 'manager'],
-  },
-  price_calculations: {
-    view: ['owner', 'manager', 'accounts'],
-    create: ['owner', 'manager'],
-    edit: ['owner', 'manager'],
-    delete: ['owner', 'manager'],
     export: ['owner', 'manager'],
   },
 };
@@ -265,11 +379,24 @@ export function canRolePerform(
   action: PermissionAction
 ): boolean {
   if (!role) return false;
+  
+  // Owner always has all permissions
+  if (role === 'owner') return true;
+  
   const modulePerms = PERMISSION_MATRIX[module];
   if (!modulePerms) return false;
+  
+  // Check direct action
   const allowedRoles = modulePerms[action];
-  if (!allowedRoles) return false;
-  return allowedRoles.includes(role);
+  if (allowedRoles?.includes(role)) return true;
+  
+  // If checking create/edit/delete, also check 'manage' permission
+  if (['create', 'edit', 'delete'].includes(action)) {
+    const manageRoles = modulePerms['manage'];
+    if (manageRoles?.includes(role)) return true;
+  }
+  
+  return false;
 }
 
 /**
@@ -292,9 +419,25 @@ export function getRolesForAction(module: PermissionModule, action: PermissionAc
  */
 export function getAccessibleModules(role: OrgRole | null): PermissionModule[] {
   if (!role) return [];
+  if (role === 'owner') return Object.keys(PERMISSION_MATRIX) as PermissionModule[];
+  
   return (Object.keys(PERMISSION_MATRIX) as PermissionModule[]).filter(
     module => canRolePerform(role, module, 'view')
   );
+}
+
+/**
+ * Check if a user has at least one permission (for dashboard access)
+ */
+export function hasAnyPermission(role: OrgRole | null): boolean {
+  if (!role) return false;
+  if (role === 'owner') return true;
+  
+  for (const module of Object.keys(PERMISSION_MATRIX) as PermissionModule[]) {
+    if (canRolePerform(role, module, 'view')) return true;
+  }
+  
+  return false;
 }
 
 /**
@@ -309,8 +452,8 @@ export const UI_VISIBILITY_RULES = {
   showBillingSection: (role: OrgRole | null) => role === 'owner',
   
   // Team Management - Owner can edit roles, Manager can view
-  showTeamManagement: (role: OrgRole | null) => isRoleAtLeast(role, 'manager'),
-  canEditTeamRoles: (role: OrgRole | null) => role === 'owner',
+  showTeamManagement: (role: OrgRole | null) => canRolePerform(role, 'team_members', 'view'),
+  canEditTeamRoles: (role: OrgRole | null) => canRolePerform(role, 'team_members', 'manage'),
   
   // White-Label - Owner only
   showWhiteLabelSettings: (role: OrgRole | null) => role === 'owner',

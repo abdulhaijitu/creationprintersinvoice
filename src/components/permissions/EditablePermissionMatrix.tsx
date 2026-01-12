@@ -102,8 +102,9 @@ const isProtectedOwnerPermission = (role: OrgRole, module: PermissionModule): bo
 
 const ACTIONS: PermissionAction[] = ['view', 'create', 'edit', 'delete'];
 
-const ACTION_ICONS: Record<PermissionAction, React.ComponentType<{ className?: string }>> = {
+const ACTION_ICONS: Partial<Record<PermissionAction, React.ComponentType<{ className?: string }>>> = {
   view: Eye,
+  manage: Edit,
   create: Plus,
   edit: Edit,
   delete: Trash2,
