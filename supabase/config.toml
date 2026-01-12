@@ -8,51 +8,97 @@ verify_jwt = false
 
 [functions.change-organization-plan]
 verify_jwt = false
+rate_limit = "5/1h"
 
 [functions.create-organization]
 verify_jwt = false
+rate_limit = "10/1h"
 
 [functions.accept-invite]
 verify_jwt = false
+rate_limit = "20/1h"
 
 [functions.update-organization]
 verify_jwt = false
+rate_limit = "20/1h"
 
 [functions.reset-owner-password]
 verify_jwt = false
+rate_limit = "5/1h"
 
 [functions.manage-user]
 verify_jwt = false
+rate_limit = "10/1h"
 
 [functions.update-role-permissions]
 verify_jwt = false
+rate_limit = "20/1h"
 
 [functions.delete-organization]
 verify_jwt = false
+rate_limit = "5/24h"
 
 [functions.request-plan-upgrade]
 verify_jwt = false
+rate_limit = "10/1h"
 
 [functions.handle-upgrade-request]
 verify_jwt = false
+rate_limit = "10/24h"
 
 [functions.uddoktapay-initiate]
 verify_jwt = false
+rate_limit = "20/1h"
 
 [functions.uddoktapay-webhook]
 verify_jwt = false
 
 [functions.uddoktapay-verify]
 verify_jwt = false
+rate_limit = "20/1h"
 
 [functions.create-customer]
 verify_jwt = false
+rate_limit = "100/1h"
 
 [functions.record-invoice-payment]
 verify_jwt = false
+rate_limit = "50/1h"
 
 [functions.bulk-delete-customers]
 verify_jwt = false
+rate_limit = "10/1h"
 
 [functions.migrate-invoice-numbers]
 verify_jwt = false
+rate_limit = "5/24h"
+
+[functions.backup-organization]
+verify_jwt = false
+rate_limit = "5/24h"
+
+[functions.restore-organization]
+verify_jwt = false
+rate_limit = "3/24h"
+
+[functions.handle-ownership-transfer]
+verify_jwt = false
+rate_limit = "10/24h"
+
+[functions.add-team-member]
+verify_jwt = false
+rate_limit = "20/1h"
+
+[functions.send-invite]
+verify_jwt = false
+rate_limit = "20/1h"
+
+[functions.check-access]
+verify_jwt = false
+
+[functions.resolve-role]
+verify_jwt = false
+
+[functions.send-reminder-emails]
+verify_jwt = false
+rate_limit = "10/1h"
