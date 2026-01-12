@@ -487,6 +487,14 @@ const TeamMembers = () => {
           });
           return;
         }
+        if (result.code === 'DOMAIN_NOT_VERIFIED') {
+          setInviteError('Domain not verified. Please verify a domain at resend.com/domains to send emails to external recipients.');
+          toast.error('Domain not verified', {
+            description: 'Verify a domain at resend.com/domains to send emails to other recipients.',
+            duration: 8000,
+          });
+          return;
+        }
         throw new Error(result.error || 'Failed to send invitation');
       }
       
@@ -556,6 +564,13 @@ const TeamMembers = () => {
         if (result.code === 'EMAIL_SEND_FAILED') {
           toast.error('Failed to send email', {
             description: result.details || 'Please check email configuration.',
+          });
+          return;
+        }
+        if (result.code === 'DOMAIN_NOT_VERIFIED') {
+          toast.error('Domain not verified', {
+            description: 'Verify a domain at resend.com/domains to send emails to other recipients.',
+            duration: 8000,
           });
           return;
         }
