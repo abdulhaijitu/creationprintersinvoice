@@ -717,6 +717,7 @@ export type Database = {
           amount: number
           created_at: string | null
           date: string
+          deduct_month: string | null
           deducted_from_month: number | null
           deducted_from_year: number | null
           employee_id: string
@@ -731,6 +732,7 @@ export type Database = {
           amount: number
           created_at?: string | null
           date?: string
+          deduct_month?: string | null
           deducted_from_month?: number | null
           deducted_from_year?: number | null
           employee_id: string
@@ -745,6 +747,7 @@ export type Database = {
           amount?: number
           created_at?: string | null
           date?: string
+          deduct_month?: string | null
           deducted_from_month?: number | null
           deducted_from_year?: number | null
           employee_id?: string

@@ -79,6 +79,7 @@ interface EmployeeAdvance {
   date: string;
   reason: string | null;
   status: string;
+  deduct_month: string | null; // YYYY-MM format - when to start deducting
   deducted_from_month: number | null;
   deducted_from_year: number | null;
   created_at: string;
@@ -130,6 +131,7 @@ const Salary = () => {
     employee_id: "",
     amount: "",
     reason: "",
+    deduct_month: format(new Date(), "yyyy-MM"), // Default to current month
   });
 
   const fetchData = useCallback(async () => {
@@ -194,21 +196,27 @@ const Salary = () => {
     }
   }, [fetchData, organizationId, hasOrgContext]);
 
-  // Fetch pending advances when employee is selected
-  const fetchPendingAdvances = useCallback(async (employeeId: string) => {
+  // Fetch pending advances when employee is selected (for the selected salary month)
+  const fetchPendingAdvances = useCallback(async (employeeId: string, salaryMonth?: number, salaryYear?: number) => {
     if (!employeeId || !organizationId) {
       setPendingAdvances([]);
       setAutoAdvanceDeduction(0);
       return;
     }
 
+    const month = salaryMonth ?? formData.month;
+    const year = salaryYear ?? formData.year;
+    const salaryMonthStr = `${year}-${String(month).padStart(2, '0')}`;
+
     const { data } = await supabase
       .from("employee_advances")
       .select("*")
       .eq("organization_id", organizationId)
       .eq("employee_id", employeeId)
+      .eq("status", "active")
       .gt("remaining_balance", 0)
-      .order("created_at", { ascending: true });
+      .lte("deduct_month", salaryMonthStr) // Only advances where deduct_month <= salary month
+      .order("deduct_month", { ascending: true });
 
     if (data) {
       setPendingAdvances(data);
@@ -218,7 +226,7 @@ const Salary = () => {
       setPendingAdvances([]);
       setAutoAdvanceDeduction(0);
     }
-  }, [organizationId]);
+  }, [organizationId, formData.month, formData.year]);
 
   const calculateNetPayable = () => {
     const basic = safeParseFloat(formData.basic_salary, 0, 0, 100000000);
@@ -241,8 +249,23 @@ const Salary = () => {
       basic_salary: employee?.basic_salary?.toString() || "0",
     });
     
-    // Fetch pending advances for this employee
-    await fetchPendingAdvances(employeeId);
+    // Fetch pending advances for this employee (for the selected salary month)
+    await fetchPendingAdvances(employeeId, formData.month, formData.year);
+  };
+
+  // Re-fetch pending advances when salary month/year changes
+  const handleMonthChange = async (month: number) => {
+    setFormData({ ...formData, month });
+    if (formData.employee_id) {
+      await fetchPendingAdvances(formData.employee_id, month, formData.year);
+    }
+  };
+
+  const handleYearChange = async (year: number) => {
+    setFormData({ ...formData, year });
+    if (formData.employee_id) {
+      await fetchPendingAdvances(formData.employee_id, formData.month, year);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -264,14 +287,18 @@ const Salary = () => {
       const deductions = safeParseFloat(formData.deductions, 0, 0, 100000000);
       const grossSalary = basicSalary + overtimeAmount + bonus - deductions;
 
-      // Fetch FRESH pending advances for this employee (prevent stale data)
+      // Fetch FRESH pending advances for this employee (for the target salary month)
+      const salaryMonthStr = `${formData.year}-${String(formData.month).padStart(2, '0')}`;
+      
       const { data: freshAdvances } = await supabase
         .from("employee_advances")
         .select("*")
         .eq("organization_id", organizationId)
         .eq("employee_id", formData.employee_id)
+        .eq("status", "active")
         .gt("remaining_balance", 0)
-        .order("created_at", { ascending: true });
+        .lte("deduct_month", salaryMonthStr) // Only advances where deduct_month <= salary month
+        .order("deduct_month", { ascending: true });
 
       // Calculate advance deductions
       let remainingGross = grossSalary;
@@ -337,7 +364,7 @@ const Salary = () => {
           .from("employee_advances")
           .update({
             remaining_balance: adv.newBalance,
-            status: adv.fullySettled ? "settled" : "partial",
+            status: adv.fullySettled ? "settled" : "active",
             deducted_from_month: formData.month,
             deducted_from_year: formData.year,
           })
@@ -385,6 +412,7 @@ const Salary = () => {
       employee_id: "",
       amount: "",
       reason: "",
+      deduct_month: format(new Date(), "yyyy-MM"),
     });
   };
 
@@ -413,7 +441,8 @@ const Salary = () => {
         amount: validatedAmount,
         remaining_balance: validatedAmount, // Initialize remaining_balance = amount
         reason: advanceFormData.reason || null,
-        status: "pending",
+        deduct_month: advanceFormData.deduct_month, // When to start deducting
+        status: "active",
         organization_id: organizationId,
       });
 
@@ -588,6 +617,17 @@ const Salary = () => {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label>Deduct From Month</Label>
+                    <Input
+                      type="month"
+                      value={advanceFormData.deduct_month}
+                      onChange={(e) => setAdvanceFormData({ ...advanceFormData, deduct_month: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Advance will be deducted starting from this month's salary
+                    </p>
+                  </div>
+                  <div className="space-y-2">
                     <Label>Reason (Optional)</Label>
                     <Textarea
                       placeholder="Reason for advance..."
@@ -595,11 +635,11 @@ const Salary = () => {
                       onChange={(e) => setAdvanceFormData({ ...advanceFormData, reason: e.target.value })}
                     />
                   </div>
-                  <Alert>
+                  <Alert className="border-primary/50 bg-primary/5">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Auto-Deduction</AlertTitle>
                     <AlertDescription>
-                      This advance will be automatically deducted when generating the employee's next salary.
+                      This advance will be automatically deducted from salary starting {advanceFormData.deduct_month}.
                     </AlertDescription>
                   </Alert>
                   <div className="flex justify-end gap-2">
@@ -650,7 +690,7 @@ const Salary = () => {
                     <Label>Month</Label>
                     <Select
                       value={formData.month.toString()}
-                      onValueChange={(v) => setFormData({ ...formData, month: parseInt(v) })}
+                      onValueChange={(v) => handleMonthChange(parseInt(v))}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -668,7 +708,7 @@ const Salary = () => {
                     <Label>Year</Label>
                     <Select
                       value={formData.year.toString()}
-                      onValueChange={(v) => setFormData({ ...formData, year: parseInt(v) })}
+                      onValueChange={(v) => handleYearChange(parseInt(v))}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -739,7 +779,12 @@ const Salary = () => {
                       <div className="mt-2 space-y-1">
                         {pendingAdvances.map((adv) => (
                           <div key={adv.id} className="flex justify-between text-xs">
-                            <span>{format(new Date(adv.date), "dd MMM yyyy")}</span>
+                            <span>
+                              {format(new Date(adv.date), "dd MMM yyyy")}
+                              {adv.deduct_month && (
+                                <span className="ml-1 text-muted-foreground">(from {adv.deduct_month})</span>
+                              )}
+                            </span>
                             <span className="font-medium">{formatCurrency(adv.remaining_balance ?? adv.amount)}</span>
                           </div>
                         ))}
@@ -1003,23 +1048,24 @@ const Salary = () => {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Employee</TableHead>
-                  <TableHead className="text-right">Original</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
                   <TableHead className="text-right">Remaining</TableHead>
-                  <TableHead>Reason</TableHead>
+                  <TableHead>Deduct From</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Last Deduction</TableHead>
+                  <TableHead className="max-w-[150px]">Reason</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : advances.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-0">
+                    <TableCell colSpan={8} className="py-0">
                       <EmptyState
                         icon={Banknote}
                         title="No advances recorded"
@@ -1047,8 +1093,14 @@ const Salary = () => {
                           {formatCurrency(advance.remaining_balance ?? advance.amount)}
                         </span>
                       </TableCell>
-                      <TableCell className="max-w-[200px]">
-                        <p className="line-clamp-1">{advance.reason || "-"}</p>
+                      <TableCell>
+                        {advance.deduct_month ? (
+                          <Badge variant="outline" className="font-mono">
+                            {advance.deduct_month}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {getAdvanceStatusBadge(advance)}
@@ -1061,6 +1113,9 @@ const Salary = () => {
                         ) : (
                           <span className="text-sm text-muted-foreground">-</span>
                         )}
+                      </TableCell>
+                      <TableCell className="max-w-[150px]">
+                        <p className="line-clamp-1 text-sm text-muted-foreground">{advance.reason || "-"}</p>
                       </TableCell>
                     </TableRow>
                   ))
