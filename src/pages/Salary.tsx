@@ -159,6 +159,7 @@ const Salary = () => {
     employee_id: "",
     entry_date: new Date(), // Entry date for record/reporting
     amount: "",
+    payment_method: "cash", // Default payment method
     reason: "",
     deduct_month: format(new Date(), "yyyy-MM"), // Default to current month
   });
@@ -436,6 +437,7 @@ const Salary = () => {
       employee_id: "",
       entry_date: new Date(),
       amount: "",
+      payment_method: "cash",
       reason: "",
       deduct_month: format(new Date(), "yyyy-MM"),
     });
@@ -467,6 +469,7 @@ const Salary = () => {
         amount: validatedAmount,
         remaining_balance: validatedAmount,
         date: format(advanceFormData.entry_date, "yyyy-MM-dd"), // Entry date for record/reporting
+        payment_method: advanceFormData.payment_method,
         reason: advanceFormData.reason || null,
         deduct_month: advanceFormData.deduct_month,
         status: "active",
@@ -1146,14 +1149,35 @@ const Salary = () => {
                       helperText="Entry date is for record and reporting purposes"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Amount</Label>
-                    <Input
-                      type="number"
-                      placeholder="Enter amount"
-                      value={advanceFormData.amount}
-                      onChange={(e) => setAdvanceFormData({ ...advanceFormData, amount: e.target.value })}
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Amount</Label>
+                      <Input
+                        type="number"
+                        placeholder="Enter amount"
+                        value={advanceFormData.amount}
+                        onChange={(e) => setAdvanceFormData({ ...advanceFormData, amount: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Payment Method</Label>
+                      <Select
+                        value={advanceFormData.payment_method}
+                        onValueChange={(v) => setAdvanceFormData({ ...advanceFormData, payment_method: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="bkash">bKash</SelectItem>
+                          <SelectItem value="nagad">Nagad</SelectItem>
+                          <SelectItem value="rocket">Rocket</SelectItem>
+                          <SelectItem value="bank">Bank Transfer</SelectItem>
+                          <SelectItem value="check">Check</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Deduct From Month</Label>
