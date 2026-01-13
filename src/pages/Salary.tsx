@@ -44,6 +44,8 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { safeParseFloat, parseValidatedFloat } from "@/lib/validation";
@@ -156,6 +158,7 @@ const Salary = () => {
   });
   const [advanceFormData, setAdvanceFormData] = useState({
     employee_id: "",
+    entry_date: new Date(), // Entry date for record/reporting
     amount: "",
     reason: "",
     deduct_month: format(new Date(), "yyyy-MM"), // Default to current month
@@ -432,6 +435,7 @@ const Salary = () => {
   const resetAdvanceForm = () => {
     setAdvanceFormData({
       employee_id: "",
+      entry_date: new Date(),
       amount: "",
       reason: "",
       deduct_month: format(new Date(), "yyyy-MM"),
@@ -463,6 +467,7 @@ const Salary = () => {
         employee_id: advanceFormData.employee_id,
         amount: validatedAmount,
         remaining_balance: validatedAmount,
+        date: format(advanceFormData.entry_date, "yyyy-MM-dd"), // Entry date for record/reporting
         reason: advanceFormData.reason || null,
         deduct_month: advanceFormData.deduct_month,
         status: "active",
@@ -1132,6 +1137,38 @@ const Salary = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Entry Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={`w-full justify-start text-left font-normal ${
+                            !advanceFormData.entry_date && "text-muted-foreground"
+                          }`}
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {advanceFormData.entry_date ? (
+                            format(advanceFormData.entry_date, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={advanceFormData.entry_date}
+                          onSelect={(date) => date && setAdvanceFormData({ ...advanceFormData, entry_date: date })}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <p className="text-xs text-muted-foreground">
+                      Entry date is for record and reporting purposes
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label>Amount</Label>
