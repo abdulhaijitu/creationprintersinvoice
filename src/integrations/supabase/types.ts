@@ -723,6 +723,7 @@ export type Database = {
           employee_id: string
           id: string
           organization_id: string | null
+          payment_method: string | null
           reason: string | null
           remaining_balance: number
           status: string | null
@@ -738,6 +739,7 @@ export type Database = {
           employee_id: string
           id?: string
           organization_id?: string | null
+          payment_method?: string | null
           reason?: string | null
           remaining_balance?: number
           status?: string | null
@@ -753,6 +755,7 @@ export type Database = {
           employee_id?: string
           id?: string
           organization_id?: string | null
+          payment_method?: string | null
           reason?: string | null
           remaining_balance?: number
           status?: string | null
