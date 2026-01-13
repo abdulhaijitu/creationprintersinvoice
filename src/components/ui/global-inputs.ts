@@ -28,9 +28,13 @@ export type { NumericInputProps } from "./numeric-input";
 export { CurrencyInput } from "./currency-input";
 export type { CurrencyInputProps } from "./currency-input";
 
-// Date Input - For date fields
+// Date Input - For date fields (native input)
 export { DateInput, formatDateForInput, parseDateFromInput } from "./date-input";
 export type { DateInputProps } from "./date-input";
+
+// Date Picker - For date fields (Shadcn Popover + Calendar)
+export { DatePicker } from "./date-picker";
+export type { DatePickerProps } from "./date-picker";
 
 // TextArea Input - For multi-line text
 export { TextAreaInput } from "./textarea-input";

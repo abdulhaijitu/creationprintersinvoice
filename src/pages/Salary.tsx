@@ -44,8 +44,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { safeParseFloat, parseValidatedFloat } from "@/lib/validation";
@@ -1140,35 +1139,12 @@ const Salary = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Entry Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={`w-full justify-start text-left font-normal ${
-                            !advanceFormData.entry_date && "text-muted-foreground"
-                          }`}
-                        >
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {advanceFormData.entry_date ? (
-                            format(advanceFormData.entry_date, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={advanceFormData.entry_date}
-                          onSelect={(date) => date && setAdvanceFormData({ ...advanceFormData, entry_date: date })}
-                          initialFocus
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <p className="text-xs text-muted-foreground">
-                      Entry date is for record and reporting purposes
-                    </p>
+                    <DatePicker
+                      value={advanceFormData.entry_date}
+                      onChange={(date) => date && setAdvanceFormData({ ...advanceFormData, entry_date: date })}
+                      placeholder="Select entry date"
+                      helperText="Entry date is for record and reporting purposes"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Amount</Label>
