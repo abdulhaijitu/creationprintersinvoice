@@ -1,9 +1,10 @@
 /**
- * useTasks Hook - Task management with visibility rules
+ * useTasks Hook - Task management with COMPANY-WIDE visibility
  * 
- * VISIBILITY RULES:
- * - Super Admin / Admin / Owner / tasks.manage permission: See ALL org tasks
- * - Other users: See tasks they created OR are assigned to
+ * VISIBILITY RULES (NON-NEGOTIABLE):
+ * - ALL users in the same organization can see ALL tasks
+ * - Visibility is NOT filtered by role, created_by, or assigned_to
+ * - Permissions only control ACTIONS (create, edit, delete)
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,11 +36,13 @@ export interface Task {
   sla_deadline: string | null;
   sla_breached: boolean | null;
   assignee?: { full_name: string } | null;
+  creator?: { full_name: string; email: string } | null;
 }
 
 export interface Employee {
   id: string;
   full_name: string;
+  email?: string;
 }
 
 export function useTasks() {
@@ -51,11 +54,9 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
   const fetchCountRef = useRef(0);
 
-  // PERMISSION GATE (required): only show tasks if user has tasks.view (or tasks.manage)
+  // PERMISSION GATE: Only show tasks if user has tasks.view permission
+  // Note: This controls ACCESS to the task list, not visibility within it
   const canViewTasks = isSuperAdmin || hasPermission('tasks.view') || hasPermission('tasks.manage');
-
-  // Manage permission means user can see ALL org tasks; otherwise apply employee visibility filter
-  const hasTasksManagePermission = isSuperAdmin || hasPermission('tasks.manage');
 
   const fetchTasks = useCallback(async () => {
     // Don't fetch without organization context or user
@@ -64,7 +65,7 @@ export function useTasks() {
       return;
     }
 
-    // Wait for permissions to load to avoid premature filtering
+    // Wait for permissions to load
     if (permissionsLoading) {
       console.log('[Tasks] Waiting for permissions to load...');
       return;
@@ -73,80 +74,33 @@ export function useTasks() {
     const currentFetchCount = ++fetchCountRef.current;
 
     try {
-      // Fetch employees - scoped to organization (for Assign To dropdown)
+      // Fetch employees - scoped to organization (for Assign To dropdown and name resolution)
       const { data: employeesData } = await supabase
         .from('employees')
-        .select('id, full_name')
+        .select('id, full_name, email')
         .eq('organization_id', organization.id)
         .eq('is_active', true)
         .order('full_name');
 
       setEmployees(employeesData || []);
 
-      // Enforce view permission before showing any tasks (permission-based, not role-based)
+      // Enforce view permission before showing any tasks
       if (!canViewTasks) {
-        console.log('[Tasks] Access denied: missing tasks.view (or tasks.manage)');
+        console.log('[Tasks] Access denied: missing tasks.view permission');
         setTasks([]);
         return;
       }
 
-      // CRITICAL: assigned_to stores employees.id (NOT auth user.id)
-      // Resolve current user's employee.id using employees.email == auth user.email
-      let currentEmployeeId: string | null = null;
-      if (user.email) {
-        const { data: currentEmployee, error: currentEmployeeError } = await supabase
-          .from('employees')
-          .select('id')
-          .eq('organization_id', organization.id)
-          .eq('is_active', true)
-          .ilike('email', user.email)
-          .maybeSingle();
+      // COMPANY-WIDE VISIBILITY (NON-NEGOTIABLE):
+      // Fetch ALL tasks for the organization - NO filtering by created_by or assigned_to
+      // Permissions only control ACTIONS, not visibility
+      console.log('[Tasks] Fetching ALL company tasks (company-wide visibility)');
 
-        if (currentEmployeeError) {
-          console.warn('[Tasks] Could not resolve employee.id for current user:', currentEmployeeError);
-        } else {
-          currentEmployeeId = currentEmployee?.id ?? null;
-        }
-      }
-
-      // Fetch tasks - scoped to organization
-      // RLS ensures org-level isolation, frontend handles visibility rules
-      let query = supabase
+      const { data: tasksData, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('organization_id', organization.id)
         .order('updated_at', { ascending: false });
-
-      // HARD VISIBILITY RULES (mandatory):
-      // For non-managers: show tasks where
-      //   - created_by == current auth user
-      //   OR
-      //   - assigned_to == current employee.id
-      console.log('[Tasks] Visibility context:', {
-        isSuperAdmin,
-        hasTasksManagePermission,
-        userId: user.id,
-        userEmail: user.email,
-        currentEmployeeId,
-      });
-
-      if (!hasTasksManagePermission) {
-        const orParts: string[] = [`created_by.eq.${user.id}`];
-
-        // Backward compatibility: some older rows may have stored auth user.id in assigned_to
-        orParts.push(`assigned_to.eq.${user.id}`);
-
-        if (currentEmployeeId && currentEmployeeId !== user.id) {
-          orParts.push(`assigned_to.eq.${currentEmployeeId}`);
-        }
-
-        query = query.or(orParts.join(','));
-        console.log('[Tasks] Applying employee visibility filter:', orParts);
-      } else {
-        console.log('[Tasks] tasks.manage granted - showing all org tasks');
-      }
-
-      const { data: tasksData, error } = await query;
 
       // Check if this is still the latest fetch
       if (currentFetchCount !== fetchCountRef.current) {
@@ -164,10 +118,11 @@ export function useTasks() {
       if (tasksData && employeesData) {
         const tasksWithEmployees = tasksData.map((task) => {
           const assignee = employeesData.find((e) => e.id === task.assigned_to);
+          const creator = employeesData.find((e) => e.email?.toLowerCase() === user?.email?.toLowerCase());
+          
           // Map old statuses to new workflow if needed
           let status = task.status as WorkflowStatus;
           if (!WORKFLOW_STATUSES.includes(status as any)) {
-            // Fallback for old statuses
             if (task.status === 'todo') status = 'design';
             else if (task.status === 'in_progress') status = 'printing';
             else if (task.status === 'completed') status = 'delivered';
@@ -176,6 +131,7 @@ export function useTasks() {
             ...task,
             status,
             assignee: assignee ? { full_name: assignee.full_name } : null,
+            creator: creator ? { full_name: creator.full_name, email: creator.email || '' } : null,
           };
         });
         setTasks(tasksWithEmployees as Task[]);
@@ -186,7 +142,7 @@ export function useTasks() {
     } finally {
       setLoading(false);
     }
-  }, [organization?.id, user?.id, user?.email, permissionsLoading, canViewTasks, hasTasksManagePermission, isSuperAdmin]);
+  }, [organization?.id, user?.id, user?.email, permissionsLoading, canViewTasks]);
 
   // Fetch tasks when permissions are ready
   useEffect(() => {

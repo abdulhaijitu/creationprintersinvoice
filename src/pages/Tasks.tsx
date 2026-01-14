@@ -55,16 +55,17 @@ const priorityLabels: Record<TaskPriority, string> = {
 };
 
 const Tasks = () => {
-  const { isAdmin, isSuperAdmin, user } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
   const { hasPermission } = useOrgRolePermissions();
   const isMobile = useIsMobile();
   const { tasks, employees, loading, advanceStatus, createTask, updateTask, deleteTask } = useTasks();
   
-  // Database-driven permission checks
-  const canViewTasks = isSuperAdmin || hasPermission('tasks.view');
-  const canCreateTasks = isSuperAdmin || hasPermission('tasks.create');
-  const canEditTasks = isSuperAdmin || hasPermission('tasks.edit');
-  const canDeleteTasks = isSuperAdmin || hasPermission('tasks.delete');
+  // Permission checks for ACTIONS (not visibility - all org users can see all tasks)
+  const canViewTasks = isSuperAdmin || hasPermission('tasks.view') || hasPermission('tasks.manage');
+  const canCreateTasks = isSuperAdmin || hasPermission('tasks.create') || hasPermission('tasks.manage');
+  const canEditTasks = isSuperAdmin || hasPermission('tasks.edit') || hasPermission('tasks.manage');
+  const canDeleteTasks = isSuperAdmin || hasPermission('tasks.delete') || hasPermission('tasks.manage');
+  const canAdvanceStatus = isSuperAdmin || hasPermission('tasks.edit') || hasPermission('tasks.manage');
   
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -170,10 +171,15 @@ const Tasks = () => {
     }
   };
 
+  // Permission check for editing a task (based on permissions, not ownership)
   const canEditTask = (task: Task) => {
     if (isDelivered(task.status)) return false;
-    // Can edit if: super admin, has edit permission, or is assigned to the task
-    return isAdmin || isSuperAdmin || canEditTasks || task.assigned_to === user?.id;
+    return canEditTasks;
+  };
+
+  // Permission check for deleting a task
+  const canDeleteTask = (_task: Task) => {
+    return canDeleteTasks;
   };
 
   const filteredTasks = useMemo(() => {
@@ -207,7 +213,7 @@ const Tasks = () => {
         title="Production Tasks"
         description="Track jobs through the printing workflow"
         actions={
-          (isAdmin || canCreateTasks) && (
+          canCreateTasks && (
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) resetForm();
@@ -396,7 +402,7 @@ const Tasks = () => {
           description={searchTerm || filterStatus !== 'all' 
             ? "Try adjusting your search or filter" 
             : "Create your first production task to get started"}
-          action={(isAdmin || canCreateTasks) ? { label: "New Task", onClick: () => setIsDialogOpen(true) } : undefined}
+          action={canCreateTasks ? { label: "New Task", onClick: () => setIsDialogOpen(true) } : undefined}
         />
       ) : isMobile ? (
         // Mobile Card View
@@ -430,23 +436,51 @@ const Tasks = () => {
                     <WorkflowStepper currentStatus={task.status} compact />
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <ProductionStatusBadge status={task.status} />
-                    {canEdit && nextStatus && (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="gap-1 text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAdvanceStatus(task.id, task.status);
-                        }}
-                      >
-                        Next
-                        <ArrowRight className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
+                    <div className="flex items-center justify-between">
+                      <ProductionStatusBadge status={task.status} />
+                      <div className="flex gap-1">
+                        {canAdvanceStatus && !taskIsDelivered && nextStatus && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="gap-1 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAdvanceStatus(task.id, task.status);
+                            }}
+                          >
+                            Next
+                            <ArrowRight className="h-3 w-3" />
+                          </Button>
+                        )}
+                        {canEdit && !taskIsDelivered && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditDialog(task);
+                            }}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                        {canDeleteTask(task) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirmTask(task);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                 </CardContent>
               </Card>
             );
@@ -505,7 +539,7 @@ const Tasks = () => {
                     <TableCell>{getPriorityBadge(task.priority)}</TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                        {canEdit && nextStatus && (
+                        {canAdvanceStatus && !taskIsDelivered && nextStatus && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -516,24 +550,24 @@ const Tasks = () => {
                             {WORKFLOW_LABELS[nextStatus]}
                           </Button>
                         )}
-                        {isAdmin && !taskIsDelivered && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditDialog(task)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive"
-                              onClick={() => setDeleteConfirmTask(task)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
+                        {canEdit && !taskIsDelivered && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(task)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDeleteTask(task) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive"
+                            onClick={() => setDeleteConfirmTask(task)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         )}
                       </div>
                     </TableCell>
