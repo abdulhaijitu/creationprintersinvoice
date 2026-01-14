@@ -1,4 +1,4 @@
-import { Download, Share } from 'lucide-react';
+import { Download, Share, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import {
@@ -15,22 +15,28 @@ interface PWAInstallButtonProps {
   size?: 'default' | 'sm' | 'lg' | 'icon';
   className?: string;
   showLabel?: boolean;
+  alwaysShow?: boolean;
 }
 
 const PWAInstallButton = ({ 
   variant = 'default', 
   size = 'default',
   className = '',
-  showLabel = true 
+  showLabel = true,
+  alwaysShow = false
 }: PWAInstallButtonProps) => {
   const { canInstall, isInstalled, isIOS, promptInstall } = usePWAInstall();
   const [showIOSDialog, setShowIOSDialog] = useState(false);
+  const [showInfoDialog, setShowInfoDialog] = useState(false);
 
   const handleClick = async () => {
     if (isIOS) {
       setShowIOSDialog(true);
     } else if (canInstall) {
       await promptInstall();
+    } else {
+      // Show info dialog for unsupported browsers
+      setShowInfoDialog(true);
     }
   };
 
@@ -39,8 +45,8 @@ const PWAInstallButton = ({
     return null;
   }
 
-  // Show button for iOS or when install prompt is available
-  if (!canInstall && !isIOS) {
+  // Only hide if not alwaysShow and no install option available
+  if (!alwaysShow && !canInstall && !isIOS) {
     return null;
   }
 
@@ -98,6 +104,38 @@ const PWAInstallButton = ({
             </div>
           </div>
           <Button onClick={() => setShowIOSDialog(false)} className="w-full">
+            Got it!
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Info Dialog for unsupported browsers */}
+      <Dialog open={showInfoDialog} onOpenChange={setShowInfoDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Smartphone className="h-5 w-5" />
+              Install as App
+            </DialogTitle>
+            <DialogDescription>
+              Install this app on your device for the best experience
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
+              <p className="text-sm font-medium">On Mobile (Recommended)</p>
+              <p className="text-xs text-muted-foreground">
+                Open this page in Chrome (Android) or Safari (iOS) and tap "Install" or "Add to Home Screen"
+              </p>
+            </div>
+            <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
+              <p className="text-sm font-medium">On Desktop</p>
+              <p className="text-xs text-muted-foreground">
+                Use Chrome or Edge browser. Look for the install icon in the address bar or browser menu.
+              </p>
+            </div>
+          </div>
+          <Button onClick={() => setShowInfoDialog(false)} className="w-full">
             Got it!
           </Button>
         </DialogContent>
