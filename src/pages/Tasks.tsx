@@ -28,11 +28,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, FileText, AlertTriangle } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, FileText, AlertTriangle, Lock, Globe, Building2 } from "lucide-react";
 import { ReferenceSelect, ReferenceLink } from "@/components/tasks/ReferenceSelect";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { useTasks, Task, TaskPriority } from "@/hooks/useTasks";
+import { useTasks, Task, TaskPriority, TaskVisibility } from "@/hooks/useTasks";
 import { 
   WorkflowStepper, 
   ProductionStatusBadge, 
@@ -80,9 +80,20 @@ const Tasks = () => {
     assigned_to: "",
     deadline: "",
     priority: "medium" as TaskPriority,
+    visibility: "public" as TaskVisibility,
+    department: "",
     reference_type: "" as "" | "invoice" | "challan" | "quotation",
     reference_id: "",
   });
+
+  // Get unique departments from employees
+  const departments = useMemo(() => {
+    const depts = new Set<string>();
+    employees.forEach(emp => {
+      if (emp.department) depts.add(emp.department);
+    });
+    return Array.from(depts).sort();
+  }, [employees]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +110,8 @@ const Tasks = () => {
         assigned_to: formData.assigned_to || undefined,
         deadline: formData.deadline || undefined,
         priority: formData.priority,
+        visibility: formData.visibility,
+        department: formData.visibility === 'department' ? formData.department : undefined,
         reference_type: formData.reference_type || undefined,
         reference_id: formData.reference_id || undefined,
       });
@@ -109,6 +122,8 @@ const Tasks = () => {
         assigned_to: formData.assigned_to || undefined,
         deadline: formData.deadline || undefined,
         priority: formData.priority,
+        visibility: formData.visibility,
+        department: formData.visibility === 'department' ? formData.department : undefined,
         reference_type: formData.reference_type || undefined,
         reference_id: formData.reference_id || undefined,
       });
@@ -127,6 +142,8 @@ const Tasks = () => {
       assigned_to: "",
       deadline: "",
       priority: "medium",
+      visibility: "public",
+      department: "",
       reference_type: "" as "" | "invoice" | "challan" | "quotation",
       reference_id: "",
     });
@@ -142,6 +159,8 @@ const Tasks = () => {
       assigned_to: task.assigned_to || "",
       deadline: task.deadline || "",
       priority: task.priority,
+      visibility: task.visibility || "public",
+      department: task.department || "",
       reference_type: (task.reference_type || "") as "" | "invoice" | "challan" | "quotation",
       reference_id: task.reference_id || "",
     });
@@ -171,14 +190,29 @@ const Tasks = () => {
     }
   };
 
+  const getVisibilityBadge = (visibility: TaskVisibility) => {
+    switch (visibility) {
+      case "private":
+        return <Badge variant="outline" className="gap-1 text-xs"><Lock className="h-3 w-3" />Private</Badge>;
+      case "department":
+        return <Badge variant="outline" className="gap-1 text-xs"><Building2 className="h-3 w-3" />Department</Badge>;
+      default:
+        return null; // Public tasks don't need a badge
+    }
+  };
+
   // Permission check for editing a task (based on permissions, not ownership)
   const canEditTask = (task: Task) => {
     if (isDelivered(task.status)) return false;
+    // Creator and admin can always edit
+    if (task.created_by === user?.id || isSuperAdmin) return true;
     return canEditTasks;
   };
 
   // Permission check for deleting a task
-  const canDeleteTask = (_task: Task) => {
+  const canDeleteTask = (task: Task) => {
+    // Only creator or admin can delete
+    if (task.created_by === user?.id || isSuperAdmin) return true;
     return canDeleteTasks;
   };
 
@@ -304,6 +338,67 @@ const Tasks = () => {
                         onReferenceIdChange={(id) => setFormData({ ...formData, reference_id: id })}
                       />
                     </div>
+                  </div>
+
+                  {/* Visibility Settings */}
+                  <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+                    <Label className="text-sm font-medium">Task Visibility</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Select
+                          value={formData.visibility}
+                          onValueChange={(v) => setFormData({ ...formData, visibility: v as TaskVisibility })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="public">
+                              <div className="flex items-center gap-2">
+                                <Globe className="h-4 w-4" />
+                                Public (All company users)
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="private">
+                              <div className="flex items-center gap-2">
+                                <Lock className="h-4 w-4" />
+                                Private (Creator & Assignee only)
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="department">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4" />
+                                Department (Selected department only)
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {formData.visibility === 'department' && (
+                        <div className="space-y-2">
+                          <Select
+                            value={formData.department}
+                            onValueChange={(v) => setFormData({ ...formData, department: v })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {departments.map((dept) => (
+                                <SelectItem key={dept} value={dept}>
+                                  {dept}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {formData.visibility === 'public' && "Everyone in your company can see this task."}
+                      {formData.visibility === 'private' && "Only you and the assigned person can see this task."}
+                      {formData.visibility === 'department' && "Only users in the selected department can see this task."}
+                    </p>
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2">

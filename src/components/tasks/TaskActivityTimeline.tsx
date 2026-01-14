@@ -7,7 +7,12 @@ import {
   ArrowRight, 
   AlertTriangle, 
   Trash2,
-  Loader2 
+  Loader2,
+  Calendar,
+  Eye,
+  MessageSquare,
+  Paperclip,
+  AtSign
 } from 'lucide-react';
 import { useTaskActivityLogs, TaskActivityLog, TaskActivityType } from '@/hooks/useTaskActivityLogs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -28,6 +33,11 @@ const ACTION_CONFIG: Record<TaskActivityType, {
   status_changed: { icon: ArrowRight, label: 'Status Changed', color: 'text-warning' },
   priority_changed: { icon: AlertTriangle, label: 'Priority Changed', color: 'text-orange-500' },
   deleted: { icon: Trash2, label: 'Task Deleted', color: 'text-destructive' },
+  due_date_changed: { icon: Calendar, label: 'Due Date Changed', color: 'text-blue-500' },
+  visibility_changed: { icon: Eye, label: 'Visibility Changed', color: 'text-purple-500' },
+  comment_added: { icon: MessageSquare, label: 'Comment Added', color: 'text-green-500' },
+  attachment_added: { icon: Paperclip, label: 'Attachment Added', color: 'text-cyan-500' },
+  mentioned: { icon: AtSign, label: 'Mentioned', color: 'text-pink-500' },
 };
 
 function getActivityDescription(log: TaskActivityLog): string {
@@ -44,6 +54,16 @@ function getActivityDescription(log: TaskActivityLog): string {
       return `Changed priority from "${log.previous_value?.priority || 'unknown'}" to "${log.new_value?.priority || 'unknown'}"`;
     case 'deleted':
       return 'Deleted this task';
+    case 'due_date_changed':
+      return `Changed due date from "${log.previous_value?.deadline || 'none'}" to "${log.new_value?.deadline || 'none'}"`;
+    case 'visibility_changed':
+      return `Changed visibility from "${log.previous_value?.visibility || 'public'}" to "${log.new_value?.visibility || 'public'}"`;
+    case 'comment_added':
+      return 'Added a comment';
+    case 'attachment_added':
+      return `Added attachment: ${log.new_value?.filename || 'file'}`;
+    case 'mentioned':
+      return `Mentioned ${log.new_value?.mentioned_user || 'someone'}`;
     default:
       return 'Made changes to this task';
   }

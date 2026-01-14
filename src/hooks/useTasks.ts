@@ -1,10 +1,12 @@
 /**
- * useTasks Hook - Task management with COMPANY-WIDE visibility
+ * useTasks Hook - Task management with privacy and department visibility
  * 
- * VISIBILITY RULES (NON-NEGOTIABLE):
- * - ALL users in the same organization can see ALL tasks
- * - Visibility is NOT filtered by role, created_by, or assigned_to
- * - Permissions only control ACTIONS (create, edit, delete)
+ * VISIBILITY RULES (enforced by RLS):
+ * - Public tasks: visible to all company users
+ * - Private tasks: visible ONLY to creator and assignee
+ * - Department tasks: visible to users in that department + creator + assignee
+ * 
+ * Priority: Private > Department > Public
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +19,7 @@ import { logTaskActivity, createTaskNotification } from './useTaskActivityLogs';
 import { calculateSlaDeadline, type TaskPriorityLevel } from '@/components/tasks/TaskPriorityBadge';
 
 export type TaskPriority = TaskPriorityLevel;
+export type TaskVisibility = 'public' | 'private' | 'department';
 
 export interface Task {
   id: string;
@@ -35,6 +38,8 @@ export interface Task {
   updated_at: string;
   sla_deadline: string | null;
   sla_breached: boolean | null;
+  visibility: TaskVisibility;
+  department: string | null;
   assignee?: { full_name: string } | null;
   creator?: { full_name: string; email: string } | null;
 }
@@ -43,6 +48,7 @@ export interface Employee {
   id: string;
   full_name: string;
   email?: string;
+  department?: string;
 }
 
 export function useTasks() {
@@ -74,10 +80,10 @@ export function useTasks() {
     const currentFetchCount = ++fetchCountRef.current;
 
     try {
-      // Fetch employees - scoped to organization (for Assign To dropdown and name resolution)
+      // Fetch employees with department - scoped to organization
       const { data: employeesData } = await supabase
         .from('employees')
-        .select('id, full_name, email')
+        .select('id, full_name, email, department')
         .eq('organization_id', organization.id)
         .eq('is_active', true)
         .order('full_name');
@@ -91,10 +97,11 @@ export function useTasks() {
         return;
       }
 
-      // COMPANY-WIDE VISIBILITY (NON-NEGOTIABLE):
-      // Fetch ALL tasks for the organization - NO filtering by created_by or assigned_to
-      // Permissions only control ACTIONS, not visibility
-      console.log('[Tasks] Fetching ALL company tasks (company-wide visibility)');
+      // VISIBILITY enforced by RLS (can_view_task function):
+      // - Public tasks: all org users
+      // - Private tasks: only creator + assignee
+      // - Department tasks: only department users + creator + assignee
+      console.log('[Tasks] Fetching tasks with RLS-enforced visibility');
 
       const { data: tasksData, error } = await supabase
         .from('tasks')
@@ -130,6 +137,8 @@ export function useTasks() {
           return {
             ...task,
             status,
+            visibility: (task.visibility || 'public') as TaskVisibility,
+            department: task.department || null,
             assignee: assignee ? { full_name: assignee.full_name } : null,
             creator: creator ? { full_name: creator.full_name, email: creator.email || '' } : null,
           };
@@ -254,6 +263,8 @@ export function useTasks() {
     assigned_to?: string;
     deadline?: string;
     priority: TaskPriority;
+    visibility?: TaskVisibility;
+    department?: string;
     reference_type?: string;
     reference_id?: string;
   }) => {
@@ -268,11 +279,13 @@ export function useTasks() {
         title: data.title,
         description: data.description || null,
         assigned_to: data.assigned_to || null,
-        assigned_by: currentUserId, // Set assigned_by to current user for backwards compatibility
-        created_by: currentUserId, // CRITICAL: Set created_by to current user
+        assigned_by: currentUserId,
+        created_by: currentUserId,
         deadline: data.deadline || null,
-        priority: data.priority as any, // Cast to any until types are regenerated
+        priority: data.priority as any,
         status: 'design',
+        visibility: data.visibility || 'public',
+        department: data.visibility === 'department' ? data.department : null,
         reference_type: data.reference_type || null,
         reference_id: data.reference_id || null,
         organization_id: organization?.id,
@@ -295,6 +308,8 @@ export function useTasks() {
           newValue: { 
             title: data.title, 
             priority: data.priority,
+            visibility: data.visibility || 'public',
+            department: data.department,
             assigned_to: data.assigned_to,
           },
           performedBy: currentUserId,
@@ -334,6 +349,8 @@ export function useTasks() {
     assigned_to?: string;
     deadline?: string;
     priority?: TaskPriority;
+    visibility?: TaskVisibility;
+    department?: string;
     reference_type?: string;
     reference_id?: string;
   }) => {

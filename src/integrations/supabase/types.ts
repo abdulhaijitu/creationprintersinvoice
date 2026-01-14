@@ -3997,6 +3997,8 @@ export type Database = {
       task_activity_logs: {
         Row: {
           action_type: string
+          attachment_id: string | null
+          comment_id: string | null
           created_at: string
           id: string
           new_value: Json | null
@@ -4008,6 +4010,8 @@ export type Database = {
         }
         Insert: {
           action_type: string
+          attachment_id?: string | null
+          comment_id?: string | null
           created_at?: string
           id?: string
           new_value?: Json | null
@@ -4019,6 +4023,8 @@ export type Database = {
         }
         Update: {
           action_type?: string
+          attachment_id?: string | null
+          comment_id?: string | null
           created_at?: string
           id?: string
           new_value?: Json | null
@@ -4216,6 +4222,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           deadline: string | null
+          department: string | null
           description: string | null
           id: string
           last_overdue_notification_at: string | null
@@ -4230,6 +4237,7 @@ export type Database = {
           status: Database["public"]["Enums"]["task_status"] | null
           title: string
           updated_at: string
+          visibility: Database["public"]["Enums"]["task_visibility"] | null
         }
         Insert: {
           assigned_by?: string | null
@@ -4238,6 +4246,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deadline?: string | null
+          department?: string | null
           description?: string | null
           id?: string
           last_overdue_notification_at?: string | null
@@ -4252,6 +4261,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["task_status"] | null
           title: string
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["task_visibility"] | null
         }
         Update: {
           assigned_by?: string | null
@@ -4260,6 +4270,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deadline?: string | null
+          department?: string | null
           description?: string | null
           id?: string
           last_overdue_notification_at?: string | null
@@ -4274,6 +4285,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["task_status"] | null
           title?: string
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["task_visibility"] | null
         }
         Relationships: [
           {
@@ -4609,6 +4621,10 @@ export type Database = {
         Args: { profile_id: string; viewer_id: string }
         Returns: boolean
       }
+      can_view_task: {
+        Args: { _task_id: string; _user_id: string }
+        Returns: boolean
+      }
       check_overdue_invoices: { Args: never; Returns: undefined }
       fix_all_invoice_statuses: { Args: never; Returns: undefined }
       generate_billing_invoice_number: { Args: never; Returns: string }
@@ -4896,6 +4912,7 @@ export type Database = {
         | "binding"
         | "packaging"
         | "delivered"
+      task_visibility: "public" | "private" | "department"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5128,6 +5145,7 @@ export const Constants = {
         "packaging",
         "delivered",
       ],
+      task_visibility: ["public", "private", "department"],
     },
   },
 } as const

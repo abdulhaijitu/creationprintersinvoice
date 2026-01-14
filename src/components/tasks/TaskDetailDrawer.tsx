@@ -25,8 +25,8 @@ import { TaskDueDateBadge } from './TaskDueDateBadge';
 import { TaskAttachments } from './TaskAttachments';
 import { TaskPriorityBadge } from './TaskPriorityBadge';
 import { TaskSlaIndicator } from './TaskSlaIndicator';
-import { Task } from '@/hooks/useTasks';
-import { ArrowRight, Calendar, User, AlertCircle, Lock, Link, History, Info, MessageSquare, Paperclip } from 'lucide-react';
+import { Task, TaskVisibility } from '@/hooks/useTasks';
+import { ArrowRight, Calendar, User, AlertCircle, Lock, Link, History, Info, MessageSquare, Paperclip, Globe, Building2 } from 'lucide-react';
 
 interface TaskDetailDrawerProps {
   task: Task | null;
@@ -48,6 +48,17 @@ export function TaskDetailDrawer({
   const nextStatus = getNextStatus(task.status);
   const taskIsDelivered = isDelivered(task.status);
 
+  const getVisibilityBadge = (visibility: TaskVisibility) => {
+    switch (visibility) {
+      case "private":
+        return <Badge variant="outline" className="gap-1 text-xs"><Lock className="h-3 w-3" />Private</Badge>;
+      case "department":
+        return <Badge variant="outline" className="gap-1 text-xs"><Building2 className="h-3 w-3" />{task.department || 'Department'}</Badge>;
+      default:
+        return <Badge variant="outline" className="gap-1 text-xs"><Globe className="h-3 w-3" />Public</Badge>;
+    }
+  };
+
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[90vh]">
@@ -67,6 +78,7 @@ export function TaskDetailDrawer({
                   priority={task.priority}
                   compact 
                 />
+                {getVisibilityBadge(task.visibility)}
                 {taskIsDelivered && (
                   <Badge variant="outline" className="gap-1">
                     <Lock className="h-3 w-3" />
