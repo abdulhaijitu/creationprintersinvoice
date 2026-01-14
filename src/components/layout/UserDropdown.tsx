@@ -1,4 +1,4 @@
-import { User, Settings, LogOut, ChevronDown, Shield } from 'lucide-react';
+import { User, Settings, LogOut, ChevronDown, Shield, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -13,11 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export const UserDropdown = () => {
   const { user, signOut, isSuperAdmin } = useAuth();
   const { membership, isOrgOwner, isOrgAdmin, isOrgManager } = useOrganization();
   const navigate = useNavigate();
+  const { canInstall, isInstalled, isIOS, promptInstall } = usePWAInstall();
 
   // Get the display role - prioritize organization membership role
   const formatRoleLabel = (role: string) =>
@@ -96,6 +98,18 @@ export const UserDropdown = () => {
             <Shield className="mr-2 h-4 w-4" />
             <span>Role Management</span>
           </DropdownMenuItem>
+        )}
+        {(canInstall || isIOS) && !isInstalled && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => canInstall ? promptInstall() : alert('Tap Share > Add to Home Screen')} 
+              className="cursor-pointer text-primary focus:text-primary"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              <span>Install App</span>
+            </DropdownMenuItem>
+          </>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem 
