@@ -46,6 +46,7 @@ import { format } from 'date-fns';
 import { QuotationPDFTemplate, QuotationPDFData } from '@/components/print/QuotationPDFTemplate';
 import '@/components/print/printStyles.css';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { downloadAsPDF } from '@/lib/pdfUtils';
 
 type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted';
 
@@ -332,8 +333,10 @@ const QuotationDetail = () => {
   };
 
   const handleDownloadPDF = () => {
-    window.print();
-    toast.success('Select "Save as PDF" to save as PDF');
+    if (!quotation) return;
+    downloadAsPDF('quotation', quotation.quotation_number, () => {
+      toast.success('Select "Save as PDF" to save as PDF');
+    });
   };
 
   if (loading) {

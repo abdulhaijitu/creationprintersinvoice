@@ -38,6 +38,7 @@ import '@/components/print/printStyles.css';
 import { CreateChallanDialog } from '@/components/delivery-challan/CreateChallanDialog';
 import { AddPaymentDialog } from '@/components/invoice/AddPaymentDialog';
 import { calculateInvoiceStatus } from '@/lib/invoiceUtils';
+import { downloadAsPDF } from '@/lib/pdfUtils';
 
 interface Invoice {
   id: string;
@@ -208,8 +209,10 @@ const InvoiceDetail = () => {
   };
 
   const handleDownloadPDF = () => {
-    window.print();
-    toast.success('Select "Save as PDF" to save as PDF');
+    if (!invoice) return;
+    downloadAsPDF('invoice', invoice.invoice_number, () => {
+      toast.success('Select "Save as PDF" to save as PDF');
+    });
   };
 
   if (loading) {
