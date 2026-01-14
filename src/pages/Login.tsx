@@ -209,7 +209,7 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
       {/* PWA Install Button - Top Right */}
       <div className="absolute top-4 right-4">
-        <PWAInstallButton variant="outline" size="sm" />
+        <PWAInstallButton variant="outline" size="sm" alwaysShow />
       </div>
       
       <div className="w-full max-w-md animate-fade-in">
