@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -37,26 +37,40 @@ export interface Employee {
 
 export function useTasks() {
   const { isAdmin, isSuperAdmin, user } = useAuth();
-  const { organization } = useOrganization();
-  const { hasPermission } = useOrgRolePermissions();
+  const { organization, orgRole } = useOrganization();
+  const { hasPermission, loading: permissionsLoading } = useOrgRolePermissions();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const fetchCountRef = useRef(0);
 
   // VISIBILITY RULES (per requirements):
   // A task is visible if:
-  // 1. User created the task (created_by = user)
-  // 2. User is assigned to the task (assigned_to = user)
-  // 3. User has tasks.manage permission
-  // 4. User is Super Admin
-  const hasTasksManagePermission = isSuperAdmin || isAdmin || hasPermission('tasks.manage');
+  // 1. User is Super Admin (sees everything)
+  // 2. User is isAdmin (sees everything in their org)
+  // 3. User is org Owner (sees everything in their org)
+  // 4. User has tasks.manage permission (sees everything in their org)
+  // 5. User created the task (created_by = user)
+  // 6. User is assigned to the task (assigned_to = user)
+  
+  // IMPORTANT: Owner role should see all tasks
+  const isOwner = orgRole === 'owner';
+  const hasTasksManagePermission = isSuperAdmin || isAdmin || isOwner || hasPermission('tasks.manage');
 
   const fetchTasks = useCallback(async () => {
-    // Don't fetch without organization context
-    if (!organization?.id) {
+    // Don't fetch without organization context or user
+    if (!organization?.id || !user?.id) {
       setLoading(false);
       return;
     }
+    
+    // Wait for permissions to load to avoid premature filtering
+    if (permissionsLoading) {
+      console.log('[Tasks] Waiting for permissions to load...');
+      return;
+    }
+
+    const currentFetchCount = ++fetchCountRef.current;
     
     try {
       // Fetch employees - scoped to organization
@@ -78,9 +92,25 @@ export function useTasks() {
         .order('updated_at', { ascending: false });
 
       // HARD VISIBILITY RULES (NON-NEGOTIABLE):
-      // - Super Admin / Admin / Users with tasks.manage: See ALL org tasks
-      // - Other users: See only tasks they created OR are assigned to
-      if (!hasTasksManagePermission && user?.id) {
+      // - Super Admin / Admin / Owner / Users with tasks.manage: See ALL org tasks
+      // - Other users: See ONLY tasks they created OR are assigned to
+      //
+      // CRITICAL FIX: Permission-based visibility, NOT role-name based
+      // The OR condition ensures employees see:
+      //   - Tasks where created_by = current_user (tasks they created)
+      //   - Tasks where assigned_to = current_user (tasks assigned to them)
+      //   - Tasks where assigned_by = current_user (tasks they assigned)
+      
+      console.log('[Tasks] Permission check:', {
+        isSuperAdmin,
+        isAdmin,
+        isOwner,
+        hasTasksManagePermission,
+        userId: user.id,
+        orgRole,
+      });
+
+      if (!hasTasksManagePermission) {
         // User doesn't have manage permission
         // Show tasks where user is creator OR assignee OR assigned_by
         query = query.or(`created_by.eq.${user.id},assigned_to.eq.${user.id},assigned_by.eq.${user.id}`);
@@ -90,6 +120,12 @@ export function useTasks() {
       }
 
       const { data: tasksData, error } = await query;
+
+      // Check if this is still the latest fetch
+      if (currentFetchCount !== fetchCountRef.current) {
+        console.log('[Tasks] Stale fetch result, ignoring');
+        return;
+      }
 
       if (error) {
         console.error('[Tasks] Error fetching tasks:', error);
@@ -123,23 +159,32 @@ export function useTasks() {
     } finally {
       setLoading(false);
     }
-  }, [hasTasksManagePermission, user?.id, organization?.id]);
+  }, [hasTasksManagePermission, user?.id, organization?.id, permissionsLoading, isSuperAdmin, isAdmin, isOwner, orgRole]);
 
-  // Real-time subscription
+  // Fetch tasks when permissions are ready
   useEffect(() => {
-    fetchTasks();
+    if (!permissionsLoading) {
+      fetchTasks();
+    }
+  }, [fetchTasks, permissionsLoading]);
+
+  // Real-time subscription - separate from initial fetch
+  useEffect(() => {
+    if (!organization?.id) return;
 
     const channel = supabase
-      .channel('tasks-realtime')
+      .channel(`tasks-realtime-${organization.id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'tasks'
+          table: 'tasks',
+          filter: `organization_id=eq.${organization.id}`
         },
-        () => {
-          // Refetch on any change
+        (payload) => {
+          console.log('[Tasks] Realtime update received:', payload.eventType);
+          // Refetch on any change - permissions are already loaded at this point
           fetchTasks();
         }
       )
@@ -148,7 +193,7 @@ export function useTasks() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchTasks]);
+  }, [organization?.id, fetchTasks]);
 
   const advanceStatus = useCallback(async (taskId: string, currentStatus: WorkflowStatus) => {
     if (isDelivered(currentStatus)) {
