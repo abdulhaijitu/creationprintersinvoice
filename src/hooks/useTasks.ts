@@ -1,3 +1,10 @@
+/**
+ * useTasks Hook - Task management with visibility rules
+ * 
+ * VISIBILITY RULES:
+ * - Super Admin / Admin / Owner / tasks.manage permission: See ALL org tasks
+ * - Other users: See tasks they created OR are assigned to
+ */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,7 +13,7 @@ import { useOrgRolePermissions } from '@/hooks/useOrgRolePermissions';
 import { toast } from 'sonner';
 import { WorkflowStatus, WORKFLOW_STATUSES, getNextStatus, isDelivered } from '@/components/tasks/ProductionWorkflow';
 import { logTaskActivity, createTaskNotification } from './useTaskActivityLogs';
-import { calculateSlaDeadline, type TaskPriorityLevel, SLA_DURATIONS } from '@/components/tasks/TaskPriorityBadge';
+import { calculateSlaDeadline, type TaskPriorityLevel } from '@/components/tasks/TaskPriorityBadge';
 
 export type TaskPriority = TaskPriorityLevel;
 
