@@ -40,6 +40,7 @@ import { DeliveryChallan, DeliveryChallanItem } from '@/hooks/useDeliveryChallan
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { openPrintPage } from '@/lib/pdfUtils';
 
 interface ChallanDetailDrawerProps {
   open: boolean;
@@ -104,8 +105,8 @@ export function ChallanDetailDrawer({
   const canShare = challan?.status !== 'cancelled';
 
   const handlePrint = () => {
-    if (!canPrint) return;
-    window.open(`/delivery-challans/${challanId}/print`, '_blank');
+    if (!canPrint || !challan) return;
+    openPrintPage(`/delivery-challans/${challanId}/print`, 'challan', challan.challan_number);
   };
 
   const handleShare = (method: 'whatsapp' | 'email') => {

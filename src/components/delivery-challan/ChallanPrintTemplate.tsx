@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { DeliveryChallan, DeliveryChallanItem } from '@/hooks/useDeliveryChallans';
 import '@/components/print/printStyles.css';
+import { generatePDFFilename } from '@/lib/pdfUtils';
 
 interface CompanySettings {
   company_name: string;
@@ -66,9 +67,22 @@ export default function ChallanPrintTemplate() {
       console.error('Error fetching print data:', error);
     } finally {
       setLoading(false);
-      setTimeout(() => window.print(), 500);
     }
   };
+
+  // Set document title for proper PDF filename and trigger print
+  useEffect(() => {
+    if (!loading && challan) {
+      const pdfFilename = generatePDFFilename('challan', challan.challan_number);
+      document.title = pdfFilename.replace('.pdf', '');
+      
+      const timer = setTimeout(() => {
+        window.print();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [loading, challan]);
 
   if (loading) {
     return (
