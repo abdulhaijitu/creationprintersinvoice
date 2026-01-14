@@ -2,7 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
-export type TaskActivityType = 'created' | 'updated' | 'assigned' | 'status_changed' | 'priority_changed' | 'deleted';
+export type TaskActivityType = 
+  | 'created' 
+  | 'updated' 
+  | 'assigned' 
+  | 'status_changed' 
+  | 'priority_changed' 
+  | 'deleted'
+  | 'due_date_changed'
+  | 'visibility_changed'
+  | 'comment_added'
+  | 'attachment_added'
+  | 'mentioned';
 
 export interface TaskActivityLog {
   id: string;
@@ -14,6 +25,8 @@ export interface TaskActivityLog {
   performed_by: string | null;
   performed_by_email: string | null;
   created_at: string;
+  comment_id: string | null;
+  attachment_id: string | null;
 }
 
 export function useTaskActivityLogs(taskId: string | null) {
@@ -119,7 +132,14 @@ export async function createTaskNotification(params: {
   organizationId: string;
   taskId: string;
   taskTitle: string;
-  type: 'task_assigned' | 'task_reassigned' | 'task_status_changed';
+  type: 
+    | 'task_assigned' 
+    | 'task_reassigned' 
+    | 'task_status_changed' 
+    | 'task_mentioned'
+    | 'task_due_soon'
+    | 'task_overdue'
+    | 'task_comment';
   recipientUserId: string;
   performedByUserId: string;
   message: string;
@@ -161,7 +181,44 @@ function getNotificationTitle(type: string): string {
       return 'Task Reassigned';
     case 'task_status_changed':
       return 'Task Status Updated';
+    case 'task_mentioned':
+      return 'You Were Mentioned';
+    case 'task_due_soon':
+      return 'Task Due Soon';
+    case 'task_overdue':
+      return 'Task Overdue';
+    case 'task_comment':
+      return 'New Comment on Task';
     default:
       return 'Task Update';
   }
+}
+
+/**
+ * Notify multiple users about a task event
+ */
+export async function notifyTaskUsers(params: {
+  organizationId: string;
+  taskId: string;
+  taskTitle: string;
+  type: Parameters<typeof createTaskNotification>[0]['type'];
+  recipientUserIds: string[];
+  performedByUserId: string;
+  message: string;
+}): Promise<void> {
+  const uniqueRecipients = [...new Set(params.recipientUserIds)].filter(id => id !== params.performedByUserId);
+  
+  await Promise.all(
+    uniqueRecipients.map(recipientId =>
+      createTaskNotification({
+        organizationId: params.organizationId,
+        taskId: params.taskId,
+        taskTitle: params.taskTitle,
+        type: params.type,
+        recipientUserId: recipientId,
+        performedByUserId: params.performedByUserId,
+        message: params.message,
+      })
+    )
+  );
 }

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { toast } from 'sonner';
+import { logTaskActivity, createTaskNotification } from './useTaskActivityLogs';
 
 export interface TaskComment {
   id: string;
@@ -146,7 +147,45 @@ export function useTaskComments(taskId: string | null) {
 
       if (error) throw error;
 
-      // Process mentions and create notifications
+      // Log activity for comment added
+      if (newComment) {
+        await logTaskActivity({
+          taskId,
+          organizationId: organization.id,
+          actionType: 'comment_added',
+          newValue: { comment_preview: commentText.slice(0, 100) },
+          performedBy: user.id,
+          performedByEmail: user.email,
+        });
+      }
+
+      // Get task details for notifications
+      const { data: task } = await supabase
+        .from('tasks')
+        .select('title, created_by, assigned_to')
+        .eq('id', taskId)
+        .single();
+
+      // Notify task creator and assignee about new comment (if not the commenter)
+      if (task && newComment) {
+        const usersToNotify = new Set<string>();
+        if (task.created_by && task.created_by !== user.id) usersToNotify.add(task.created_by);
+        if (task.assigned_to && task.assigned_to !== user.id) usersToNotify.add(task.assigned_to);
+        
+        for (const recipientId of usersToNotify) {
+          await createTaskNotification({
+            organizationId: organization.id,
+            taskId,
+            taskTitle: task.title,
+            type: 'task_comment',
+            recipientUserId: recipientId,
+            performedByUserId: user.id,
+            message: `New comment on task "${task.title}": ${commentText.slice(0, 50)}${commentText.length > 50 ? '...' : ''}`,
+          });
+        }
+      }
+
+      // Process @mentions and create notifications
       if (mentions.length > 0 && newComment) {
         const mentionedUsers = teamMembers.filter(
           (m) => mentions.includes(m.email) || mentions.includes(m.name.replace(/\s+/g, ''))
@@ -155,6 +194,16 @@ export function useTaskComments(taskId: string | null) {
         for (const mentionedUser of mentionedUsers) {
           // Skip self-mentions
           if (mentionedUser.id === user.id) continue;
+
+          // Log activity for mention
+          await logTaskActivity({
+            taskId,
+            organizationId: organization.id,
+            actionType: 'mentioned',
+            newValue: { mentioned_user: mentionedUser.name, mentioned_user_id: mentionedUser.id },
+            performedBy: user.id,
+            performedByEmail: user.email,
+          });
 
           // Insert mention record
           await supabase.from('task_comment_mentions').insert({
@@ -166,23 +215,15 @@ export function useTaskComments(taskId: string | null) {
             notified: true,
           });
 
-          // Get task title for notification
-          const { data: task } = await supabase
-            .from('tasks')
-            .select('title')
-            .eq('id', taskId)
-            .single();
-
-          // Create notification
-          await supabase.from('notifications').insert({
-            user_id: mentionedUser.id,
-            organization_id: organization.id,
-            type: 'task_mention',
-            title: 'You were mentioned in a comment',
+          // Create notification for mention
+          await createTaskNotification({
+            organizationId: organization.id,
+            taskId,
+            taskTitle: task?.title || 'Task',
+            type: 'task_mentioned',
+            recipientUserId: mentionedUser.id,
+            performedByUserId: user.id,
             message: `${user.email} mentioned you in task "${task?.title || 'Unknown'}"`,
-            reference_type: 'task',
-            reference_id: taskId,
-            is_read: false,
           });
         }
       }
