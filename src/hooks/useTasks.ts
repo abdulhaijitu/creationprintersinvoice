@@ -270,27 +270,47 @@ export function useTasks() {
   }) => {
     try {
       const currentUserId = user?.id;
-      console.log('[Tasks] Creating task with created_by:', currentUserId);
-      
+      if (!organization?.id || !currentUserId) {
+        toast.error('Missing organization or user context');
+        return false;
+      }
+
+      // IMPORTANT:
+      // - created_by references auth.users(id)
+      // - assigned_by / assigned_to reference employees(id)
+      // So we must store assigned_by as the current user's EMPLOYEE id (or null).
+      const assignedByEmployeeId = (() => {
+        const userEmail = user?.email?.toLowerCase();
+        if (!userEmail) return null;
+        const emp = employees.find((e) => e.email?.toLowerCase() === userEmail);
+        return emp?.id ?? null;
+      })();
+
+      console.log('[Tasks] Creating task with created_by:', currentUserId, 'assigned_by(employee):', assignedByEmployeeId);
+
       // Calculate SLA deadline based on priority
       const slaDeadline = calculateSlaDeadline(new Date(), data.priority as TaskPriorityLevel);
-      
-      const { data: newTask, error } = await supabase.from('tasks').insert({
-        title: data.title,
-        description: data.description || null,
-        assigned_to: data.assigned_to || null,
-        assigned_by: currentUserId,
-        created_by: currentUserId,
-        deadline: data.deadline || null,
-        priority: data.priority as any,
-        status: 'design',
-        visibility: data.visibility || 'public',
-        department: data.visibility === 'department' ? data.department : null,
-        reference_type: data.reference_type || null,
-        reference_id: data.reference_id || null,
-        organization_id: organization?.id,
-        sla_deadline: slaDeadline.toISOString(),
-      } as any).select().single();
+
+      const { data: newTask, error } = await supabase
+        .from('tasks')
+        .insert({
+          title: data.title,
+          description: data.description || null,
+          assigned_to: data.assigned_to || null,
+          assigned_by: assignedByEmployeeId,
+          created_by: currentUserId,
+          deadline: data.deadline || null,
+          priority: data.priority as any,
+          status: 'design',
+          visibility: data.visibility || 'public',
+          department: data.visibility === 'department' ? (data.department || null) : null,
+          reference_type: data.reference_type || null,
+          reference_id: data.reference_id || null,
+          organization_id: organization.id,
+          sla_deadline: slaDeadline.toISOString(),
+        } as any)
+        .select()
+        .single();
 
       if (error) {
         console.error('[Tasks] Error creating task:', error);
