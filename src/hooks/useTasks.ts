@@ -43,26 +43,19 @@ export interface Employee {
 }
 
 export function useTasks() {
-  const { isAdmin, isSuperAdmin, user } = useAuth();
-  const { organization, orgRole } = useOrganization();
+  const { isSuperAdmin, user } = useAuth();
+  const { organization } = useOrganization();
   const { hasPermission, loading: permissionsLoading } = useOrgRolePermissions();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const fetchCountRef = useRef(0);
 
-  // VISIBILITY RULES (per requirements):
-  // A task is visible if:
-  // 1. User is Super Admin (sees everything)
-  // 2. User is isAdmin (sees everything in their org)
-  // 3. User is org Owner (sees everything in their org)
-  // 4. User has tasks.manage permission (sees everything in their org)
-  // 5. User created the task (created_by = user)
-  // 6. User is assigned to the task (assigned_to = user)
-  
-  // IMPORTANT: Owner role should see all tasks
-  const isOwner = orgRole === 'owner';
-  const hasTasksManagePermission = isSuperAdmin || isAdmin || isOwner || hasPermission('tasks.manage');
+  // PERMISSION GATE (required): only show tasks if user has tasks.view (or tasks.manage)
+  const canViewTasks = isSuperAdmin || hasPermission('tasks.view') || hasPermission('tasks.manage');
+
+  // Manage permission means user can see ALL org tasks; otherwise apply employee visibility filter
+  const hasTasksManagePermission = isSuperAdmin || hasPermission('tasks.manage');
 
   const fetchTasks = useCallback(async () => {
     // Don't fetch without organization context or user
@@ -70,7 +63,7 @@ export function useTasks() {
       setLoading(false);
       return;
     }
-    
+
     // Wait for permissions to load to avoid premature filtering
     if (permissionsLoading) {
       console.log('[Tasks] Waiting for permissions to load...');
@@ -78,17 +71,43 @@ export function useTasks() {
     }
 
     const currentFetchCount = ++fetchCountRef.current;
-    
+
     try {
-      // Fetch employees - scoped to organization
+      // Fetch employees - scoped to organization (for Assign To dropdown)
       const { data: employeesData } = await supabase
         .from('employees')
         .select('id, full_name')
         .eq('organization_id', organization.id)
         .eq('is_active', true)
         .order('full_name');
-      
+
       setEmployees(employeesData || []);
+
+      // Enforce view permission before showing any tasks (permission-based, not role-based)
+      if (!canViewTasks) {
+        console.log('[Tasks] Access denied: missing tasks.view (or tasks.manage)');
+        setTasks([]);
+        return;
+      }
+
+      // CRITICAL: assigned_to stores employees.id (NOT auth user.id)
+      // Resolve current user's employee.id using employees.email == auth user.email
+      let currentEmployeeId: string | null = null;
+      if (user.email) {
+        const { data: currentEmployee, error: currentEmployeeError } = await supabase
+          .from('employees')
+          .select('id')
+          .eq('organization_id', organization.id)
+          .eq('is_active', true)
+          .ilike('email', user.email)
+          .maybeSingle();
+
+        if (currentEmployeeError) {
+          console.warn('[Tasks] Could not resolve employee.id for current user:', currentEmployeeError);
+        } else {
+          currentEmployeeId = currentEmployee?.id ?? null;
+        }
+      }
 
       // Fetch tasks - scoped to organization
       // RLS ensures org-level isolation, frontend handles visibility rules
@@ -98,32 +117,33 @@ export function useTasks() {
         .eq('organization_id', organization.id)
         .order('updated_at', { ascending: false });
 
-      // HARD VISIBILITY RULES (NON-NEGOTIABLE):
-      // - Super Admin / Admin / Owner / Users with tasks.manage: See ALL org tasks
-      // - Other users: See ONLY tasks they created OR are assigned to
-      //
-      // CRITICAL FIX: Permission-based visibility, NOT role-name based
-      // The OR condition ensures employees see:
-      //   - Tasks where created_by = current_user (tasks they created)
-      //   - Tasks where assigned_to = current_user (tasks assigned to them)
-      //   - Tasks where assigned_by = current_user (tasks they assigned)
-      
-      console.log('[Tasks] Permission check:', {
+      // HARD VISIBILITY RULES (mandatory):
+      // For non-managers: show tasks where
+      //   - created_by == current auth user
+      //   OR
+      //   - assigned_to == current employee.id
+      console.log('[Tasks] Visibility context:', {
         isSuperAdmin,
-        isAdmin,
-        isOwner,
         hasTasksManagePermission,
         userId: user.id,
-        orgRole,
+        userEmail: user.email,
+        currentEmployeeId,
       });
 
       if (!hasTasksManagePermission) {
-        // User doesn't have manage permission
-        // Show tasks where user is creator OR assignee OR assigned_by
-        query = query.or(`created_by.eq.${user.id},assigned_to.eq.${user.id},assigned_by.eq.${user.id}`);
-        console.log('[Tasks] Filtering for user visibility - created_by, assigned_to, or assigned_by:', user.id);
+        const orParts: string[] = [`created_by.eq.${user.id}`];
+
+        // Backward compatibility: some older rows may have stored auth user.id in assigned_to
+        orParts.push(`assigned_to.eq.${user.id}`);
+
+        if (currentEmployeeId && currentEmployeeId !== user.id) {
+          orParts.push(`assigned_to.eq.${currentEmployeeId}`);
+        }
+
+        query = query.or(orParts.join(','));
+        console.log('[Tasks] Applying employee visibility filter:', orParts);
       } else {
-        console.log('[Tasks] User has tasks.manage permission - showing all org tasks');
+        console.log('[Tasks] tasks.manage granted - showing all org tasks');
       }
 
       const { data: tasksData, error } = await query;
@@ -166,7 +186,7 @@ export function useTasks() {
     } finally {
       setLoading(false);
     }
-  }, [hasTasksManagePermission, user?.id, organization?.id, permissionsLoading, isSuperAdmin, isAdmin, isOwner, orgRole]);
+  }, [organization?.id, user?.id, user?.email, permissionsLoading, canViewTasks, hasTasksManagePermission, isSuperAdmin]);
 
   // Fetch tasks when permissions are ready
   useEffect(() => {
