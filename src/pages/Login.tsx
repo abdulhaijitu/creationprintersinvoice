@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Mail, Lock } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/appConfig';
 import appLogo from '@/assets/app-logo.jpg';
+import PWAInstallButton from '@/components/pwa/PWAInstallButton';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -205,7 +206,12 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+      {/* PWA Install Button - Top Right */}
+      <div className="absolute top-4 right-4">
+        <PWAInstallButton variant="outline" size="sm" />
+      </div>
+      
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
           <img 
