@@ -28,7 +28,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, FileText, AlertTriangle, Lock, Globe, Building2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, FileText, AlertTriangle, Lock, Globe, Building2, Archive, ArchiveRestore, RotateCcw } from "lucide-react";
 import { ReferenceSelect, ReferenceLink } from "@/components/tasks/ReferenceSelect";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +61,7 @@ const Tasks = () => {
   const { isSuperAdmin, user } = useAuth();
   const { hasPermission } = useOrgRolePermissions();
   const isMobile = useIsMobile();
-  const { tasks, employees, loading, advanceStatus, transitionToStatus, createTask, updateTask, deleteTask } = useTasks();
+  const { tasks, employees, loading, advanceStatus, transitionToStatus, createTask, updateTask, deleteTask, archiveTask, restoreTask } = useTasks();
   
   // Permission checks for ACTIONS (not visibility - all org users can see all tasks)
   const canViewTasks = isSuperAdmin || hasPermission('tasks.view') || hasPermission('tasks.manage');
@@ -68,13 +69,19 @@ const Tasks = () => {
   const canEditTasks = isSuperAdmin || hasPermission('tasks.edit') || hasPermission('tasks.manage');
   const canDeleteTasks = isSuperAdmin || hasPermission('tasks.delete') || hasPermission('tasks.manage');
   const canAdvanceStatus = isSuperAdmin || hasPermission('tasks.edit') || hasPermission('tasks.manage');
+  const canArchiveTasks = isSuperAdmin || hasPermission('tasks.bulk') || hasPermission('tasks.manage');
+  const canViewArchivedTasks = isSuperAdmin || hasPermission('tasks.view') || hasPermission('tasks.manage');
+  const canRestoreTasks = isSuperAdmin; // Only Super Admin can restore archived tasks
   
+  const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
+  const [archiveConfirmTask, setArchiveConfirmTask] = useState<Task | null>(null);
+  const [restoreConfirmTask, setRestoreConfirmTask] = useState<Task | null>(null);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -175,6 +182,18 @@ const Tasks = () => {
     setDeleteConfirmTask(null);
   };
 
+  const handleArchive = async () => {
+    if (!archiveConfirmTask) return;
+    await archiveTask(archiveConfirmTask.id);
+    setArchiveConfirmTask(null);
+  };
+
+  const handleRestore = async () => {
+    if (!restoreConfirmTask) return;
+    await restoreTask(restoreConfirmTask.id);
+    setRestoreConfirmTask(null);
+  };
+
   const handleAdvanceStatus = async (taskId: string, currentStatus: TaskStatus) => {
     if (currentStatus === 'archived') return;
     await advanceStatus(taskId, currentStatus as WorkflowStatus);
@@ -223,30 +242,42 @@ const Tasks = () => {
     return canDeleteTasks;
   };
 
+  // Separate active and archived tasks
+  const activeTasks = useMemo(() => {
+    return tasks.filter(t => !isArchived(t.status));
+  }, [tasks]);
+
+  const archivedTasks = useMemo(() => {
+    return tasks.filter(t => isArchived(t.status));
+  }, [tasks]);
+
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
+    const baseTasks = activeTab === "active" ? activeTasks : archivedTasks;
+    return baseTasks.filter((task) => {
       const matchesSearch = 
         task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.assignee?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesStatus = filterStatus === "all" || task.status === filterStatus;
+      // For archived tab, don't filter by status
+      const matchesStatus = activeTab === "archived" || filterStatus === "all" || task.status === filterStatus;
       
       return matchesSearch && matchesStatus;
     });
-  }, [tasks, searchTerm, filterStatus]);
+  }, [activeTasks, archivedTasks, activeTab, searchTerm, filterStatus]);
 
-  // Status counts for summary cards
+  // Status counts for summary cards (only active tasks)
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     WORKFLOW_STATUSES.forEach(status => {
-      counts[status] = tasks.filter(t => t.status === status).length;
+      counts[status] = activeTasks.filter(t => t.status === status).length;
     });
     return counts;
-  }, [tasks]);
+  }, [activeTasks]);
 
-  const activeCount = tasks.filter(t => !isDelivered(t.status)).length;
+  const activeCount = activeTasks.filter(t => !isDelivered(t.status) && !isArchived(t.status)).length;
   const deliveredCount = statusCounts['delivered'] || 0;
+  const archivedCount = archivedTasks.length;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -469,43 +500,66 @@ const Tasks = () => {
         </Card>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search tasks..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+      {/* Tabs for Active/Archived */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "active" | "archived")} className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+          <TabsList>
+            <TabsTrigger value="active" className="gap-2">
+              <Palette className="h-4 w-4" />
+              Active Tasks
+              <Badge variant="secondary" className="ml-1">{activeTasks.length}</Badge>
+            </TabsTrigger>
+            {canViewArchivedTasks && (
+              <TabsTrigger value="archived" className="gap-2">
+                <Archive className="h-4 w-4" />
+                Archived
+                <Badge variant="outline" className="ml-1">{archivedCount}</Badge>
+              </TabsTrigger>
+            )}
+          </TabsList>
         </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            {WORKFLOW_STATUSES.map((status) => (
-              <SelectItem key={status} value={status}>
-                {WORKFLOW_LABELS[status]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
-      {/* Tasks Table / Mobile Cards */}
-      {loading ? (
-        <TableSkeleton rows={5} columns={6} />
-      ) : filteredTasks.length === 0 ? (
-        <EmptyState
-          title="No tasks found"
-          description={searchTerm || filterStatus !== 'all' 
-            ? "Try adjusting your search or filter" 
-            : "Create your first production task to get started"}
-          action={canCreateTasks ? { label: "New Task", onClick: () => setIsDialogOpen(true) } : undefined}
-        />
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder={activeTab === "active" ? "Search tasks..." : "Search archived tasks..."}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          {activeTab === "active" && (
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                {WORKFLOW_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {WORKFLOW_LABELS[status]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {/* Active Tasks Content */}
+        <TabsContent value="active" className="mt-0">
+          {/* Tasks Table / Mobile Cards */}
+          {loading ? (
+            <TableSkeleton rows={5} columns={6} />
+          ) : filteredTasks.length === 0 ? (
+            <EmptyState
+              title="No tasks found"
+              description={searchTerm || filterStatus !== 'all' 
+                ? "Try adjusting your search or filter" 
+                : "Create your first production task to get started"}
+              action={canCreateTasks ? { label: "New Task", onClick: () => setIsDialogOpen(true) } : undefined}
+            />
       ) : isMobile ? (
         // Mobile Card View
         <div className="space-y-3">
@@ -555,6 +609,21 @@ const Tasks = () => {
                             <ArrowRight className="h-3 w-3" />
                           </Button>
                         )}
+                        {/* Archive button for delivered tasks */}
+                        {canArchiveTasks && taskIsDelivered && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setArchiveConfirmTask(task);
+                            }}
+                          >
+                            <Archive className="h-3 w-3" />
+                            Archive
+                          </Button>
+                        )}
                         {canEdit && !taskIsDelivered && (
                           <Button
                             variant="ghost"
@@ -568,7 +637,7 @@ const Tasks = () => {
                             <Edit2 className="h-3 w-3" />
                           </Button>
                         )}
-                        {canDeleteTask(task) && (
+                        {canDeleteTask(task) && !taskIsDelivered && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -652,6 +721,18 @@ const Tasks = () => {
                             {WORKFLOW_LABELS[nextStatus]}
                           </Button>
                         )}
+                        {/* Archive button for delivered tasks */}
+                        {canArchiveTasks && taskIsDelivered && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => setArchiveConfirmTask(task)}
+                          >
+                            <Archive className="h-3 w-3" />
+                            Archive
+                          </Button>
+                        )}
                         {canEdit && !taskIsDelivered && (
                           <Button
                             variant="ghost"
@@ -661,7 +742,7 @@ const Tasks = () => {
                             <Edit2 className="h-4 w-4" />
                           </Button>
                         )}
-                        {canDeleteTask(task) && (
+                        {canDeleteTask(task) && !taskIsDelivered && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -679,7 +760,81 @@ const Tasks = () => {
             </TableBody>
           </Table>
         </div>
-      )}
+          )}
+        </TabsContent>
+
+        {/* Archived Tasks Content */}
+        {canViewArchivedTasks && (
+          <TabsContent value="archived" className="mt-0">
+            {loading ? (
+              <TableSkeleton rows={5} columns={6} />
+            ) : filteredTasks.length === 0 ? (
+              <EmptyState
+                title="No archived tasks"
+                description="Tasks that have been completed and archived will appear here"
+              />
+            ) : (
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Job / Task</TableHead>
+                      <TableHead>Assigned To</TableHead>
+                      <TableHead>Archived Date</TableHead>
+                      <TableHead>Priority</TableHead>
+                      {canRestoreTasks && <TableHead className="text-right">Actions</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTasks.map((task) => (
+                      <TableRow 
+                        key={task.id} 
+                        className="opacity-60 cursor-pointer"
+                        onClick={() => setSelectedTask(task)}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Lock className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{task.title}</p>
+                              {task.reference_type && task.reference_id && (
+                                <ReferenceLink referenceType={task.reference_type} referenceId={task.reference_id} />
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{task.assignee?.full_name || "-"}</TableCell>
+                        <TableCell>
+                          {task.archived_at 
+                            ? format(new Date(task.archived_at), 'dd MMM yyyy')
+                            : '-'
+                          }
+                        </TableCell>
+                        <TableCell>{getPriorityBadge(task.priority)}</TableCell>
+                        {canRestoreTasks && (
+                          <TableCell>
+                            <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => setRestoreConfirmTask(task)}
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                                Restore
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+        )}
+      </Tabs>
 
       {/* Task Detail Drawer */}
       <TaskDetailDrawer
@@ -688,7 +843,7 @@ const Tasks = () => {
         onOpenChange={(open) => !open && setSelectedTask(null)}
         onAdvanceStatus={handleAdvanceStatus}
         onTransitionToStatus={handleTransitionToStatus}
-        canEdit={selectedTask ? canEditTask(selectedTask) : false}
+        canEdit={selectedTask ? canEditTask(selectedTask) && !isArchived(selectedTask.status) : false}
       />
 
       {/* Delete Confirmation */}
@@ -700,6 +855,26 @@ const Tasks = () => {
         confirmLabel="Delete"
         onConfirm={handleDelete}
         variant="destructive"
+      />
+
+      {/* Archive Confirmation */}
+      <ConfirmDialog
+        open={!!archiveConfirmTask}
+        onOpenChange={(open) => !open && setArchiveConfirmTask(null)}
+        title="Archive Task"
+        description={`Are you sure you want to archive "${archiveConfirmTask?.title}"? Archived tasks cannot be edited.`}
+        confirmLabel="Archive"
+        onConfirm={handleArchive}
+      />
+
+      {/* Restore Confirmation */}
+      <ConfirmDialog
+        open={!!restoreConfirmTask}
+        onOpenChange={(open) => !open && setRestoreConfirmTask(null)}
+        title="Restore Task"
+        description={`Are you sure you want to restore "${restoreConfirmTask?.title}"? It will be moved back to the active tasks list.`}
+        confirmLabel="Restore"
+        onConfirm={handleRestore}
       />
     </div>
   );

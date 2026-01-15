@@ -570,6 +570,108 @@ export function useTasks() {
     }
   }, [tasks, organization?.id, user?.id, user?.email]);
 
+  /**
+   * Archive a task (move from delivered to archived)
+   */
+  const archiveTask = useCallback(async (taskId: string) => {
+    try {
+      const currentTask = tasks.find(t => t.id === taskId);
+      
+      if (!currentTask) {
+        toast.error('Task not found');
+        return false;
+      }
+
+      if (currentTask.status !== 'delivered') {
+        toast.error('Only delivered tasks can be archived');
+        return false;
+      }
+
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          status: 'archived',
+          archived_at: new Date().toISOString(),
+          archived_by: user?.id,
+          updated_at: new Date().toISOString()
+        } as any)
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      // Log activity
+      if (organization?.id && user?.id) {
+        await logTaskActivity({
+          taskId,
+          organizationId: organization.id,
+          actionType: 'archived' as any,
+          previousValue: { status: 'delivered' },
+          newValue: { status: 'archived' },
+          performedBy: user.id,
+          performedByEmail: user.email,
+        });
+      }
+
+      toast.success('Task archived successfully');
+      return true;
+    } catch (error) {
+      console.error('Error archiving task:', error);
+      toast.error('Failed to archive task');
+      return false;
+    }
+  }, [tasks, organization?.id, user?.id, user?.email]);
+
+  /**
+   * Restore a task from archived to delivered (Super Admin only)
+   */
+  const restoreTask = useCallback(async (taskId: string) => {
+    try {
+      const currentTask = tasks.find(t => t.id === taskId);
+      
+      if (!currentTask) {
+        toast.error('Task not found');
+        return false;
+      }
+
+      if (currentTask.status !== 'archived') {
+        toast.error('Only archived tasks can be restored');
+        return false;
+      }
+
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          status: 'delivered',
+          archived_at: null,
+          archived_by: null,
+          updated_at: new Date().toISOString()
+        } as any)
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      // Log activity
+      if (organization?.id && user?.id) {
+        await logTaskActivity({
+          taskId,
+          organizationId: organization.id,
+          actionType: 'restored' as any,
+          previousValue: { status: 'archived' },
+          newValue: { status: 'delivered' },
+          performedBy: user.id,
+          performedByEmail: user.email,
+        });
+      }
+
+      toast.success('Task restored successfully');
+      return true;
+    } catch (error) {
+      console.error('Error restoring task:', error);
+      toast.error('Failed to restore task');
+      return false;
+    }
+  }, [tasks, organization?.id, user?.id, user?.email]);
+
   return {
     tasks,
     employees,
@@ -579,6 +681,8 @@ export function useTasks() {
     createTask,
     updateTask,
     deleteTask,
+    archiveTask,
+    restoreTask,
     refetch: fetchTasks
   };
 }

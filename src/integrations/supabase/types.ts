@@ -4216,6 +4216,8 @@ export type Database = {
       }
       tasks: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           assigned_by: string | null
           assigned_to: string | null
           completed_at: string | null
@@ -4240,6 +4242,8 @@ export type Database = {
           visibility: Database["public"]["Enums"]["task_visibility"] | null
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           assigned_by?: string | null
           assigned_to?: string | null
           completed_at?: string | null
@@ -4264,6 +4268,8 @@ export type Database = {
           visibility?: Database["public"]["Enums"]["task_visibility"] | null
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           assigned_by?: string | null
           assigned_to?: string | null
           completed_at?: string | null
@@ -4912,6 +4918,7 @@ export type Database = {
         | "binding"
         | "packaging"
         | "delivered"
+        | "archived"
       task_visibility: "public" | "private" | "department"
     }
     CompositeTypes: {
@@ -5144,6 +5151,7 @@ export const Constants = {
         "binding",
         "packaging",
         "delivered",
+        "archived",
       ],
       task_visibility: ["public", "private", "department"],
     },
