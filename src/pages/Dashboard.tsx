@@ -49,6 +49,12 @@ import {
   CreditCard,
   ChevronRight,
   Briefcase,
+  Palette,
+  Printer,
+  Package,
+  Truck,
+  ClipboardList,
+  Banknote,
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, isToday, parseISO } from 'date-fns';
 import { formatCurrency, formatChartCurrency } from '@/lib/formatters';
@@ -74,6 +80,15 @@ interface DashboardStats {
   // Previous month for comparison
   lastMonthRevenue: number;
   lastMonthExpense: number;
+  // Invoice totals
+  totalInvoiceAmount: number;
+  totalDueAmount: number;
+  // Task status counts
+  tasksActive: number;
+  tasksInDesign: number;
+  tasksPrinting: number;
+  tasksPackaging: number;
+  tasksDelivered: number;
 }
 
 interface MonthlyData {
@@ -128,6 +143,13 @@ const Dashboard = () => {
     tasksDueToday: 0,
     lastMonthRevenue: 0,
     lastMonthExpense: 0,
+    totalInvoiceAmount: 0,
+    totalDueAmount: 0,
+    tasksActive: 0,
+    tasksInDesign: 0,
+    tasksPrinting: 0,
+    tasksPackaging: 0,
+    tasksDelivered: 0,
   });
   const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
   const [monthlyTrend, setMonthlyTrend] = useState<MonthlyData[]>([]);
@@ -254,10 +276,24 @@ const Dashboard = () => {
           0
         );
 
-        // Tasks
+        // Tasks - calculate counts by status
         const tasks = tasksRes.data || [];
-        const tasksInProgress = tasks.filter((t) => t.status !== 'completed' && t.status !== 'delivered').length;
+        const tasksInProgress = tasks.filter((t) => t.status !== 'completed' && t.status !== 'delivered' && t.status !== 'archived').length;
         const tasksDueToday = tasks.filter((t) => t.deadline && t.deadline === todayStr && t.status !== 'completed').length;
+        
+        // Task status counts for dashboard cards
+        const tasksActive = tasks.filter((t) => t.status === 'todo' || t.status === 'in_progress').length;
+        const tasksInDesign = tasks.filter((t) => t.status === 'design').length;
+        const tasksPrinting = tasks.filter((t) => t.status === 'printing').length;
+        const tasksPackaging = tasks.filter((t) => t.status === 'packaging').length;
+        const tasksDelivered = tasks.filter((t) => t.status === 'delivered').length;
+        
+        // Invoice totals
+        const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+        const totalDueAmount = invoices.reduce(
+          (sum, inv) => sum + (Number(inv.total || 0) - Number(inv.paid_amount || 0)),
+          0
+        );
 
         // Calculate monthly trend for last 6 months
         const allExpenses = allExpensesRes.data || [];
@@ -358,6 +394,13 @@ const Dashboard = () => {
           tasksDueToday,
           lastMonthRevenue,
           lastMonthExpense,
+          totalInvoiceAmount,
+          totalDueAmount,
+          tasksActive,
+          tasksInDesign,
+          tasksPrinting,
+          tasksPackaging,
+          tasksDelivered,
         });
 
         setRecentInvoices(recentInvoicesRes.data || []);
@@ -414,6 +457,40 @@ const Dashboard = () => {
               <Skeleton className="h-8 w-32" />
             </Card>
           ))}
+        </div>
+
+        {/* Invoice cards skeleton */}
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-24" />
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i} className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                </div>
+                <Skeleton className="h-8 w-24" />
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Task cards skeleton */}
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-32" />
+          <div className="grid gap-3 grid-cols-1">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Card key={i} className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <Skeleton className="h-6 w-12" />
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
 
         {/* Charts skeleton */}
@@ -539,7 +616,183 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Alerts Section */}
+      {/* Invoice Dashboard Cards - 6 cards */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold">Invoices</h2>
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {/* 1. Paid Invoices (count) */}
+          <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-muted-foreground">Paid Invoices</p>
+                <div className="p-2 rounded-full bg-success/10">
+                  <CheckCircle className="h-4 w-4 text-success" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold tabular-nums tracking-tight text-success">
+                {stats.paidInvoices}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 2. Unpaid Invoices (count) */}
+          <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-muted-foreground">Unpaid Invoices</p>
+                <div className="p-2 rounded-full bg-info/10">
+                  <Clock className="h-4 w-4 text-info" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold tabular-nums tracking-tight text-info">
+                {stats.pendingInvoices}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 3. Overdue Invoices (count) */}
+          <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-muted-foreground">Overdue Invoices</p>
+                <div className="p-2 rounded-full bg-destructive/10">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold tabular-nums tracking-tight text-destructive">
+                {stats.overdueInvoices}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 4. Total Invoices (count) */}
+          <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
+                <div className="p-2 rounded-full bg-muted">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold tabular-nums tracking-tight text-foreground">
+                {stats.paidInvoices + stats.pendingInvoices + stats.overdueInvoices}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 5. Total Invoice Amount (BDT) */}
+          <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-muted-foreground">Total Invoice Amount</p>
+                <div className="p-2 rounded-full bg-primary/10">
+                  <Banknote className="h-4 w-4 text-primary" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold tabular-nums tracking-tight text-primary">
+                {formatCurrency(stats.totalInvoiceAmount)}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 6. Total Due Amount (BDT) */}
+          <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-muted-foreground">Total Due Amount</p>
+                <div className="p-2 rounded-full bg-warning/10">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold tabular-nums tracking-tight text-warning">
+                {formatCurrency(stats.totalDueAmount)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Task Dashboard Cards - 5 cards, stacked vertically */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold">Production Tasks</h2>
+        <div className="grid gap-3 grid-cols-1">
+          {/* 1. Active Jobs */}
+          <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <ClipboardList className="h-4 w-4 text-primary" />
+                </div>
+                <p className="text-sm font-medium">Active Jobs</p>
+              </div>
+              <p className="text-xl font-bold tabular-nums tracking-tight text-primary">
+                {stats.tasksActive}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 2. In Design */}
+          <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-indigo-500/10">
+                  <Palette className="h-4 w-4 text-indigo-500" />
+                </div>
+                <p className="text-sm font-medium">In Design</p>
+              </div>
+              <p className="text-xl font-bold tabular-nums tracking-tight text-indigo-500">
+                {stats.tasksInDesign}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 3. Printing */}
+          <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-orange-500/10">
+                  <Printer className="h-4 w-4 text-orange-500" />
+                </div>
+                <p className="text-sm font-medium">Printing</p>
+              </div>
+              <p className="text-xl font-bold tabular-nums tracking-tight text-orange-500">
+                {stats.tasksPrinting}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 4. Packaging */}
+          <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-purple-500/10">
+                  <Package className="h-4 w-4 text-purple-500" />
+                </div>
+                <p className="text-sm font-medium">Packaging</p>
+              </div>
+              <p className="text-xl font-bold tabular-nums tracking-tight text-purple-500">
+                {stats.tasksPackaging}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 5. Delivered */}
+          <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-success/10">
+                  <Truck className="h-4 w-4 text-success" />
+                </div>
+                <p className="text-sm font-medium">Delivered</p>
+              </div>
+              <p className="text-xl font-bold tabular-nums tracking-tight text-success">
+                {stats.tasksDelivered}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
       {alerts.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {alerts.map((alert, index) => (
