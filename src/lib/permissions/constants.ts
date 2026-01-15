@@ -64,7 +64,7 @@ export const PERMISSION_CATEGORY_ORDER: PermissionCategory[] = ['MAIN', 'BUSINES
 
 // ============= PERMISSION ACTIONS =============
 
-export type PermissionAction = 'view' | 'manage' | 'create' | 'edit' | 'delete' | 'bulk' | 'import' | 'export';
+export type PermissionAction = 'view' | 'manage' | 'create' | 'edit' | 'delete' | 'bulk' | 'import' | 'export' | 'assign';
 
 // ============= MODULE DEFINITIONS =============
 
@@ -161,6 +161,7 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: 'performance.manage', module: 'performance', action: 'manage', label: 'Manage Performance', description: 'Update performance records', category: 'HR_OPS' },
   { key: 'tasks.view', module: 'tasks', action: 'view', label: 'View Tasks', description: 'View task list', category: 'HR_OPS' },
   { key: 'tasks.manage', module: 'tasks', action: 'manage', label: 'Manage Tasks', description: 'Create, assign, and update tasks', category: 'HR_OPS' },
+  { key: 'tasks.assign', module: 'tasks', action: 'assign', label: 'Assign Tasks', description: 'Assign or reassign tasks to employees', category: 'HR_OPS' },
 
   // ===== SYSTEM =====
   { key: 'reports.view', module: 'reports', action: 'view', label: 'View Reports', description: 'Access reports and analytics', category: 'SYSTEM' },
@@ -328,6 +329,7 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     create: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
     edit: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
     delete: ['owner', 'manager'],
+    assign: ['owner', 'manager'], // only owner/manager can assign/reassign tasks
     bulk: ['owner', 'manager'], // archive permission
     export: ['owner'], // restore permission (super admin only via isSuperAdmin check)
   },

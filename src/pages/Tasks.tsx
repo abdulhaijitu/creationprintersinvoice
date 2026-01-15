@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, FileText, AlertTriangle, Lock, Globe, Building2, Archive, ArchiveRestore, RotateCcw } from "lucide-react";
 import { ReferenceSelect, ReferenceLink } from "@/components/tasks/ReferenceSelect";
+import { EmployeeAssignSelect } from "@/components/tasks/EmployeeAssignSelect";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { useTasks, Task, TaskPriority, TaskVisibility } from "@/hooks/useTasks";
@@ -69,6 +70,7 @@ const Tasks = () => {
   const canEditTasks = isSuperAdmin || hasPermission('tasks.edit') || hasPermission('tasks.manage');
   const canDeleteTasks = isSuperAdmin || hasPermission('tasks.delete') || hasPermission('tasks.manage');
   const canAdvanceStatus = isSuperAdmin || hasPermission('tasks.edit') || hasPermission('tasks.manage');
+  const canAssignTasks = isSuperAdmin || hasPermission('tasks.assign') || hasPermission('tasks.manage');
   const canArchiveTasks = isSuperAdmin || hasPermission('tasks.bulk') || hasPermission('tasks.manage');
   const canViewArchivedTasks = isSuperAdmin || hasPermission('tasks.view') || hasPermission('tasks.manage');
   const canRestoreTasks = isSuperAdmin; // Only Super Admin can restore archived tasks
@@ -160,7 +162,7 @@ const Tasks = () => {
   };
 
   const openEditDialog = (task: Task) => {
-    if (isDelivered(task.status)) return;
+    if (isDelivered(task.status) || isArchived(task.status)) return;
     setEditingTask(task);
     setFormData({
       title: task.title,
@@ -174,6 +176,14 @@ const Tasks = () => {
       reference_id: task.reference_id || "",
     });
     setIsDialogOpen(true);
+  };
+
+  // Check if assignment field should be disabled
+  const isAssignmentDisabled = (isEditing: boolean) => {
+    // For new tasks, allow assignment if user can create
+    if (!isEditing) return !canCreateTasks;
+    // For editing, need assign permission
+    return !canAssignTasks;
   };
 
   const handleDelete = async () => {
@@ -323,21 +333,18 @@ const Tasks = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Assign To</Label>
-                      <Select
+                      <EmployeeAssignSelect
+                        employees={employees}
                         value={formData.assigned_to}
-                        onValueChange={(v) => setFormData({ ...formData, assigned_to: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Person" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {employees.map((emp) => (
-                            <SelectItem key={emp.id} value={emp.id}>
-                              {emp.full_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={(v) => setFormData({ ...formData, assigned_to: v })}
+                        disabled={isAssignmentDisabled(!!editingTask)}
+                        placeholder="Select person..."
+                      />
+                      {editingTask && !canAssignTasks && (
+                        <p className="text-xs text-muted-foreground">
+                          You don't have permission to change assignment
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label>Deadline</Label>
