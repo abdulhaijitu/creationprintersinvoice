@@ -33,6 +33,7 @@ interface TaskDetailDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdvanceStatus: (taskId: string, currentStatus: WorkflowStatus) => void;
+  onTransitionToStatus?: (taskId: string, currentStatus: WorkflowStatus, targetStatus: WorkflowStatus) => void;
   canEdit: boolean;
 }
 
@@ -41,12 +42,19 @@ export function TaskDetailDrawer({
   open, 
   onOpenChange, 
   onAdvanceStatus,
+  onTransitionToStatus,
   canEdit 
 }: TaskDetailDrawerProps) {
   if (!task) return null;
 
   const nextStatus = getNextStatus(task.status);
   const taskIsDelivered = isDelivered(task.status);
+
+  const handleStepClick = (targetStatus: WorkflowStatus) => {
+    if (onTransitionToStatus) {
+      onTransitionToStatus(task.id, task.status, targetStatus);
+    }
+  };
 
   const getVisibilityBadge = (visibility: TaskVisibility) => {
     switch (visibility) {
@@ -115,10 +123,20 @@ export function TaskDetailDrawer({
             </TabsList>
 
             <TabsContent value="details" className="space-y-6 mt-0 flex-1">
-              {/* Workflow Progress */}
+              {/* Workflow Progress - Interactive Stepper */}
               <div className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground">Production Progress</h3>
-                <WorkflowStepper currentStatus={task.status} />
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-muted-foreground">Production Progress</h3>
+                  {canEdit && !taskIsDelivered && (
+                    <span className="text-xs text-muted-foreground">Click steps to advance</span>
+                  )}
+                </div>
+                <WorkflowStepper 
+                  currentStatus={task.status} 
+                  interactive={canEdit && !taskIsDelivered}
+                  onStepClick={handleStepClick}
+                  disabled={taskIsDelivered}
+                />
               </div>
 
               {/* SLA Status */}

@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgRolePermissions } from '@/hooks/useOrgRolePermissions';
 import { toast } from 'sonner';
-import { WorkflowStatus, WORKFLOW_STATUSES, getNextStatus, isDelivered } from '@/components/tasks/ProductionWorkflow';
+import { WorkflowStatus, WORKFLOW_STATUSES, getNextStatus, isDelivered, canTransitionTo, getStatusIndex } from '@/components/tasks/ProductionWorkflow';
 import { logTaskActivity, createTaskNotification } from './useTaskActivityLogs';
 import { calculateSlaDeadline, type TaskPriorityLevel } from '@/components/tasks/TaskPriorityBadge';
 
@@ -256,6 +256,39 @@ export function useTasks() {
       return false;
     }
   }, [tasks, organization?.id, user?.id, user?.email]);
+
+  /**
+   * Transition to a specific workflow status with validation
+   * Rules:
+   * - Can move to completed steps (no database update, just view)
+   * - Can move to immediate next step only
+   * - Cannot skip steps
+   */
+  const transitionToStatus = useCallback(async (taskId: string, currentStatus: WorkflowStatus, targetStatus: WorkflowStatus) => {
+    const currentIndex = getStatusIndex(currentStatus);
+    const targetIndex = getStatusIndex(targetStatus);
+
+    // Validate transition
+    const { allowed, reason } = canTransitionTo(currentStatus, targetStatus);
+    if (!allowed) {
+      toast.error(reason || 'Invalid step transition');
+      return false;
+    }
+
+    // If going backwards or same step, no database update needed
+    if (targetIndex <= currentIndex) {
+      return true;
+    }
+
+    // Only allow advancing to next immediate step
+    if (targetIndex !== currentIndex + 1) {
+      toast.error('Please complete previous step first');
+      return false;
+    }
+
+    // Use the existing advanceStatus logic for forward transitions
+    return await advanceStatus(taskId, currentStatus);
+  }, [advanceStatus]);
 
   const createTask = useCallback(async (data: {
     title: string;
@@ -538,6 +571,7 @@ export function useTasks() {
     employees,
     loading,
     advanceStatus,
+    transitionToStatus,
     createTask,
     updateTask,
     deleteTask,
