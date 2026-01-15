@@ -389,22 +389,29 @@ const Dashboard = () => {
     ? ((stats.monthlyExpense - stats.lastMonthExpense) / stats.lastMonthExpense) * 100
     : 0;
 
+  // Calculate monthly collection (paid_amount from this month's invoices)
+  const monthlyCollection = stats.monthlyRevenue;
+  // Calculate monthly due (total - paid_amount from all invoices)
+  const monthlyDue = stats.customerDue;
+
   if (loading) {
     return (
       <div className="space-y-6">
         {/* Header skeleton */}
         <div className="space-y-2">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-4 w-40" />
         </div>
         
-        {/* KPI cards skeleton */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="p-4">
-              <Skeleton className="h-4 w-20 mb-2" />
-              <Skeleton className="h-8 w-28 mb-2" />
-              <Skeleton className="h-3 w-24" />
+        {/* 5 KPI cards skeleton - responsive grid */}
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Card key={i} className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+              </div>
+              <Skeleton className="h-8 w-32" />
             </Card>
           ))}
         </div>
@@ -426,11 +433,11 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - Company Name in ALL CAPS */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            {companyName || organization?.name || 'Dashboard'}
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight uppercase">
+            CREATION PRINTERS
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
@@ -444,6 +451,93 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* 5 Summary Cards - Responsive Grid */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        {/* 1. Monthly Invoices */}
+        <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-muted-foreground">Monthly Invoices</p>
+              <div className="p-2 rounded-full bg-primary/10">
+                <FileText className="h-4 w-4 text-primary" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-primary">
+              {formatCurrency(stats.monthlyRevenue + stats.customerDue)}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* 2. Monthly Expenses */}
+        <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-muted-foreground">Monthly Expenses</p>
+              <div className="p-2 rounded-full bg-destructive/10">
+                <CreditCard className="h-4 w-4 text-destructive" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-destructive">
+              {formatCurrency(stats.monthlyExpense)}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* 3. Profit (Invoices - Expenses) */}
+        <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-muted-foreground">Profit</p>
+              <div className={cn(
+                "p-2 rounded-full",
+                stats.netProfit >= 0 ? "bg-success/10" : "bg-destructive/10"
+              )}>
+                {stats.netProfit >= 0 ? (
+                  <TrendingUp className="h-4 w-4 text-success" />
+                ) : (
+                  <TrendingDown className="h-4 w-4 text-destructive" />
+                )}
+              </div>
+            </div>
+            <p className={cn(
+              "text-2xl font-bold tabular-nums tracking-tight",
+              stats.netProfit >= 0 ? "text-success" : "text-destructive"
+            )}>
+              {formatCurrency(stats.netProfit)}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* 4. Monthly Collection */}
+        <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-muted-foreground">Monthly Collection</p>
+              <div className="p-2 rounded-full bg-success/10">
+                <CheckCircle className="h-4 w-4 text-success" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-success">
+              {formatCurrency(monthlyCollection)}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* 5. Monthly Due */}
+        <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-muted-foreground">Monthly Due</p>
+              <div className="p-2 rounded-full bg-warning/10">
+                <AlertCircle className="h-4 w-4 text-warning" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-warning">
+              {formatCurrency(monthlyDue)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Alerts Section */}
       {alerts.length > 0 && (
@@ -482,57 +576,6 @@ const Dashboard = () => {
           ))}
         </div>
       )}
-
-      {/* Top KPI Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard
-          title="Monthly Revenue"
-          value={formatCurrency(stats.monthlyRevenue)}
-          icon={DollarSign}
-          iconClassName="bg-success/10 text-success"
-          trend={stats.lastMonthRevenue > 0 ? { value: revenueTrend, isPositive: revenueTrend >= 0 } : undefined}
-          href="/invoices"
-        />
-        <StatCard
-          title="Monthly Expenses"
-          value={formatCurrency(stats.monthlyExpense)}
-          icon={CreditCard}
-          iconClassName="bg-warning/10 text-warning"
-          trend={stats.lastMonthExpense > 0 ? { value: expenseTrend, isPositive: expenseTrend <= 0 } : undefined}
-          href="/expenses"
-        />
-        <StatCard
-          title="Outstanding Due"
-          value={formatCurrency(stats.customerDue)}
-          icon={AlertCircle}
-          iconClassName="bg-destructive/10 text-destructive"
-          subtitle={`${stats.pendingInvoices} pending invoices`}
-          href="/invoices"
-        />
-        <StatCard
-          title="Net Profit"
-          value={formatCurrency(stats.netProfit)}
-          icon={stats.netProfit >= 0 ? TrendingUp : TrendingDown}
-          iconClassName={stats.netProfit >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}
-          valueClassName={stats.netProfit >= 0 ? "text-success" : "text-destructive"}
-          subtitle="This month"
-        />
-        <StatCard
-          title="Active Customers"
-          value={stats.totalCustomers}
-          icon={Users}
-          iconClassName="bg-primary/10 text-primary"
-          href="/customers"
-        />
-        <StatCard
-          title="Employees"
-          value={stats.totalEmployees}
-          icon={Briefcase}
-          iconClassName="bg-info/10 text-info"
-          subtitle={`${stats.todayAttendance} present today`}
-          href="/employees"
-        />
-      </div>
 
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
