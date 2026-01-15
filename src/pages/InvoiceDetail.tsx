@@ -39,6 +39,7 @@ import { CreateChallanDialog } from '@/components/delivery-challan/CreateChallan
 import { AddPaymentDialog } from '@/components/invoice/AddPaymentDialog';
 import { calculateInvoiceStatus } from '@/lib/invoiceUtils';
 import { downloadAsPDF } from '@/lib/pdfUtils';
+import { CreateGuard } from '@/components/guards/ActionGuard';
 
 interface Invoice {
   id: string;
@@ -297,10 +298,12 @@ const InvoiceDetail = () => {
               PDF
             </Button>
             {!isFullyPaid && (
-              <Button size="sm" onClick={() => setPaymentDialogOpen(true)}>
-                <CreditCard className="h-4 w-4 mr-2" />
-                Add Payment
-              </Button>
+              <CreateGuard module="payments">
+                <Button size="sm" onClick={() => setPaymentDialogOpen(true)}>
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Add Payment
+                </Button>
+              </CreateGuard>
             )}
           </div>
         </div>
