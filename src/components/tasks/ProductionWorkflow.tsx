@@ -70,35 +70,12 @@ export function isDelivered(status: WorkflowStatus): boolean {
 /**
  * Validates if a step transition is allowed
  * Rules:
- * - Can click completed steps (view only)
- * - Can click current step (no-op)
- * - Can only move to the NEXT immediate step
- * - Cannot skip steps or jump ahead multiple stages
+ * - Can click any step and jump to it
+ * - No restrictions on step transitions
  */
 export function canTransitionTo(currentStatus: WorkflowStatus, targetStatus: WorkflowStatus): { allowed: boolean; reason?: string } {
-  const currentIndex = getStatusIndex(currentStatus);
-  const targetIndex = getStatusIndex(targetStatus);
-
-  // Same step - always allowed (no-op)
-  if (currentIndex === targetIndex) {
-    return { allowed: true };
-  }
-
-  // Going backwards - allowed (view completed steps)
-  if (targetIndex < currentIndex) {
-    return { allowed: true };
-  }
-
-  // Going to immediate next step - allowed
-  if (targetIndex === currentIndex + 1) {
-    return { allowed: true };
-  }
-
-  // Trying to skip steps
-  return { 
-    allowed: false, 
-    reason: "Please complete previous step first" 
-  };
+  // All transitions are allowed - users can jump to any step
+  return { allowed: true };
 }
 
 interface WorkflowStepperProps {
@@ -207,13 +184,10 @@ export function WorkflowStepper({
                 isCompleted && "bg-success/10 text-success",
                 // Current state
                 isCurrent && "bg-primary text-primary-foreground ring-2 ring-primary/30",
-                // Next step - highlighted as available
-                isNext && isClickable && "bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20",
-                // Future steps (blocked)
-                !isCompleted && !isCurrent && !isNext && "bg-muted/50 text-muted-foreground",
+              // Future steps - clickable
+                !isCompleted && !isCurrent && "bg-muted/50 text-muted-foreground hover:bg-muted",
                 // Interactive states
-                isClickable && canTransition && !isCurrent && "cursor-pointer hover:scale-105 active:scale-95",
-                isClickable && isBlocked && "cursor-not-allowed opacity-60",
+                isClickable && !isCurrent && "cursor-pointer hover:scale-105 active:scale-95",
                 disabled && "cursor-default"
               )}
               title={isBlocked ? 'Complete previous step first' : WORKFLOW_LABELS[status]}
