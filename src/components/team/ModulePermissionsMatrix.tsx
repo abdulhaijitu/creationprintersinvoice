@@ -126,6 +126,7 @@ const ROLE_CONFIG: Record<OrgRole, { color: string; icon: React.ComponentType<{ 
 const MODULE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,
   invoices: FileText,
+  payments: Wallet,
   quotations: FileText,
   price_calculations: Calculator,
   delivery_challans: Truck,
