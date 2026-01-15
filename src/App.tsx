@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import CustomerDetail from "./pages/CustomerDetail";
 import Invoices from "./pages/Invoices";
+import Payments from "./pages/Payments";
 import InvoiceForm from "./pages/InvoiceForm";
 import InvoiceDetail from "./pages/InvoiceDetail";
 import Quotations from "./pages/Quotations";
@@ -73,6 +74,7 @@ const App = () => (
                     <Route path="/invoices/new" element={<InvoiceForm />} />
                     <Route path="/invoices/:id" element={<InvoiceDetail />} />
                     <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
+                    <Route path="/payments" element={<Payments />} />
                     <Route path="/quotations" element={<Quotations />} />
                     <Route path="/quotations/new" element={<QuotationForm />} />
                     <Route path="/quotations/:id" element={<QuotationDetail />} />
