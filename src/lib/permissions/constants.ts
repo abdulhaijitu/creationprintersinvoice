@@ -71,6 +71,7 @@ export type PermissionAction = 'view' | 'manage' | 'create' | 'edit' | 'delete' 
 export type PermissionModule = 
   | 'dashboard' 
   | 'invoices'
+  | 'payments'
   | 'quotations'
   | 'price_calculations'
   | 'delivery_challans'
@@ -93,6 +94,7 @@ export type PermissionModule =
 export const MODULE_DISPLAY: Record<PermissionModule, string> = {
   dashboard: 'Dashboard',
   invoices: 'Invoices',
+  payments: 'Payments',
   quotations: 'Quotations',
   price_calculations: 'Price Calculations',
   delivery_challans: 'Delivery Challans',
@@ -110,7 +112,6 @@ export const MODULE_DISPLAY: Record<PermissionModule, string> = {
   team_members: 'Team Members',
   settings: 'Settings',
   billing: 'Billing',
-  
   analytics: 'Analytics',
 };
 
@@ -131,6 +132,8 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: 'dashboard.view', module: 'dashboard', action: 'view', label: 'View Dashboard', description: 'Access dashboard with widgets based on sub-permissions', category: 'MAIN' },
   { key: 'invoices.view', module: 'invoices', action: 'view', label: 'View Invoices', description: 'View invoice list and details', category: 'MAIN' },
   { key: 'invoices.manage', module: 'invoices', action: 'manage', label: 'Manage Invoices', description: 'Create, edit, and delete invoices', category: 'MAIN' },
+  { key: 'payments.view', module: 'payments', action: 'view', label: 'View Payments', description: 'View payment records', category: 'MAIN' },
+  { key: 'payments.manage', module: 'payments', action: 'manage', label: 'Manage Payments', description: 'Create, edit, and refund payments', category: 'MAIN' },
   { key: 'quotations.view', module: 'quotations', action: 'view', label: 'View Quotations', description: 'View quotation list and details', category: 'MAIN' },
   { key: 'quotations.manage', module: 'quotations', action: 'manage', label: 'Manage Quotations', description: 'Create, edit, and delete quotations', category: 'MAIN' },
   { key: 'price_calculations.view', module: 'price_calculations', action: 'view', label: 'View Price Calculations', description: 'Access price calculation tool', category: 'MAIN' },
@@ -214,6 +217,14 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     delete: ['owner', 'manager'],
     bulk: ['owner', 'manager'],
     import: ['owner', 'manager'],
+    export: ['owner', 'manager'],
+  },
+  payments: {
+    view: ['owner', 'manager', 'accounts', 'sales_staff'],
+    manage: ['owner', 'manager', 'accounts'],
+    create: ['owner', 'manager', 'accounts'],
+    edit: ['owner', 'manager', 'accounts'],
+    delete: ['owner', 'manager'],
     export: ['owner', 'manager'],
   },
   quotations: {

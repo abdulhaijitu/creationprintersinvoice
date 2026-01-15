@@ -32,6 +32,7 @@ import {
   Settings,
   Truck,
   UserCog,
+  CreditCard,
 } from 'lucide-react';
 import { PermissionCategory, ModulePermission, CATEGORY_DISPLAY } from './modulePermissions';
 
@@ -76,6 +77,12 @@ export const mainNavItems: SidebarNavItem[] = [
     url: '/invoices', 
     icon: FileText,
     permissionKey: 'main.invoices',
+  },
+  { 
+    title: 'Payments', 
+    url: '/payments', 
+    icon: CreditCard,
+    permissionKey: 'main.payments',
   },
   { 
     title: 'Quotations', 

@@ -1,0 +1,447 @@
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { format, parseISO, isPast, isToday } from 'date-fns';
+import { usePayments, Payment } from '@/hooks/usePayments';
+import { useActionPermission } from '@/components/guards/ActionGuard';
+import { CreateGuard, EditGuard, DeleteGuard } from '@/components/guards/ActionGuard';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Plus,
+  Search,
+  Eye,
+  Edit,
+  RotateCcw,
+  MoreHorizontal,
+  TrendingUp,
+  Clock,
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  Filter,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { AddPaymentFromListDialog } from '@/components/payments/AddPaymentFromListDialog';
+
+type StatusFilter = 'all' | 'paid' | 'partial' | 'overdue';
+
+const Payments = () => {
+  const navigate = useNavigate();
+  const { payments, stats, loading, refetch } = usePayments();
+  const paymentPerms = useActionPermission('payments');
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [addPaymentOpen, setAddPaymentOpen] = useState(false);
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const formatCurrency = (amount: number) => {
+    return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const getInvoiceStatus = (payment: Payment) => {
+    const invoice = payment.invoice;
+    if (!invoice) return 'unknown';
+
+    const total = Number(invoice.total);
+    const paid = Number(invoice.paid_amount || 0);
+    const due = total - paid;
+
+    if (due <= 0) return 'paid';
+    if (paid > 0) {
+      // Check overdue
+      if (invoice.due_date && isPast(parseISO(invoice.due_date)) && !isToday(parseISO(invoice.due_date))) {
+        return 'overdue';
+      }
+      return 'partial';
+    }
+    if (invoice.due_date && isPast(parseISO(invoice.due_date)) && !isToday(parseISO(invoice.due_date))) {
+      return 'overdue';
+    }
+    return 'unpaid';
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badges: Record<string, JSX.Element> = {
+      paid: (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
+          <CheckCircle className="w-3.5 h-3.5" />
+          Paid
+        </span>
+      ),
+      partial: (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
+          <Clock className="w-3.5 h-3.5" />
+          Partial
+        </span>
+      ),
+      overdue: (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
+          <AlertCircle className="w-3.5 h-3.5" />
+          Overdue
+        </span>
+      ),
+      unpaid: (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+          <Clock className="w-3.5 h-3.5" />
+          Unpaid
+        </span>
+      ),
+      unknown: (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+          Unknown
+        </span>
+      ),
+    };
+    return badges[status] || badges.unknown;
+  };
+
+  const filteredPayments = useMemo(() => {
+    return payments.filter((payment) => {
+      const matchesSearch =
+        payment.invoice?.invoice_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        payment.invoice?.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        payment.reference?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (statusFilter === 'all') return true;
+
+      const status = getInvoiceStatus(payment);
+      return status === statusFilter;
+    });
+  }, [payments, searchQuery, statusFilter]);
+
+  const handleRefund = async () => {
+    if (!selectedPayment) return;
+    setIsProcessing(true);
+
+    try {
+      // Delete the payment
+      const { error } = await supabase
+        .from('invoice_payments')
+        .delete()
+        .eq('id', selectedPayment.id);
+
+      if (error) throw error;
+
+      toast.success('Payment refunded successfully');
+      setRefundDialogOpen(false);
+      setSelectedPayment(null);
+      refetch();
+    } catch (error: any) {
+      console.error('Error processing refund:', error);
+      toast.error(error.message || 'Failed to process refund');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const StatCard = ({
+    title,
+    value,
+    icon: Icon,
+    variant = 'default',
+  }: {
+    title: string;
+    value: string;
+    icon: React.ElementType;
+    variant?: 'default' | 'success' | 'warning' | 'destructive';
+  }) => {
+    const variantStyles = {
+      default: 'text-foreground',
+      success: 'text-success',
+      warning: 'text-warning',
+      destructive: 'text-destructive',
+    };
+
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+          <Icon className={cn('h-4 w-4', variantStyles[variant])} />
+        </CardHeader>
+        <CardContent>
+          <div className={cn('text-2xl font-bold', variantStyles[variant])}>{value}</div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Received (This Month)"
+          value={formatCurrency(stats.totalReceivedThisMonth)}
+          icon={TrendingUp}
+          variant="success"
+        />
+        <StatCard
+          title="Pending Due"
+          value={formatCurrency(stats.pendingDue)}
+          icon={Clock}
+          variant="warning"
+        />
+        <StatCard
+          title="Overdue Amount"
+          value={formatCurrency(stats.overdueAmount)}
+          icon={AlertCircle}
+          variant="destructive"
+        />
+        <StatCard
+          title="Today's Collections"
+          value={formatCurrency(stats.todayCollections)}
+          icon={Calendar}
+        />
+      </div>
+
+      {/* Payments Table */}
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle>Payment Records</CardTitle>
+            <CreateGuard module="payments">
+              <Button onClick={() => setAddPaymentOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Payment
+              </Button>
+            </CreateGuard>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by invoice, customer, or reference..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+              <SelectTrigger className="w-full sm:w-40">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Table */}
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Payment Date</TableHead>
+                  <TableHead>Invoice No</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead className="text-right">Amount Paid</TableHead>
+                  <TableHead className="text-right">Invoice Total</TableHead>
+                  <TableHead className="text-right">Balance Due</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPayments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="h-24 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <Clock className="w-8 h-8 mb-2" />
+                        <p>No payments found</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredPayments.map((payment) => {
+                    const invoice = payment.invoice;
+                    const invoiceTotal = Number(invoice?.total || 0);
+                    const paidAmount = Number(invoice?.paid_amount || 0);
+                    const balanceDue = invoiceTotal - paidAmount;
+                    const status = getInvoiceStatus(payment);
+
+                    return (
+                      <TableRow key={payment.id}>
+                        <TableCell>
+                          {format(parseISO(payment.payment_date), 'dd MMM yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto font-medium"
+                            onClick={() => navigate(`/invoices/${invoice?.id}`)}
+                          >
+                            {invoice?.invoice_number || 'N/A'}
+                          </Button>
+                        </TableCell>
+                        <TableCell>{invoice?.customers?.name || 'N/A'}</TableCell>
+                        <TableCell className="capitalize">
+                          {payment.payment_method || 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-success">
+                          {formatCurrency(Number(payment.amount))}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(invoiceTotal)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className={cn(balanceDue > 0 && 'text-destructive')}>
+                            {formatCurrency(balanceDue)}
+                          </span>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(status)}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => navigate(`/invoices/${invoice?.id}`)}
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Invoice
+                              </DropdownMenuItem>
+                              <EditGuard module="payments">
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    toast.info('Edit payment feature coming soon');
+                                  }}
+                                >
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                              </EditGuard>
+                              <DeleteGuard module="payments">
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => {
+                                    setSelectedPayment(payment);
+                                    setRefundDialogOpen(true);
+                                  }}
+                                >
+                                  <RotateCcw className="w-4 h-4 mr-2" />
+                                  Refund
+                                </DropdownMenuItem>
+                              </DeleteGuard>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Add Payment Dialog */}
+      <AddPaymentFromListDialog
+        open={addPaymentOpen}
+        onOpenChange={setAddPaymentOpen}
+        onPaymentAdded={refetch}
+      />
+
+      {/* Refund Confirmation Dialog */}
+      <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Refund</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to refund this payment of{' '}
+              <strong>{formatCurrency(Number(selectedPayment?.amount || 0))}</strong>? This will
+              update the invoice balance accordingly.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRefund} disabled={isProcessing}>
+              {isProcessing ? 'Processing...' : 'Confirm Refund'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default Payments;
