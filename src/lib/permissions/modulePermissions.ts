@@ -45,6 +45,14 @@ export const MAIN_PERMISSIONS: ModulePermission[] = [
     route: '/invoices',
   },
   {
+    key: 'main.payments',
+    module: 'payments',
+    category: 'main',
+    label: 'Payments',
+    description: 'View and manage payments',
+    route: '/payments',
+  },
+  {
     key: 'main.quotations',
     module: 'quotations',
     category: 'main',
