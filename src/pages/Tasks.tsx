@@ -40,7 +40,9 @@ import {
   WORKFLOW_LABELS,
   getNextStatus,
   isDelivered,
-  type WorkflowStatus 
+  isArchived,
+  type WorkflowStatus,
+  type TaskStatus
 } from "@/components/tasks/ProductionWorkflow";
 import { TaskDetailDrawer } from "@/components/tasks/TaskDetailDrawer";
 import { TaskDueDateBadge, isTaskOverdue } from "@/components/tasks/TaskDueDateBadge";
@@ -173,8 +175,9 @@ const Tasks = () => {
     setDeleteConfirmTask(null);
   };
 
-  const handleAdvanceStatus = async (taskId: string, currentStatus: WorkflowStatus) => {
-    await advanceStatus(taskId, currentStatus);
+  const handleAdvanceStatus = async (taskId: string, currentStatus: TaskStatus) => {
+    if (currentStatus === 'archived') return;
+    await advanceStatus(taskId, currentStatus as WorkflowStatus);
   };
 
   const handleTransitionToStatus = async (taskId: string, currentStatus: WorkflowStatus, targetStatus: WorkflowStatus) => {

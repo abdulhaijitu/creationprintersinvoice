@@ -328,6 +328,8 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     create: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
     edit: ['owner', 'manager', 'employee', 'designer', 'accounts', 'sales_staff'],
     delete: ['owner', 'manager'],
+    bulk: ['owner', 'manager'], // archive permission
+    export: ['owner'], // restore permission (super admin only via isSuperAdmin check)
   },
   reports: {
     view: ['owner', 'manager'],

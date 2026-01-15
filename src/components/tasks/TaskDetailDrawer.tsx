@@ -15,8 +15,10 @@ import {
   ProductionStatusBadge, 
   getNextStatus,
   isDelivered,
+  isArchived,
   WORKFLOW_LABELS,
-  type WorkflowStatus 
+  type WorkflowStatus,
+  type TaskStatus
 } from './ProductionWorkflow';
 import { ReferenceLink } from './ReferenceSelect';
 import { TaskActivityTimeline } from './TaskActivityTimeline';
@@ -32,7 +34,7 @@ interface TaskDetailDrawerProps {
   task: Task | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdvanceStatus: (taskId: string, currentStatus: WorkflowStatus) => void;
+  onAdvanceStatus: (taskId: string, currentStatus: TaskStatus) => void;
   onTransitionToStatus?: (taskId: string, currentStatus: WorkflowStatus, targetStatus: WorkflowStatus) => void;
   canEdit: boolean;
 }
@@ -49,10 +51,13 @@ export function TaskDetailDrawer({
 
   const nextStatus = getNextStatus(task.status);
   const taskIsDelivered = isDelivered(task.status);
+  const taskIsArchived = isArchived(task.status);
+  const taskIsReadOnly = taskIsDelivered || taskIsArchived;
 
   const handleStepClick = (targetStatus: WorkflowStatus) => {
-    if (onTransitionToStatus) {
-      onTransitionToStatus(task.id, task.status, targetStatus);
+    if (taskIsArchived) return;
+    if (onTransitionToStatus && !isArchived(task.status)) {
+      onTransitionToStatus(task.id, task.status as WorkflowStatus, targetStatus);
     }
   };
 

@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgRolePermissions } from '@/hooks/useOrgRolePermissions';
 import { toast } from 'sonner';
-import { WorkflowStatus, WORKFLOW_STATUSES, getNextStatus, isDelivered, canTransitionTo, getStatusIndex } from '@/components/tasks/ProductionWorkflow';
+import { WorkflowStatus, TaskStatus, WORKFLOW_STATUSES, getNextStatus, isDelivered, isArchived, canTransitionTo, getStatusIndex } from '@/components/tasks/ProductionWorkflow';
 import { logTaskActivity, createTaskNotification } from './useTaskActivityLogs';
 import { calculateSlaDeadline, type TaskPriorityLevel } from '@/components/tasks/TaskPriorityBadge';
 
@@ -30,7 +30,7 @@ export interface Task {
   created_by: string | null;
   deadline: string | null;
   priority: TaskPriority;
-  status: WorkflowStatus;
+  status: TaskStatus;
   reference_type: string | null;
   reference_id: string | null;
   completed_at: string | null;
@@ -40,6 +40,8 @@ export interface Task {
   sla_breached: boolean | null;
   visibility: TaskVisibility;
   department: string | null;
+  archived_at: string | null;
+  archived_by: string | null;
   assignee?: { full_name: string } | null;
   creator?: { full_name: string; email: string } | null;
 }
@@ -128,8 +130,8 @@ export function useTasks() {
           const creator = employeesData.find((e) => e.email?.toLowerCase() === user?.email?.toLowerCase());
           
           // Map old statuses to new workflow if needed
-          let status = task.status as WorkflowStatus;
-          if (!WORKFLOW_STATUSES.includes(status as any)) {
+          let status = task.status as TaskStatus;
+          if (!WORKFLOW_STATUSES.includes(status as any) && status !== 'archived') {
             if (task.status === 'todo') status = 'design';
             else if (task.status === 'in_progress') status = 'printing';
             else if (task.status === 'completed') status = 'delivered';
@@ -139,6 +141,8 @@ export function useTasks() {
             status,
             visibility: (task.visibility || 'public') as TaskVisibility,
             department: task.department || null,
+            archived_at: (task as any).archived_at || null,
+            archived_by: (task as any).archived_by || null,
             assignee: assignee ? { full_name: assignee.full_name } : null,
             creator: creator ? { full_name: creator.full_name, email: creator.email || '' } : null,
           };
