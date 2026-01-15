@@ -58,7 +58,7 @@ const Tasks = () => {
   const { isSuperAdmin, user } = useAuth();
   const { hasPermission } = useOrgRolePermissions();
   const isMobile = useIsMobile();
-  const { tasks, employees, loading, advanceStatus, createTask, updateTask, deleteTask } = useTasks();
+  const { tasks, employees, loading, advanceStatus, transitionToStatus, createTask, updateTask, deleteTask } = useTasks();
   
   // Permission checks for ACTIONS (not visibility - all org users can see all tasks)
   const canViewTasks = isSuperAdmin || hasPermission('tasks.view') || hasPermission('tasks.manage');
@@ -175,6 +175,10 @@ const Tasks = () => {
 
   const handleAdvanceStatus = async (taskId: string, currentStatus: WorkflowStatus) => {
     await advanceStatus(taskId, currentStatus);
+  };
+
+  const handleTransitionToStatus = async (taskId: string, currentStatus: WorkflowStatus, targetStatus: WorkflowStatus) => {
+    await transitionToStatus(taskId, currentStatus, targetStatus);
   };
 
   const getPriorityBadge = (priority: TaskPriority) => {
@@ -680,6 +684,7 @@ const Tasks = () => {
         open={!!selectedTask}
         onOpenChange={(open) => !open && setSelectedTask(null)}
         onAdvanceStatus={handleAdvanceStatus}
+        onTransitionToStatus={handleTransitionToStatus}
         canEdit={selectedTask ? canEditTask(selectedTask) : false}
       />
 
