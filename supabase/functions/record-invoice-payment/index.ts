@@ -5,6 +5,78 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/**
+ * Check if a user has a specific permission based on their role.
+ * Checks org-specific override first, then falls back to global role permissions.
+ */
+async function hasPaymentCreatePermission(
+  supabase: any,
+  userId: string,
+  organizationId: string,
+  role: string
+): Promise<boolean> {
+  // Owner always has all permissions
+  if (role === "owner") {
+    return true;
+  }
+
+  const permissionKey = "payments.create";
+
+  // Check org-specific override first
+  const { data: orgOverride, error: orgError } = await supabase
+    .from("org_specific_permissions")
+    .select("is_enabled")
+    .eq("organization_id", organizationId)
+    .eq("role", role)
+    .eq("permission_key", permissionKey)
+    .maybeSingle();
+
+  if (!orgError && orgOverride !== null) {
+    return orgOverride.is_enabled;
+  }
+
+  // Fall back to global role permission
+  const { data: globalPerm, error: globalError } = await supabase
+    .from("org_role_permissions")
+    .select("is_enabled")
+    .eq("role", role)
+    .eq("permission_key", permissionKey)
+    .maybeSingle();
+
+  if (!globalError && globalPerm !== null) {
+    return globalPerm.is_enabled;
+  }
+
+  // Also check 'payments.manage' as a fallback (manage implies create)
+  const manageKey = "payments.manage";
+
+  const { data: orgManageOverride } = await supabase
+    .from("org_specific_permissions")
+    .select("is_enabled")
+    .eq("organization_id", organizationId)
+    .eq("role", role)
+    .eq("permission_key", manageKey)
+    .maybeSingle();
+
+  if (orgManageOverride !== null) {
+    return orgManageOverride.is_enabled;
+  }
+
+  const { data: globalManagePerm } = await supabase
+    .from("org_role_permissions")
+    .select("is_enabled")
+    .eq("role", role)
+    .eq("permission_key", manageKey)
+    .maybeSingle();
+
+  if (globalManagePerm !== null) {
+    return globalManagePerm.is_enabled;
+  }
+
+  // Default: no permission
+  return false;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -77,11 +149,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check role permissions (owner, manager, accounts can record payments)
-    const allowedRoles = ["owner", "manager", "accounts"];
-    if (!allowedRoles.includes(membership.role)) {
+    // Check permission-based access (NOT hardcoded roles)
+    const hasPermission = await hasPaymentCreatePermission(
+      supabase,
+      user.id,
+      invoice.organization_id,
+      membership.role
+    );
+
+    if (!hasPermission) {
       return new Response(
-        JSON.stringify({ error: "You do not have permission to record payments" }),
+        JSON.stringify({ error: "You do not have permission to create payments. Contact your administrator to enable PAYMENT_CREATE permission." }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -160,6 +238,7 @@ Deno.serve(async (req) => {
         reference: reference || null,
         new_paid_amount: newPaidAmount,
         new_status: newStatus,
+        user_role: membership.role,
       },
     });
 
