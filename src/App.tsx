@@ -9,6 +9,7 @@ import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import { PermissionProvider } from "@/contexts/PermissionContext";
 import { CompanySettingsProvider } from "@/contexts/CompanySettingsContext";
 import { createQueryClient } from "@/hooks/useQueryConfig";
+import { PWAUpdateNotifier } from "@/components/pwa/PWAUpdateNotifier";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -50,6 +51,7 @@ const App = () => (
       <TooltipProvider delayDuration={200}>
         <Toaster />
         <Sonner position="bottom-right" closeButton richColors />
+        <PWAUpdateNotifier />
         <BrowserRouter>
           <ImpersonationProvider>
             <OrganizationProvider>

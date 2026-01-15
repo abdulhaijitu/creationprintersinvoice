@@ -30,6 +30,7 @@ const MODULE_NAME_ALIASES: Record<string, string[]> = {
   // Main modules
   'dashboard': ['dashboard'],
   'invoices': ['invoices'],
+  'payments': ['payments'],
   'quotations': ['quotations'],
   'price_calculation': ['price_calculation', 'price_calculations'],
   'challan': ['challan', 'delivery_challans'],
