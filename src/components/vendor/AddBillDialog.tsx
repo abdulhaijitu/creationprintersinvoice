@@ -339,6 +339,7 @@ export function AddBillDialog({ open, onOpenChange, onSave, customers = [] }: Ad
                       </TableCell>
                       <TableCell>
                         <Input
+                          id={`line-desc-${item.id}`}
                           ref={index === lineItems.length - 1 ? newRowRef : undefined}
                           value={item.description}
                           onChange={(e) => updateLineItem(item.id, "description", e.target.value)}
@@ -362,6 +363,21 @@ export function AddBillDialog({ open, onOpenChange, onSave, customers = [] }: Ad
                           type="number"
                           value={item.rate}
                           onChange={(e) => updateLineItem(item.id, "rate", e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key !== "Enter") return;
+                            e.preventDefault();
+
+                            if (index === lineItems.length - 1) {
+                              addLineItem();
+                              return;
+                            }
+
+                            const nextId = lineItems[index + 1]?.id;
+                            const next = nextId
+                              ? (document.getElementById(`line-desc-${nextId}`) as HTMLInputElement | null)
+                              : null;
+                            next?.focus();
+                          }}
                           placeholder="0.00"
                           min="0"
                           step="any"

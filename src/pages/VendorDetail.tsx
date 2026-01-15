@@ -35,6 +35,7 @@ import { ArrowLeft, Plus, Phone, Mail, MapPin, Building2, CreditCard, Edit2, Tra
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { AddBillDialog, type BillFormData } from "@/components/vendor/AddBillDialog";
 
 interface Vendor {
   id: string;
@@ -68,6 +69,12 @@ interface Payment {
   reference_no: string | null;
 }
 
+interface CustomerOption {
+  id: string;
+  name: string;
+  company_name: string | null;
+}
+
 const VendorDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -76,7 +83,9 @@ const VendorDetail = () => {
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAddBillDialogOpen, setIsAddBillDialogOpen] = useState(false);
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
@@ -108,7 +117,7 @@ const VendorDetail = () => {
     if (id) {
       fetchVendorData();
     }
-  }, [id]);
+  }, [id, organization?.id]);
 
   const fetchVendorData = async () => {
     setLoading(true);
@@ -141,11 +150,63 @@ const VendorDetail = () => {
         .order("payment_date", { ascending: false });
 
       setPayments(paymentsData || []);
+
+      // Fetch customers (for "Client's Job" selector in Add Bill form)
+      if (organization?.id) {
+        const { data: customersData, error: customersError } = await supabase
+          .from("customers")
+          .select("id,name,company_name")
+          .eq("organization_id", organization.id)
+          .eq("is_deleted", false)
+          .order("name", { ascending: true });
+
+        if (customersError) {
+          console.warn("Failed to fetch customers:", customersError);
+        } else {
+          setCustomers(customersData || []);
+        }
+      }
     } catch (error) {
       console.error("Error fetching vendor data:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveNewBill = async (billData: BillFormData) => {
+    if (!id) throw new Error("Missing vendor id");
+    if (!organization?.id) throw new Error("Missing organization");
+
+    const selectedCustomer = customers.find((c) => c.id === billData.customerId);
+    const customerLine = selectedCustomer
+      ? `Client: ${selectedCustomer.name}${selectedCustomer.company_name ? ` (${selectedCustomer.company_name})` : ""}`
+      : null;
+
+    const itemsSummary = billData.lineItems
+      .map((li, idx) => {
+        const label = li.description?.trim() ? li.description.trim() : `Item ${idx + 1}`;
+        return `${idx + 1}. ${label} — ${li.quantity} × ${li.rate} = ${li.total}`;
+      })
+      .join("\n");
+
+    const description = [customerLine, itemsSummary].filter(Boolean).join("\n") || null;
+
+    const { error } = await supabase.from("vendor_bills").insert({
+      vendor_id: id,
+      bill_date: format(billData.billDate, "yyyy-MM-dd"),
+      description,
+      amount: billData.amount,
+      discount: billData.discount,
+      net_amount: billData.netPayable,
+      due_date: billData.dueDate ? format(billData.dueDate, "yyyy-MM-dd") : null,
+      status: "unpaid",
+      organization_id: organization.id,
+      reference_no: billData.reference || null,
+    });
+
+    if (error) throw error;
+
+    await fetchVendorData();
   };
 
   const handleAddBill = async (e: React.FormEvent) => {
@@ -512,16 +573,34 @@ const VendorDetail = () => {
 
           {isAdmin && (
             <div className="flex gap-2">
-              <Dialog open={isBillDialogOpen} onOpenChange={(open) => {
-                setIsBillDialogOpen(open);
-                if (!open) resetBillForm();
-              }}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    New Bill
-                  </Button>
-                </DialogTrigger>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAddBillDialogOpen(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                New Bill
+              </Button>
+
+              <AddBillDialog
+                open={isAddBillDialogOpen}
+                onOpenChange={setIsAddBillDialogOpen}
+                onSave={handleSaveNewBill}
+                customers={customers.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  company_name: c.company_name ?? undefined,
+                }))}
+              />
+
+              {/* Keep existing edit-bill dialog intact */}
+              <Dialog
+                open={isBillDialogOpen}
+                onOpenChange={(open) => {
+                  setIsBillDialogOpen(open);
+                  if (!open) resetBillForm();
+                }}
+              >
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>{editingBill ? "Edit Bill" : "Add New Bill"}</DialogTitle>
@@ -607,10 +686,14 @@ const VendorDetail = () => {
                       />
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button type="button" variant="outline" onClick={() => {
-                        setIsBillDialogOpen(false);
-                        resetBillForm();
-                      }}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsBillDialogOpen(false);
+                          resetBillForm();
+                        }}
+                      >
                         Cancel
                       </Button>
                       <Button type="submit">Save</Button>
