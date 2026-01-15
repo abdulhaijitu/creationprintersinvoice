@@ -3,7 +3,9 @@ import { Check, Palette, Grid3X3, Printer, Layers, Scissors, BookOpen, Package, 
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-// Production workflow statuses in order
+import { Archive } from "lucide-react";
+
+// Production workflow statuses in order (excluding archived)
 export const WORKFLOW_STATUSES = [
   'design',
   'plate', 
@@ -15,9 +17,16 @@ export const WORKFLOW_STATUSES = [
   'delivered'
 ] as const;
 
-export type WorkflowStatus = typeof WORKFLOW_STATUSES[number];
+// All possible task statuses including archived
+export const ALL_TASK_STATUSES = [
+  ...WORKFLOW_STATUSES,
+  'archived'
+] as const;
 
-export const WORKFLOW_LABELS: Record<WorkflowStatus, string> = {
+export type WorkflowStatus = typeof WORKFLOW_STATUSES[number];
+export type TaskStatus = typeof ALL_TASK_STATUSES[number];
+
+export const WORKFLOW_LABELS: Record<TaskStatus, string> = {
   design: 'Design',
   plate: 'Plate',
   printing: 'Printing',
@@ -25,10 +34,11 @@ export const WORKFLOW_LABELS: Record<WorkflowStatus, string> = {
   die_cutting: 'Die Cutting',
   binding: 'Binding',
   packaging: 'Packaging',
-  delivered: 'Delivered'
+  delivered: 'Delivered',
+  archived: 'Archived'
 };
 
-export const WORKFLOW_ICONS: Record<WorkflowStatus, React.ComponentType<{ className?: string }>> = {
+export const WORKFLOW_ICONS: Record<TaskStatus, React.ComponentType<{ className?: string }>> = {
   design: Palette,
   plate: Grid3X3,
   printing: Printer,
@@ -36,50 +46,65 @@ export const WORKFLOW_ICONS: Record<WorkflowStatus, React.ComponentType<{ classN
   die_cutting: Scissors,
   binding: BookOpen,
   packaging: Package,
-  delivered: Truck
+  delivered: Truck,
+  archived: Archive
 };
+
+// Check if a task is archived
+export function isArchived(status: TaskStatus): boolean {
+  return status === 'archived';
+}
 
 export function getStatusIndex(status: WorkflowStatus): number {
   return WORKFLOW_STATUSES.indexOf(status);
 }
 
-export function getNextStatus(currentStatus: WorkflowStatus): WorkflowStatus | null {
-  const currentIndex = getStatusIndex(currentStatus);
+export function getNextStatus(currentStatus: TaskStatus): WorkflowStatus | null {
+  // Archived tasks cannot advance
+  if (currentStatus === 'archived') return null;
+  
+  const currentIndex = getStatusIndex(currentStatus as WorkflowStatus);
   if (currentIndex < WORKFLOW_STATUSES.length - 1) {
     return WORKFLOW_STATUSES[currentIndex + 1];
   }
   return null;
 }
 
-export function getPreviousStatus(currentStatus: WorkflowStatus): WorkflowStatus | null {
-  const currentIndex = getStatusIndex(currentStatus);
+export function getPreviousStatus(currentStatus: TaskStatus): WorkflowStatus | null {
+  // Archived tasks don't have previous status
+  if (currentStatus === 'archived') return null;
+  
+  const currentIndex = getStatusIndex(currentStatus as WorkflowStatus);
   if (currentIndex > 0) {
     return WORKFLOW_STATUSES[currentIndex - 1];
   }
   return null;
 }
 
-export function canAdvanceStatus(currentStatus: WorkflowStatus): boolean {
-  return currentStatus !== 'delivered';
+export function canAdvanceStatus(currentStatus: TaskStatus): boolean {
+  return currentStatus !== 'delivered' && currentStatus !== 'archived';
 }
 
-export function isDelivered(status: WorkflowStatus): boolean {
+export function isDelivered(status: TaskStatus): boolean {
   return status === 'delivered';
 }
 
 /**
  * Validates if a step transition is allowed
  * Rules:
- * - Can click any step and jump to it
- * - No restrictions on step transitions
+ * - Can click any step and jump to it (except archived)
+ * - Archived tasks cannot be transitioned
  */
-export function canTransitionTo(currentStatus: WorkflowStatus, targetStatus: WorkflowStatus): { allowed: boolean; reason?: string } {
+export function canTransitionTo(currentStatus: TaskStatus, targetStatus: WorkflowStatus): { allowed: boolean; reason?: string } {
+  if (currentStatus === 'archived') {
+    return { allowed: false, reason: 'Archived tasks cannot be modified' };
+  }
   // All transitions are allowed - users can jump to any step
   return { allowed: true };
 }
 
 interface WorkflowStepperProps {
-  currentStatus: WorkflowStatus;
+  currentStatus: TaskStatus;
   compact?: boolean;
   className?: string;
   interactive?: boolean;
@@ -95,7 +120,10 @@ export function WorkflowStepper({
   onStepClick,
   disabled = false
 }: WorkflowStepperProps) {
-  const currentIndex = getStatusIndex(currentStatus);
+  // For archived tasks, show full progress (all steps completed)
+  const currentIndex = currentStatus === 'archived' 
+    ? WORKFLOW_STATUSES.length 
+    : getStatusIndex(currentStatus as WorkflowStatus);
 
   const handleStepClick = (targetStatus: WorkflowStatus) => {
     if (disabled || !interactive || !onStepClick) return;
@@ -217,21 +245,24 @@ export function WorkflowStepper({
 }
 
 interface StatusBadgeProps {
-  status: WorkflowStatus;
+  status: TaskStatus;
   className?: string;
 }
 
 export function ProductionStatusBadge({ status, className }: StatusBadgeProps) {
   const Icon = WORKFLOW_ICONS[status];
   const isDeliveredStatus = isDelivered(status);
+  const isArchivedStatus = isArchived(status);
 
   return (
     <div
       className={cn(
         "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors duration-200",
-        isDeliveredStatus 
-          ? "bg-success/10 text-success" 
-          : "bg-primary/10 text-primary",
+        isArchivedStatus 
+          ? "bg-muted text-muted-foreground" 
+          : isDeliveredStatus 
+            ? "bg-success/10 text-success" 
+            : "bg-primary/10 text-primary",
         className
       )}
     >
