@@ -104,9 +104,10 @@ const Vendors = () => {
 
       const vendorsWithDues = await Promise.all(
         vendorsData.map(async (vendor) => {
+          // Fetch bills with net_amount (amount - discount) for correct due calculation
           const { data: bills } = await supabase
             .from("vendor_bills")
-            .select("amount")
+            .select("amount, discount, net_amount")
             .eq("vendor_id", vendor.id)
             .eq("organization_id", organization.id);
 
@@ -116,14 +117,18 @@ const Vendors = () => {
             .eq("vendor_id", vendor.id)
             .eq("organization_id", organization.id);
 
-          const totalBills = bills?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
+          // Use net_amount (after discount) for due calculation, fallback to amount - discount
+          const totalNetBills = bills?.reduce((sum, b) => {
+            const netAmount = b.net_amount ?? (Number(b.amount) - Number(b.discount || 0));
+            return sum + netAmount;
+          }, 0) || 0;
           const totalPaid = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
 
           return {
             ...vendor,
-            total_bills: totalBills,
+            total_bills: totalNetBills,
             total_paid: totalPaid,
-            due_amount: totalBills - totalPaid,
+            due_amount: totalNetBills - totalPaid,
           };
         })
       );
