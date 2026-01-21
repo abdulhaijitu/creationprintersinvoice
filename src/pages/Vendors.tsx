@@ -515,8 +515,8 @@ const Vendors = () => {
         </div>
       </div>
 
-      {/* Summary Cards - Responsive Grid */}
-      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
+      {/* Summary Cards - 2-col tablet, 3-col desktop */}
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
             <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">

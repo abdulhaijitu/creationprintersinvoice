@@ -233,7 +233,7 @@ const Payments = () => {
 
   return (
     <div className="space-y-4 md:space-y-6 w-full min-w-0">
-      {/* Stats Cards - Responsive Grid */}
+      {/* Stats Cards - 2-col tablet, 4-col desktop */}
       <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Received (This Month)"
@@ -274,8 +274,8 @@ const Payments = () => {
           </div>
         </CardHeader>
         <CardContent className="p-3 md:p-6">
-          {/* Filters - Responsive Grid */}
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto] mb-4">
+          {/* Filters - 2-col tablet grid */}
+          <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_auto] mb-4">
             <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input

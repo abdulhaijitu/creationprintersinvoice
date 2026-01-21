@@ -519,8 +519,8 @@ const Invoices = () => {
           </p>
         </div>
 
-        {/* Stats Cards - Responsive Grid */}
-        <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        {/* Stats Cards - 2-col tablet, 5-col desktop */}
+        <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
           <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</p>
             <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{totalInvoices}</p>
@@ -543,9 +543,9 @@ const Invoices = () => {
           </div>
         </div>
 
-        {/* Controls */}
+        {/* Controls - responsive grid for tablet */}
         <div className="bg-card rounded-xl shadow-sm border border-border/50">
-          <div className="p-3 md:p-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto]">
+          <div className="p-3 md:p-4 grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_auto_auto]">
             {/* Search */}
             <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -559,7 +559,7 @@ const Invoices = () => {
 
             {/* Filter */}
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-              <SelectTrigger className="w-full sm:w-[140px] bg-background/50 border-border/50 h-10">
+              <SelectTrigger className="w-full lg:w-[140px] bg-background/50 border-border/50 h-10">
                 <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Filter" />
               </SelectTrigger>

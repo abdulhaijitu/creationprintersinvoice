@@ -459,7 +459,7 @@ const Tasks = () => {
         }
       />
 
-      {/* Summary Cards */}
+      {/* Summary Cards - 2-col tablet, 4-col desktop */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
@@ -526,20 +526,20 @@ const Tasks = () => {
           </TabsList>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1 max-w-md">
+        {/* Filters - responsive grid for tablet */}
+        <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:flex lg:flex-row">
+          <div className="relative flex-1 min-w-0 lg:max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder={activeTab === "active" ? "Search tasks..." : "Search archived tasks..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 w-full"
             />
           </div>
           {activeTab === "active" && (
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger className="w-full lg:w-[180px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>

@@ -712,8 +712,8 @@ const Attendance = () => {
         )}
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Summary Cards - 2-col tablet, 4-col desktop */}
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -760,8 +760,8 @@ const Attendance = () => {
         </Card>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      {/* Filters - responsive grid for tablet */}
+      <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:flex lg:flex-row lg:gap-4">
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <Input

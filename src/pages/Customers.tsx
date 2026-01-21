@@ -473,9 +473,9 @@ const Customers = () => {
           </div>
         </div>
 
-        {/* Controls */}
+        {/* Controls - responsive grid for tablet */}
         <div className="bg-card rounded-xl shadow-sm border border-border/50">
-          <div className="p-3 md:p-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto]">
+          <div className="p-3 md:p-4 grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_auto]">
             {/* Search */}
             <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
