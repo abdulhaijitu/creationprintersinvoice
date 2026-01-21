@@ -32,12 +32,14 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Plus, Phone, Mail, MapPin, Building2, CreditCard, Edit2, Trash2, Wallet } from "lucide-react";
+import { ArrowLeft, Plus, Phone, Mail, MapPin, Building2, CreditCard, Edit2, Trash2, Wallet, History } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { AddBillDialog, type BillFormData } from "@/components/vendor/AddBillDialog";
 import { PayVendorBillDialog } from "@/components/vendor/PayVendorBillDialog";
+import { BillPaymentHistoryDialog } from "@/components/vendor/BillPaymentHistoryDialog";
+import { VendorPaymentReceipt } from "@/components/vendor/VendorPaymentReceipt";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Vendor {
@@ -94,9 +96,15 @@ const VendorDetail = () => {
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isPayBillDialogOpen, setIsPayBillDialogOpen] = useState(false);
+  const [isPaymentHistoryDialogOpen, setIsPaymentHistoryDialogOpen] = useState(false);
   const [selectedBillForPayment, setSelectedBillForPayment] = useState<Bill | null>(null);
+  const [selectedBillForHistory, setSelectedBillForHistory] = useState<Bill | null>(null);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  
+  // Receipt printing state
+  const [receiptPayment, setReceiptPayment] = useState<Payment | null>(null);
+  const [receiptBill, setReceiptBill] = useState<Bill | null>(null);
   
   // Permission check for vendor bill pay
   const canPayBill = isAdmin || hasPermission('vendor_bill_pay.create');
@@ -961,6 +969,24 @@ const VendorDetail = () => {
                         <TableCell>{getStatusBadge(bill.status)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            {/* Payment History Button - show if bill has any payments */}
+                            {billPaid > 0 && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => {
+                                      setSelectedBillForHistory(bill);
+                                      setIsPaymentHistoryDialogOpen(true);
+                                    }}
+                                  >
+                                    <History className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Payment History</TooltipContent>
+                              </Tooltip>
+                            )}
                             {/* Pay Bill Button - show if user has permission and bill not fully paid */}
                             {canPayBill && !isPaid && (
                               <Tooltip>
@@ -1090,6 +1116,37 @@ const VendorDetail = () => {
           vendor={vendor}
           organizationId={organization?.id || ""}
           onPaymentComplete={fetchVendorData}
+        />
+      )}
+
+      {/* Bill Payment History Dialog */}
+      {selectedBillForHistory && vendor && (
+        <BillPaymentHistoryDialog
+          open={isPaymentHistoryDialogOpen}
+          onOpenChange={(open) => {
+            setIsPaymentHistoryDialogOpen(open);
+            if (!open) setSelectedBillForHistory(null);
+          }}
+          bill={selectedBillForHistory}
+          vendor={vendor}
+          onPrintReceipt={(payment) => {
+            // Ensure bill_id is set for the receipt
+            setReceiptPayment({ ...payment, bill_id: payment.bill_id ?? selectedBillForHistory.id });
+            setReceiptBill(selectedBillForHistory);
+          }}
+        />
+      )}
+
+      {/* Payment Receipt Print */}
+      {receiptPayment && receiptBill && vendor && (
+        <VendorPaymentReceipt
+          payment={receiptPayment}
+          bill={receiptBill}
+          vendor={vendor}
+          onClose={() => {
+            setReceiptPayment(null);
+            setReceiptBill(null);
+          }}
         />
       )}
     </div>
