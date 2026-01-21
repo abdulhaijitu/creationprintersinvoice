@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrganization } from "@/contexts/OrganizationContext";
+import { useOrgRolePermissions } from "@/hooks/useOrgRolePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,11 +32,13 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Plus, Phone, Mail, MapPin, Building2, CreditCard, Edit2, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Phone, Mail, MapPin, Building2, CreditCard, Edit2, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { AddBillDialog, type BillFormData } from "@/components/vendor/AddBillDialog";
+import { PayVendorBillDialog } from "@/components/vendor/PayVendorBillDialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Vendor {
   id: string;
@@ -54,6 +57,7 @@ interface Bill {
   amount: number;
   discount: number;
   net_amount: number;
+  paid_amount: number;
   due_date: string | null;
   status: string;
   reference_no: string | null;
@@ -80,6 +84,7 @@ const VendorDetail = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { organization } = useOrganization();
+  const { hasPermission } = useOrgRolePermissions();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -88,8 +93,13 @@ const VendorDetail = () => {
   const [isAddBillDialogOpen, setIsAddBillDialogOpen] = useState(false);
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isPayBillDialogOpen, setIsPayBillDialogOpen] = useState(false);
+  const [selectedBillForPayment, setSelectedBillForPayment] = useState<Bill | null>(null);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  
+  // Permission check for vendor bill pay
+  const canPayBill = isAdmin || hasPermission('vendor_bill_pay.create');
 
   const [billForm, setBillForm] = useState({
     bill_date: format(new Date(), "yyyy-MM-dd"),
@@ -909,67 +919,91 @@ const VendorDetail = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">Discount</TableHead>
+                  <TableHead>Ref#</TableHead>
                   <TableHead className="text-right">Net Amount</TableHead>
+                  <TableHead className="text-right">Paid</TableHead>
+                  <TableHead className="text-right">Due</TableHead>
                   <TableHead>Status</TableHead>
-                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {bills.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No bills
                     </TableCell>
                   </TableRow>
                 ) : (
-                  bills.map((bill) => (
-                    <TableRow key={bill.id}>
-                      <TableCell>
-                        {format(new Date(bill.bill_date), "dd MMM yyyy")}
-                      </TableCell>
-                      <TableCell>{bill.description || "-"}</TableCell>
-                      <TableCell>
-                        {bill.due_date
-                          ? format(new Date(bill.due_date), "dd MMM yyyy")
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(bill.amount)}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {bill.discount > 0 ? formatCurrency(bill.discount) : "-"}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(bill.net_amount ?? bill.amount)}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(bill.status)}</TableCell>
-                      {isAdmin && (
+                  bills.map((bill) => {
+                    const billNet = bill.net_amount ?? bill.amount;
+                    const billPaid = bill.paid_amount ?? 0;
+                    const billDue = Math.max(0, billNet - billPaid);
+                    const isPaid = bill.status === 'paid';
+                    
+                    return (
+                      <TableRow key={bill.id}>
+                        <TableCell>
+                          {format(new Date(bill.bill_date), "dd MMM yyyy")}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {bill.reference_no || "-"}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(billNet)}
+                        </TableCell>
+                        <TableCell className="text-right text-success">
+                          {billPaid > 0 ? formatCurrency(billPaid) : "-"}
+                        </TableCell>
+                        <TableCell className={`text-right font-medium ${billDue > 0 ? 'text-destructive' : 'text-success'}`}>
+                          {formatCurrency(billDue)}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(bill.status)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditBillDialog(bill)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteBill(bill.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {/* Pay Bill Button - show if user has permission and bill not fully paid */}
+                            {canPayBill && !isPaid && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="text-success hover:text-success hover:bg-success/10"
+                                    onClick={() => {
+                                      setSelectedBillForPayment(bill);
+                                      setIsPayBillDialogOpen(true);
+                                    }}
+                                  >
+                                    <Wallet className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Pay Bill</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {isAdmin && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditBillDialog(bill)}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteBill(bill.id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
-                      )}
-                    </TableRow>
-                  ))
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -1043,6 +1077,21 @@ const VendorDetail = () => {
           </div>
         </TabsContent>
       </Tabs>
+      
+      {/* Pay Vendor Bill Dialog */}
+      {selectedBillForPayment && vendor && (
+        <PayVendorBillDialog
+          open={isPayBillDialogOpen}
+          onOpenChange={(open) => {
+            setIsPayBillDialogOpen(open);
+            if (!open) setSelectedBillForPayment(null);
+          }}
+          bill={selectedBillForPayment}
+          vendor={vendor}
+          organizationId={organization?.id || ""}
+          onPaymentComplete={fetchVendorData}
+        />
+      )}
     </div>
   );
 };
