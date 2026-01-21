@@ -1176,18 +1176,18 @@ const Expenses = () => {
             )}
           </div>
 
-          {/* Vendors Table - Polished */}
-          <div className="border border-border/60 rounded-lg overflow-hidden shadow-sm overflow-x-auto">
-            <div className="min-w-[700px]">
+          {/* Desktop/Tablet: Vendors Table */}
+          <div className="hidden md:block border border-border/60 rounded-lg overflow-hidden shadow-sm overflow-x-auto">
+            <div className="min-w-[800px]">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="font-semibold h-12">Name</TableHead>
-                  <TableHead className="font-semibold h-12">Contact</TableHead>
-                  <TableHead className="font-semibold h-12 text-right">Total Bills</TableHead>
-                  <TableHead className="font-semibold h-12 text-right">Paid</TableHead>
-                  <TableHead className="font-semibold h-12 text-right">Due</TableHead>
-                  <TableHead className="font-semibold h-12 text-center">Actions</TableHead>
+                  <TableHead className="font-semibold h-12 sticky left-0 z-10 bg-muted/40 whitespace-nowrap">Name</TableHead>
+                  <TableHead className="font-semibold h-12 whitespace-nowrap">Contact</TableHead>
+                  <TableHead className="font-semibold h-12 text-right whitespace-nowrap">Total Bills</TableHead>
+                  <TableHead className="font-semibold h-12 text-right whitespace-nowrap hidden lg:table-cell">Paid</TableHead>
+                  <TableHead className="font-semibold h-12 text-right whitespace-nowrap">Due</TableHead>
+                  <TableHead className="font-semibold h-12 text-center whitespace-nowrap">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1217,7 +1217,7 @@ const Expenses = () => {
                 ) : (
                   filteredVendors.map((vendor) => (
                     <TableRow key={vendor.id} className="hover:bg-muted/30 transition-colors duration-150">
-                      <TableCell className="py-4">
+                      <TableCell className="py-4 sticky left-0 z-10 bg-card whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/60">
                             <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -1232,7 +1232,7 @@ const Expenses = () => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="py-4">
+                      <TableCell className="py-4 whitespace-nowrap">
                         <div className="space-y-1">
                           {vendor.phone && (
                             <div className="flex items-center gap-2 text-sm">
@@ -1243,96 +1243,57 @@ const Expenses = () => {
                           {vendor.email && (
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Mail className="h-3.5 w-3.5" />
-                              <span>{vendor.email}</span>
+                              <span className="truncate max-w-[150px]">{vendor.email}</span>
                             </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="py-4 text-right font-medium tabular-nums">
+                      <TableCell className="py-4 text-right font-medium tabular-nums whitespace-nowrap">
                         {formatCurrency(vendor.total_bills || 0)}
                       </TableCell>
-                      <TableCell className="py-4 text-right font-medium text-green-600 dark:text-green-400 tabular-nums">
+                      <TableCell className="py-4 text-right font-medium text-green-600 dark:text-green-400 tabular-nums whitespace-nowrap hidden lg:table-cell">
                         {formatCurrency(vendor.total_paid || 0)}
                       </TableCell>
-                      <TableCell className="py-4 text-right">
+                      <TableCell className="py-4 text-right whitespace-nowrap">
                         {(vendor.due_amount || 0) > 0 ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 tabular-nums">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-destructive/10 text-destructive tabular-nums">
                             {formatCurrency(vendor.due_amount || 0)}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-success/10 text-success">
                             Paid
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="py-4">
+                      <TableCell className="py-4 whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200"
-                                onClick={() => navigate(`/vendors/${vendor.id}`)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>View details</TooltipContent>
-                          </Tooltip>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => navigate(`/vendors/${vendor.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           {canEditVendors && (
-                            <>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200"
-                                    onClick={() => openEditVendorDialog(vendor)}
-                                  >
-                                    <Edit2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Edit</TooltipContent>
-                              </Tooltip>
-                              {canDeleteVendors && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
-                                      onClick={() => handleDeleteVendor(vendor.id)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Delete</TooltipContent>
-                                </Tooltip>
-                              )}
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="outline" size="sm" className="h-8 px-2.5 border-muted/60 hover:bg-muted/50 transition-all duration-200">
-                                    <Plus className="h-3.5 w-3.5 mr-1" />
-                                    <span className="text-xs">Add</span>
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => openVendorBillDialog(vendor.id)}>
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    Add Bill
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => openVendorPaymentDialog(vendor.id)}>
-                                    <CreditCard className="h-4 w-4 mr-2" />
-                                    Make Payment
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => openVendorExpenseDialog(vendor.id)}>
-                                    <Receipt className="h-4 w-4 mr-2" />
-                                    Daily Expense
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openEditVendorDialog(vendor)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDeleteVendors && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteVendor(vendor.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           )}
                         </div>
                       </TableCell>
@@ -1342,6 +1303,111 @@ const Expenses = () => {
               </TableBody>
             </Table>
             </div>
+          </div>
+
+          {/* Mobile: Vendor Card Layout */}
+          <div className="block md:hidden space-y-3">
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            ) : filteredVendors.length === 0 ? (
+              <EmptyState
+                icon={Building2}
+                title="No vendors found"
+                description={vendorSearchTerm 
+                  ? "Try adjusting your search criteria" 
+                  : "Add your first vendor to start tracking purchases"}
+                action={canCreateVendors && !vendorSearchTerm ? {
+                  label: "Add Vendor",
+                  onClick: () => setIsVendorDialogOpen(true),
+                  icon: Plus,
+                } : undefined}
+              />
+            ) : (
+              filteredVendors.map((vendor) => (
+                <div
+                  key={vendor.id}
+                  className="bg-card border rounded-lg p-4 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="font-semibold text-sm truncate">{vendor.name}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
+                        {vendor.phone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            {vendor.phone}
+                          </span>
+                        )}
+                        {vendor.email && (
+                          <span className="flex items-center gap-1 truncate max-w-[150px]">
+                            <Mail className="h-3 w-3" />
+                            {vendor.email}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => navigate(`/vendors/${vendor.id}`)}
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm pt-2 border-t">
+                    <div>
+                      <span className="text-muted-foreground">Bills: </span>
+                      <span className="font-medium">{formatCurrency(vendor.total_bills || 0)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Paid: </span>
+                      <span className="font-medium text-success">{formatCurrency(vendor.total_paid || 0)}</span>
+                    </div>
+                    {(vendor.due_amount || 0) > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Due: </span>
+                        <span className="font-medium text-destructive">{formatCurrency(vendor.due_amount || 0)}</span>
+                      </div>
+                    )}
+                  </div>
+                  {(canEditVendors || canDeleteVendors) && (
+                    <div className="flex items-center gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => navigate(`/vendors/${vendor.id}`)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </Button>
+                      {canEditVendors && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditVendorDialog(vendor)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDeleteVendors && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteVendor(vendor.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </TabsContent>
 
@@ -1563,19 +1629,19 @@ const Expenses = () => {
               </Dialog>
           </div>
 
-          {/* Expenses Table */}
-          <div className="border rounded-lg overflow-x-auto">
-            <div className="min-w-[700px]">
+          {/* Desktop/Tablet: Expenses Table */}
+          <div className="hidden md:block border rounded-lg overflow-x-auto">
+            <div className="min-w-[800px]">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  {(canEditExpenses || canDeleteExpenses) && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead className="sticky left-0 z-10 bg-card whitespace-nowrap">Date</TableHead>
+                  <TableHead className="whitespace-nowrap">Description</TableHead>
+                  <TableHead className="whitespace-nowrap hidden lg:table-cell">Vendor</TableHead>
+                  <TableHead className="whitespace-nowrap">Category</TableHead>
+                  <TableHead className="whitespace-nowrap hidden lg:table-cell">Payment</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Amount</TableHead>
+                  {(canEditExpenses || canDeleteExpenses) && <TableHead className="text-right whitespace-nowrap">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1605,32 +1671,32 @@ const Expenses = () => {
                 ) : (
                   filteredExpenses.map((expense) => (
                     <TableRow key={expense.id}>
-                      <TableCell>
+                      <TableCell className="sticky left-0 z-10 bg-card whitespace-nowrap">
                         {format(new Date(expense.date), "dd MMM yyyy")}
                       </TableCell>
-                      <TableCell className="max-w-[200px] truncate">
+                      <TableCell className="max-w-[200px] truncate whitespace-nowrap">
                         {expense.description}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden lg:table-cell whitespace-nowrap">
                         {expense.vendor?.name ? (
                           <Badge variant="outline">{expense.vendor.name}</Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">
                         {expense.category?.name ? (
                           <Badge variant="secondary">{expense.category.name}</Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>{getPaymentMethodBadge(expense.payment_method || "cash")}</TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="hidden lg:table-cell whitespace-nowrap">{getPaymentMethodBadge(expense.payment_method || "cash")}</TableCell>
+                      <TableCell className="text-right font-medium whitespace-nowrap">
                         {formatCurrency(expense.amount)}
                       </TableCell>
                       {(canEditExpenses || canDeleteExpenses) && (
-                        <TableCell className="text-right">
+                        <TableCell className="text-right whitespace-nowrap">
                           <div className="flex justify-end gap-1">
                             <Button
                               variant="ghost"
@@ -1656,6 +1722,87 @@ const Expenses = () => {
               </TableBody>
             </Table>
             </div>
+          </div>
+
+          {/* Mobile: Expense Card Layout */}
+          <div className="block md:hidden space-y-3">
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            ) : filteredExpenses.length === 0 ? (
+              <EmptyState
+                illustration="expense"
+                title="No expenses found"
+                description={searchTerm || filterCategory !== "all" || filterVendor !== "all" 
+                  ? "Try adjusting your search or filter criteria" 
+                  : "Record your first expense to start tracking"}
+                action={canCreateExpenses && !searchTerm && filterCategory === "all" && filterVendor === "all" ? {
+                  label: "Add Expense",
+                  onClick: () => setIsExpenseDialogOpen(true),
+                  icon: Plus,
+                } : undefined}
+              />
+            ) : (
+              filteredExpenses.map((expense) => (
+                <div
+                  key={expense.id}
+                  className="bg-card border rounded-lg p-4 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm line-clamp-2">
+                        {expense.description}
+                      </p>
+                      <p className="text-lg font-semibold text-destructive mt-1">
+                        {formatCurrency(expense.amount)}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                        <span>{format(new Date(expense.date), 'dd MMM yyyy')}</span>
+                        {expense.payment_method && (
+                          <span className="capitalize">• {expense.payment_method}</span>
+                        )}
+                      </div>
+                    </div>
+                    {(canEditExpenses || canDeleteExpenses) && (
+                      <div className="flex items-center gap-1">
+                        {canEditExpenses && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditExpenseDialog(expense)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDeleteExpenses && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteExpense(expense.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+                    {expense.category && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Tag className="w-3 h-3 mr-1" />
+                        {expense.category.name}
+                      </Badge>
+                    )}
+                    {expense.vendor && (
+                      <Badge variant="outline" className="text-xs">
+                        <Building2 className="w-3 h-3 mr-1" />
+                        {expense.vendor.name}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </TabsContent>
 

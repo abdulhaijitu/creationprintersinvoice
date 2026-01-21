@@ -664,168 +664,240 @@ const Invoices = () => {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto -mx-3 md:mx-0">
-                <div className="min-w-[800px]">
-                  <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/30 hover:bg-muted/30">
-                      <TableHead className="w-[40px] sticky top-0 bg-muted/30">
-                        <Checkbox
-                          checked={isAllSelected}
-                          onCheckedChange={toggleAll}
-                          aria-label="Select all"
-                          className={isSomeSelected ? 'data-[state=checked]:bg-primary' : ''}
-                        />
-                      </TableHead>
-                      <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
-                        Invoice No
-                      </TableHead>
-                      <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
-                        Customer
-                      </TableHead>
-                      <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
-                        Date
-                      </TableHead>
-                      <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap">
-                        Total
-                      </TableHead>
-                      <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap">
-                        Paid
-                      </TableHead>
-                      <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap">
-                        Due
-                      </TableHead>
-                      <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
-                        Status
-                      </TableHead>
-                      <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap w-[100px]">
-                        Action
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInvoices.map((invoice, index) => {
-                      const statusInfo = getInvoiceStatusInfo(invoice);
-                      const displayStatus = statusInfo.displayStatus;
-                      const dueAmount = statusInfo.dueAmount;
-                      return (
-                        <TableRow 
-                          key={invoice.id}
-                          className={`
-                            transition-colors duration-150 cursor-pointer
-                            ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
-                            ${displayStatus === 'overdue' ? 'bg-destructive/5' : ''}
-                            hover:bg-primary/5
-                          `}
-                          onClick={() => navigate(`/invoices/${invoice.id}`)}
-                        >
-                          <TableCell onClick={(e) => e.stopPropagation()}>
+              <>
+                {/* Desktop/Tablet: Table with horizontal scroll */}
+                <div className="hidden md:block overflow-x-auto">
+                  <div className="min-w-[900px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <TableHead className="w-[40px] sticky left-0 z-10 bg-muted/30">
+                            <Checkbox
+                              checked={isAllSelected}
+                              onCheckedChange={toggleAll}
+                              aria-label="Select all"
+                              className={isSomeSelected ? 'data-[state=checked]:bg-primary' : ''}
+                            />
+                          </TableHead>
+                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky left-[40px] z-10 bg-muted/30 whitespace-nowrap">
+                            Invoice No
+                          </TableHead>
+                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                            Customer
+                          </TableHead>
+                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                            Date
+                          </TableHead>
+                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right whitespace-nowrap">
+                            Total
+                          </TableHead>
+                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right whitespace-nowrap hidden lg:table-cell">
+                            Paid
+                          </TableHead>
+                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right whitespace-nowrap">
+                            Due
+                          </TableHead>
+                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                            Status
+                          </TableHead>
+                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right whitespace-nowrap w-[100px]">
+                            Action
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredInvoices.map((invoice, index) => {
+                          const statusInfo = getInvoiceStatusInfo(invoice);
+                          const displayStatus = statusInfo.displayStatus;
+                          const dueAmount = statusInfo.dueAmount;
+                          return (
+                            <TableRow 
+                              key={invoice.id}
+                              className={`
+                                transition-colors duration-150 cursor-pointer
+                                ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
+                                ${displayStatus === 'overdue' ? 'bg-destructive/5' : ''}
+                                hover:bg-primary/5
+                              `}
+                              onClick={() => navigate(`/invoices/${invoice.id}`)}
+                            >
+                              <TableCell className="sticky left-0 z-10 bg-card" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  checked={isSelected(invoice.id)}
+                                  onCheckedChange={() => toggleItem(invoice.id)}
+                                  aria-label={`Select ${invoice.invoice_number}`}
+                                />
+                              </TableCell>
+                              <TableCell className="font-semibold text-foreground whitespace-nowrap sticky left-[40px] z-10 bg-card">
+                                {invoice.invoice_number}
+                              </TableCell>
+                              <TableCell className="text-foreground whitespace-nowrap truncate max-w-[150px]">
+                                {invoice.customers?.name || '—'}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground whitespace-nowrap">
+                                {format(new Date(invoice.invoice_date), 'dd MMM yyyy')}
+                              </TableCell>
+                              <TableCell className="text-right font-medium text-foreground whitespace-nowrap tabular-nums">
+                                {formatCurrency(Number(invoice.total))}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground whitespace-nowrap tabular-nums hidden lg:table-cell">
+                                {formatCurrency(Number(invoice.paid_amount))}
+                              </TableCell>
+                              <TableCell className={`text-right font-medium whitespace-nowrap tabular-nums ${dueAmount > 0 ? 'text-destructive' : 'text-success'}`}>
+                                {formatCurrency(dueAmount)}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                {getStatusBadge(invoice)}
+                              </TableCell>
+                              <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-end gap-1">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                        onClick={() => navigate(`/invoices/${invoice.id}`)}
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>View Invoice</TooltipContent>
+                                  </Tooltip>
+
+                                  {/* Delete button - only if user has delete permission */}
+                                  {invoicePerms.canDelete && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                          onClick={() => handleDelete(invoice.id)}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Delete Invoice</TooltipContent>
+                                    </Tooltip>
+                                  )}
+
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                      >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                      <DropdownMenuItem onClick={() => navigate(`/invoices/${invoice.id}`)}>
+                                        <Eye className="h-4 w-4 mr-2" />
+                                        View Details
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem 
+                                        onClick={() => handleExport('csv')}
+                                        className="text-muted-foreground"
+                                      >
+                                        <Download className="h-4 w-4 mr-2" />
+                                        Export
+                                      </DropdownMenuItem>
+                                      {invoicePerms.canDelete && (
+                                        <>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem 
+                                            onClick={() => handleDelete(invoice.id)}
+                                            className="text-destructive focus:text-destructive"
+                                          >
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            Delete
+                                          </DropdownMenuItem>
+                                        </>
+                                      )}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                {/* Mobile: Card layout */}
+                <div className="block md:hidden p-3 space-y-3">
+                  {filteredInvoices.map((invoice) => {
+                    const statusInfo = getInvoiceStatusInfo(invoice);
+                    return (
+                      <div
+                        key={invoice.id}
+                        className="bg-card border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => navigate(`/invoices/${invoice.id}`)}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-sm">{invoice.invoice_number}</span>
+                              {getStatusBadge(invoice)}
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate mt-1">
+                              {invoice.customers?.name || 'No Customer'}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {format(new Date(invoice.invoice_date), 'dd MMM yyyy')}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                             <Checkbox
                               checked={isSelected(invoice.id)}
                               onCheckedChange={() => toggleItem(invoice.id)}
                               aria-label={`Select ${invoice.invoice_number}`}
                             />
-                          </TableCell>
-                          <TableCell className="font-semibold text-foreground whitespace-nowrap">
-                            {invoice.invoice_number}
-                          </TableCell>
-                          <TableCell className="text-foreground whitespace-nowrap">
-                            {invoice.customers?.name || '—'}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground whitespace-nowrap">
-                            {format(new Date(invoice.invoice_date), 'dd MMM yyyy')}
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-foreground whitespace-nowrap tabular-nums">
-                            {formatCurrency(Number(invoice.total))}
-                          </TableCell>
-                          <TableCell className="text-right text-muted-foreground whitespace-nowrap tabular-nums">
-                            {formatCurrency(Number(invoice.paid_amount))}
-                          </TableCell>
-                          <TableCell className={`text-right font-medium whitespace-nowrap tabular-nums ${dueAmount > 0 ? 'text-destructive' : 'text-success'}`}>
-                            {formatCurrency(dueAmount)}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                            {getStatusBadge(invoice)}
-                          </TableCell>
-                          <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-1">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                    onClick={() => navigate(`/invoices/${invoice.id}`)}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>View Invoice</TooltipContent>
-                              </Tooltip>
-
-                              {/* Delete button - only if user has delete permission */}
-                              {invoicePerms.canDelete && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                      onClick={() => handleDelete(invoice.id)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Delete Invoice</TooltipContent>
-                                </Tooltip>
-                              )}
-
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                  >
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
-                                  <DropdownMenuItem onClick={() => navigate(`/invoices/${invoice.id}`)}>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Details
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
-                                    onClick={() => handleExport('csv')}
-                                    className="text-muted-foreground"
-                                  >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Export
-                                  </DropdownMenuItem>
-                                  {invoicePerms.canDelete && (
-                                    <>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem 
-                                        onClick={() => handleDelete(invoice.id)}
-                                        className="text-destructive focus:text-destructive"
-                                      >
-                                        <Trash2 className="h-4 w-4 mr-2" />
-                                        Delete
-                                      </DropdownMenuItem>
-                                    </>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm pt-2 border-t">
+                          <div>
+                            <span className="text-muted-foreground">Total: </span>
+                            <span className="font-medium">{formatCurrency(Number(invoice.total))}</span>
+                          </div>
+                          {statusInfo.dueAmount > 0 && (
+                            <div>
+                              <span className="text-muted-foreground">Due: </span>
+                              <span className="font-medium text-destructive">{formatCurrency(statusInfo.dueAmount)}</span>
                             </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => navigate(`/invoices/${invoice.id}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                          {invoicePerms.canDelete && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(invoice.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
+              </>
             )}
           </div>
 
