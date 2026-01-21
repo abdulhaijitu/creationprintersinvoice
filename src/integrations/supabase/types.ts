@@ -4361,6 +4361,7 @@ export type Database = {
           id: string
           net_amount: number
           organization_id: string | null
+          paid_amount: number
           reference_no: string | null
           status: string | null
           updated_at: string
@@ -4376,6 +4377,7 @@ export type Database = {
           id?: string
           net_amount: number
           organization_id?: string | null
+          paid_amount?: number
           reference_no?: string | null
           status?: string | null
           updated_at?: string
@@ -4391,6 +4393,7 @@ export type Database = {
           id?: string
           net_amount?: number
           organization_id?: string | null
+          paid_amount?: number
           reference_no?: string | null
           status?: string | null
           updated_at?: string
