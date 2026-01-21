@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
+import { CalendarWithJumps } from "@/components/ui/calendar-with-jumps";
 import {
   Dialog,
   DialogContent,
@@ -20,12 +20,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Table,
   TableBody,
@@ -265,7 +266,7 @@ export function AddBillDialog({ open, onOpenChange, onSave, customers = [] }: Ad
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "w-full justify-start text-left font-normal h-10",
                       !billDate && "text-muted-foreground",
                       errors.billDate && "border-destructive"
                     )}
@@ -275,12 +276,12 @@ export function AddBillDialog({ open, onOpenChange, onSave, customers = [] }: Ad
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
+                  <CalendarWithJumps
                     mode="single"
                     selected={billDate}
                     onSelect={(date) => date && setBillDate(date)}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
+                    fromYear={2020}
+                    toYear={new Date().getFullYear() + 5}
                   />
                 </PopoverContent>
               </Popover>
@@ -409,19 +410,62 @@ export function AddBillDialog({ open, onOpenChange, onSave, customers = [] }: Ad
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="customer">Client's Job</Label>
-              <Select value={customerId} onValueChange={setCustomerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select client (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                      {customer.company_name && ` - ${customer.company_name}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className={cn(
+                      "w-full justify-between font-normal h-10",
+                      !customerId && "text-muted-foreground"
+                    )}
+                  >
+                    {customerId
+                      ? (() => {
+                          const customer = customers.find((c) => c.id === customerId);
+                          return customer
+                            ? `${customer.name}${customer.company_name ? ` - ${customer.company_name}` : ""}`
+                            : "Select client (optional)";
+                        })()
+                      : "Select client (optional)"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0 pointer-events-auto" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search client or job..." />
+                    <CommandList>
+                      <CommandEmpty>No job found.</CommandEmpty>
+                      <CommandGroup>
+                        {customers.map((customer) => (
+                          <CommandItem
+                            key={customer.id}
+                            value={`${customer.name} ${customer.company_name || ""}`}
+                            onSelect={() => {
+                              setCustomerId(customerId === customer.id ? "" : customer.id);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                customerId === customer.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="truncate">
+                              {customer.name}
+                              {customer.company_name && (
+                                <span className="text-muted-foreground ml-1">
+                                  - {customer.company_name}
+                                </span>
+                              )}
+                            </span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
@@ -476,7 +520,7 @@ export function AddBillDialog({ open, onOpenChange, onSave, customers = [] }: Ad
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-full md:w-auto min-w-[200px] justify-start text-left font-normal",
+                    "w-full md:w-auto min-w-[200px] justify-start text-left font-normal h-10",
                     !dueDate && "text-muted-foreground"
                   )}
                 >
@@ -485,12 +529,12 @@ export function AddBillDialog({ open, onOpenChange, onSave, customers = [] }: Ad
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
+                <CalendarWithJumps
                   mode="single"
                   selected={dueDate}
                   onSelect={setDueDate}
-                  initialFocus
-                  className="p-3 pointer-events-auto"
+                  fromYear={2020}
+                  toYear={new Date().getFullYear() + 5}
                 />
               </PopoverContent>
             </Popover>
