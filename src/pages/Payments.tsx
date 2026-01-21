@@ -299,23 +299,22 @@ const Payments = () => {
             </Select>
           </div>
 
-          {/* Desktop/Tablet: Table with horizontal scroll */}
-          <div className="hidden md:block rounded-md border overflow-x-auto">
-            <div className="min-w-[900px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="sticky left-0 z-10 bg-card whitespace-nowrap">Payment Date</TableHead>
-                    <TableHead className="whitespace-nowrap">Invoice No</TableHead>
-                    <TableHead className="whitespace-nowrap">Customer</TableHead>
-                    <TableHead className="whitespace-nowrap hidden lg:table-cell">Method</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Amount Paid</TableHead>
-                    <TableHead className="text-right whitespace-nowrap hidden lg:table-cell">Invoice Total</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Balance Due</TableHead>
-                    <TableHead className="whitespace-nowrap">Status</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+          {/* Desktop/Tablet: Responsive Table - NO scroll */}
+          <div className="hidden md:block rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead className="hidden lg:table-cell">Customer</TableHead>
+                  <TableHead className="hidden xl:table-cell">Method</TableHead>
+                  <TableHead className="text-right">Paid</TableHead>
+                  <TableHead className="text-right hidden xl:table-cell">Total</TableHead>
+                  <TableHead className="text-right">Due</TableHead>
+                  <TableHead className="hidden lg:table-cell">Status</TableHead>
+                  <TableHead className="text-right w-[60px]">Action</TableHead>
+                </TableRow>
+              </TableHeader>
                 <TableBody>
                   {filteredPayments.length === 0 ? (
                     <TableRow>
@@ -336,35 +335,35 @@ const Payments = () => {
 
                       return (
                         <TableRow key={payment.id}>
-                          <TableCell className="sticky left-0 z-10 bg-card whitespace-nowrap">
-                            {format(parseISO(payment.payment_date), 'dd MMM yyyy')}
+                          <TableCell>
+                            {format(parseISO(payment.payment_date), 'dd MMM')}
                           </TableCell>
-                          <TableCell className="whitespace-nowrap">
+                          <TableCell>
                             <Button
                               variant="link"
-                              className="p-0 h-auto font-medium"
+                              className="p-0 h-auto font-medium text-xs md:text-sm"
                               onClick={() => navigate(`/invoices/${invoice?.id}`)}
                             >
                               {invoice?.invoice_number || 'N/A'}
                             </Button>
                           </TableCell>
-                          <TableCell className="whitespace-nowrap truncate max-w-[150px]">{invoice?.customers?.name || 'N/A'}</TableCell>
-                          <TableCell className="capitalize whitespace-nowrap hidden lg:table-cell">
+                          <TableCell className="hidden lg:table-cell truncate max-w-[120px]">{invoice?.customers?.name || 'N/A'}</TableCell>
+                          <TableCell className="capitalize hidden xl:table-cell">
                             {payment.payment_method || 'N/A'}
                           </TableCell>
-                          <TableCell className="text-right font-medium text-success whitespace-nowrap">
+                          <TableCell className="text-right font-medium text-success">
                             {formatCurrency(Number(payment.amount))}
                           </TableCell>
-                          <TableCell className="text-right whitespace-nowrap hidden lg:table-cell">
+                          <TableCell className="text-right hidden xl:table-cell">
                             {formatCurrency(invoiceTotal)}
                           </TableCell>
-                          <TableCell className="text-right whitespace-nowrap">
+                          <TableCell className="text-right">
                             <span className={cn(balanceDue > 0 && 'text-destructive')}>
                               {formatCurrency(balanceDue)}
                             </span>
                           </TableCell>
-                          <TableCell className="whitespace-nowrap">{getStatusBadge(status)}</TableCell>
-                          <TableCell className="text-right whitespace-nowrap">
+                          <TableCell className="hidden lg:table-cell">{getStatusBadge(status)}</TableCell>
+                          <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon">
@@ -407,9 +406,8 @@ const Payments = () => {
                       );
                     })
                   )}
-                </TableBody>
-              </Table>
-            </div>
+                      </TableBody>
+            </Table>
           </div>
 
           {/* Mobile: Card layout */}

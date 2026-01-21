@@ -1495,20 +1495,19 @@ const Salary = () => {
         </Select>
       </div>
 
-      {/* Desktop/Tablet: Salary Table */}
-      <div className="hidden md:block border rounded-lg overflow-x-auto">
-        <div className="min-w-[900px]">
+      {/* Desktop/Tablet: Salary Table - NO scroll */}
+      <div className="hidden md:block border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="whitespace-nowrap sticky left-0 z-10 bg-card">Employee</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Basic</TableHead>
-              <TableHead className="text-right whitespace-nowrap hidden lg:table-cell">Bonus</TableHead>
-              <TableHead className="text-right whitespace-nowrap hidden lg:table-cell">Deductions</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Advance</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Net Payable</TableHead>
-              <TableHead className="whitespace-nowrap">Status</TableHead>
-              {isAdmin && <TableHead className="whitespace-nowrap">Action</TableHead>}
+              <TableHead>Employee</TableHead>
+              <TableHead className="text-right">Basic</TableHead>
+              <TableHead className="text-right hidden lg:table-cell">Bonus</TableHead>
+              <TableHead className="text-right hidden xl:table-cell">Ded.</TableHead>
+              <TableHead className="text-right hidden lg:table-cell">Adv.</TableHead>
+              <TableHead className="text-right">Net</TableHead>
+              <TableHead>Status</TableHead>
+              {isAdmin && <TableHead className="w-[130px]">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1530,28 +1529,28 @@ const Salary = () => {
             ) : (
               salaryRecords.map((record) => (
                 <TableRow key={record.id}>
-                  <TableCell className="font-medium whitespace-nowrap sticky left-0 z-10 bg-card">{record.employee?.full_name || "-"}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap">{formatCurrency(record.basic_salary)}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap hidden lg:table-cell">{formatCurrency(record.bonus)}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap hidden lg:table-cell">{formatCurrency(record.deductions)}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    <span className={record.advance > 0 ? "text-destructive font-medium" : ""}>{formatCurrency(record.advance)}</span>
+                  <TableCell className="font-medium truncate max-w-[120px]">{record.employee?.full_name || "-"}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatCurrency(record.basic_salary)}</TableCell>
+                  <TableCell className="text-right tabular-nums hidden lg:table-cell">{formatCurrency(record.bonus)}</TableCell>
+                  <TableCell className="text-right tabular-nums hidden xl:table-cell">{formatCurrency(record.deductions)}</TableCell>
+                  <TableCell className="text-right hidden lg:table-cell">
+                    <span className={record.advance > 0 ? "text-destructive font-medium tabular-nums" : "tabular-nums"}>{formatCurrency(record.advance)}</span>
                   </TableCell>
-                  <TableCell className="text-right font-bold whitespace-nowrap">{formatCurrency(record.net_payable)}</TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="text-right font-bold tabular-nums">{formatCurrency(record.net_payable)}</TableCell>
+                  <TableCell>
                     <Badge variant={record.status === "paid" ? "default" : "secondary"}>{record.status === "paid" ? "Paid" : "Pending"}</Badge>
                   </TableCell>
                   {isAdmin && (
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell>
                       <div className="flex items-center gap-1">
                         {record.status !== "paid" && (
                           <>
-                            <Button size="sm" onClick={() => markAsPaid(record.id)}>Mark Paid</Button>
+                            <Button size="sm" variant="outline" onClick={() => markAsPaid(record.id)}>Pay</Button>
                             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditSalary(record)}><Pencil className="h-4 w-4" /></Button>
                             <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeletingSalary(record)}><Trash2 className="h-4 w-4" /></Button>
                           </>
                         )}
-                        {record.status === "paid" && record.paid_date && <span className="text-sm text-muted-foreground">{format(new Date(record.paid_date), "dd MMM")}</span>}
+                        {record.status === "paid" && record.paid_date && <span className="text-xs text-muted-foreground">{format(new Date(record.paid_date), "dd MMM")}</span>}
                       </div>
                     </TableCell>
                   )}
@@ -1560,7 +1559,6 @@ const Salary = () => {
             )}
           </TableBody>
         </Table>
-        </div>
       </div>
 
       {/* Mobile: Salary Card Layout */}
@@ -1609,19 +1607,20 @@ const Salary = () => {
         </TabsContent>
 
         <TabsContent value="advances" className="space-y-4">
-          <div className="border rounded-lg">
+          {/* Desktop/Tablet: Advances Table - NO scroll */}
+          <div className="hidden md:block border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Employee</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Remaining</TableHead>
-                  <TableHead>Deduct From</TableHead>
+                  <TableHead className="text-right">Remain</TableHead>
+                  <TableHead className="hidden lg:table-cell">Deduct</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Last Deduction</TableHead>
-                  <TableHead className="max-w-[150px]">Reason</TableHead>
-                  {isAdmin && <TableHead>Actions</TableHead>}
+                  <TableHead className="hidden xl:table-cell">Deducted</TableHead>
+                  <TableHead className="hidden lg:table-cell max-w-[100px]">Reason</TableHead>
+                  {isAdmin && <TableHead className="w-[80px]">Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1649,21 +1648,21 @@ const Salary = () => {
                 ) : (
                   advances.map((advance) => (
                     <TableRow key={advance.id}>
-                      <TableCell>{format(new Date(advance.date), "dd MMM yyyy")}</TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell>{format(new Date(advance.date), "dd MMM")}</TableCell>
+                      <TableCell className="font-medium truncate max-w-[100px]">
                         {advance.employee?.full_name || "-"}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         {formatCurrency(advance.amount)}
                       </TableCell>
-                      <TableCell className="text-right font-bold">
+                      <TableCell className="text-right font-bold tabular-nums">
                         <span className={(advance.remaining_balance ?? advance.amount) > 0 ? "text-warning" : "text-success"}>
                           {formatCurrency(advance.remaining_balance ?? advance.amount)}
                         </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         {advance.deduct_month ? (
-                          <Badge variant="outline" className="font-mono">
+                          <Badge variant="outline" className="font-mono text-xs">
                             {advance.deduct_month}
                           </Badge>
                         ) : (
@@ -1673,17 +1672,17 @@ const Salary = () => {
                       <TableCell>
                         {getAdvanceStatusBadge(advance)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden xl:table-cell">
                         {advance.deducted_from_month && advance.deducted_from_year ? (
-                          <span className="text-sm text-muted-foreground">
-                            {months[advance.deducted_from_month - 1]} {advance.deducted_from_year}
+                          <span className="text-xs text-muted-foreground">
+                            {months[advance.deducted_from_month - 1].substring(0, 3)} {advance.deducted_from_year}
                           </span>
                         ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
+                          <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="max-w-[150px]">
-                        <p className="line-clamp-1 text-sm text-muted-foreground">{advance.reason || "-"}</p>
+                      <TableCell className="hidden lg:table-cell max-w-[100px]">
+                        <p className="line-clamp-1 text-xs text-muted-foreground">{advance.reason || "-"}</p>
                       </TableCell>
                       {isAdmin && (
                         <TableCell>
@@ -1691,20 +1690,20 @@ const Salary = () => {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8"
+                              className="h-7 w-7"
                               title={advance.status === "settled" ? "Edit (will recalculate salary)" : "Edit advance"}
                               onClick={() => openEditAdvance(advance)}
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
                               title={advance.status === "settled" ? "Delete (will recalculate salary)" : "Delete advance"}
                               onClick={() => setDeletingAdvance(advance)}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </TableCell>

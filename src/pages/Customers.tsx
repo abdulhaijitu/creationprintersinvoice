@@ -740,13 +740,13 @@ const Customers = () => {
                   ))}
                 </div>
 
-                {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
+                {/* Desktop Table View - NO scroll */}
+                <div className="hidden md:block">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/30 hover:bg-muted/30">
                         {(canBulkDelete || canBulkExport) && (
-                          <TableHead className="w-[40px] sticky top-0 bg-muted/30">
+                          <TableHead className="w-[40px]">
                             <Checkbox
                               checked={isAllSelected}
                               onCheckedChange={toggleAll}
@@ -755,25 +755,25 @@ const Customers = () => {
                             />
                           </TableHead>
                         )}
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
                           Name
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground hidden lg:table-cell">
                           Contact
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 whitespace-nowrap">
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground hidden xl:table-cell">
                           Company
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap">
-                          Total Invoiced
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right hidden lg:table-cell">
+                          Invoiced
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap">
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right hidden xl:table-cell">
                           Paid
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap">
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right">
                           Due
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky top-0 bg-muted/30 text-right whitespace-nowrap w-[120px]">
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right w-[100px]">
                           Action
                         </TableHead>
                       </TableRow>
@@ -799,10 +799,10 @@ const Customers = () => {
                               />
                             </TableCell>
                           )}
-                          <TableCell className="whitespace-nowrap">
-                            <span className="font-semibold text-foreground">{customer.name}</span>
+                          <TableCell>
+                            <span className="font-semibold text-foreground truncate max-w-[120px] block">{customer.name}</span>
                           </TableCell>
-                          <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="hidden lg:table-cell" onClick={(e) => e.stopPropagation()}>
                             <div className="space-y-0.5">
                               {customer.phone && (
                                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -813,7 +813,7 @@ const Customers = () => {
                               {customer.email && (
                                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                                   <Mail className="h-3 w-3" />
-                                  <span className="truncate max-w-[180px]">{customer.email}</span>
+                                  <span className="truncate max-w-[140px]">{customer.email}</span>
                                 </div>
                               )}
                               {!customer.phone && !customer.email && (
@@ -821,18 +821,18 @@ const Customers = () => {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                          <TableCell className="text-muted-foreground hidden xl:table-cell truncate max-w-[100px]">
                             {customer.company_name || '—'}
                           </TableCell>
-                          <TableCell className="text-right font-medium text-foreground whitespace-nowrap tabular-nums">
+                          <TableCell className="text-right font-medium text-foreground tabular-nums hidden lg:table-cell">
                             {formatCurrency(customer.total_invoiced || 0)}
                           </TableCell>
-                          <TableCell className="text-right whitespace-nowrap tabular-nums">
+                          <TableCell className="text-right tabular-nums hidden xl:table-cell">
                             <span className="text-success font-medium">
                               {formatCurrency(customer.total_paid || 0)}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right whitespace-nowrap tabular-nums">
+                          <TableCell className="text-right tabular-nums">
                             <span className={cn(
                               'font-medium',
                               (customer.total_due || 0) > 0 ? 'text-destructive' : 'text-muted-foreground'
@@ -840,7 +840,7 @@ const Customers = () => {
                               {formatCurrency(customer.total_due || 0)}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1">
                               <Tooltip>
                                 <TooltipTrigger asChild>

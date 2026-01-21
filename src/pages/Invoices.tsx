@@ -665,46 +665,45 @@ const Invoices = () => {
               </div>
             ) : (
               <>
-                {/* Desktop/Tablet: Table with horizontal scroll */}
-                <div className="hidden md:block overflow-x-auto">
-                  <div className="min-w-[900px]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/30 hover:bg-muted/30">
-                          <TableHead className="w-[40px] sticky left-0 z-10 bg-muted/30">
-                            <Checkbox
-                              checked={isAllSelected}
-                              onCheckedChange={toggleAll}
-                              aria-label="Select all"
-                              className={isSomeSelected ? 'data-[state=checked]:bg-primary' : ''}
-                            />
-                          </TableHead>
-                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground sticky left-[40px] z-10 bg-muted/30 whitespace-nowrap">
-                            Invoice No
-                          </TableHead>
-                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-                            Customer
-                          </TableHead>
-                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-                            Date
-                          </TableHead>
-                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right whitespace-nowrap">
-                            Total
-                          </TableHead>
-                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right whitespace-nowrap hidden lg:table-cell">
-                            Paid
-                          </TableHead>
-                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right whitespace-nowrap">
-                            Due
-                          </TableHead>
-                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-                            Status
-                          </TableHead>
-                          <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right whitespace-nowrap w-[100px]">
-                            Action
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
+                {/* Desktop/Tablet: Responsive Table - NO scroll */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="w-[40px]">
+                          <Checkbox
+                            checked={isAllSelected}
+                            onCheckedChange={toggleAll}
+                            aria-label="Select all"
+                            className={isSomeSelected ? 'data-[state=checked]:bg-primary' : ''}
+                          />
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
+                          Invoice No
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
+                          Customer
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground hidden lg:table-cell">
+                          Date
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right">
+                          Total
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right hidden xl:table-cell">
+                          Paid
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right">
+                          Due
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground hidden lg:table-cell">
+                          Status
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right w-[80px]">
+                          Action
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
                       <TableBody>
                         {filteredInvoices.map((invoice, index) => {
                           const statusInfo = getInvoiceStatusInfo(invoice);
@@ -721,35 +720,35 @@ const Invoices = () => {
                               `}
                               onClick={() => navigate(`/invoices/${invoice.id}`)}
                             >
-                              <TableCell className="sticky left-0 z-10 bg-card" onClick={(e) => e.stopPropagation()}>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
                                 <Checkbox
                                   checked={isSelected(invoice.id)}
                                   onCheckedChange={() => toggleItem(invoice.id)}
                                   aria-label={`Select ${invoice.invoice_number}`}
                                 />
                               </TableCell>
-                              <TableCell className="font-semibold text-foreground whitespace-nowrap sticky left-[40px] z-10 bg-card">
+                              <TableCell className="font-semibold text-foreground">
                                 {invoice.invoice_number}
                               </TableCell>
-                              <TableCell className="text-foreground whitespace-nowrap truncate max-w-[150px]">
+                              <TableCell className="text-foreground truncate max-w-[120px] lg:max-w-[180px]">
                                 {invoice.customers?.name || '—'}
                               </TableCell>
-                              <TableCell className="text-muted-foreground whitespace-nowrap">
-                                {format(new Date(invoice.invoice_date), 'dd MMM yyyy')}
+                              <TableCell className="text-muted-foreground hidden lg:table-cell">
+                                {format(new Date(invoice.invoice_date), 'dd MMM')}
                               </TableCell>
-                              <TableCell className="text-right font-medium text-foreground whitespace-nowrap tabular-nums">
+                              <TableCell className="text-right font-medium text-foreground tabular-nums">
                                 {formatCurrency(Number(invoice.total))}
                               </TableCell>
-                              <TableCell className="text-right text-muted-foreground whitespace-nowrap tabular-nums hidden lg:table-cell">
+                              <TableCell className="text-right text-muted-foreground tabular-nums hidden xl:table-cell">
                                 {formatCurrency(Number(invoice.paid_amount))}
                               </TableCell>
-                              <TableCell className={`text-right font-medium whitespace-nowrap tabular-nums ${dueAmount > 0 ? 'text-destructive' : 'text-success'}`}>
+                              <TableCell className={`text-right font-medium tabular-nums ${dueAmount > 0 ? 'text-destructive' : 'text-success'}`}>
                                 {formatCurrency(dueAmount)}
                               </TableCell>
-                              <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <TableCell className="hidden lg:table-cell" onClick={(e) => e.stopPropagation()}>
                                 {getStatusBadge(invoice)}
                               </TableCell>
-                              <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-end gap-1">
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -827,7 +826,6 @@ const Invoices = () => {
                       </TableBody>
                     </Table>
                   </div>
-                </div>
 
                 {/* Mobile: Card layout */}
                 <div className="block md:hidden p-3 space-y-3">
