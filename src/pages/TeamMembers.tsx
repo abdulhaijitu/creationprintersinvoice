@@ -985,6 +985,7 @@ const TeamMembers = () => {
               
               {isLoading && (
                 <div className="overflow-x-auto">
+                  <div className="min-w-[700px]">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -999,11 +1000,13 @@ const TeamMembers = () => {
                       <TeamMemberSkeleton canManageTeam={canManageTeam} />
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               )}
               
               {hasData && (
                 <div className="overflow-x-auto">
+                  <div className="min-w-[700px]">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -1134,6 +1137,7 @@ const TeamMembers = () => {
                       ))}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               )}
             </CardContent>

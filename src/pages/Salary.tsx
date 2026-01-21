@@ -1497,6 +1497,7 @@ const Salary = () => {
 
       {/* Salary Table */}
       <div className="border rounded-lg overflow-x-auto">
+        <div className="min-w-[800px]">
         <Table>
           <TableHeader>
             <TableRow>
@@ -1626,6 +1627,7 @@ const Salary = () => {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
         </TabsContent>
 
