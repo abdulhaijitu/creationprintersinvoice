@@ -1176,18 +1176,17 @@ const Expenses = () => {
             )}
           </div>
 
-          {/* Desktop/Tablet: Vendors Table */}
-          <div className="hidden md:block border border-border/60 rounded-lg overflow-hidden shadow-sm overflow-x-auto">
-            <div className="min-w-[800px]">
+          {/* Desktop/Tablet: Vendors Table - NO scroll */}
+          <div className="hidden md:block border border-border/60 rounded-lg overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="font-semibold h-12 sticky left-0 z-10 bg-muted/40 whitespace-nowrap">Name</TableHead>
-                  <TableHead className="font-semibold h-12 whitespace-nowrap">Contact</TableHead>
-                  <TableHead className="font-semibold h-12 text-right whitespace-nowrap">Total Bills</TableHead>
-                  <TableHead className="font-semibold h-12 text-right whitespace-nowrap hidden lg:table-cell">Paid</TableHead>
-                  <TableHead className="font-semibold h-12 text-right whitespace-nowrap">Due</TableHead>
-                  <TableHead className="font-semibold h-12 text-center whitespace-nowrap">Actions</TableHead>
+                  <TableHead className="font-semibold h-12">Name</TableHead>
+                  <TableHead className="font-semibold h-12 hidden lg:table-cell">Contact</TableHead>
+                  <TableHead className="font-semibold h-12 text-right">Bills</TableHead>
+                  <TableHead className="font-semibold h-12 text-right hidden xl:table-cell">Paid</TableHead>
+                  <TableHead className="font-semibold h-12 text-right">Due</TableHead>
+                  <TableHead className="font-semibold h-12 text-center w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1217,22 +1216,22 @@ const Expenses = () => {
                 ) : (
                   filteredVendors.map((vendor) => (
                     <TableRow key={vendor.id} className="hover:bg-muted/30 transition-colors duration-150">
-                      <TableCell className="py-4 sticky left-0 z-10 bg-card whitespace-nowrap">
+                      <TableCell className="py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/60">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/60 flex-shrink-0">
                             <Building2 className="h-4 w-4 text-muted-foreground" />
                           </div>
-                          <div>
-                            <p className="font-medium">{vendor.name}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate max-w-[150px]">{vendor.name}</p>
                             {vendor.address && (
-                              <p className="text-sm text-muted-foreground truncate max-w-[180px]">
+                              <p className="text-sm text-muted-foreground truncate max-w-[150px] hidden xl:block">
                                 {vendor.address}
                               </p>
                             )}
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="py-4 whitespace-nowrap">
+                      <TableCell className="py-4 hidden lg:table-cell">
                         <div className="space-y-1">
                           {vendor.phone && (
                             <div className="flex items-center gap-2 text-sm">
@@ -1248,13 +1247,13 @@ const Expenses = () => {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="py-4 text-right font-medium tabular-nums whitespace-nowrap">
+                      <TableCell className="py-4 text-right font-medium tabular-nums">
                         {formatCurrency(vendor.total_bills || 0)}
                       </TableCell>
-                      <TableCell className="py-4 text-right font-medium text-green-600 dark:text-green-400 tabular-nums whitespace-nowrap hidden lg:table-cell">
+                      <TableCell className="py-4 text-right font-medium text-green-600 dark:text-green-400 tabular-nums hidden xl:table-cell">
                         {formatCurrency(vendor.total_paid || 0)}
                       </TableCell>
-                      <TableCell className="py-4 text-right whitespace-nowrap">
+                      <TableCell className="py-4 text-right">
                         {(vendor.due_amount || 0) > 0 ? (
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-destructive/10 text-destructive tabular-nums">
                             {formatCurrency(vendor.due_amount || 0)}
@@ -1265,7 +1264,7 @@ const Expenses = () => {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="py-4 whitespace-nowrap">
+                      <TableCell className="py-4">
                         <div className="flex items-center justify-center gap-1">
                           <Button
                             variant="ghost"
@@ -1302,7 +1301,6 @@ const Expenses = () => {
                 )}
               </TableBody>
             </Table>
-            </div>
           </div>
 
           {/* Mobile: Vendor Card Layout */}
@@ -1629,19 +1627,18 @@ const Expenses = () => {
               </Dialog>
           </div>
 
-          {/* Desktop/Tablet: Expenses Table */}
-          <div className="hidden md:block border rounded-lg overflow-x-auto">
-            <div className="min-w-[800px]">
+          {/* Desktop/Tablet: Expenses Table - NO scroll */}
+          <div className="hidden md:block border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 z-10 bg-card whitespace-nowrap">Date</TableHead>
-                  <TableHead className="whitespace-nowrap">Description</TableHead>
-                  <TableHead className="whitespace-nowrap hidden lg:table-cell">Vendor</TableHead>
-                  <TableHead className="whitespace-nowrap">Category</TableHead>
-                  <TableHead className="whitespace-nowrap hidden lg:table-cell">Payment</TableHead>
-                  <TableHead className="text-right whitespace-nowrap">Amount</TableHead>
-                  {(canEditExpenses || canDeleteExpenses) && <TableHead className="text-right whitespace-nowrap">Actions</TableHead>}
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="hidden lg:table-cell">Vendor</TableHead>
+                  <TableHead className="hidden xl:table-cell">Category</TableHead>
+                  <TableHead className="hidden lg:table-cell">Method</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  {(canEditExpenses || canDeleteExpenses) && <TableHead className="text-right w-[80px]">Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1671,32 +1668,32 @@ const Expenses = () => {
                 ) : (
                   filteredExpenses.map((expense) => (
                     <TableRow key={expense.id}>
-                      <TableCell className="sticky left-0 z-10 bg-card whitespace-nowrap">
-                        {format(new Date(expense.date), "dd MMM yyyy")}
+                      <TableCell>
+                        {format(new Date(expense.date), "dd MMM")}
                       </TableCell>
-                      <TableCell className="max-w-[200px] truncate whitespace-nowrap">
+                      <TableCell className="max-w-[150px] lg:max-w-[200px] truncate">
                         {expense.description}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell whitespace-nowrap">
+                      <TableCell className="hidden lg:table-cell">
                         {expense.vendor?.name ? (
-                          <Badge variant="outline">{expense.vendor.name}</Badge>
+                          <Badge variant="outline" className="truncate max-w-[100px]">{expense.vendor.name}</Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="hidden xl:table-cell">
                         {expense.category?.name ? (
-                          <Badge variant="secondary">{expense.category.name}</Badge>
+                          <Badge variant="secondary" className="truncate max-w-[100px]">{expense.category.name}</Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell whitespace-nowrap">{getPaymentMethodBadge(expense.payment_method || "cash")}</TableCell>
-                      <TableCell className="text-right font-medium whitespace-nowrap">
+                      <TableCell className="hidden lg:table-cell">{getPaymentMethodBadge(expense.payment_method || "cash")}</TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
                         {formatCurrency(expense.amount)}
                       </TableCell>
                       {(canEditExpenses || canDeleteExpenses) && (
-                        <TableCell className="text-right whitespace-nowrap">
+                        <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button
                               variant="ghost"
@@ -1721,7 +1718,6 @@ const Expenses = () => {
                 )}
               </TableBody>
             </Table>
-            </div>
           </div>
 
           {/* Mobile: Expense Card Layout */}
