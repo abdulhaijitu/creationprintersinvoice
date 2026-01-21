@@ -106,11 +106,11 @@ const AppLayout = () => {
           <AppSidebar />
           <MobileSidebarHandler />
           <NotificationManager />
-          <SidebarInset className="flex-1 min-w-0 flex flex-col">
+          <SidebarInset className="flex-1 min-w-0 max-w-full flex flex-col overflow-hidden">
             {/* Top Header Bar */}
-            <header className="sticky top-0 z-20 flex h-12 items-center border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 shadow-sm">
+            <header className="sticky top-0 z-20 flex h-12 items-center border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 shadow-sm w-full min-w-0">
               {/* Left section */}
-              <div className="flex items-center gap-2 pl-4 md:pl-5 min-w-0">
+              <div className="flex items-center gap-2 pl-3 md:pl-4 min-w-0 shrink-0">
                 <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200" />
                 <div className="hidden md:flex items-center gap-2 min-w-0">
                   <Breadcrumb />
@@ -119,14 +119,14 @@ const AppLayout = () => {
               </div>
               
               {/* Center section */}
-              <div className="flex-1 flex items-center justify-center px-4">
-                <div className="hidden sm:block w-full max-w-sm">
+              <div className="flex-1 flex items-center justify-center px-2 md:px-4 min-w-0">
+                <div className="hidden sm:block w-full max-w-sm min-w-0">
                   <GlobalSearch />
                 </div>
               </div>
               
               {/* Right section */}
-              <div className="flex items-center gap-1.5 pr-4 md:pr-5">
+              <div className="flex items-center gap-1 pr-3 md:pr-4 shrink-0">
                 <QuickActions />
                 <div className="hidden md:flex items-center gap-1">
                   <ThemeToggle />
@@ -134,14 +134,14 @@ const AppLayout = () => {
                 </div>
                 <PushNotificationToggle />
                 <NotificationBell />
-                <div className="w-px h-5 bg-border/60 mx-1.5 hidden md:block" />
+                <div className="w-px h-5 bg-border/60 mx-1 hidden md:block" />
                 <UserDropdown />
               </div>
             </header>
             
             {/* Main Content - Use Suspense for lazy-loaded pages */}
-            <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-auto">
-              <div className="mx-auto max-w-7xl space-y-4">
+            <main className="flex-1 p-3 md:p-4 lg:p-6 pb-20 md:pb-6 overflow-x-hidden overflow-y-auto w-full min-w-0">
+              <div className="mx-auto max-w-7xl w-full min-w-0 space-y-4">
                 <Suspense fallback={<PageLoadingFallback />}>
                   <Outlet />
                 </Suspense>

@@ -232,9 +232,9 @@ const Payments = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="space-y-4 md:space-y-6 w-full min-w-0">
+      {/* Stats Cards - Responsive Grid */}
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Received (This Month)"
           value={formatCurrency(stats.totalReceivedThisMonth)}
@@ -273,16 +273,16 @@ const Payments = () => {
             </CreateGuard>
           </div>
         </CardHeader>
-        <CardContent>
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="relative flex-1">
+        <CardContent className="p-3 md:p-6">
+          {/* Filters - Responsive Grid */}
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto] mb-4">
+            <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by invoice, customer, or reference..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 w-full"
               />
             </div>
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
@@ -299,9 +299,10 @@ const Payments = () => {
             </Select>
           </div>
 
-          {/* Table */}
-          <div className="rounded-md border">
-            <Table>
+          {/* Table with horizontal scroll wrapper */}
+          <div className="rounded-md border overflow-x-auto -mx-3 md:mx-0">
+            <div className="min-w-[700px]">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Payment Date</TableHead>
@@ -408,6 +409,7 @@ const Payments = () => {
                 )}
               </TableBody>
             </Table>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -509,27 +509,28 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 w-full min-w-0">
       {/* Header - Company Name in ALL CAPS */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight uppercase">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight uppercase truncate">
             CREATION PRINTERS
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-muted-foreground text-xs md:text-sm mt-1">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={() => navigate('/reports')}>
             <Receipt className="h-4 w-4 mr-2" />
-            View Reports
+            <span className="hidden sm:inline">View Reports</span>
+            <span className="sm:hidden">Reports</span>
           </Button>
         </div>
       </div>
 
       {/* 5 Summary Cards - Responsive Grid */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {/* 1. Monthly Invoices */}
         <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
           <CardContent className="p-5">
@@ -618,8 +619,8 @@ const Dashboard = () => {
 
       {/* Invoice Dashboard Cards - 6 cards */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Invoices</h2>
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <h2 className="text-base md:text-lg font-semibold">Invoices</h2>
+        <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6">
           {/* 1. Paid Invoices (count) */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
             <CardContent className="p-5">
@@ -712,20 +713,18 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Task Dashboard Cards - 5 cards, stacked vertically */}
+      {/* Task Dashboard Cards - Responsive horizontal layout */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Production Tasks</h2>
-        <div className="grid gap-3 grid-cols-1">
+        <h2 className="text-base md:text-lg font-semibold">Production Tasks</h2>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
           {/* 1. Active Jobs */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <ClipboardList className="h-4 w-4 text-primary" />
-                </div>
-                <p className="text-sm font-medium">Active Jobs</p>
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-primary/10">
+                <ClipboardList className="h-4 w-4 text-primary" />
               </div>
-              <p className="text-xl font-bold tabular-nums tracking-tight text-primary">
+              <p className="text-xs md:text-sm font-medium">Active Jobs</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-primary">
                 {stats.tasksActive}
               </p>
             </CardContent>
@@ -733,14 +732,12 @@ const Dashboard = () => {
 
           {/* 2. In Design */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-indigo-500/10">
-                  <Palette className="h-4 w-4 text-indigo-500" />
-                </div>
-                <p className="text-sm font-medium">In Design</p>
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-indigo-500/10">
+                <Palette className="h-4 w-4 text-indigo-500" />
               </div>
-              <p className="text-xl font-bold tabular-nums tracking-tight text-indigo-500">
+              <p className="text-xs md:text-sm font-medium">In Design</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-indigo-500">
                 {stats.tasksInDesign}
               </p>
             </CardContent>
@@ -748,14 +745,12 @@ const Dashboard = () => {
 
           {/* 3. Printing */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-orange-500/10">
-                  <Printer className="h-4 w-4 text-orange-500" />
-                </div>
-                <p className="text-sm font-medium">Printing</p>
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-orange-500/10">
+                <Printer className="h-4 w-4 text-orange-500" />
               </div>
-              <p className="text-xl font-bold tabular-nums tracking-tight text-orange-500">
+              <p className="text-xs md:text-sm font-medium">Printing</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-orange-500">
                 {stats.tasksPrinting}
               </p>
             </CardContent>
@@ -763,14 +758,12 @@ const Dashboard = () => {
 
           {/* 4. Packaging */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-purple-500/10">
-                  <Package className="h-4 w-4 text-purple-500" />
-                </div>
-                <p className="text-sm font-medium">Packaging</p>
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-purple-500/10">
+                <Package className="h-4 w-4 text-purple-500" />
               </div>
-              <p className="text-xl font-bold tabular-nums tracking-tight text-purple-500">
+              <p className="text-xs md:text-sm font-medium">Packaging</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-purple-500">
                 {stats.tasksPackaging}
               </p>
             </CardContent>
@@ -778,14 +771,12 @@ const Dashboard = () => {
 
           {/* 5. Delivered */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-success/10">
-                  <Truck className="h-4 w-4 text-success" />
-                </div>
-                <p className="text-sm font-medium">Delivered</p>
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-success/10">
+                <Truck className="h-4 w-4 text-success" />
               </div>
-              <p className="text-xl font-bold tabular-nums tracking-tight text-success">
+              <p className="text-xs md:text-sm font-medium">Delivered</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-success">
                 {stats.tasksDelivered}
               </p>
             </CardContent>
@@ -831,7 +822,7 @@ const Dashboard = () => {
       )}
 
       {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
         {/* Revenue Chart - Spans 2 columns */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
