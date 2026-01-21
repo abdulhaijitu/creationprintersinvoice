@@ -44,6 +44,7 @@ import {
   FileText, CreditCard, Receipt, Tag, Trash2, Users, Pencil
 } from "lucide-react";
 import { VendorSelect } from "@/components/shared/VendorSelect";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -265,8 +266,14 @@ const Expenses = () => {
 
     if (isSubmitting) return; // Prevent double submission
 
+    // Validate required fields including category
     if (!expenseFormData.description || !expenseFormData.amount) {
       toast.error("Please enter description and amount");
+      return;
+    }
+
+    if (!expenseFormData.category_id) {
+      toast.error("Please select a category");
       return;
     }
 
@@ -1447,44 +1454,43 @@ const Expenses = () => {
 
                     <div className="space-y-2">
                       <Label htmlFor="expense_vendor">Vendor</Label>
-                      <Select
+                      <SearchableSelect
                         value={expenseFormData.vendor_id}
                         onValueChange={(value) =>
                           setExpenseFormData({ ...expenseFormData, vendor_id: value })
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select vendor (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {vendors.map((vendor) => (
-                            <SelectItem key={vendor.id} value={vendor.id}>
-                              {vendor.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        options={vendors.map((vendor) => ({
+                          value: vendor.id,
+                          label: vendor.name,
+                        }))}
+                        placeholder="Select vendor (optional)"
+                        searchPlaceholder="Search vendors..."
+                        emptyText="No vendor found."
+                        icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
+                        clearable
+                      />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="expense_category">Category</Label>
-                      <Select
+                      <Label htmlFor="expense_category">
+                        Category <span className="text-destructive">*</span>
+                      </Label>
+                      <SearchableSelect
                         value={expenseFormData.category_id}
                         onValueChange={(value) =>
                           setExpenseFormData({ ...expenseFormData, category_id: value })
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id}>
-                              {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        options={categories.map((cat) => ({
+                          value: cat.id,
+                          label: cat.name,
+                        }))}
+                        placeholder="Select category"
+                        searchPlaceholder="Search categories..."
+                        emptyText="No category found."
+                        icon={<Tag className="h-4 w-4 text-muted-foreground" />}
+                        error={!expenseFormData.category_id && isSubmitting}
+                        errorMessage={!expenseFormData.category_id && isSubmitting ? "Category is required" : undefined}
+                      />
                     </div>
 
                     <div className="space-y-2">
