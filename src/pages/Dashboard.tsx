@@ -529,8 +529,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* 5 Summary Cards - Responsive Grid */}
-      <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      {/* 5 Summary Cards - Responsive Grid (2-col tablet, 5-col desktop) */}
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
         {/* 1. Monthly Invoices */}
         <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
           <CardContent className="p-5">
@@ -617,10 +617,10 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Invoice Dashboard Cards - 6 cards */}
+      {/* Invoice Dashboard Cards - 6 cards (2-col tablet, 6-col desktop) */}
       <div className="space-y-3">
         <h2 className="text-base md:text-lg font-semibold">Invoices</h2>
-        <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-3 md:gap-4 grid-cols-2 xl:grid-cols-6">
           {/* 1. Paid Invoices (count) */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
             <CardContent className="p-5">

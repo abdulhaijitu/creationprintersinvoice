@@ -775,8 +775,8 @@ const Expenses = () => {
         </div>
       </div>
 
-      {/* Summary Cards - Polished */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Summary Cards - 2-col tablet, 4-col desktop */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="pb-2 pt-4 px-5">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">

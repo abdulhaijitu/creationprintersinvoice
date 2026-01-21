@@ -1393,8 +1393,8 @@ const Salary = () => {
         )}
       </div>
 
-      {/* Summary Cards - Redesigned for clarity */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Summary Cards - 2-col tablet, 4-col desktop */}
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         {/* Card 1: Gross Salary (Basic + Bonus) */}
         <Card className="border-l-4 border-l-muted-foreground/50">
           <CardHeader className="pb-2">
@@ -1466,8 +1466,8 @@ const Salary = () => {
 
         <TabsContent value="salary" className="space-y-4">
 
-      {/* Filters */}
-      <div className="flex gap-4">
+      {/* Filters - responsive grid for tablet */}
+      <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:flex lg:flex-row lg:gap-4">
         <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
           <SelectTrigger className="w-[150px]">
             <Calendar className="mr-2 h-4 w-4" />

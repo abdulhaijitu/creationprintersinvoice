@@ -514,8 +514,8 @@ const Reports = () => {
 
       {/* Filters Bar */}
       <Card className="print:hidden border-border/50 bg-card/80 backdrop-blur-sm">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-4">
+        <CardContent className="p-3 md:p-4">
+          <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:flex lg:flex-wrap lg:items-center lg:gap-4">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Report Type:</span>
               <Select value={reportType} onValueChange={(v: 'monthly' | 'yearly') => setReportType(v)}>
@@ -570,8 +570,8 @@ const Reports = () => {
         </CardContent>
       </Card>
 
-      {/* Summary Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Summary Stats - 2-col tablet, 4-col desktop */}
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Income"
           value={formatCurrency(reportData.totalIncome)}

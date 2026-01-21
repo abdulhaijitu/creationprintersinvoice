@@ -763,6 +763,7 @@
 
 /* ============================================
    MOBILE-FIRST RESPONSIVE PATTERNS
+   Including tablet-specific (md: 768px-1023px)
    ============================================ */
 
 @layer components {
@@ -782,6 +783,29 @@
     .mobile-card-table {
       display: none;
     }
+  }
+
+  /* === Tablet-Specific Grid Layouts === */
+  /* 2-column grid on tablet (768px-1023px), then 4+ on desktop */
+  .tablet-grid-2 {
+    @apply grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4;
+  }
+
+  .tablet-grid-2-5 {
+    @apply grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5;
+  }
+
+  .tablet-grid-2-3 {
+    @apply grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-3;
+  }
+
+  .tablet-grid-2-6 {
+    @apply grid gap-3 md:gap-4 grid-cols-2 xl:grid-cols-6;
+  }
+
+  /* === Tablet Filter Bar - 2-row layout === */
+  .tablet-filter-bar {
+    @apply grid gap-3 grid-cols-1 md:grid-cols-2 lg:flex lg:flex-row lg:gap-4;
   }
 
   /* === Bottom Fixed Actions (Mobile) === */
@@ -806,6 +830,14 @@
   @media (max-width: 639px) {
     .dialog-content-mobile {
       @apply fixed inset-x-0 bottom-0 top-auto max-h-[85vh] rounded-t-2xl rounded-b-none;
+    }
+  }
+
+  /* === Tablet Sidebar Behavior === */
+  /* On tablet (768px-1023px), prefer collapsed sidebar */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .sidebar-tablet-collapsed {
+      --sidebar-width: 4rem;
     }
   }
 }
