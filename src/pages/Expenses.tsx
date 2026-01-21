@@ -1345,20 +1345,24 @@ const Expenses = () => {
 
         {/* Daily Expenses Tab - Polished */}
         <TabsContent value="expenses" className="space-y-4">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full lg:w-auto">
-              <div className="relative flex-1 min-w-[200px] max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
-                <Input
-                  placeholder="Search expenses..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-10 bg-muted/40 border-muted/60 focus-visible:ring-1 focus-visible:ring-primary transition-all duration-200"
-                />
-              </div>
+          {/* Responsive Filter Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-3">
+            {/* Search - Full width on mobile, takes 1 column on tablet, 1 on desktop */}
+            <div className="relative min-w-0">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
+              <Input
+                placeholder="Search expenses..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-10 w-full bg-muted/40 border-muted/60 focus-visible:ring-1 focus-visible:ring-primary transition-all duration-200"
+              />
+            </div>
+            
+            {/* Category Filter */}
+            <div className="min-w-0">
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-[180px]">
-                  <Filter className="mr-2 h-4 w-4" />
+                <SelectTrigger className="h-10 w-full">
+                  <Filter className="mr-2 h-4 w-4 flex-shrink-0" />
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1370,9 +1374,13 @@ const Expenses = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            
+            {/* Vendor Filter */}
+            <div className="min-w-0">
               <Select value={filterVendor} onValueChange={setFilterVendor}>
-                <SelectTrigger className="w-[180px]">
-                  <Building2 className="mr-2 h-4 w-4" />
+                <SelectTrigger className="h-10 w-full">
+                  <Building2 className="mr-2 h-4 w-4 flex-shrink-0" />
                   <SelectValue placeholder="Vendor" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1384,22 +1392,26 @@ const Expenses = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="month"
-                  value={filterMonth}
-                  onChange={(e) => setFilterMonth(e.target.value)}
-                  className="w-[160px]"
-                />
-              </div>
             </div>
-            <div className="flex gap-2">
+            
+            {/* Date Filter */}
+            <div className="relative min-w-0">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none z-10" />
+              <Input
+                type="month"
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+                className="h-10 w-full pl-10 bg-muted/40 border-muted/60"
+              />
+            </div>
+            
+            {/* Actions - Full width on mobile, spans remaining on tablet */}
+            <div className="flex gap-2 md:col-span-3 xl:col-span-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2">
+                  <Button variant="outline" className="h-10 gap-2 flex-1 xl:flex-none">
                     <Download className="h-4 w-4" />
-                    Export
+                    <span className="sm:inline">Export</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
@@ -1416,9 +1428,9 @@ const Expenses = () => {
                 if (!open) resetExpenseForm();
               }}>
                 <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    New Expense
+                  <Button className="h-10 gap-2 flex-1 xl:flex-none">
+                    <Plus className="h-4 w-4" />
+                    <span className="sm:inline">New Expense</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
