@@ -1495,16 +1495,16 @@ const Salary = () => {
         </Select>
       </div>
 
-      {/* Salary Table */}
-      <div className="border rounded-lg overflow-x-auto">
-        <div className="min-w-[800px]">
+      {/* Desktop/Tablet: Salary Table */}
+      <div className="hidden md:block border rounded-lg overflow-x-auto">
+        <div className="min-w-[900px]">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="whitespace-nowrap">Employee</TableHead>
+              <TableHead className="whitespace-nowrap sticky left-0 z-10 bg-card">Employee</TableHead>
               <TableHead className="text-right whitespace-nowrap">Basic</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Bonus</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Deductions</TableHead>
+              <TableHead className="text-right whitespace-nowrap hidden lg:table-cell">Bonus</TableHead>
+              <TableHead className="text-right whitespace-nowrap hidden lg:table-cell">Deductions</TableHead>
               <TableHead className="text-right whitespace-nowrap">Advance</TableHead>
               <TableHead className="text-right whitespace-nowrap">Net Payable</TableHead>
               <TableHead className="whitespace-nowrap">Status</TableHead>
@@ -1514,9 +1514,7 @@ const Salary = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
-                  Loading...
-                </TableCell>
+                <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
               </TableRow>
             ) : salaryRecords.length === 0 ? (
               <TableRow>
@@ -1525,100 +1523,35 @@ const Salary = () => {
                     icon={Banknote}
                     title="No salary records"
                     description={`No salary records found for ${months[selectedMonth - 1]} ${selectedYear}`}
-                    action={isAdmin ? {
-                      label: "Generate Salaries",
-                      onClick: () => setIsDialogOpen(true),
-                      icon: Plus,
-                    } : undefined}
+                    action={isAdmin ? { label: "Generate Salaries", onClick: () => setIsDialogOpen(true), icon: Plus } : undefined}
                   />
                 </TableCell>
               </TableRow>
             ) : (
               salaryRecords.map((record) => (
                 <TableRow key={record.id}>
-                  <TableCell className="font-medium whitespace-nowrap">
-                    {record.employee?.full_name || "-"}
-                  </TableCell>
+                  <TableCell className="font-medium whitespace-nowrap sticky left-0 z-10 bg-card">{record.employee?.full_name || "-"}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap">{formatCurrency(record.basic_salary)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap hidden lg:table-cell">{formatCurrency(record.bonus)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap hidden lg:table-cell">{formatCurrency(record.deductions)}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    {formatCurrency(record.basic_salary)}
+                    <span className={record.advance > 0 ? "text-destructive font-medium" : ""}>{formatCurrency(record.advance)}</span>
                   </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    {formatCurrency(record.bonus)}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    {formatCurrency(record.deductions)}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <span className={record.advance > 0 ? "text-destructive font-medium" : ""}>
-                        {formatCurrency(record.advance)}
-                      </span>
-                      {record.advance > 0 && record.advance_deduction_details && (() => {
-                        // Check if any advance was auto-synced (created after salary record)
-                        try {
-                          let details: AdvanceDeductionDetail[] = [];
-                          if (typeof record.advance_deduction_details === 'string') {
-                            details = JSON.parse(record.advance_deduction_details);
-                          } else if (Array.isArray(record.advance_deduction_details)) {
-                            details = record.advance_deduction_details as unknown as AdvanceDeductionDetail[];
-                          }
-                          // Check if record was updated after creation (indicates auto-sync)
-                          const advanceIds = record.advance_deducted_ids || [];
-                          const hasMultipleAdvances = advanceIds.length > 1 || details.length > 0;
-                          if (hasMultipleAdvances) {
-                            return (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-0.5 border-primary/50 text-primary">
-                                <RefreshCw className="h-3 w-3" />
-                                Synced
-                              </Badge>
-                            );
-                          }
-                        } catch {
-                          return null;
-                        }
-                        return null;
-                      })()}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-bold whitespace-nowrap">
-                    {formatCurrency(record.net_payable)}
-                  </TableCell>
+                  <TableCell className="text-right font-bold whitespace-nowrap">{formatCurrency(record.net_payable)}</TableCell>
                   <TableCell className="whitespace-nowrap">
-                    <Badge variant={record.status === "paid" ? "default" : "secondary"}>
-                      {record.status === "paid" ? "Paid" : "Pending"}
-                    </Badge>
+                    <Badge variant={record.status === "paid" ? "default" : "secondary"}>{record.status === "paid" ? "Paid" : "Pending"}</Badge>
                   </TableCell>
                   {isAdmin && (
                     <TableCell className="whitespace-nowrap">
                       <div className="flex items-center gap-1">
                         {record.status !== "paid" && (
                           <>
-                            <Button size="sm" onClick={() => markAsPaid(record.id)}>
-                              Mark Paid
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8"
-                              onClick={() => openEditSalary(record)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => setDeletingSalary(record)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <Button size="sm" onClick={() => markAsPaid(record.id)}>Mark Paid</Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditSalary(record)}><Pencil className="h-4 w-4" /></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeletingSalary(record)}><Trash2 className="h-4 w-4" /></Button>
                           </>
                         )}
-                        {record.status === "paid" && record.paid_date && (
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(record.paid_date), "dd MMM")}
-                          </span>
-                        )}
+                        {record.status === "paid" && record.paid_date && <span className="text-sm text-muted-foreground">{format(new Date(record.paid_date), "dd MMM")}</span>}
                       </div>
                     </TableCell>
                   )}
@@ -1628,6 +1561,50 @@ const Salary = () => {
           </TableBody>
         </Table>
         </div>
+      </div>
+
+      {/* Mobile: Salary Card Layout */}
+      <div className="block md:hidden space-y-3">
+        {loading ? (
+          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+        ) : salaryRecords.length === 0 ? (
+          <EmptyState
+            icon={Banknote}
+            title="No salary records"
+            description={`No salary records found for ${months[selectedMonth - 1]} ${selectedYear}`}
+            action={isAdmin ? { label: "Generate Salaries", onClick: () => setIsDialogOpen(true), icon: Plus } : undefined}
+          />
+        ) : (
+          salaryRecords.map((record) => (
+            <div key={record.id} className="bg-card border rounded-lg p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm">{record.employee?.full_name || 'Unknown'}</span>
+                    <Badge variant={record.status === "paid" ? "default" : "secondary"} className="text-xs">
+                      {record.status === "paid" ? "Paid" : "Pending"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">{months[selectedMonth - 1]} {selectedYear}</p>
+                  <p className="text-lg font-semibold text-primary mt-1">{formatCurrency(record.net_payable)}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground pt-2 border-t">
+                <span>Basic: {formatCurrency(record.basic_salary)}</span>
+                {record.bonus > 0 && <span className="text-success">+{formatCurrency(record.bonus)}</span>}
+                {record.deductions > 0 && <span className="text-destructive">-{formatCurrency(record.deductions)}</span>}
+                {record.advance > 0 && <span className="text-warning">Adv: {formatCurrency(record.advance)}</span>}
+              </div>
+              {isAdmin && record.status !== "paid" && (
+                <div className="flex items-center gap-2 pt-2">
+                  <Button size="sm" className="flex-1" onClick={() => markAsPaid(record.id)}>Mark Paid</Button>
+                  <Button size="sm" variant="outline" onClick={() => openEditSalary(record)}><Pencil className="h-4 w-4" /></Button>
+                  <Button size="sm" variant="outline" className="text-destructive" onClick={() => setDeletingSalary(record)}><Trash2 className="h-4 w-4" /></Button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
         </TabsContent>
 

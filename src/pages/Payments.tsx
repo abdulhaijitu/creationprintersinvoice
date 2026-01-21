@@ -299,117 +299,205 @@ const Payments = () => {
             </Select>
           </div>
 
-          {/* Table with horizontal scroll wrapper */}
-          <div className="rounded-md border overflow-x-auto -mx-3 md:mx-0">
-            <div className="min-w-[700px]">
+          {/* Desktop/Tablet: Table with horizontal scroll */}
+          <div className="hidden md:block rounded-md border overflow-x-auto">
+            <div className="min-w-[900px]">
               <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Payment Date</TableHead>
-                  <TableHead>Invoice No</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead className="text-right">Amount Paid</TableHead>
-                  <TableHead className="text-right">Invoice Total</TableHead>
-                  <TableHead className="text-right">Balance Due</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPayments.length === 0 ? (
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <Clock className="w-8 h-8 mb-2" />
-                        <p>No payments found</p>
-                      </div>
-                    </TableCell>
+                    <TableHead className="sticky left-0 z-10 bg-card whitespace-nowrap">Payment Date</TableHead>
+                    <TableHead className="whitespace-nowrap">Invoice No</TableHead>
+                    <TableHead className="whitespace-nowrap">Customer</TableHead>
+                    <TableHead className="whitespace-nowrap hidden lg:table-cell">Method</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Amount Paid</TableHead>
+                    <TableHead className="text-right whitespace-nowrap hidden lg:table-cell">Invoice Total</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Balance Due</TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  filteredPayments.map((payment) => {
-                    const invoice = payment.invoice;
-                    const invoiceTotal = Number(invoice?.total || 0);
-                    const paidAmount = Number(invoice?.paid_amount || 0);
-                    const balanceDue = invoiceTotal - paidAmount;
-                    const status = getInvoiceStatus(payment);
+                </TableHeader>
+                <TableBody>
+                  {filteredPayments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-24 text-center">
+                        <div className="flex flex-col items-center justify-center text-muted-foreground">
+                          <Clock className="w-8 h-8 mb-2" />
+                          <p>No payments found</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredPayments.map((payment) => {
+                      const invoice = payment.invoice;
+                      const invoiceTotal = Number(invoice?.total || 0);
+                      const paidAmount = Number(invoice?.paid_amount || 0);
+                      const balanceDue = invoiceTotal - paidAmount;
+                      const status = getInvoiceStatus(payment);
 
-                    return (
-                      <TableRow key={payment.id}>
-                        <TableCell>
-                          {format(parseISO(payment.payment_date), 'dd MMM yyyy')}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="link"
-                            className="p-0 h-auto font-medium"
-                            onClick={() => navigate(`/invoices/${invoice?.id}`)}
-                          >
-                            {invoice?.invoice_number || 'N/A'}
-                          </Button>
-                        </TableCell>
-                        <TableCell>{invoice?.customers?.name || 'N/A'}</TableCell>
-                        <TableCell className="capitalize">
-                          {payment.payment_method || 'N/A'}
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-success">
-                          {formatCurrency(Number(payment.amount))}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(invoiceTotal)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span className={cn(balanceDue > 0 && 'text-destructive')}>
-                            {formatCurrency(balanceDue)}
-                          </span>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(status)}</TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => navigate(`/invoices/${invoice?.id}`)}
-                              >
-                                <Eye className="w-4 h-4 mr-2" />
-                                View Invoice
-                              </DropdownMenuItem>
-                              <EditGuard module="payments">
+                      return (
+                        <TableRow key={payment.id}>
+                          <TableCell className="sticky left-0 z-10 bg-card whitespace-nowrap">
+                            {format(parseISO(payment.payment_date), 'dd MMM yyyy')}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <Button
+                              variant="link"
+                              className="p-0 h-auto font-medium"
+                              onClick={() => navigate(`/invoices/${invoice?.id}`)}
+                            >
+                              {invoice?.invoice_number || 'N/A'}
+                            </Button>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap truncate max-w-[150px]">{invoice?.customers?.name || 'N/A'}</TableCell>
+                          <TableCell className="capitalize whitespace-nowrap hidden lg:table-cell">
+                            {payment.payment_method || 'N/A'}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-success whitespace-nowrap">
+                            {formatCurrency(Number(payment.amount))}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap hidden lg:table-cell">
+                            {formatCurrency(invoiceTotal)}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            <span className={cn(balanceDue > 0 && 'text-destructive')}>
+                              {formatCurrency(balanceDue)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">{getStatusBadge(status)}</TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
                                 <DropdownMenuItem
-                                  onClick={() => {
-                                    toast.info('Edit payment feature coming soon');
-                                  }}
+                                  onClick={() => navigate(`/invoices/${invoice?.id}`)}
                                 >
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Edit
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  View Invoice
                                 </DropdownMenuItem>
-                              </EditGuard>
-                              <DeleteGuard module="payments">
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => {
-                                    setSelectedPayment(payment);
-                                    setRefundDialogOpen(true);
-                                  }}
-                                >
-                                  <RotateCcw className="w-4 h-4 mr-2" />
-                                  Refund
-                                </DropdownMenuItem>
-                              </DeleteGuard>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                                <EditGuard module="payments">
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      toast.info('Edit payment feature coming soon');
+                                    }}
+                                  >
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                </EditGuard>
+                                <DeleteGuard module="payments">
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => {
+                                      setSelectedPayment(payment);
+                                      setRefundDialogOpen(true);
+                                    }}
+                                  >
+                                    <RotateCcw className="w-4 h-4 mr-2" />
+                                    Refund
+                                  </DropdownMenuItem>
+                                </DeleteGuard>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
             </div>
+          </div>
+
+          {/* Mobile: Card layout */}
+          <div className="block md:hidden space-y-3">
+            {filteredPayments.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <Clock className="w-8 h-8 mb-2" />
+                <p>No payments found</p>
+              </div>
+            ) : (
+              filteredPayments.map((payment) => {
+                const invoice = payment.invoice;
+                const invoiceTotal = Number(invoice?.total || 0);
+                const paidAmount = Number(invoice?.paid_amount || 0);
+                const balanceDue = invoiceTotal - paidAmount;
+                const status = getInvoiceStatus(payment);
+
+                return (
+                  <div
+                    key={payment.id}
+                    className="bg-card border rounded-lg p-4 space-y-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm">
+                            {invoice?.invoice_number || 'N/A'}
+                          </span>
+                          {getStatusBadge(status)}
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate mt-1">
+                          {invoice?.customers?.name || 'No Customer'}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                          <span>{format(parseISO(payment.payment_date), 'dd MMM yyyy')}</span>
+                          {payment.payment_method && (
+                            <span className="capitalize">• {payment.payment_method}</span>
+                          )}
+                        </div>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => invoice?.id && navigate(`/invoices/${invoice.id}`)}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm pt-2 border-t">
+                      <div>
+                        <span className="text-muted-foreground">Paid: </span>
+                        <span className="font-medium text-success">{formatCurrency(Number(payment.amount))}</span>
+                      </div>
+                      {balanceDue > 0 && (
+                        <div>
+                          <span className="text-muted-foreground">Due: </span>
+                          <span className="font-medium text-destructive">{formatCurrency(balanceDue)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => invoice?.id && navigate(`/invoices/${invoice.id}`)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Invoice
+                      </Button>
+                      <DeleteGuard module="payments">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => {
+                            setSelectedPayment(payment);
+                            setRefundDialogOpen(true);
+                          }}
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </Button>
+                      </DeleteGuard>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </CardContent>
       </Card>

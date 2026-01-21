@@ -21,6 +21,12 @@ export { SortableTableHeader, useSortableTable } from './SortableTableHeader';
 export { EnhancedBulkActionsBar } from './EnhancedBulkActionsBar';
 export { TableToolbar } from './TableToolbar';
 
+// Responsive Table System
+export { ResponsiveTableWrapper, ResponsiveTableContainer, StickyColumnTable } from './ResponsiveTableWrapper';
+
+// Mobile Card Components
+export * from './mobile-cards';
+
 // Status & State Components
 export { PremiumStatusBadge, InvoiceStatusBadge, TaskStatusBadge } from './PremiumStatusBadge';
 export { DashboardEmptyState } from './DashboardEmptyState';
