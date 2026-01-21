@@ -653,7 +653,8 @@ const Reports = () => {
               </div>
 
               {/* Table */}
-              <div className="border border-border/50 rounded-xl overflow-hidden">
+              <div className="border border-border/50 rounded-xl overflow-hidden overflow-x-auto">
+                <div className="min-w-[700px]">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -692,6 +693,7 @@ const Reports = () => {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             </CardContent>
           </Card>

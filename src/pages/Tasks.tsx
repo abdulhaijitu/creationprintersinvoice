@@ -666,7 +666,8 @@ const Tasks = () => {
         </div>
       ) : (
         // Desktop Table View
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
+          <div className="min-w-[900px]">
           <Table>
             <TableHeader>
               <TableRow>
@@ -766,6 +767,7 @@ const Tasks = () => {
               })}
             </TableBody>
           </Table>
+          </div>
         </div>
           )}
         </TabsContent>
@@ -781,7 +783,8 @@ const Tasks = () => {
                 description="Tasks that have been completed and archived will appear here"
               />
             ) : (
-              <div className="border rounded-lg">
+              <div className="border rounded-lg overflow-x-auto">
+                <div className="min-w-[700px]">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -837,6 +840,7 @@ const Tasks = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             )}
           </TabsContent>

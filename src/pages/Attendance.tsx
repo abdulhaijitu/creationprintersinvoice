@@ -821,6 +821,7 @@ const Attendance = () => {
         </div>
       ) : (
         <div className="border rounded-lg overflow-x-auto">
+          <div className="min-w-[800px]">
           <Table>
             <TableHeader>
               <TableRow>
@@ -963,6 +964,7 @@ const Attendance = () => {
               })}
             </TableBody>
           </Table>
+          </div>
         </div>
       )}
 

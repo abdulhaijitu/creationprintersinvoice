@@ -714,6 +714,7 @@ const Employees = () => {
 
       {/* Employees Table */}
       <div className="border rounded-lg overflow-x-auto">
+        <div className="min-w-[800px]">
         <Table>
           <TableHeader>
             <TableRow>
@@ -821,6 +822,7 @@ const Employees = () => {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       {/* Edit Dialog */}

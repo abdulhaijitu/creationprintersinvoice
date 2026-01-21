@@ -493,7 +493,8 @@ const Leave = () => {
         </div>
       )}
 
-      <div className="border rounded-lg">
+      <div className="border rounded-lg overflow-x-auto">
+        <div className="min-w-[700px]">
         <Table>
           <TableHeader>
             <TableRow>
@@ -598,6 +599,7 @@ const Leave = () => {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );

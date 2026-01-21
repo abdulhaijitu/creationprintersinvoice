@@ -177,7 +177,8 @@ export default function DeliveryChallans() {
               </div>
 
               {/* Desktop Table View */}
-              <div className="hidden md:block rounded-md border mx-0">
+              <div className="hidden md:block rounded-md border mx-0 overflow-x-auto">
+                <div className="min-w-[700px]">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -266,6 +267,7 @@ export default function DeliveryChallans() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             </>
           )}

@@ -170,6 +170,7 @@ const Quotations = () => {
             />
           ) : (
             <div className="rounded-lg border overflow-x-auto">
+              <div className="min-w-[700px]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -240,6 +241,7 @@ const Quotations = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </div>
           )}
         </CardContent>

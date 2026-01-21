@@ -1177,7 +1177,8 @@ const Expenses = () => {
           </div>
 
           {/* Vendors Table - Polished */}
-          <div className="border border-border/60 rounded-lg overflow-hidden shadow-sm">
+          <div className="border border-border/60 rounded-lg overflow-hidden shadow-sm overflow-x-auto">
+            <div className="min-w-[700px]">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -1340,6 +1341,7 @@ const Expenses = () => {
                 )}
               </TableBody>
             </Table>
+            </div>
           </div>
         </TabsContent>
 
@@ -1562,7 +1564,8 @@ const Expenses = () => {
           </div>
 
           {/* Expenses Table */}
-          <div className="border rounded-lg">
+          <div className="border rounded-lg overflow-x-auto">
+            <div className="min-w-[700px]">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1652,6 +1655,7 @@ const Expenses = () => {
                 )}
               </TableBody>
             </Table>
+            </div>
           </div>
         </TabsContent>
 
