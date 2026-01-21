@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Plus, Phone, Mail, MapPin, Building2, CreditCard, Edit2, Trash2, Wallet, History } from "lucide-react";
+import { ArrowLeft, Plus, Phone, Mail, MapPin, Building2, CreditCard, Edit2, Trash2, Wallet, History, FileText, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +40,10 @@ import { AddBillDialog, type BillFormData } from "@/components/vendor/AddBillDia
 import { PayVendorBillDialog } from "@/components/vendor/PayVendorBillDialog";
 import { BillPaymentHistoryDialog } from "@/components/vendor/BillPaymentHistoryDialog";
 import { VendorPaymentReceipt } from "@/components/vendor/VendorPaymentReceipt";
+import { VendorStatementPDF } from "@/components/vendor/VendorStatementPDF";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { startOfMonth, endOfMonth, subMonths } from "date-fns";
 
 interface Vendor {
   id: string;
@@ -105,6 +108,11 @@ const VendorDetail = () => {
   // Receipt printing state
   const [receiptPayment, setReceiptPayment] = useState<Payment | null>(null);
   const [receiptBill, setReceiptBill] = useState<Bill | null>(null);
+  
+  // Statement PDF state
+  const [showStatementPDF, setShowStatementPDF] = useState(false);
+  const [statementFromDate, setStatementFromDate] = useState<Date>(startOfMonth(subMonths(new Date(), 1)));
+  const [statementToDate, setStatementToDate] = useState<Date>(endOfMonth(new Date()));
   
   // Permission check for vendor bill pay
   const canPayBill = isAdmin || hasPermission('vendor_bill_pay.create');
@@ -589,16 +597,88 @@ const VendorDetail = () => {
             <TabsTrigger value="payments">Payments ({payments.length})</TabsTrigger>
           </TabsList>
 
-          {isAdmin && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsAddBillDialogOpen(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New Bill
-              </Button>
+          <div className="flex gap-2">
+            {/* Statement PDF Button */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Statement
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Generate Vendor Statement</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Select date range for the statement
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">From Date</Label>
+                      <Input
+                        type="date"
+                        value={format(statementFromDate, "yyyy-MM-dd")}
+                        onChange={(e) => setStatementFromDate(new Date(e.target.value))}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">To Date</Label>
+                      <Input
+                        type="date"
+                        value={format(statementToDate, "yyyy-MM-dd")}
+                        onChange={(e) => setStatementToDate(new Date(e.target.value))}
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setStatementFromDate(startOfMonth(new Date()));
+                        setStatementToDate(endOfMonth(new Date()));
+                      }}
+                    >
+                      This Month
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setStatementFromDate(startOfMonth(subMonths(new Date(), 1)));
+                        setStatementToDate(endOfMonth(subMonths(new Date(), 1)));
+                      }}
+                    >
+                      Last Month
+                    </Button>
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => setShowStatementPDF(true)}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Generate PDF
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {isAdmin && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsAddBillDialogOpen(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Bill
+                </Button>
 
               <AddBillDialog
                 open={isAddBillDialogOpen}
@@ -832,8 +912,9 @@ const VendorDetail = () => {
                   </form>
                 </DialogContent>
               </Dialog>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Ledger Tab */}
@@ -1147,6 +1228,18 @@ const VendorDetail = () => {
             setReceiptPayment(null);
             setReceiptBill(null);
           }}
+        />
+      )}
+
+      {/* Vendor Statement PDF */}
+      {showStatementPDF && vendor && (
+        <VendorStatementPDF
+          vendor={vendor}
+          bills={bills}
+          payments={payments}
+          fromDate={statementFromDate}
+          toDate={statementToDate}
+          onClose={() => setShowStatementPDF(false)}
         />
       )}
     </div>
