@@ -372,13 +372,13 @@ const Vendors = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Vendors</h1>
-          <p className="text-muted-foreground">All vendors and due balance</p>
+    <div className="space-y-4 md:space-y-6 w-full min-w-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Vendors</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">All vendors and due balance</p>
         </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
           {canImport && (
             <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
               <Upload className="mr-2 h-4 w-4" />
@@ -515,57 +515,58 @@ const Vendors = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Summary Cards - Responsive Grid */}
+      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Total Vendors
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{vendors.length}</p>
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <p className="text-xl md:text-2xl font-bold">{vendors.length}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Total Bills
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <p className="text-xl md:text-2xl font-bold">
               {formatCurrency(vendors.reduce((sum, v) => sum + (v.total_bills || 0), 0))}
             </p>
           </CardContent>
         </Card>
         <Card className="border-destructive/50 bg-destructive/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-destructive flex items-center gap-2">
+          <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium text-destructive flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
               Total Due
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-destructive">{formatCurrency(totalDue)}</p>
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <p className="text-xl md:text-2xl font-bold text-destructive">{formatCurrency(totalDue)}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Search */}
-      <div className="relative">
+      <div className="relative min-w-0">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
           placeholder="Search vendors..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 max-w-md"
+          className="pl-10 w-full md:max-w-md"
         />
       </div>
 
-      {/* Vendors Table */}
-      <div className="border rounded-lg">
-        <Table>
+      {/* Vendors Table - Responsive with horizontal scroll */}
+      <div className="border rounded-lg overflow-x-auto -mx-3 md:mx-0">
+        <div className="min-w-[600px]">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
@@ -697,6 +698,7 @@ const Vendors = () => {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
       <CSVImportDialog
         open={importDialogOpen}

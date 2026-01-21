@@ -510,56 +510,56 @@ const Invoices = () => {
 
   return (
     <TooltipProvider>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 md:space-y-6 w-full min-w-0 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold text-foreground">Invoices</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl md:text-2xl font-semibold text-foreground">Invoices</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">
             Manage and track all your invoices in one place
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+        {/* Stats Cards - Responsive Grid */}
+        <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</p>
-            <p className="text-2xl font-semibold text-foreground mt-1">{totalInvoices}</p>
+            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{totalInvoices}</p>
           </div>
-          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-success uppercase tracking-wide">Paid</p>
-            <p className="text-2xl font-semibold text-foreground mt-1">{paidCount}</p>
+            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{paidCount}</p>
           </div>
-          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Unpaid</p>
-            <p className="text-2xl font-semibold text-foreground mt-1">{unpaidCount}</p>
+            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{unpaidCount}</p>
           </div>
-          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-destructive uppercase tracking-wide">Overdue</p>
-            <p className="text-2xl font-semibold text-foreground mt-1">{overdueCount}</p>
+            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{overdueCount}</p>
           </div>
-          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50 col-span-2 md:col-span-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Due</p>
-            <p className="text-xl font-semibold text-foreground mt-1">{formatCurrency(totalDueAmount)}</p>
+            <p className="text-lg md:text-xl font-semibold text-foreground mt-1">{formatCurrency(totalDueAmount)}</p>
           </div>
         </div>
 
         {/* Controls */}
         <div className="bg-card rounded-xl shadow-sm border border-border/50">
-          <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="p-3 md:p-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto]">
             {/* Search */}
-            <div className="relative flex-1 max-w-md">
+            <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by invoice no or customer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-background/50 border-border/50 h-10"
+                className="pl-10 bg-background/50 border-border/50 h-10 w-full"
               />
             </div>
 
             {/* Filter */}
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-              <SelectTrigger className="w-[140px] bg-background/50 border-border/50 h-10">
+              <SelectTrigger className="w-full sm:w-[140px] bg-background/50 border-border/50 h-10">
                 <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Filter" />
               </SelectTrigger>
@@ -572,13 +572,13 @@ const Invoices = () => {
               </SelectContent>
             </Select>
 
-            <div className="flex items-center gap-2 sm:ml-auto">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               {/* Import - requires create permission */}
               {invoicePerms.canCreate && (
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="h-10 gap-2 border-border/50" 
+                  className="h-10 gap-2 border-border/50 flex-1 sm:flex-none" 
                   onClick={() => setImportOpen(true)}
                 >
                   <Upload className="h-4 w-4" />
@@ -588,7 +588,7 @@ const Invoices = () => {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-10 gap-2 border-border/50">
+                  <Button variant="outline" size="sm" className="h-10 gap-2 border-border/50 flex-1 sm:flex-none">
                     <Download className="h-4 w-4" />
                     <span className="hidden sm:inline">Export</span>
                   </Button>
@@ -607,11 +607,12 @@ const Invoices = () => {
               {invoicePerms.canCreate && (
                 <Button 
                   size="sm"
-                  className="h-10 gap-2 shadow-sm" 
+                  className="h-10 gap-2 shadow-sm flex-1 sm:flex-none" 
                   onClick={() => navigate('/invoices/new')}
                 >
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">New Invoice</span>
+                  <span className="sm:hidden">New</span>
                 </Button>
               )}
             </div>
@@ -663,8 +664,9 @@ const Invoices = () => {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
+              <div className="overflow-x-auto -mx-3 md:mx-0">
+                <div className="min-w-[800px]">
+                  <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
                       <TableHead className="w-[40px] sticky top-0 bg-muted/30">
@@ -822,6 +824,7 @@ const Invoices = () => {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             )}
           </div>

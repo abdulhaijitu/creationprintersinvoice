@@ -444,50 +444,50 @@ const Customers = () => {
 
   return (
     <TooltipProvider>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 md:space-y-6 w-full min-w-0 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold text-foreground">Customer List</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl md:text-2xl font-semibold text-foreground">Customer List</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">
             Manage all customer information and view their ledger
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+        {/* Stats Cards - Responsive Grid */}
+        <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
+          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Customers</p>
-            <p className="text-2xl font-semibold text-foreground mt-1">{totalCustomers}</p>
+            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{totalCustomers}</p>
           </div>
-          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Invoiced</p>
-            <p className="text-2xl font-semibold text-foreground mt-1">{formatCurrency(totalInvoiced)}</p>
+            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{formatCurrency(totalInvoiced)}</p>
           </div>
-          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-success uppercase tracking-wide">Total Paid</p>
-            <p className="text-2xl font-semibold text-foreground mt-1">{formatCurrency(totalPaid)}</p>
+            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{formatCurrency(totalPaid)}</p>
           </div>
-          <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
+          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
             <p className="text-xs font-medium text-destructive uppercase tracking-wide">Total Due</p>
-            <p className="text-2xl font-semibold text-foreground mt-1">{formatCurrency(totalDue)}</p>
+            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{formatCurrency(totalDue)}</p>
           </div>
         </div>
 
         {/* Controls */}
         <div className="bg-card rounded-xl shadow-sm border border-border/50">
-          <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="p-3 md:p-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto]">
             {/* Search */}
-            <div className="relative flex-1 max-w-md">
+            <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name, phone, or company..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-background/50 border-border/50 h-10"
+                className="pl-10 bg-background/50 border-border/50 h-10 w-full"
               />
             </div>
 
-            <div className="flex items-center gap-2 sm:ml-auto">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-10 gap-2 border-border/50">
