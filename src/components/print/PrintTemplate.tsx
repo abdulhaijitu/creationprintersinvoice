@@ -835,55 +835,60 @@ export const PrintTemplate = ({
         )}
 
         {/* Notes & Terms */}
-        {(notes || invoiceTerms) && (
-          <div className="pdf-notes-section" style={{ 
+        {(notes || terms || invoiceTerms) && (
+          <div className="pdf-notes-terms-section" style={{ 
             marginBottom: '24px',
-            padding: '14px',
-            backgroundColor: '#f8fafc',
-            borderRadius: '10px',
-            borderLeft: '3px solid #94a3b8',
             pageBreakInside: 'avoid',
           }}>
-            <p style={{ 
-              fontSize: '8pt', 
-              fontWeight: '700', 
-              color: '#64748b',
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-              marginBottom: '8px',
-            }}>
-              Notes
-            </p>
+            {/* Notes Section */}
             {notes && (
-              <div 
-                style={{ fontSize: '8pt', color: '#4b5563', lineHeight: 1.6, marginBottom: '12px' }}
-                dangerouslySetInnerHTML={{ __html: notes }}
-              />
-            )}
-            {terms && (
-              <>
+              <div className="pdf-section" style={{
+                padding: '14px',
+                backgroundColor: '#f8fafc',
+                borderRadius: '10px',
+                borderLeft: '3px solid #3b82f6',
+                marginBottom: terms || invoiceTerms ? '16px' : 0,
+              }}>
                 <p style={{ 
-                  fontSize: '7pt', 
+                  fontSize: '8pt', 
                   fontWeight: '700', 
-                  color: '#64748b',
+                  color: '#3b82f6',
                   textTransform: 'uppercase',
                   letterSpacing: '1px',
                   marginBottom: '8px',
-                  marginTop: '12px',
+                }}>
+                  Notes
+                </p>
+                <div 
+                  style={{ fontSize: '8pt', color: '#4b5563', lineHeight: 1.6 }}
+                  dangerouslySetInnerHTML={{ __html: notes }}
+                />
+              </div>
+            )}
+            
+            {/* Terms & Conditions Section */}
+            {(terms || invoiceTerms) && (
+              <div className="pdf-section" style={{
+                padding: '14px',
+                backgroundColor: '#fefce8',
+                borderRadius: '10px',
+                borderLeft: '3px solid #ca8a04',
+              }}>
+                <p style={{ 
+                  fontSize: '8pt', 
+                  fontWeight: '700', 
+                  color: '#ca8a04',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  marginBottom: '8px',
                 }}>
                   Terms & Conditions
                 </p>
                 <div 
                   style={{ fontSize: '8pt', color: '#4b5563', lineHeight: 1.6 }}
-                  dangerouslySetInnerHTML={{ __html: terms }}
+                  dangerouslySetInnerHTML={{ __html: terms || invoiceTerms }}
                 />
-              </>
-            )}
-            {!terms && invoiceTerms && (
-              <div 
-                style={{ fontSize: '8pt', color: '#4b5563', lineHeight: 1.6 }}
-                dangerouslySetInnerHTML={{ __html: invoiceTerms }}
-              />
+              </div>
             )}
           </div>
         )}
