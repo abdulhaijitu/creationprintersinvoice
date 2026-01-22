@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { useOrgScopedQuery } from '@/hooks/useOrgScopedQuery';
+import { usePermissions } from '@/lib/permissions/hooks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -13,8 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, FileText, Trash2, Edit } from 'lucide-react';
+import { Plus, Search, Eye, FileText, Trash2, Edit, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -22,6 +27,7 @@ import { TableSkeleton } from '@/components/shared/TableSkeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { QuotationCard } from '@/components/shared/mobile-cards/QuotationCard';
 import { formatCurrency } from '@/lib/formatters';
 
 type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted';
@@ -39,13 +45,19 @@ interface Quotation {
 
 const Quotations = () => {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { canPerform, showCreate, showDelete, showEdit } = usePermissions();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null);
+
+  // Permission checks
+  const hasViewAccess = canPerform('quotations', 'view');
+  const hasCreateAccess = showCreate('quotations');
+  const hasEditAccess = showEdit('quotations');
+  const hasDeleteAccess = showDelete('quotations');
 
   useEffect(() => {
     if (hasOrgContext && organizationId) {
@@ -123,9 +135,20 @@ const Quotations = () => {
       quotation.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Check if quotation is editable (only draft)
+  // Business rules for status-based actions
   const isEditable = (status: QuotationStatus) => status === 'draft';
   const isDeletable = (status: QuotationStatus) => status === 'draft';
+
+  // Access denied view
+  if (!hasViewAccess) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center">
+        <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+        <p className="text-muted-foreground">You don't have permission to view quotations.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -133,10 +156,13 @@ const Quotations = () => {
         title="Quotations"
         description="Manage all quotations"
         actions={
-          <Button className="gap-2" onClick={() => navigate('/quotations/new')}>
-            <Plus className="h-4 w-4" />
-            New Quotation
-          </Button>
+          hasCreateAccess && (
+            <Button className="gap-2" onClick={() => navigate('/quotations/new')}>
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">New Quotation</span>
+              <span className="sm:hidden">New</span>
+            </Button>
+          )
         }
       />
 
@@ -146,7 +172,7 @@ const Quotations = () => {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search quotation number or customer..."
+                placeholder="Search quotation or customer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -154,95 +180,158 @@ const Quotations = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0 md:px-6">
           {loading ? (
-            <TableSkeleton rows={5} columns={7} />
+            <div className="px-4 md:px-0">
+              <TableSkeleton rows={5} columns={7} />
+            </div>
           ) : filteredQuotations.length === 0 ? (
             <EmptyState
               icon={FileText}
               title="No quotations found"
               description="Create your first quotation to get started"
-              action={{
+              action={hasCreateAccess ? {
                 label: 'New Quotation',
                 onClick: () => navigate('/quotations/new'),
                 icon: Plus,
-              }}
+              } : undefined}
             />
           ) : (
-            <div className="rounded-lg border overflow-x-auto">
-              <div className="min-w-[700px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="whitespace-nowrap">Quotation No</TableHead>
-                    <TableHead className="whitespace-nowrap">Customer</TableHead>
-                    <TableHead className="whitespace-nowrap">Date</TableHead>
-                    <TableHead className="whitespace-nowrap">Valid Until</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Total</TableHead>
-                    <TableHead className="whitespace-nowrap">Status</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredQuotations.map((quotation) => (
-                    <TableRow key={quotation.id}>
-                      <TableCell className="font-medium whitespace-nowrap">
-                        {quotation.quotation_number}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">{quotation.customers?.name || '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {quotation.valid_until
-                          ? format(new Date(quotation.valid_until), 'dd/MM/yyyy')
-                          : '-'}
-                      </TableCell>
-                      <TableCell className="text-right font-medium whitespace-nowrap">
-                        {formatCurrency(Number(quotation.total))}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <StatusBadge status={quotation.status} />
-                      </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate(`/quotations/${quotation.id}`)}
-                            title="View"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {isEditable(quotation.status) && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => navigate(`/quotations/${quotation.id}/edit`)}
-                              title="Edit"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {isAdmin && isDeletable(quotation.status) && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteClick(quotation)}
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3 px-4">
+                {filteredQuotations.map((quotation) => (
+                  <QuotationCard
+                    key={quotation.id}
+                    quotation={quotation}
+                    onView={(id) => navigate(`/quotations/${id}`)}
+                    onEdit={(id) => navigate(`/quotations/${id}/edit`)}
+                    onDelete={(id) => {
+                      const q = quotations.find(q => q.id === id);
+                      if (q) handleDeleteClick(q);
+                    }}
+                    canEdit={hasEditAccess}
+                    canDelete={hasDeleteAccess}
+                  />
+                ))}
               </div>
-            </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block rounded-lg border mx-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Quotation No</TableHead>
+                      <TableHead className="whitespace-nowrap">Customer</TableHead>
+                      <TableHead className="whitespace-nowrap hidden lg:table-cell">Date</TableHead>
+                      <TableHead className="whitespace-nowrap hidden xl:table-cell">Valid Until</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">Total</TableHead>
+                      <TableHead className="whitespace-nowrap">Status</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredQuotations.map((quotation) => (
+                      <TableRow 
+                        key={quotation.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/quotations/${quotation.id}`)}
+                      >
+                        <TableCell className="font-medium whitespace-nowrap">
+                          {quotation.quotation_number}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap max-w-[150px] truncate">
+                          {quotation.customers?.name || '-'}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap hidden lg:table-cell">
+                          {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap hidden xl:table-cell">
+                          {quotation.valid_until
+                            ? format(new Date(quotation.valid_until), 'dd/MM/yyyy')
+                            : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-medium whitespace-nowrap">
+                          {formatCurrency(Number(quotation.total))}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <StatusBadge status={quotation.status} />
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => navigate(`/quotations/${quotation.id}`)}
+                              title="View"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {hasEditAccess && isEditable(quotation.status) ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => navigate(`/quotations/${quotation.id}/edit`)}
+                                title="Edit"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            ) : !isEditable(quotation.status) && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      disabled
+                                      className="opacity-50 cursor-not-allowed"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Only draft quotations can be edited
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            {hasDeleteAccess && isDeletable(quotation.status) ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteClick(quotation)}
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : hasDeleteAccess && !isDeletable(quotation.status) && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      disabled
+                                      className="opacity-50 cursor-not-allowed text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Only draft quotations can be deleted
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
