@@ -30,6 +30,7 @@ interface PrintTemplateProps {
   total: number;
   paidAmount?: number;
   notes?: string | null;
+  terms?: string | null;
   status: string;
 }
 
@@ -47,6 +48,7 @@ export const PrintTemplate = ({
   total,
   paidAmount,
   notes,
+  terms,
   status,
 }: PrintTemplateProps) => {
   const { data: settings } = useQuery({
@@ -811,17 +813,38 @@ export const PrintTemplate = ({
               letterSpacing: '1px',
               marginBottom: '8px',
             }}>
-              {type === 'invoice' ? 'Notes & Terms' : 'Terms & Conditions'}
+              Notes
             </p>
             {notes && (
-              <p style={{ fontSize: '8pt', color: '#4b5563', whiteSpace: 'pre-wrap', margin: '0 0 6px', lineHeight: 1.5 }}>
-                {notes}
-              </p>
+              <div 
+                style={{ fontSize: '8pt', color: '#4b5563', lineHeight: 1.6, marginBottom: '12px' }}
+                dangerouslySetInnerHTML={{ __html: notes }}
+              />
             )}
-            {invoiceTerms && (
-              <p style={{ fontSize: '8pt', color: '#4b5563', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.5 }}>
-                {invoiceTerms}
-              </p>
+            {terms && (
+              <>
+                <p style={{ 
+                  fontSize: '7pt', 
+                  fontWeight: '700', 
+                  color: '#64748b',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  marginBottom: '8px',
+                  marginTop: '12px',
+                }}>
+                  Terms & Conditions
+                </p>
+                <div 
+                  style={{ fontSize: '8pt', color: '#4b5563', lineHeight: 1.6 }}
+                  dangerouslySetInnerHTML={{ __html: terms }}
+                />
+              </>
+            )}
+            {!terms && invoiceTerms && (
+              <div 
+                style={{ fontSize: '8pt', color: '#4b5563', lineHeight: 1.6 }}
+                dangerouslySetInnerHTML={{ __html: invoiceTerms }}
+              />
             )}
           </div>
         )}

@@ -1467,6 +1467,7 @@ export type Database = {
           status: Database["public"]["Enums"]["invoice_status"] | null
           subtotal: number
           tax: number | null
+          terms: string | null
           total: number
           updated_at: string
         }
@@ -1487,6 +1488,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal?: number
           tax?: number | null
+          terms?: string | null
           total?: number
           updated_at?: string
         }
@@ -1507,6 +1509,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["invoice_status"] | null
           subtotal?: number
           tax?: number | null
+          terms?: string | null
           total?: number
           updated_at?: string
         }
@@ -3361,6 +3364,7 @@ export type Database = {
           status_changed_by: string | null
           subtotal: number
           tax: number | null
+          terms: string | null
           total: number
           updated_at: string
           valid_until: string | null
@@ -3387,6 +3391,7 @@ export type Database = {
           status_changed_by?: string | null
           subtotal?: number
           tax?: number | null
+          terms?: string | null
           total?: number
           updated_at?: string
           valid_until?: string | null
@@ -3413,6 +3418,7 @@ export type Database = {
           status_changed_by?: string | null
           subtotal?: number
           tax?: number | null
+          terms?: string | null
           total?: number
           updated_at?: string
           valid_until?: string | null
