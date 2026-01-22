@@ -446,7 +446,7 @@ export function InvoicePDFTemplate({ data }: { data: InvoicePDFData }) {
           {data.items.map((item, index) => (
             <tr key={index}>
               <td style={styles.td}>{index + 1}</td>
-              <td style={styles.td}>{item.description}</td>
+              <td style={{...styles.td, lineHeight: '1.6'}} dangerouslySetInnerHTML={{ __html: item.description }} />
               <td style={{ ...styles.td, ...styles.tdCenter }}>
                 {item.quantity}{item.unit ? ` ${item.unit}` : ''}
               </td>
