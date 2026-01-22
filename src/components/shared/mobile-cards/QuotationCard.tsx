@@ -30,7 +30,10 @@ export function QuotationCard({
   canEdit = false,
   canDelete = false,
 }: QuotationCardProps) {
-  const isEditable = quotation.status === 'draft';
+  // UPDATED BUSINESS RULES:
+  // - Edit: Allowed for ALL statuses (permission-based only)
+  // - Delete: Only allowed for draft status
+  const isEditable = true; // All statuses are now editable
   const isDeletable = quotation.status === 'draft';
 
   return (
