@@ -102,3 +102,7 @@ verify_jwt = false
 [functions.send-reminder-emails]
 verify_jwt = false
 rate_limit = "10/1h"
+
+[functions.send-quotation-email]
+verify_jwt = false
+rate_limit = "50/1h"
