@@ -52,6 +52,7 @@ interface Invoice {
   total: number;
   paid_amount: number;
   status: string;
+  subject: string | null;
   notes: string | null;
   terms: string | null;
   customers: {
@@ -256,6 +257,7 @@ const InvoiceDetail = () => {
           tax={Number(invoice.tax)}
           total={Number(invoice.total)}
           paidAmount={Number(invoice.paid_amount)}
+          subject={(invoice as any).subject}
           notes={invoice.notes}
           terms={(invoice as any).terms}
           status={invoice.status}
@@ -398,6 +400,21 @@ const InvoiceDetail = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Subject */}
+            {(invoice as any).subject && (
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-primary flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary" />
+                    Subject
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="font-medium">{(invoice as any).subject}</p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Items */}
             <Card className="overflow-hidden">

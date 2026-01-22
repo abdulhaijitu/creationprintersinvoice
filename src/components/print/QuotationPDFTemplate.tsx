@@ -31,6 +31,7 @@ export interface QuotationPDFData {
     date: string;
     validUntil?: string;
     status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
+    subject?: string;
   };
   
   // Customer Info
@@ -495,6 +496,33 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
             </table>
           </div>
         </div>
+        
+        {/* Subject */}
+        {data.quotation.subject && (
+          <div style={{
+            marginBottom: '24px',
+            padding: '12px 16px',
+            backgroundColor: '#f8fafc',
+            borderLeft: `3px solid ${primaryColor}`,
+            borderRadius: '4px',
+          }} className="pdf-section">
+            <p style={{
+              fontSize: '8pt',
+              fontWeight: '600',
+              color: '#6b7280',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: '4px',
+            }}>Subject</p>
+            <p style={{
+              fontSize: '11pt',
+              fontWeight: '600',
+              color: '#111827',
+              margin: 0,
+              lineHeight: '1.4',
+            }}>{data.quotation.subject}</p>
+          </div>
+        )}
         
         {/* Items Table */}
         <table style={styles.table} className="pdf-section">

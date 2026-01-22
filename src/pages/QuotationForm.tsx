@@ -59,6 +59,7 @@ const QuotationForm = () => {
     customer_id: '',
     quotation_date: format(new Date(), 'yyyy-MM-dd'),
     valid_until: format(addDays(new Date(), 15), 'yyyy-MM-dd'),
+    subject: '',
     notes: '',
     terms: '',
     discount: 0,
@@ -155,6 +156,7 @@ const QuotationForm = () => {
         customer_id: quotation.customer_id || '',
         quotation_date: quotation.quotation_date,
         valid_until: quotation.valid_until || '',
+        subject: (quotation as any).subject || '',
         notes: quotation.notes || '',
         terms: (quotation as any).terms || '',
         discount: Number(quotation.discount) || 0,
@@ -262,6 +264,7 @@ const QuotationForm = () => {
             customer_id: formData.customer_id,
             quotation_date: formData.quotation_date,
             valid_until: formData.valid_until || null,
+            subject: formData.subject || null,
             subtotal,
             discount: formData.discount,
             tax: formData.tax,
@@ -318,6 +321,7 @@ const QuotationForm = () => {
               customer_id: formData.customer_id,
               quotation_date: formData.quotation_date,
               valid_until: formData.valid_until || null,
+              subject: formData.subject || null,
               subtotal,
               discount: formData.discount,
               tax: formData.tax,
@@ -453,6 +457,27 @@ const QuotationForm = () => {
                       setFormData({ ...formData, valid_until: e.target.value })
                     }
                   />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Subject Field */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Subject</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Input
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value.slice(0, 255) })}
+                    placeholder="e.g., Stall design & printing work for Dhaka Fair 2026"
+                    className="font-medium"
+                    maxLength={255}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {formData.subject.length}/255 characters • Optional short title for this quotation
+                  </p>
                 </div>
               </CardContent>
             </Card>
