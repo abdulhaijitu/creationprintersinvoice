@@ -48,6 +48,7 @@ const QuotationForm = () => {
   const [fetching, setFetching] = useState(false);
   const [quotationNumber, setQuotationNumber] = useState('');
   const [quotationStatus, setQuotationStatus] = useState<string>('draft');
+  const [isConverted, setIsConverted] = useState(false);
   const [isGeneratingNumber, setIsGeneratingNumber] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -62,9 +63,6 @@ const QuotationForm = () => {
   const [items, setItems] = useState<QuotationItem[]>([
     { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
   ]);
-
-  // Check if quotation can be edited (only draft status)
-  const canEdit = !isEditing || quotationStatus === 'draft';
 
   useEffect(() => {
     fetchCustomers();
@@ -99,15 +97,11 @@ const QuotationForm = () => {
 
       if (error) throw error;
 
-      // Check if quotation can be edited
-      if (quotation.status !== 'draft') {
-        toast.error('Only draft quotations can be edited');
-        navigate(`/quotations/${id}`);
-        return;
-      }
-
+      // All statuses are now editable - no status restriction
       setQuotationNumber(quotation.quotation_number);
       setQuotationStatus(quotation.status);
+      setIsConverted(quotation.status === 'converted' || !!quotation.converted_to_invoice_id);
+      
       setFormData({
         customer_id: quotation.customer_id || '',
         quotation_date: quotation.quotation_date,
@@ -351,6 +345,25 @@ const QuotationForm = () => {
           </p>
         </div>
       </div>
+
+      {/* Warning for converted quotations */}
+      {isConverted && (
+        <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 flex items-start gap-3">
+          <div className="h-5 w-5 text-warning flex-shrink-0 mt-0.5">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+              <path d="M12 9v4"/>
+              <path d="M12 17h.01"/>
+            </svg>
+          </div>
+          <div>
+            <p className="font-medium text-foreground">Converted Quotation</p>
+            <p className="text-sm text-muted-foreground">
+              This quotation has already been converted to an invoice. Changes made here will not affect the existing invoice.
+            </p>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} autoComplete="off">
         <div className="grid gap-6 lg:grid-cols-3">

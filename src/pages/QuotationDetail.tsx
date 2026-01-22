@@ -354,8 +354,11 @@ const QuotationDetail = () => {
     }).format(amount);
   };
 
-  // Determine if quotation is editable (only draft status)
-  const isEditable = quotation?.status === 'draft';
+  // UPDATED BUSINESS RULES:
+  // - Edit: Allowed for ALL statuses (permission-based only)
+  // - Delete: Only allowed for draft status
+  // - Convert: Only allowed for accepted status
+  const isEditable = true; // All statuses are now editable with proper permission
   const isDeletable = quotation?.status === 'draft';
   const canBeSent = quotation?.status === 'draft';
   const canBeAccepted = quotation?.status === 'sent';
@@ -460,13 +463,11 @@ const QuotationDetail = () => {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Edit button - only for draft */}
-            {isEditable && (
-              <Button variant="outline" size="sm" onClick={() => navigate(`/quotations/${quotation.id}/edit`)}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-            )}
+            {/* Edit button - visible for all statuses (permission-based control) */}
+            <Button variant="outline" size="sm" onClick={() => navigate(`/quotations/${quotation.id}/edit`)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />
               Print
