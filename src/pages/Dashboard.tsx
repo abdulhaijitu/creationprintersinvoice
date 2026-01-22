@@ -31,6 +31,7 @@ import {
 } from 'recharts';
 import {
   FileText,
+  FileCheck,
   Wallet,
   Users,
   TrendingUp,
@@ -70,7 +71,14 @@ interface DashboardStats {
   pendingInvoices: number;
   overdueInvoices: number;
   paidInvoices: number;
-  pendingQuotations: number;
+  // Quotation stats by status
+  quotationsDraft: number;
+  quotationsSent: number;
+  quotationsAccepted: number;
+  quotationsRejected: number;
+  quotationsConverted: number;
+  quotationsExpired: number;
+  quotationsTotal: number;
   totalCustomers: number;
   totalEmployees: number;
   todayAttendance: number;
@@ -134,7 +142,13 @@ const Dashboard = () => {
     pendingInvoices: 0,
     overdueInvoices: 0,
     paidInvoices: 0,
-    pendingQuotations: 0,
+    quotationsDraft: 0,
+    quotationsSent: 0,
+    quotationsAccepted: 0,
+    quotationsRejected: 0,
+    quotationsConverted: 0,
+    quotationsExpired: 0,
+    quotationsTotal: 0,
     totalCustomers: 0,
     totalEmployees: 0,
     todayAttendance: 0,
@@ -201,7 +215,7 @@ const Dashboard = () => {
           companySettingsRes,
         ] = await Promise.all([
           supabase.from('invoices').select('total, paid_amount, status, invoice_date, due_date').eq('organization_id', orgId),
-          supabase.from('quotations').select('status').eq('organization_id', orgId).eq('status', 'pending'),
+          supabase.from('quotations').select('status').eq('organization_id', orgId),
           supabase.from('customers').select('id', { count: 'exact', head: true }).eq('organization_id', orgId),
           supabase.from('expenses').select('amount').eq('organization_id', orgId).gte('date', monthStartStr),
           supabase
@@ -375,6 +389,15 @@ const Dashboard = () => {
         }
         setAlerts(alertsList);
 
+        // Calculate quotation stats by status
+        const quotations = quotationsRes.data || [];
+        const quotationsDraft = quotations.filter((q: any) => q.status === 'draft').length;
+        const quotationsSent = quotations.filter((q: any) => q.status === 'sent').length;
+        const quotationsAccepted = quotations.filter((q: any) => q.status === 'accepted').length;
+        const quotationsRejected = quotations.filter((q: any) => q.status === 'rejected').length;
+        const quotationsConverted = quotations.filter((q: any) => q.status === 'converted').length;
+        const quotationsExpired = quotations.filter((q: any) => q.status === 'expired').length;
+
         setStats({
           todaySales,
           monthlyRevenue,
@@ -385,7 +408,13 @@ const Dashboard = () => {
           pendingInvoices,
           overdueInvoices,
           paidInvoices,
-          pendingQuotations: quotationsRes.data?.length || 0,
+          quotationsDraft,
+          quotationsSent,
+          quotationsAccepted,
+          quotationsRejected,
+          quotationsConverted,
+          quotationsExpired,
+          quotationsTotal: quotations.length,
           totalCustomers: customersRes.count || 0,
           totalEmployees: employeesRes.count || 0,
           todayAttendance: attendanceRes.data?.length || 0,
@@ -713,7 +742,108 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Task Dashboard Cards - Responsive horizontal layout */}
+      {/* Quotations Dashboard Cards */}
+      <div className="space-y-3">
+        <h2 className="text-base md:text-lg font-semibold">Quotations</h2>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+          {/* 1. Total Quotations */}
+          <Card 
+            className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+            onClick={() => navigate('/quotations')}
+          >
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-muted">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs md:text-sm font-medium">Total</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight">
+                {stats.quotationsTotal}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 2. Draft */}
+          <Card 
+            className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+            onClick={() => navigate('/quotations')}
+          >
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-muted">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs md:text-sm font-medium">Draft</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-muted-foreground">
+                {stats.quotationsDraft}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 3. Sent */}
+          <Card 
+            className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+            onClick={() => navigate('/quotations')}
+          >
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-info/10">
+                <FileCheck className="h-4 w-4 text-info" />
+              </div>
+              <p className="text-xs md:text-sm font-medium">Sent</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-info">
+                {stats.quotationsSent}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 4. Accepted */}
+          <Card 
+            className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+            onClick={() => navigate('/quotations')}
+          >
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-success/10">
+                <CheckCircle className="h-4 w-4 text-success" />
+              </div>
+              <p className="text-xs md:text-sm font-medium">Accepted</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-success">
+                {stats.quotationsAccepted}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 5. Converted */}
+          <Card 
+            className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+            onClick={() => navigate('/quotations')}
+          >
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-primary/10">
+                <ArrowRight className="h-4 w-4 text-primary" />
+              </div>
+              <p className="text-xs md:text-sm font-medium">Converted</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-primary">
+                {stats.quotationsConverted}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 6. Rejected/Expired */}
+          <Card 
+            className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+            onClick={() => navigate('/quotations')}
+          >
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-destructive/10">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+              </div>
+              <p className="text-xs md:text-sm font-medium">Rejected</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-destructive">
+                {stats.quotationsRejected + stats.quotationsExpired}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
       <div className="space-y-3">
         <h2 className="text-base md:text-lg font-semibold">Production Tasks</h2>
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
