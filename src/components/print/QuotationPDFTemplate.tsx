@@ -82,10 +82,7 @@ const styles = {
     color: '#1f2937',
     backgroundColor: '#ffffff',
     padding: '40px',
-    height: 'auto',
-    minHeight: 'auto',
-    maxHeight: 'none',
-    overflow: 'visible',
+    minHeight: '100%',
     position: 'relative' as const,
   },
   
