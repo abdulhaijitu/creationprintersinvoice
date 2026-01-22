@@ -156,11 +156,14 @@ export const PrintTemplate = ({
   const showPaymentInfo = bankName || mobileBanking;
 
   return (
-    <div className="hidden print:block bg-white text-black" style={{ 
+    <div className="hidden print:block bg-white text-black print-invoice" style={{ 
       fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
       fontSize: '9pt',
       lineHeight: '1.5',
-      minHeight: '100vh',
+      height: 'auto',
+      minHeight: 'auto',
+      maxHeight: 'none',
+      overflow: 'visible',
       position: 'relative',
       padding: '0',
       color: '#1f2937',
@@ -495,11 +498,12 @@ export const PrintTemplate = ({
         )}
 
         {/* Items Table */}
-        <div style={{ marginBottom: '24px' }}>
+        <div style={{ marginBottom: '24px' }} className="pdf-section-breakable">
           <table style={{ 
             width: '100%', 
             borderCollapse: 'collapse',
             fontSize: '8pt',
+            pageBreakInside: 'auto',
           }}>
             <thead>
               <tr style={{ backgroundColor: '#f3f4f6' }}>
@@ -598,12 +602,14 @@ export const PrintTemplate = ({
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody style={{ pageBreakInside: 'auto' }}>
               {items.map((item, index) => (
                 <tr 
                   key={index}
+                  className="avoid-break"
                   style={{ 
                     borderBottom: '1px solid #f3f4f6',
+                    pageBreakInside: 'avoid',
                   }}
                 >
                   <td style={{ padding: '10px 8px', color: '#9ca3af', fontSize: '8pt' }}>
@@ -641,7 +647,7 @@ export const PrintTemplate = ({
         </div>
 
         {/* Summary Section */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '28px' }}>
+        <div className="pdf-summary" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '28px', pageBreakInside: 'avoid' }}>
           <div style={{ 
             width: '280px',
             backgroundColor: '#fafafa',
@@ -735,14 +741,15 @@ export const PrintTemplate = ({
 
         {/* Payment Information Block */}
         {showPaymentInfo && (
-          <div style={{ 
+          <div className="pdf-section" style={{ 
             marginBottom: '24px',
             padding: '16px',
             backgroundColor: '#f0fdf4',
             borderRadius: '10px',
             border: '1px solid #bbf7d0',
+            pageBreakInside: 'avoid',
           }}>
-            <p style={{ 
+            <p style={{
               fontSize: '8pt', 
               fontWeight: '700', 
               color: '#166534',
@@ -827,12 +834,13 @@ export const PrintTemplate = ({
 
         {/* Notes & Terms */}
         {(notes || invoiceTerms) && (
-          <div style={{ 
+          <div className="pdf-notes-section" style={{ 
             marginBottom: '24px',
             padding: '14px',
             backgroundColor: '#f8fafc',
             borderRadius: '10px',
             borderLeft: '3px solid #94a3b8',
+            pageBreakInside: 'avoid',
           }}>
             <p style={{ 
               fontSize: '8pt', 
@@ -879,10 +887,11 @@ export const PrintTemplate = ({
         )}
 
         {/* Footer */}
-        <div style={{ 
+        <div className="pdf-footer" style={{ 
           borderTop: '1px solid #e5e7eb',
           paddingTop: '20px',
           marginTop: '20px',
+          pageBreakInside: 'avoid',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             {/* Signature */}
