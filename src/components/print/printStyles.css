@@ -54,26 +54,96 @@
     color-adjust: exact !important;
   }
 
+  /* ============================================ */
+  /* SMART PAGE BREAK HANDLING                   */
+  /* ============================================ */
+
+  /* PDF Sections - allow clean breaks between */
+  .pdf-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Keep section headers with first content */
+  .pdf-section-header {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* PDF Paragraphs - keep together when possible */
+  .pdf-paragraph {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Allow breaks before new sections */
+  .pdf-section-breakable {
+    page-break-before: auto;
+    break-before: auto;
+  }
+
   /* Table styling for print */
   table {
     border-collapse: collapse;
     width: 100%;
   }
 
-  /* Avoid page breaks in middle of elements */
+  /* Table rows - avoid breaking */
   tr,
   .avoid-break {
     page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Table header - repeat on each page */
+  thead {
+    display: table-header-group;
+  }
+
+  /* Table footer - repeat on each page */
+  tfoot {
+    display: table-footer-group;
   }
 
   /* Keep headers together with content */
   h1, h2, h3, h4, h5, h6 {
     page-break-after: avoid;
+    break-after: avoid;
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Notes and Terms sections */
+  .pdf-notes-section,
+  .pdf-terms-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* For very long content, allow natural wrapping */
+  .pdf-long-content {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+
+  /* Summary/Totals section - keep together */
+  .pdf-summary {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Footer - keep together */
+  .pdf-footer {
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   /* Images should not break */
   img {
     page-break-inside: avoid;
+    break-inside: avoid;
     max-width: 100% !important;
   }
 
