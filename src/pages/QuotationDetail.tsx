@@ -628,7 +628,12 @@ const QuotationDetail = () => {
                   <TableBody>
                     {items.map((item) => (
                       <TableRow key={item.id} className="hover:bg-muted/30">
-                        <TableCell className="font-medium">{item.description}</TableCell>
+                        <TableCell className="font-medium">
+                          <div 
+                            className="prose prose-sm max-w-none prose-p:m-0 prose-p:leading-relaxed prose-ul:my-1 prose-ol:my-1 prose-li:my-0"
+                            dangerouslySetInnerHTML={{ __html: item.description }}
+                          />
+                        </TableCell>
                         <TableCell className="text-center">{item.quantity}</TableCell>
                         <TableCell className="text-right">
                           {formatCurrency(Number(item.unit_price))}

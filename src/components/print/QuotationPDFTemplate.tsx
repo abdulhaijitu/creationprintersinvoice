@@ -509,7 +509,7 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
             {data.items.map((item, index) => (
               <tr key={index}>
                 <td style={styles.td}>{index + 1}</td>
-                <td style={styles.td}>{item.description}</td>
+                <td style={{...styles.td, lineHeight: '1.6'}} dangerouslySetInnerHTML={{ __html: item.description }} />
                 <td style={{ ...styles.td, ...styles.tdCenter }}>{item.quantity}</td>
                 <td style={{ ...styles.td, ...styles.tdCenter }}>{item.unit || '-'}</td>
                 <td style={{ ...styles.td, ...styles.tdRight }}>
