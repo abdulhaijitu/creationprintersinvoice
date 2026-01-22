@@ -497,7 +497,7 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
         </div>
         
         {/* Items Table */}
-        <table style={styles.table}>
+        <table style={styles.table} className="pdf-section">
           <thead style={styles.tableHeader}>
             <tr>
               <th style={{ ...styles.th, width: '5%' }}>#</th>
@@ -513,7 +513,7 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
           </thead>
           <tbody>
             {data.items.map((item, index) => (
-              <tr key={index}>
+              <tr key={index} className="pdf-paragraph">
                 <td style={styles.td}>{index + 1}</td>
                 <td style={{...styles.td, lineHeight: '1.6'}} dangerouslySetInnerHTML={{ __html: item.description }} />
                 <td style={{ ...styles.td, ...styles.tdCenter }}>{item.quantity}</td>
@@ -535,7 +535,7 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
         </table>
         
         {/* Summary */}
-        <div style={styles.summaryContainer}>
+        <div style={styles.summaryContainer} className="pdf-summary pdf-section-breakable">
           <div style={styles.summaryTable}>
             <div style={styles.summaryRow}>
               <span style={styles.summaryLabel}>Subtotal</span>
@@ -565,13 +565,14 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
         
         {/* Notes & Terms Sections */}
         {(data.notes || data.terms) && (
-          <div style={{ marginBottom: '24px' }}>
+          <div style={{ marginBottom: '24px' }} className="pdf-section-breakable">
             {/* Notes */}
             {data.notes && (
-              <div style={styles.notesSection}>
-                <p style={styles.notesLabel}>Notes</p>
+              <div style={styles.notesSection} className="pdf-notes-section pdf-section">
+                <p style={styles.notesLabel} className="pdf-section-header">Notes</p>
                 <div 
                   style={styles.notesContent}
+                  className="pdf-paragraph"
                   dangerouslySetInnerHTML={{ __html: data.notes }}
                 />
               </div>
@@ -579,10 +580,11 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
             
             {/* Terms & Conditions */}
             {data.terms && (
-              <div style={data.notes ? styles.termsSection : styles.notesSection}>
-                <p style={styles.notesLabel}>Terms & Conditions</p>
+              <div style={data.notes ? styles.termsSection : styles.notesSection} className="pdf-terms-section pdf-section pdf-section-breakable">
+                <p style={styles.notesLabel} className="pdf-section-header">Terms & Conditions</p>
                 <div 
                   style={styles.notesContent}
+                  className="pdf-paragraph"
                   dangerouslySetInnerHTML={{ __html: data.terms }}
                 />
               </div>
@@ -591,7 +593,7 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
         )}
         
         {/* Footer */}
-        <div style={styles.footer}>
+        <div style={styles.footer} className="pdf-footer pdf-section-breakable">
           <div style={styles.footerGrid}>
             {/* Authorized Signature */}
             <div style={styles.footerSection}>
@@ -646,6 +648,32 @@ export const quotationPrintStyles = `
     box-sizing: border-box;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+  
+  .print-quotation .pdf-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  .print-quotation .pdf-section-header {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  
+  .print-quotation .pdf-paragraph {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    orphans: 3;
+    widows: 3;
+  }
+  
+  .print-quotation .pdf-section-breakable {
+    page-break-before: auto;
+    break-before: auto;
+  }
+  
+  .print-quotation thead {
+    display: table-header-group;
   }
   
   @page {
