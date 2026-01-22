@@ -457,6 +457,8 @@ export type Database = {
           address: string | null
           company_name: string | null
           created_at: string
+          default_notes: string | null
+          default_terms: string | null
           deleted_at: string | null
           email: string | null
           id: string
@@ -471,6 +473,8 @@ export type Database = {
           address?: string | null
           company_name?: string | null
           created_at?: string
+          default_notes?: string | null
+          default_terms?: string | null
           deleted_at?: string | null
           email?: string | null
           id?: string
@@ -485,6 +489,8 @@ export type Database = {
           address?: string | null
           company_name?: string | null
           created_at?: string
+          default_notes?: string | null
+          default_terms?: string | null
           deleted_at?: string | null
           email?: string | null
           id?: string

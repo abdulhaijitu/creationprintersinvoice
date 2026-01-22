@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Dialog,
   DialogContent,
@@ -52,6 +54,8 @@ import {
   Eye,
   MoreHorizontal,
   Users,
+  ChevronDown,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,6 +74,8 @@ interface Customer {
   address: string | null;
   company_name: string | null;
   notes: string | null;
+  default_notes: string | null;
+  default_terms: string | null;
   created_at: string;
   total_invoiced?: number;
   total_paid?: number;
@@ -96,7 +102,10 @@ const Customers = () => {
     address: '',
     company_name: '',
     notes: '',
+    default_notes: '',
+    default_terms: '',
   });
+  const [showDefaultTerms, setShowDefaultTerms] = useState(false);
 
   // Permission checks
   const canBulkDelete = isAdmin || canRolePerform(orgRole as OrgRole, 'customers', 'delete');
@@ -202,7 +211,10 @@ const Customers = () => {
       address: customer.address || '',
       company_name: customer.company_name || '',
       notes: customer.notes || '',
+      default_notes: customer.default_notes || '',
+      default_terms: customer.default_terms || '',
     });
+    setShowDefaultTerms(!!(customer.default_notes || customer.default_terms));
     setIsDialogOpen(true);
   };
 
@@ -300,7 +312,10 @@ const Customers = () => {
       address: '',
       company_name: '',
       notes: '',
+      default_notes: '',
+      default_terms: '',
     });
+    setShowDefaultTerms(false);
   };
 
   const filteredCustomers = customers.filter(
@@ -599,6 +614,49 @@ const Customers = () => {
                           rows={2}
                         />
                       </div>
+                      
+                      {/* Default Notes & Terms Section */}
+                      <Collapsible open={showDefaultTerms} onOpenChange={setShowDefaultTerms}>
+                        <CollapsibleTrigger asChild>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            className="w-full justify-between text-muted-foreground hover:text-foreground"
+                          >
+                            <span className="flex items-center gap-2">
+                              <FileText className="h-4 w-4" />
+                              Default Notes & Terms (Optional)
+                            </span>
+                            <ChevronDown className={cn(
+                              "h-4 w-4 transition-transform",
+                              showDefaultTerms && "rotate-180"
+                            )} />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-4 pt-4">
+                          <p className="text-xs text-muted-foreground">
+                            These defaults will auto-fill when creating quotations/invoices for this customer.
+                          </p>
+                          <div className="space-y-2">
+                            <Label>Default Notes</Label>
+                            <RichTextEditor
+                              value={formData.default_notes}
+                              onChange={(val) => setFormData({ ...formData, default_notes: val })}
+                              placeholder="Default notes for quotations/invoices..."
+                              minHeight="80px"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Default Terms & Conditions</Label>
+                            <RichTextEditor
+                              value={formData.default_terms}
+                              onChange={(val) => setFormData({ ...formData, default_terms: val })}
+                              placeholder="Default terms & conditions..."
+                              minHeight="80px"
+                            />
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     </div>
                     <DialogFooter className="gap-2 sm:gap-0">
                       <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
