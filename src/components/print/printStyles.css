@@ -170,16 +170,37 @@
   /* NOTES & TERMS SECTIONS                      */
   /* ============================================ */
   
+  /* Notes/Terms wrapper - allow breaks between sections */
+  .pdf-notes-terms-section {
+    page-break-before: auto;
+    break-before: auto;
+  }
+  
+  /* Individual Notes/Terms sections */
   .pdf-notes-section,
   .pdf-terms-section {
     page-break-inside: avoid;
     break-inside: avoid;
+    /* Allow break before if needed */
+    page-break-before: auto;
+    break-before: auto;
   }
 
   /* For very long content, allow natural wrapping */
   .pdf-long-content {
     page-break-inside: auto;
     break-inside: auto;
+  }
+  
+  /* Rich text content inside notes/terms */
+  .pdf-notes-section p,
+  .pdf-terms-section p,
+  .pdf-notes-section ul,
+  .pdf-terms-section ul,
+  .pdf-notes-section ol,
+  .pdf-terms-section ol {
+    orphans: 2;
+    widows: 2;
   }
 
   /* ============================================ */
