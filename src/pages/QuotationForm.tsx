@@ -27,6 +27,8 @@ import { CustomerSelect } from '@/components/shared/CustomerSelect';
 interface Customer {
   id: string;
   name: string;
+  default_notes?: string | null;
+  default_terms?: string | null;
 }
 
 interface QuotationItem {
@@ -58,9 +60,14 @@ const QuotationForm = () => {
     quotation_date: format(new Date(), 'yyyy-MM-dd'),
     valid_until: format(addDays(new Date(), 15), 'yyyy-MM-dd'),
     notes: '',
+    terms: '',
     discount: 0,
     tax: 0,
   });
+  
+  // Track if notes/terms were loaded from customer defaults
+  const [notesFromDefault, setNotesFromDefault] = useState(false);
+  const [termsFromDefault, setTermsFromDefault] = useState(false);
 
   const [items, setItems] = useState<QuotationItem[]>([
     { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
@@ -78,13 +85,53 @@ const QuotationForm = () => {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select('id, name')
+        .select('id, name, default_notes, default_terms')
         .order('name');
 
       if (error) throw error;
       setCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
+    }
+  };
+  
+  // Handle customer selection - auto-fill defaults
+  const handleCustomerChange = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    
+    setFormData(prev => {
+      const updates: typeof prev = { ...prev, customer_id: customerId };
+      
+      // Only auto-fill notes if empty or was from previous default
+      if (customer?.default_notes && (!prev.notes || notesFromDefault)) {
+        updates.notes = customer.default_notes;
+        setNotesFromDefault(true);
+      }
+      
+      // Only auto-fill terms if empty or was from previous default
+      if (customer?.default_terms && (!prev.terms || termsFromDefault)) {
+        updates.terms = customer.default_terms;
+        setTermsFromDefault(true);
+      }
+      
+      return updates;
+    });
+  };
+  
+  // Reset to customer default
+  const resetNotesToDefault = () => {
+    const customer = customers.find(c => c.id === formData.customer_id);
+    if (customer?.default_notes) {
+      setFormData(prev => ({ ...prev, notes: customer.default_notes || '' }));
+      setNotesFromDefault(true);
+    }
+  };
+  
+  const resetTermsToDefault = () => {
+    const customer = customers.find(c => c.id === formData.customer_id);
+    if (customer?.default_terms) {
+      setFormData(prev => ({ ...prev, terms: customer.default_terms || '' }));
+      setTermsFromDefault(true);
     }
   };
 
@@ -109,6 +156,7 @@ const QuotationForm = () => {
         quotation_date: quotation.quotation_date,
         valid_until: quotation.valid_until || '',
         notes: quotation.notes || '',
+        terms: quotation.terms || '',
         discount: Number(quotation.discount) || 0,
         tax: Number(quotation.tax) || 0,
       });
@@ -379,9 +427,7 @@ const QuotationForm = () => {
                   <Label>Customer *</Label>
                   <CustomerSelect
                     value={formData.customer_id}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, customer_id: value })
-                    }
+                    onValueChange={handleCustomerChange}
                     customers={customers}
                     onCustomerAdded={fetchCustomers}
                   />
