@@ -138,8 +138,10 @@ const Quotations = () => {
       quotation.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Business rules for status-based actions
-  const isEditable = (status: QuotationStatus) => status === 'draft';
+  // UPDATED BUSINESS RULES:
+  // - Edit: Allowed for ALL statuses (permission-based only)
+  // - Delete: Only allowed for draft status
+  const isEditable = (_status: QuotationStatus) => true; // All statuses editable
   const isDeletable = (status: QuotationStatus) => status === 'draft';
 
   // Access denied view
