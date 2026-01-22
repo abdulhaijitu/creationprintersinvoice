@@ -298,13 +298,19 @@ const styles = {
     color: '#6b7280',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
-    marginBottom: '4px',
+    marginBottom: '8px',
   },
   
-  notesText: {
+  notesContent: {
     fontSize: '9pt',
     color: '#4b5563',
-    whiteSpace: 'pre-wrap' as const,
+    lineHeight: '1.6',
+  },
+  
+  termsSection: {
+    marginBottom: '16px',
+    paddingTop: '12px',
+    borderTop: '1px dashed #e5e7eb',
   },
   
   footerText: {
@@ -557,11 +563,30 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
           </div>
         </div>
         
-        {/* Notes */}
-        {data.notes && (
-          <div style={styles.notesSection}>
-            <p style={styles.notesLabel}>Notes & Terms</p>
-            <p style={styles.notesText}>{data.notes}</p>
+        {/* Notes & Terms Sections */}
+        {(data.notes || data.terms) && (
+          <div style={{ marginBottom: '24px' }}>
+            {/* Notes */}
+            {data.notes && (
+              <div style={styles.notesSection}>
+                <p style={styles.notesLabel}>Notes</p>
+                <div 
+                  style={styles.notesContent}
+                  dangerouslySetInnerHTML={{ __html: data.notes }}
+                />
+              </div>
+            )}
+            
+            {/* Terms & Conditions */}
+            {data.terms && (
+              <div style={data.notes ? styles.termsSection : styles.notesSection}>
+                <p style={styles.notesLabel}>Terms & Conditions</p>
+                <div 
+                  style={styles.notesContent}
+                  dangerouslySetInnerHTML={{ __html: data.terms }}
+                />
+              </div>
+            )}
           </div>
         )}
         
