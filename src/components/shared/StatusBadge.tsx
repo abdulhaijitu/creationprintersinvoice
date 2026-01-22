@@ -1,10 +1,10 @@
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Clock, XCircle, AlertCircle, Package, Truck, Ban, FileCheck, Send, FileEdit } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, AlertCircle, Package, Truck, Ban, FileCheck, Send, FileEdit, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type StatusType = 
   | 'paid' | 'partial' | 'unpaid' 
-  | 'pending' | 'accepted' | 'rejected' | 'converted'
+  | 'pending' | 'accepted' | 'rejected' | 'converted' | 'expired'
   | 'draft' | 'sent' | 'dispatched' | 'delivered' | 'cancelled'
   | 'approved';
 
@@ -31,6 +31,7 @@ const statusConfig: Record<string, {
   rejected: { label: 'Rejected', icon: XCircle, variant: 'destructive' },
   approved: { label: 'Approved', icon: CheckCircle, variant: 'success' },
   converted: { label: 'Converted', icon: FileCheck, variant: 'primary' },
+  expired: { label: 'Expired', icon: AlertTriangle, variant: 'warning' },
   
   // Delivery challan statuses
   dispatched: { label: 'Dispatched', icon: Truck, variant: 'info' },
