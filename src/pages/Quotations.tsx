@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrgScopedQuery } from '@/hooks/useOrgScopedQuery';
 import { usePermissions } from '@/lib/permissions/hooks';
@@ -18,9 +18,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, FileText, Trash2, Edit, ShieldAlert } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Search, Eye, FileText, Trash2, Edit, ShieldAlert, Filter, X, Calendar } from 'lucide-react';
+import { format, parseISO, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { TableSkeleton } from '@/components/shared/TableSkeleton';
@@ -29,6 +36,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { QuotationCard } from '@/components/shared/mobile-cards/QuotationCard';
 import { formatCurrency } from '@/lib/formatters';
+import { Badge } from '@/components/ui/badge';
 
 type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
 
@@ -43,6 +51,27 @@ interface Quotation {
   customers: { name: string } | null;
 }
 
+// Status options for filter
+const STATUS_OPTIONS: { value: QuotationStatus | 'all'; label: string }[] = [
+  { value: 'all', label: 'All Status' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'sent', label: 'Sent' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'converted', label: 'Converted' },
+  { value: 'expired', label: 'Expired' },
+];
+
+// Date range presets
+const DATE_RANGE_OPTIONS = [
+  { value: 'all', label: 'All Time' },
+  { value: 'today', label: 'Today' },
+  { value: 'this_week', label: 'This Week' },
+  { value: 'this_month', label: 'This Month' },
+  { value: 'last_month', label: 'Last Month' },
+  { value: 'last_3_months', label: 'Last 3 Months' },
+];
+
 const Quotations = () => {
   const navigate = useNavigate();
   const { canPerform, showCreate, showDelete, showEdit } = usePermissions();
@@ -50,6 +79,8 @@ const Quotations = () => {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<QuotationStatus | 'all'>('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null);
 
@@ -132,11 +163,86 @@ const Quotations = () => {
     }
   };
 
-  const filteredQuotations = quotations.filter(
-    (quotation) =>
-      quotation.quotation_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      quotation.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Calculate date range boundaries
+  const getDateRange = (range: string) => {
+    const today = new Date();
+    switch (range) {
+      case 'today':
+        return { start: format(today, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+      case 'this_week':
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        return { start: format(weekStart, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+      case 'this_month':
+        return { start: format(startOfMonth(today), 'yyyy-MM-dd'), end: format(endOfMonth(today), 'yyyy-MM-dd') };
+      case 'last_month':
+        const lastMonth = subMonths(today, 1);
+        return { start: format(startOfMonth(lastMonth), 'yyyy-MM-dd'), end: format(endOfMonth(lastMonth), 'yyyy-MM-dd') };
+      case 'last_3_months':
+        const threeMonthsAgo = subMonths(today, 3);
+        return { start: format(startOfMonth(threeMonthsAgo), 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+      default:
+        return null;
+    }
+  };
+
+  // Memoized filtered quotations
+  const filteredQuotations = useMemo(() => {
+    let filtered = quotations;
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(q => q.status === statusFilter);
+    }
+
+    // Apply date range filter
+    const dateRange = getDateRange(dateRangeFilter);
+    if (dateRange) {
+      filtered = filtered.filter(q => {
+        const date = q.quotation_date;
+        return date >= dateRange.start && date <= dateRange.end;
+      });
+    }
+
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (q) =>
+          q.quotation_number.toLowerCase().includes(query) ||
+          q.customers?.name?.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [quotations, statusFilter, dateRangeFilter, searchQuery]);
+
+  // Status counts for filter badges
+  const statusCounts = useMemo(() => {
+    const counts: Record<QuotationStatus | 'all', number> = {
+      all: quotations.length,
+      draft: 0,
+      sent: 0,
+      accepted: 0,
+      rejected: 0,
+      converted: 0,
+      expired: 0,
+    };
+    quotations.forEach(q => {
+      if (counts[q.status] !== undefined) {
+        counts[q.status]++;
+      }
+    });
+    return counts;
+  }, [quotations]);
+
+  const clearFilters = () => {
+    setStatusFilter('all');
+    setDateRangeFilter('all');
+    setSearchQuery('');
+  };
+
+  const hasActiveFilters = statusFilter !== 'all' || dateRangeFilter !== 'all' || searchQuery !== '';
 
   // UPDATED BUSINESS RULES:
   // - Edit: Allowed for ALL statuses (permission-based only)
@@ -171,10 +277,29 @@ const Quotations = () => {
         }
       />
 
+      {/* Status Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {STATUS_OPTIONS.filter(s => s.value !== 'all').map((status) => (
+          <Card 
+            key={status.value}
+            className={`cursor-pointer transition-all hover:shadow-md ${
+              statusFilter === status.value ? 'ring-2 ring-primary' : ''
+            }`}
+            onClick={() => setStatusFilter(statusFilter === status.value ? 'all' : status.value as QuotationStatus)}
+          >
+            <CardContent className="p-3 text-center">
+              <p className="text-2xl font-bold">{statusCounts[status.value as QuotationStatus]}</p>
+              <p className="text-xs text-muted-foreground capitalize">{status.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            {/* Search */}
+            <div className="relative flex-1 w-full sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search quotation or customer..."
@@ -183,7 +308,81 @@ const Quotations = () => {
                 className="pl-10"
               />
             </div>
+
+            {/* Filters */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Status Filter */}
+              <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as QuotationStatus | 'all')}>
+                <SelectTrigger className="w-[140px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                      {option.value !== 'all' && (
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5">
+                          {statusCounts[option.value as QuotationStatus]}
+                        </Badge>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Date Range Filter */}
+              <Select value={dateRangeFilter} onValueChange={setDateRangeFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Date Range" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DATE_RANGE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Clear Filters */}
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10">
+                  <X className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Active Filter Tags */}
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              <span className="text-sm text-muted-foreground">Filters:</span>
+              {statusFilter !== 'all' && (
+                <Badge variant="secondary" className="gap-1">
+                  Status: {statusFilter}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setStatusFilter('all')} />
+                </Badge>
+              )}
+              {dateRangeFilter !== 'all' && (
+                <Badge variant="secondary" className="gap-1">
+                  {DATE_RANGE_OPTIONS.find(o => o.value === dateRangeFilter)?.label}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setDateRangeFilter('all')} />
+                </Badge>
+              )}
+              {searchQuery && (
+                <Badge variant="secondary" className="gap-1">
+                  Search: "{searchQuery}"
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setSearchQuery('')} />
+                </Badge>
+              )}
+              <span className="text-sm text-muted-foreground ml-2">
+                Showing {filteredQuotations.length} of {quotations.length}
+              </span>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="px-0 md:px-6">
           {loading ? (
@@ -193,9 +392,13 @@ const Quotations = () => {
           ) : filteredQuotations.length === 0 ? (
             <EmptyState
               icon={FileText}
-              title="No quotations found"
-              description="Create your first quotation to get started"
-              action={hasCreateAccess ? {
+              title={hasActiveFilters ? "No quotations match filters" : "No quotations found"}
+              description={hasActiveFilters ? "Try adjusting your filters" : "Create your first quotation to get started"}
+              action={hasActiveFilters ? {
+                label: 'Clear Filters',
+                onClick: clearFilters,
+                icon: X,
+              } : hasCreateAccess ? {
                 label: 'New Quotation',
                 onClick: () => navigate('/quotations/new'),
                 icon: Plus,
