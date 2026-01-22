@@ -1,4 +1,14 @@
 @media print {
+  /* ============================================ */
+  /* ROOT CONTAINER - ENABLE MULTI-PAGE FLOW     */
+  /* ============================================ */
+  
+  html, body {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+  
   /* Hide everything except print content */
   body * {
     visibility: hidden;
@@ -10,10 +20,14 @@
   }
 
   .print-content {
-    position: absolute;
-    left: 0;
-    top: 0;
+    position: static !important;
+    left: auto;
+    top: auto;
     width: 100%;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
     padding: 0;
     margin: 0;
   }
@@ -55,6 +69,23 @@
   }
 
   /* ============================================ */
+  /* MULTI-PAGE CONTENT FLOW                     */
+  /* ============================================ */
+  
+  /* Main content wrapper - allow overflow */
+  .pdf-page,
+  .print-invoice,
+  .print-quotation {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: relative !important;
+    page-break-after: auto;
+    page-break-before: auto;
+  }
+
+  /* ============================================ */
   /* SMART PAGE BREAK HANDLING                   */
   /* ============================================ */
 
@@ -84,14 +115,24 @@
     break-before: auto;
   }
 
-  /* Table styling for print */
+  /* ============================================ */
+  /* TABLE HANDLING FOR MULTI-PAGE               */
+  /* ============================================ */
+  
   table {
     border-collapse: collapse;
     width: 100%;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
   }
 
-  /* Table rows - avoid breaking */
-  tr,
+  /* Table rows - avoid breaking mid-row */
+  tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Individual row class for extra specificity */
   .avoid-break {
     page-break-inside: avoid;
     break-inside: avoid;
@@ -106,7 +147,17 @@
   tfoot {
     display: table-footer-group;
   }
+  
+  /* Table body - allow page breaks */
+  tbody {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
 
+  /* ============================================ */
+  /* HEADER PROTECTION                           */
+  /* ============================================ */
+  
   /* Keep headers together with content */
   h1, h2, h3, h4, h5, h6 {
     page-break-after: avoid;
@@ -115,7 +166,10 @@
     widows: 3;
   }
 
-  /* Notes and Terms sections */
+  /* ============================================ */
+  /* NOTES & TERMS SECTIONS                      */
+  /* ============================================ */
+  
   .pdf-notes-section,
   .pdf-terms-section {
     page-break-inside: avoid;
@@ -128,6 +182,10 @@
     break-inside: auto;
   }
 
+  /* ============================================ */
+  /* SUMMARY & FOOTER                            */
+  /* ============================================ */
+  
   /* Summary/Totals section - keep together */
   .pdf-summary {
     page-break-inside: avoid;
@@ -140,6 +198,10 @@
     break-inside: avoid;
   }
 
+  /* ============================================ */
+  /* IMAGES & MISC                               */
+  /* ============================================ */
+  
   /* Images should not break */
   img {
     page-break-inside: avoid;
@@ -160,6 +222,8 @@
   /* Ensure proper spacing */
   .print-content > div {
     padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 }
 

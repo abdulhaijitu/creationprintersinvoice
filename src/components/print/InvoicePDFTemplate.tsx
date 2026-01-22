@@ -85,7 +85,11 @@ const styles = {
     color: '#1f2937',
     backgroundColor: '#ffffff',
     padding: '40px',
-    minHeight: '100%',
+    height: 'auto',
+    minHeight: 'auto',
+    maxHeight: 'none',
+    overflow: 'visible',
+    position: 'relative' as const,
   },
   
   // Header
