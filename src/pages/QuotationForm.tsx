@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -432,14 +433,13 @@ const QuotationForm = () => {
                       {items.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="min-w-[280px]">
-                            <Textarea
+                            <RichTextEditor
                               value={item.description}
-                              onChange={(e) =>
-                                updateItem(item.id, 'description', e.target.value)
+                              onChange={(val) =>
+                                updateItem(item.id, 'description', val)
                               }
                               placeholder="Item description"
-                              rows={2}
-                              className="min-h-[60px] resize-y overflow-hidden text-wrap break-words"
+                              minHeight="60px"
                             />
                           </TableCell>
                           <TableCell>
