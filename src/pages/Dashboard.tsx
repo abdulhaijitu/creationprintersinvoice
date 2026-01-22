@@ -79,6 +79,12 @@ interface DashboardStats {
   quotationsConverted: number;
   quotationsExpired: number;
   quotationsTotal: number;
+  // Delivery Challan stats by status
+  challansDraft: number;
+  challansDispatched: number;
+  challansDelivered: number;
+  challansCancelled: number;
+  challansTotal: number;
   totalCustomers: number;
   totalEmployees: number;
   todayAttendance: number;
@@ -149,6 +155,11 @@ const Dashboard = () => {
     quotationsConverted: 0,
     quotationsExpired: 0,
     quotationsTotal: 0,
+    challansDraft: 0,
+    challansDispatched: 0,
+    challansDelivered: 0,
+    challansCancelled: 0,
+    challansTotal: 0,
     totalCustomers: 0,
     totalEmployees: 0,
     todayAttendance: 0,
@@ -213,6 +224,7 @@ const Dashboard = () => {
           lastMonthExpensesRes,
           lastMonthInvoicesRes,
           companySettingsRes,
+          deliveryChallansRes,
         ] = await Promise.all([
           supabase.from('invoices').select('total, paid_amount, status, invoice_date, due_date').eq('organization_id', orgId),
           supabase.from('quotations').select('status').eq('organization_id', orgId),
@@ -250,6 +262,7 @@ const Dashboard = () => {
             .gte('invoice_date', lastMonthStartStr)
             .lte('invoice_date', lastMonthEndStr),
           supabase.from('company_settings').select('company_name').limit(1).single(),
+          supabase.from('delivery_challans').select('status').eq('organization_id', orgId),
         ]);
 
         // Calculate stats
@@ -398,6 +411,13 @@ const Dashboard = () => {
         const quotationsConverted = quotations.filter((q: any) => q.status === 'converted').length;
         const quotationsExpired = quotations.filter((q: any) => q.status === 'expired').length;
 
+        // Calculate delivery challan stats by status
+        const challans = deliveryChallansRes.data || [];
+        const challansDraft = challans.filter((c: any) => c.status === 'draft').length;
+        const challansDispatched = challans.filter((c: any) => c.status === 'dispatched').length;
+        const challansDelivered = challans.filter((c: any) => c.status === 'delivered').length;
+        const challansCancelled = challans.filter((c: any) => c.status === 'cancelled').length;
+
         setStats({
           todaySales,
           monthlyRevenue,
@@ -415,6 +435,11 @@ const Dashboard = () => {
           quotationsConverted,
           quotationsExpired,
           quotationsTotal: quotations.length,
+          challansDraft,
+          challansDispatched,
+          challansDelivered,
+          challansCancelled,
+          challansTotal: challans.length,
           totalCustomers: customersRes.count || 0,
           totalEmployees: employeesRes.count || 0,
           todayAttendance: attendanceRes.data?.length || 0,
@@ -838,6 +863,76 @@ const Dashboard = () => {
               <p className="text-xs md:text-sm font-medium">Rejected</p>
               <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-destructive">
                 {stats.quotationsRejected + stats.quotationsExpired}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Delivery Challans Dashboard Cards */}
+      <div className="space-y-3">
+        <h2 className="text-base md:text-lg font-semibold">Delivery Challans</h2>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+          {/* 1. Total Challans */}
+          <Card 
+            className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+            onClick={() => navigate('/delivery-challans')}
+          >
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-muted">
+                <Truck className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs md:text-sm font-medium">Total</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight">
+                {stats.challansTotal}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 2. Draft */}
+          <Card 
+            className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+            onClick={() => navigate('/delivery-challans')}
+          >
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-muted">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs md:text-sm font-medium">Draft</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-muted-foreground">
+                {stats.challansDraft}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 3. Dispatched */}
+          <Card 
+            className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+            onClick={() => navigate('/delivery-challans')}
+          >
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-info/10">
+                <Package className="h-4 w-4 text-info" />
+              </div>
+              <p className="text-xs md:text-sm font-medium">Dispatched</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-info">
+                {stats.challansDispatched}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 4. Delivered */}
+          <Card 
+            className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+            onClick={() => navigate('/delivery-challans')}
+          >
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-success/10">
+                <CheckCircle className="h-4 w-4 text-success" />
+              </div>
+              <p className="text-xs md:text-sm font-medium">Delivered</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-success">
+                {stats.challansDelivered}
               </p>
             </CardContent>
           </Card>
