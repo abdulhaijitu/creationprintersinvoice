@@ -56,6 +56,7 @@ import {
   Truck,
   ClipboardList,
   Banknote,
+  XCircle,
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, isToday, parseISO } from 'date-fns';
 import { formatCurrency, formatChartCurrency } from '@/lib/formatters';
@@ -872,7 +873,7 @@ const Dashboard = () => {
       {/* Delivery Challans Dashboard Cards */}
       <div className="space-y-3">
         <h2 className="text-base md:text-lg font-semibold">Delivery Challans</h2>
-        <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {/* 1. Total Challans */}
           <Card 
             className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
@@ -933,6 +934,22 @@ const Dashboard = () => {
               <p className="text-xs md:text-sm font-medium">Delivered</p>
               <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-success">
                 {stats.challansDelivered}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 5. Cancelled */}
+          <Card 
+            className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+            onClick={() => navigate('/delivery-challans')}
+          >
+            <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-full bg-destructive/10">
+                <XCircle className="h-4 w-4 text-destructive" />
+              </div>
+              <p className="text-xs md:text-sm font-medium">Cancelled</p>
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-destructive">
+                {stats.challansCancelled}
               </p>
             </CardContent>
           </Card>
