@@ -615,14 +615,16 @@ export const PrintTemplate = ({
                   <td style={{ padding: '10px 8px', color: '#9ca3af', fontSize: '8pt' }}>
                     {index + 1}
                   </td>
-                  <td style={{ 
-                    padding: '10px 8px', 
-                    fontWeight: '500', 
-                    color: '#111827',
-                    wordBreak: 'break-word',
-                  }}>
-                    {item.description}
-                  </td>
+                  <td 
+                    style={{ 
+                      padding: '10px 8px', 
+                      fontWeight: '500', 
+                      color: '#111827',
+                      wordBreak: 'break-word',
+                      lineHeight: '1.5',
+                    }}
+                    dangerouslySetInnerHTML={{ __html: item.description }}
+                  />
                   <td style={{ padding: '10px 8px', textAlign: 'center', color: '#374151' }}>
                     {item.quantity}
                   </td>
