@@ -571,7 +571,7 @@ const QuotationForm = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Notes & Terms</CardTitle>
+                <CardTitle>Notes</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Notes Section */}

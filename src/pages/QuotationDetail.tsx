@@ -647,7 +647,6 @@ const QuotationDetail = () => {
                       <TableHead className="font-semibold">Description</TableHead>
                       <TableHead className="text-center font-semibold">Qty</TableHead>
                       <TableHead className="text-right font-semibold">Unit Price</TableHead>
-                      <TableHead className="text-right font-semibold">Discount</TableHead>
                       <TableHead className="text-right font-semibold">Total</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -663,9 +662,6 @@ const QuotationDetail = () => {
                         <TableCell className="text-center">{item.quantity}</TableCell>
                         <TableCell className="text-right">
                           {formatCurrency(Number(item.unit_price))}
-                        </TableCell>
-                        <TableCell className="text-right text-destructive">
-                          {Number(item.discount) > 0 ? `-${formatCurrency(Number(item.discount))}` : '-'}
                         </TableCell>
                         <TableCell className="text-right font-semibold">
                           {formatCurrency(Number(item.total))}
@@ -683,11 +679,32 @@ const QuotationDetail = () => {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-info flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-info" />
-                    Notes & Terms
+                    Notes
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{quotation.notes}</p>
+                  <div 
+                    className="prose prose-sm max-w-none text-muted-foreground prose-p:m-0 prose-p:leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: quotation.notes }}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Terms & Conditions */}
+            {(quotation as any).terms && (
+              <Card className="border-warning/20 bg-warning/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-warning flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-warning" />
+                    Terms & Conditions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div 
+                    className="prose prose-sm max-w-none text-muted-foreground prose-p:m-0 prose-p:leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: (quotation as any).terms }}
+                  />
                 </CardContent>
               </Card>
             )}
