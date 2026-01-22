@@ -156,7 +156,7 @@ const QuotationForm = () => {
         quotation_date: quotation.quotation_date,
         valid_until: quotation.valid_until || '',
         notes: quotation.notes || '',
-        terms: quotation.terms || '',
+        terms: (quotation as any).terms || '',
         discount: Number(quotation.discount) || 0,
         tax: Number(quotation.tax) || 0,
       });
@@ -267,7 +267,8 @@ const QuotationForm = () => {
             tax: formData.tax,
             total,
             notes: formData.notes,
-          })
+            terms: formData.terms,
+          } as any)
           .eq('id', id);
 
         if (quotationError) throw quotationError;
@@ -322,9 +323,10 @@ const QuotationForm = () => {
               tax: formData.tax,
               total,
               notes: formData.notes,
+              terms: formData.terms,
               created_by: user?.id,
               organization_id: organization.id,
-            },
+            } as any,
           ])
           .select()
           .single();
@@ -544,15 +546,72 @@ const QuotationForm = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Notes / Terms</CardTitle>
+                <CardTitle>Notes & Terms</CardTitle>
               </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Additional information or terms..."
-                  rows={3}
-                />
+              <CardContent className="space-y-4">
+                {/* Notes Section */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Notes</Label>
+                    {notesFromDefault && formData.customer_id && (
+                      <span className="text-xs text-muted-foreground">
+                        Loaded from customer default
+                      </span>
+                    )}
+                  </div>
+                  <RichTextEditor
+                    value={formData.notes}
+                    onChange={(val) => {
+                      setFormData({ ...formData, notes: val });
+                      setNotesFromDefault(false);
+                    }}
+                    placeholder="Additional notes..."
+                    minHeight="80px"
+                  />
+                  {formData.customer_id && customers.find(c => c.id === formData.customer_id)?.default_notes && !notesFromDefault && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-auto py-1 px-2"
+                      onClick={resetNotesToDefault}
+                    >
+                      Reset to customer default
+                    </Button>
+                  )}
+                </div>
+                
+                {/* Terms Section */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Terms & Conditions</Label>
+                    {termsFromDefault && formData.customer_id && (
+                      <span className="text-xs text-muted-foreground">
+                        Loaded from customer default
+                      </span>
+                    )}
+                  </div>
+                  <RichTextEditor
+                    value={formData.terms}
+                    onChange={(val) => {
+                      setFormData({ ...formData, terms: val });
+                      setTermsFromDefault(false);
+                    }}
+                    placeholder="Terms & conditions..."
+                    minHeight="80px"
+                  />
+                  {formData.customer_id && customers.find(c => c.id === formData.customer_id)?.default_terms && !termsFromDefault && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-auto py-1 px-2"
+                      onClick={resetTermsToDefault}
+                    >
+                      Reset to customer default
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

@@ -65,6 +65,7 @@ interface Quotation {
   total: number;
   status: QuotationStatus;
   notes: string | null;
+  terms: string | null;
   converted_to_invoice_id: string | null;
   organization_id: string | null;
   status_changed_at: string | null;
@@ -285,10 +286,11 @@ const QuotationDetail = () => {
             tax: quotation.tax,
             total: quotation.total,
             notes: quotation.notes,
+            terms: (quotation as any).terms,
             created_by: user?.id,
             organization_id: orgId,
             source_quotation_id: quotation.id,
-          },
+          } as any,
         ])
         .select()
         .single();
@@ -442,6 +444,7 @@ const QuotationDetail = () => {
               total: Number(quotation.total),
             },
             notes: quotation.notes || undefined,
+            terms: (quotation as any).terms || undefined,
             footer: companySettings?.invoice_footer || 'Thank you for your interest!',
           }}
         />

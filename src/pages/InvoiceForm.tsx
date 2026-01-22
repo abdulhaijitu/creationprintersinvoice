@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -25,6 +26,8 @@ import { CustomerSelect } from '@/components/shared/CustomerSelect';
 interface Customer {
   id: string;
   name: string;
+  default_notes?: string | null;
+  default_terms?: string | null;
 }
 
 interface InvoiceItem {
@@ -53,9 +56,14 @@ const InvoiceForm = () => {
     invoice_date: format(new Date(), 'yyyy-MM-dd'),
     due_date: '',
     notes: '',
+    terms: '',
     discount: 0,
     tax: 0,
   });
+  
+  // Track if notes/terms were loaded from customer defaults
+  const [notesFromDefault, setNotesFromDefault] = useState(false);
+  const [termsFromDefault, setTermsFromDefault] = useState(false);
 
   // Initialize with empty array - will be populated by fetchInvoice for edit mode
   // or a default item will be added in useEffect for create mode
@@ -78,13 +86,53 @@ const InvoiceForm = () => {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select('id, name')
+        .select('id, name, default_notes, default_terms')
         .order('name');
 
       if (error) throw error;
       setCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
+    }
+  };
+  
+  // Handle customer selection - auto-fill defaults
+  const handleCustomerChange = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    
+    setFormData(prev => {
+      const updates: typeof prev = { ...prev, customer_id: customerId };
+      
+      // Only auto-fill notes if empty or was from previous default
+      if (customer?.default_notes && (!prev.notes || notesFromDefault)) {
+        updates.notes = customer.default_notes;
+        setNotesFromDefault(true);
+      }
+      
+      // Only auto-fill terms if empty or was from previous default
+      if (customer?.default_terms && (!prev.terms || termsFromDefault)) {
+        updates.terms = customer.default_terms;
+        setTermsFromDefault(true);
+      }
+      
+      return updates;
+    });
+  };
+  
+  // Reset to customer default
+  const resetNotesToDefault = () => {
+    const customer = customers.find(c => c.id === formData.customer_id);
+    if (customer?.default_notes) {
+      setFormData(prev => ({ ...prev, notes: customer.default_notes || '' }));
+      setNotesFromDefault(true);
+    }
+  };
+  
+  const resetTermsToDefault = () => {
+    const customer = customers.find(c => c.id === formData.customer_id);
+    if (customer?.default_terms) {
+      setFormData(prev => ({ ...prev, terms: customer.default_terms || '' }));
+      setTermsFromDefault(true);
     }
   };
 
@@ -105,6 +153,7 @@ const InvoiceForm = () => {
         invoice_date: invoice.invoice_date,
         due_date: invoice.due_date || '',
         notes: invoice.notes || '',
+        terms: (invoice as any).terms || '',
         discount: Number(invoice.discount) || 0,
         tax: Number(invoice.tax) || 0,
       });
@@ -214,7 +263,8 @@ const InvoiceForm = () => {
             tax: formData.tax,
             total,
             notes: formData.notes,
-          })
+            terms: formData.terms,
+          } as any)
           .eq('id', id);
 
         if (invoiceError) throw invoiceError;
@@ -283,9 +333,10 @@ const InvoiceForm = () => {
               tax: formData.tax,
               total,
               notes: formData.notes,
+              terms: formData.terms,
               created_by: user?.id,
               organization_id: organization?.id,
-            },
+            } as any,
           ])
           .select()
           .single();
@@ -362,9 +413,7 @@ const InvoiceForm = () => {
                   <Label>Customer *</Label>
                   <CustomerSelect
                     value={formData.customer_id}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, customer_id: value })
-                    }
+                    onValueChange={handleCustomerChange}
                     customers={customers}
                     onCustomerAdded={fetchCustomers}
                   />
@@ -481,18 +530,75 @@ const InvoiceForm = () => {
               </CardContent>
             </Card>
 
-            {/* Notes */}
+            {/* Notes & Terms */}
             <Card>
               <CardHeader>
-                <CardTitle>Notes</CardTitle>
+                <CardTitle>Notes & Terms</CardTitle>
               </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Additional information or terms..."
-                  rows={3}
-                />
+              <CardContent className="space-y-4">
+                {/* Notes Section */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Notes</Label>
+                    {notesFromDefault && formData.customer_id && (
+                      <span className="text-xs text-muted-foreground">
+                        Loaded from customer default
+                      </span>
+                    )}
+                  </div>
+                  <RichTextEditor
+                    value={formData.notes}
+                    onChange={(val) => {
+                      setFormData({ ...formData, notes: val });
+                      setNotesFromDefault(false);
+                    }}
+                    placeholder="Additional notes..."
+                    minHeight="80px"
+                  />
+                  {formData.customer_id && customers.find(c => c.id === formData.customer_id)?.default_notes && !notesFromDefault && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-auto py-1 px-2"
+                      onClick={resetNotesToDefault}
+                    >
+                      Reset to customer default
+                    </Button>
+                  )}
+                </div>
+                
+                {/* Terms Section */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Terms & Conditions</Label>
+                    {termsFromDefault && formData.customer_id && (
+                      <span className="text-xs text-muted-foreground">
+                        Loaded from customer default
+                      </span>
+                    )}
+                  </div>
+                  <RichTextEditor
+                    value={formData.terms}
+                    onChange={(val) => {
+                      setFormData({ ...formData, terms: val });
+                      setTermsFromDefault(false);
+                    }}
+                    placeholder="Terms & conditions..."
+                    minHeight="80px"
+                  />
+                  {formData.customer_id && customers.find(c => c.id === formData.customer_id)?.default_terms && !termsFromDefault && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-auto py-1 px-2"
+                      onClick={resetTermsToDefault}
+                    >
+                      Reset to customer default
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

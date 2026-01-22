@@ -53,6 +53,7 @@ interface Invoice {
   paid_amount: number;
   status: string;
   notes: string | null;
+  terms: string | null;
   customers: {
     name: string;
     phone: string | null;
@@ -256,6 +257,7 @@ const InvoiceDetail = () => {
           total={Number(invoice.total)}
           paidAmount={Number(invoice.paid_amount)}
           notes={invoice.notes}
+          terms={(invoice as any).terms}
           status={invoice.status}
         />
       </div>
