@@ -30,7 +30,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { QuotationCard } from '@/components/shared/mobile-cards/QuotationCard';
 import { formatCurrency } from '@/lib/formatters';
 
-type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted';
+type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
 
 interface Quotation {
   id: string;
@@ -75,6 +75,9 @@ const Quotations = () => {
     }
     
     try {
+      // First, auto-expire any quotations that have passed their valid_until date
+      await supabase.rpc('auto_expire_quotations');
+      
       const { data, error } = await supabase
         .from('quotations')
         .select('*, customers(name)')

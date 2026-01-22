@@ -3347,6 +3347,9 @@ export type Database = {
           organization_id: string | null
           quotation_date: string
           quotation_number: string
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           status: Database["public"]["Enums"]["quotation_status"] | null
           status_changed_at: string | null
           status_changed_by: string | null
@@ -3370,6 +3373,9 @@ export type Database = {
           organization_id?: string | null
           quotation_date?: string
           quotation_number: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["quotation_status"] | null
           status_changed_at?: string | null
           status_changed_by?: string | null
@@ -3393,6 +3399,9 @@ export type Database = {
           organization_id?: string | null
           quotation_date?: string
           quotation_number?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["quotation_status"] | null
           status_changed_at?: string | null
           status_changed_by?: string | null
@@ -4585,6 +4594,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_expire_quotations: { Args: never; Returns: number }
       calculate_attendance_status: {
         Args: {
           p_check_in: string
@@ -4807,17 +4817,30 @@ export type Database = {
         }
         Returns: boolean
       }
-      update_quotation_status: {
-        Args: {
-          p_new_status: Database["public"]["Enums"]["quotation_status"]
-          p_quotation_id: string
-          p_user_id: string
-        }
-        Returns: {
-          message: string
-          success: boolean
-        }[]
-      }
+      update_quotation_status:
+        | {
+            Args: {
+              p_new_status: Database["public"]["Enums"]["quotation_status"]
+              p_quotation_id: string
+              p_user_id: string
+            }
+            Returns: {
+              message: string
+              success: boolean
+            }[]
+          }
+        | {
+            Args: {
+              p_new_status: Database["public"]["Enums"]["quotation_status"]
+              p_quotation_id: string
+              p_rejection_reason?: string
+              p_user_id: string
+            }
+            Returns: {
+              message: string
+              success: boolean
+            }[]
+          }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
@@ -4900,6 +4923,7 @@ export type Database = {
         | "accepted"
         | "converted"
         | "rejected"
+        | "expired"
       shop_role: "admin" | "staff"
       subscription_plan: "free" | "basic" | "pro" | "enterprise"
       subscription_status:
@@ -5131,6 +5155,7 @@ export const Constants = {
         "accepted",
         "converted",
         "rejected",
+        "expired",
       ],
       shop_role: ["admin", "staff"],
       subscription_plan: ["free", "basic", "pro", "enterprise"],

@@ -30,7 +30,7 @@ export interface QuotationPDFData {
     number: string;
     date: string;
     validUntil?: string;
-    status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted';
+    status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
   };
   
   // Customer Info

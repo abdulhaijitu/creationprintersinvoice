@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -41,6 +42,8 @@ import {
   FileText,
   User,
   Calendar,
+  XCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { QuotationPDFTemplate, QuotationPDFData } from '@/components/print/QuotationPDFTemplate';
@@ -48,7 +51,7 @@ import '@/components/print/printStyles.css';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { downloadAsPDF } from '@/lib/pdfUtils';
 
-type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted';
+type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
 
 interface Quotation {
   id: string;
@@ -68,6 +71,9 @@ interface Quotation {
   converted_by: string | null;
   converted_at: string | null;
   converted_invoice_id: string | null;
+  rejection_reason: string | null;
+  rejected_at: string | null;
+  rejected_by: string | null;
   customers: {
     id: string;
     name: string;
@@ -98,6 +104,8 @@ const QuotationDetail = () => {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
   const [converting, setConverting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
@@ -176,7 +184,7 @@ const QuotationDetail = () => {
     }
   };
 
-  const handleStatusTransition = async (newStatus: QuotationStatus) => {
+  const handleStatusTransition = async (newStatus: QuotationStatus, reason?: string) => {
     if (!quotation || !user) return;
     setUpdatingStatus(true);
 
@@ -185,6 +193,7 @@ const QuotationDetail = () => {
         p_quotation_id: quotation.id,
         p_new_status: newStatus,
         p_user_id: user.id,
+        p_rejection_reason: reason || null,
       });
 
       if (error) throw error;
@@ -195,10 +204,25 @@ const QuotationDetail = () => {
         return;
       }
 
-      setQuotation({ ...quotation, status: newStatus, status_changed_at: new Date().toISOString(), status_changed_by: user.id });
+      const updatedQuotation = { 
+        ...quotation, 
+        status: newStatus, 
+        status_changed_at: new Date().toISOString(), 
+        status_changed_by: user.id 
+      };
+      
+      if (newStatus === 'rejected') {
+        updatedQuotation.rejection_reason = reason || null;
+        updatedQuotation.rejected_at = new Date().toISOString();
+        updatedQuotation.rejected_by = user.id;
+      }
+      
+      setQuotation(updatedQuotation);
       toast.success('Status updated');
       setSendDialogOpen(false);
       setAcceptDialogOpen(false);
+      setRejectDialogOpen(false);
+      setRejectionReason('');
     } catch (error: any) {
       console.error('Error updating status:', error);
       toast.error(error.message || 'An error occurred');
@@ -325,8 +349,11 @@ const QuotationDetail = () => {
   const isDeletable = quotation?.status === 'draft';
   const canBeSent = quotation?.status === 'draft';
   const canBeAccepted = quotation?.status === 'sent';
+  const canBeRejected = quotation?.status === 'sent';
   const canBeConverted = quotation?.status === 'accepted' && !quotation?.converted_to_invoice_id;
   const isConverted = quotation?.status === 'converted' || !!quotation?.converted_to_invoice_id;
+  const isExpired = quotation?.status === 'expired';
+  const isRejected = quotation?.status === 'rejected';
 
   const handlePrint = () => {
     window.print();
@@ -448,10 +475,21 @@ const QuotationDetail = () => {
             )}
             
             {canBeAccepted && (
-              <Button size="sm" onClick={() => setAcceptDialogOpen(true)} disabled={updatingStatus}>
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Mark as Accepted
-              </Button>
+              <>
+                <Button size="sm" onClick={() => setAcceptDialogOpen(true)} disabled={updatingStatus}>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Mark as Accepted
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="destructive" 
+                  onClick={() => setRejectDialogOpen(true)} 
+                  disabled={updatingStatus}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+              </>
             )}
 
             {canBeConverted && (
@@ -663,7 +701,7 @@ const QuotationDetail = () => {
                 )}
                 <div className="pt-3 border-t space-y-2">
                   <p className="text-xs text-muted-foreground font-medium">Status Workflow</p>
-                  <div className="flex items-center gap-1 text-xs">
+                  <div className="flex flex-wrap items-center gap-1 text-xs">
                     <span className={`px-2 py-1 rounded ${quotation.status === 'draft' ? 'bg-muted font-medium' : 'text-muted-foreground'}`}>Draft</span>
                     <span className="text-muted-foreground">→</span>
                     <span className={`px-2 py-1 rounded ${quotation.status === 'sent' ? 'bg-info/10 text-info font-medium' : 'text-muted-foreground'}`}>Sent</span>
@@ -672,6 +710,17 @@ const QuotationDetail = () => {
                     <span className="text-muted-foreground">→</span>
                     <span className={`px-2 py-1 rounded ${quotation.status === 'converted' ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'}`}>Converted</span>
                   </div>
+                  {(isRejected || isExpired) && (
+                    <div className="flex items-center gap-1 text-xs mt-1">
+                      <span className="text-muted-foreground">or</span>
+                      {isRejected && (
+                        <span className="px-2 py-1 rounded bg-destructive/10 text-destructive font-medium">Rejected</span>
+                      )}
+                      {isExpired && (
+                        <span className="px-2 py-1 rounded bg-warning/10 text-warning font-medium">Expired</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -714,6 +763,63 @@ const QuotationDetail = () => {
                       </Link>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Rejection Info - Only show when rejected */}
+            {isRejected && (
+              <Card className="border-destructive/20 bg-destructive/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <XCircle className="h-4 w-4 text-destructive" />
+                    Rejection Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {quotation.rejected_at && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Rejected on:</span>
+                      <span className="font-medium">
+                        {format(new Date(quotation.rejected_at), 'dd MMM yyyy, HH:mm')}
+                      </span>
+                    </div>
+                  )}
+                  {quotation.rejection_reason && (
+                    <div className="mt-2">
+                      <p className="text-sm text-muted-foreground mb-1">Reason:</p>
+                      <p className="text-sm bg-background p-2 rounded border whitespace-pre-wrap">
+                        {quotation.rejection_reason}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Expired Info - Only show when expired */}
+            {isExpired && (
+              <Card className="border-warning/20 bg-warning/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-warning" />
+                    Quotation Expired
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {quotation.valid_until && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Expired on:</span>
+                      <span className="font-medium">
+                        {format(new Date(quotation.valid_until), 'dd MMM yyyy')}
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    This quotation is no longer valid. Please create a new quotation if needed.
+                  </p>
                 </CardContent>
               </Card>
             )}
@@ -825,6 +931,62 @@ const QuotationDetail = () => {
                 <>
                   <FileCheck className="h-4 w-4 mr-2" />
                   Convert to Invoice
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Quotation Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={(open) => {
+        setRejectDialogOpen(open);
+        if (!open) setRejectionReason('');
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Quotation</DialogTitle>
+            <DialogDescription>
+              Mark this quotation as rejected. Provide a reason to track why the opportunity was lost.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="p-3 rounded-lg bg-muted/50 border text-sm">
+              <p><strong>Quotation:</strong> {quotation.quotation_number}</p>
+              <p><strong>Customer:</strong> {quotation.customers?.name || 'N/A'}</p>
+              <p><strong>Total:</strong> {formatCurrency(Number(quotation.total))}</p>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="rejection-reason" className="text-sm font-medium">
+                Rejection Reason <span className="text-muted-foreground">(optional)</span>
+              </label>
+              <Textarea
+                id="rejection-reason"
+                placeholder="E.g., Price too high, Customer chose competitor, Project cancelled..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => handleStatusTransition('rejected', rejectionReason)}
+              disabled={updatingStatus}
+            >
+              {updatingStatus ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Rejecting...
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Reject Quotation
                 </>
               )}
             </Button>
