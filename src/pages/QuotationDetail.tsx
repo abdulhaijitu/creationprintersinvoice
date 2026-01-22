@@ -51,6 +51,7 @@ import '@/components/print/printStyles.css';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { downloadAsPDF } from '@/lib/pdfUtils';
 import { useQuotationEmails } from '@/hooks/useQuotationEmails';
+import { PartialConversionDialog } from '@/components/quotation/PartialConversionDialog';
 
 type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
 
@@ -243,7 +244,11 @@ const QuotationDetail = () => {
     }
   };
 
-  const handleConvertToInvoice = async () => {
+  // Partial conversion handler - supports selecting specific items and quantities
+  const handlePartialConvert = async (
+    selectedItems: { item: QuotationItem; quantity: number }[],
+    totals: { subtotal: number; discount: number; tax: number; total: number }
+  ) => {
     if (!quotation || !user) return;
     
     // Check if already converted
@@ -274,7 +279,7 @@ const QuotationDetail = () => {
 
       const invoiceNumber = seqData[0].invoice_number;
 
-      // Create invoice with source_quotation_id
+      // Create invoice with selected items totals
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert([
@@ -282,10 +287,10 @@ const QuotationDetail = () => {
             invoice_number: invoiceNumber,
             customer_id: quotation.customers?.id,
             invoice_date: format(new Date(), 'yyyy-MM-dd'),
-            subtotal: quotation.subtotal,
-            discount: quotation.discount,
-            tax: quotation.tax,
-            total: quotation.total,
+            subtotal: totals.subtotal,
+            discount: totals.discount,
+            tax: totals.tax,
+            total: totals.total,
             subject: (quotation as any).subject,
             notes: quotation.notes,
             terms: (quotation as any).terms,
@@ -299,14 +304,14 @@ const QuotationDetail = () => {
 
       if (invoiceError) throw invoiceError;
 
-      // Create invoice items from quotation items
-      const invoiceItems = items.map((item) => ({
+      // Create invoice items from selected quotation items with adjusted quantities
+      const invoiceItems = selectedItems.map(({ item, quantity }) => ({
         invoice_id: invoice.id,
         description: item.description,
-        quantity: item.quantity,
+        quantity: quantity,
         unit_price: item.unit_price,
-        discount: item.discount,
-        total: item.total,
+        discount: 0, // Individual item discount recalculated in totals
+        total: quantity * Number(item.unit_price),
         organization_id: orgId,
       }));
 
@@ -938,42 +943,18 @@ const QuotationDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Convert to Invoice Dialog */}
-      <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Convert to Invoice</DialogTitle>
-            <DialogDescription>
-              This will create a new invoice from this quotation. All line items, customer details, and totals will be copied. This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="p-3 rounded-lg bg-muted/50 border text-sm">
-              <p><strong>Customer:</strong> {quotation.customers?.name || 'N/A'}</p>
-              <p><strong>Items:</strong> {items.length} line item{items.length !== 1 ? 's' : ''}</p>
-              <p><strong>Total:</strong> {formatCurrency(Number(quotation.total))}</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleConvertToInvoice} disabled={converting}>
-              {converting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Converting...
-                </>
-              ) : (
-                <>
-                  <FileCheck className="h-4 w-4 mr-2" />
-                  Convert to Invoice
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Convert to Invoice Dialog - Partial Conversion Enabled */}
+      <PartialConversionDialog
+        open={convertDialogOpen}
+        onOpenChange={setConvertDialogOpen}
+        quotationNumber={quotation.quotation_number}
+        customerName={quotation.customers?.name || 'N/A'}
+        items={items}
+        discount={Number(quotation.discount) || 0}
+        tax={Number(quotation.tax) || 0}
+        onConvert={handlePartialConvert}
+        converting={converting}
+      />
 
       {/* Reject Quotation Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={(open) => {
