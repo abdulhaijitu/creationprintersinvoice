@@ -64,6 +64,7 @@ interface Quotation {
   tax: number;
   total: number;
   status: QuotationStatus;
+  subject: string | null;
   notes: string | null;
   terms: string | null;
   converted_to_invoice_id: string | null;
@@ -285,6 +286,7 @@ const QuotationDetail = () => {
             discount: quotation.discount,
             tax: quotation.tax,
             total: quotation.total,
+            subject: (quotation as any).subject,
             notes: quotation.notes,
             terms: (quotation as any).terms,
             created_by: user?.id,
@@ -421,6 +423,7 @@ const QuotationDetail = () => {
               date: quotation.quotation_date,
               validUntil: quotation.valid_until || undefined,
               status: quotation.status,
+              subject: (quotation as any).subject || undefined,
             },
             customer: {
               name: quotation.customers?.name || 'N/A',
@@ -614,6 +617,21 @@ const QuotationDetail = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Subject */}
+            {(quotation as any).subject && (
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-primary flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary" />
+                    Subject
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="font-medium">{(quotation as any).subject}</p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Items */}
             <Card className="overflow-hidden">

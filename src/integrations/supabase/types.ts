@@ -1465,6 +1465,7 @@ export type Database = {
           paid_amount: number | null
           source_quotation_id: string | null
           status: Database["public"]["Enums"]["invoice_status"] | null
+          subject: string | null
           subtotal: number
           tax: number | null
           terms: string | null
@@ -1486,6 +1487,7 @@ export type Database = {
           paid_amount?: number | null
           source_quotation_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
+          subject?: string | null
           subtotal?: number
           tax?: number | null
           terms?: string | null
@@ -1507,6 +1509,7 @@ export type Database = {
           paid_amount?: number | null
           source_quotation_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"] | null
+          subject?: string | null
           subtotal?: number
           tax?: number | null
           terms?: string | null
@@ -3362,6 +3365,7 @@ export type Database = {
           status: Database["public"]["Enums"]["quotation_status"] | null
           status_changed_at: string | null
           status_changed_by: string | null
+          subject: string | null
           subtotal: number
           tax: number | null
           terms: string | null
@@ -3389,6 +3393,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["quotation_status"] | null
           status_changed_at?: string | null
           status_changed_by?: string | null
+          subject?: string | null
           subtotal?: number
           tax?: number | null
           terms?: string | null
@@ -3416,6 +3421,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["quotation_status"] | null
           status_changed_at?: string | null
           status_changed_by?: string | null
+          subject?: string | null
           subtotal?: number
           tax?: number | null
           terms?: string | null

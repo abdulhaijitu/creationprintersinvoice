@@ -29,6 +29,7 @@ interface PrintTemplateProps {
   tax: number;
   total: number;
   paidAmount?: number;
+  subject?: string | null;
   notes?: string | null;
   terms?: string | null;
   status: string;
@@ -47,6 +48,7 @@ export const PrintTemplate = ({
   tax,
   total,
   paidAmount,
+  subject,
   notes,
   terms,
   status,
@@ -464,6 +466,33 @@ export const PrintTemplate = ({
             </p>
           </div>
         </div>
+
+        {/* Subject Section */}
+        {subject && (
+          <div style={{
+            marginBottom: '20px',
+            padding: '12px 16px',
+            backgroundColor: '#f8fafc',
+            borderLeft: `3px solid ${primaryColor}`,
+            borderRadius: '6px',
+          }}>
+            <p style={{
+              fontSize: '7pt',
+              fontWeight: '700',
+              color: '#9ca3af',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              marginBottom: '4px',
+            }}>Subject</p>
+            <p style={{
+              fontSize: '10pt',
+              fontWeight: '600',
+              color: '#111827',
+              margin: 0,
+              lineHeight: '1.4',
+            }}>{subject}</p>
+          </div>
+        )}
 
         {/* Items Table */}
         <div style={{ marginBottom: '24px' }}>

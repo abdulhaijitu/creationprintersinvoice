@@ -55,6 +55,7 @@ const InvoiceForm = () => {
     customer_id: '',
     invoice_date: format(new Date(), 'yyyy-MM-dd'),
     due_date: '',
+    subject: '',
     notes: '',
     terms: '',
     discount: 0,
@@ -152,6 +153,7 @@ const InvoiceForm = () => {
         customer_id: invoice.customer_id || '',
         invoice_date: invoice.invoice_date,
         due_date: invoice.due_date || '',
+        subject: (invoice as any).subject || '',
         notes: invoice.notes || '',
         terms: (invoice as any).terms || '',
         discount: Number(invoice.discount) || 0,
@@ -258,6 +260,7 @@ const InvoiceForm = () => {
             customer_id: formData.customer_id,
             invoice_date: formData.invoice_date,
             due_date: formData.due_date || null,
+            subject: formData.subject || null,
             subtotal,
             discount: formData.discount,
             tax: formData.tax,
@@ -328,6 +331,7 @@ const InvoiceForm = () => {
               customer_id: formData.customer_id,
               invoice_date: formData.invoice_date,
               due_date: formData.due_date || null,
+              subject: formData.subject || null,
               subtotal,
               discount: formData.discount,
               tax: formData.tax,
@@ -437,6 +441,27 @@ const InvoiceForm = () => {
                       setFormData({ ...formData, due_date: e.target.value })
                     }
                   />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Subject Field */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Subject</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Input
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value.slice(0, 255) })}
+                    placeholder="e.g., Stall design & printing work for Dhaka Fair 2026"
+                    className="font-medium"
+                    maxLength={255}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {formData.subject.length}/255 characters • Optional short title for this invoice
+                  </p>
                 </div>
               </CardContent>
             </Card>
