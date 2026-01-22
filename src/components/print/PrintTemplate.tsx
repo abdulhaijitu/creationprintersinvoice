@@ -838,18 +838,17 @@ export const PrintTemplate = ({
         {(notes || terms || invoiceTerms) && (
           <div className="pdf-notes-terms-section" style={{ 
             marginBottom: '24px',
-            pageBreakInside: 'avoid',
           }}>
             {/* Notes Section */}
             {notes && (
-              <div className="pdf-section" style={{
+              <div className="pdf-section pdf-notes-section" style={{
                 padding: '14px',
                 backgroundColor: '#f8fafc',
                 borderRadius: '10px',
                 borderLeft: '3px solid #3b82f6',
                 marginBottom: terms || invoiceTerms ? '16px' : 0,
               }}>
-                <p style={{ 
+                <p className="pdf-section-header" style={{ 
                   fontSize: '8pt', 
                   fontWeight: '700', 
                   color: '#3b82f6',
@@ -860,6 +859,7 @@ export const PrintTemplate = ({
                   Notes
                 </p>
                 <div 
+                  className="pdf-paragraph"
                   style={{ fontSize: '8pt', color: '#4b5563', lineHeight: 1.6 }}
                   dangerouslySetInnerHTML={{ __html: notes }}
                 />
@@ -868,13 +868,13 @@ export const PrintTemplate = ({
             
             {/* Terms & Conditions Section */}
             {(terms || invoiceTerms) && (
-              <div className="pdf-section" style={{
+              <div className="pdf-section pdf-terms-section" style={{
                 padding: '14px',
                 backgroundColor: '#fefce8',
                 borderRadius: '10px',
                 borderLeft: '3px solid #ca8a04',
               }}>
-                <p style={{ 
+                <p className="pdf-section-header" style={{ 
                   fontSize: '8pt', 
                   fontWeight: '700', 
                   color: '#ca8a04',
@@ -885,6 +885,7 @@ export const PrintTemplate = ({
                   Terms & Conditions
                 </p>
                 <div 
+                  className="pdf-paragraph"
                   style={{ fontSize: '8pt', color: '#4b5563', lineHeight: 1.6 }}
                   dangerouslySetInnerHTML={{ __html: terms || invoiceTerms }}
                 />
