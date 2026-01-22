@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { differenceInDays, differenceInHours, parseISO, isToday } from 'date-fns';
+import { differenceInDays, differenceInHours, parseISO, isToday, addDays } from 'date-fns';
 
 export const NotificationManager = () => {
   const { user } = useAuth();
@@ -10,7 +10,9 @@ export const NotificationManager = () => {
   const notifiedInvoices = useRef<Set<string>>(new Set());
   const notifiedTasks = useRef<Set<string>>(new Set());
   const notifiedLeaves = useRef<Set<string>>(new Set());
+  const notifiedQuotations = useRef<Set<string>>(new Set());
   const slaCheckDone = useRef(false);
+  const quotationExpiryCheckDone = useRef(false);
 
   // Trigger SLA/overdue check on app load (once per session)
   useEffect(() => {
@@ -33,6 +35,58 @@ export const NotificationManager = () => {
 
     // Delay the check slightly to not block app startup
     const timeout = setTimeout(triggerSlaCheck, 3000);
+    return () => clearTimeout(timeout);
+  }, [user]);
+
+  // Check for quotations about to expire (once per session)
+  useEffect(() => {
+    if (!user || quotationExpiryCheckDone.current) return;
+
+    const checkExpiringQuotations = async () => {
+      try {
+        // Fetch quotations that are expiring in the next 3 days
+        const threeDaysFromNow = addDays(new Date(), 3);
+        
+        const { data: quotations } = await supabase
+          .from('quotations')
+          .select('id, quotation_number, valid_until, total, status, customers(name, email)')
+          .in('status', ['draft', 'sent'])
+          .not('valid_until', 'is', null)
+          .lte('valid_until', threeDaysFromNow.toISOString().split('T')[0])
+          .gte('valid_until', new Date().toISOString().split('T')[0]);
+
+        if (!quotations || quotations.length === 0) {
+          quotationExpiryCheckDone.current = true;
+          return;
+        }
+
+        // Send email notifications for quotations expiring soon
+        for (const quotation of quotations) {
+          if (notifiedQuotations.current.has(quotation.id)) continue;
+          
+          const customer = quotation.customers as any;
+          if (!customer?.email) continue;
+
+          // Send expiring soon email
+          await supabase.functions.invoke('send-quotation-email', {
+            body: {
+              quotation_id: quotation.id,
+              email_type: 'expiring_soon',
+            },
+          });
+
+          notifiedQuotations.current.add(quotation.id);
+          console.log(`[NotificationManager] Sent expiry reminder for quotation ${quotation.quotation_number}`);
+        }
+
+        quotationExpiryCheckDone.current = true;
+      } catch (err) {
+        console.warn('[NotificationManager] Failed to check expiring quotations:', err);
+      }
+    };
+
+    // Delay the check to not block app startup
+    const timeout = setTimeout(checkExpiringQuotations, 5000);
     return () => clearTimeout(timeout);
   }, [user]);
 

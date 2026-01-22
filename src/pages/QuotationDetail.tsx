@@ -50,6 +50,7 @@ import { QuotationPDFTemplate, QuotationPDFData } from '@/components/print/Quota
 import '@/components/print/printStyles.css';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { downloadAsPDF } from '@/lib/pdfUtils';
+import { useQuotationEmails } from '@/hooks/useQuotationEmails';
 
 type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
 
@@ -98,6 +99,7 @@ const QuotationDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { sendQuotationEmail } = useQuotationEmails();
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [items, setItems] = useState<QuotationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -219,6 +221,14 @@ const QuotationDetail = () => {
       
       setQuotation(updatedQuotation);
       toast.success('Status updated');
+      
+      // Send email notifications based on status change
+      if (newStatus === 'sent') {
+        await sendQuotationEmail(quotation.id, 'sent');
+      } else if (newStatus === 'accepted') {
+        await sendQuotationEmail(quotation.id, 'accepted');
+      }
+      
       setSendDialogOpen(false);
       setAcceptDialogOpen(false);
       setRejectDialogOpen(false);
