@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Plus, Trash2, ChevronDown, Calculator, Download, LayoutTemplate, Save, RotateCcw, Loader2, Sparkles } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, Calculator, Download, LayoutTemplate, Save, RotateCcw, Loader2, Sparkles, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,6 +105,7 @@ export function InvoiceCostingSection({
   const [showApplyTemplateDialog, setShowApplyTemplateDialog] = useState(false);
   const [pendingTemplate, setPendingTemplate] = useState<CostingItemTemplate | null>(null);
   const [appliedTemplates, setAppliedTemplates] = useState<Set<string>>(new Set());
+  const [reapplyItemId, setReapplyItemId] = useState<string | null>(null);
   
   // Save state management
   const [isSaving, setIsSaving] = useState(false);
@@ -363,25 +364,46 @@ export function InvoiceCostingSection({
   const handleApplyTemplate = useCallback((rows: TemplateRow[]) => {
     if (!pendingTemplate) return;
     
+    const templateKey = pendingTemplate.item_name.toLowerCase().replace(/\s+/g, '_');
+    
     // Convert template rows to costing items
     const newItems: CostingItem[] = rows.map(row => ({
       id: crypto.randomUUID(),
-      item_type: pendingTemplate.item_name.toLowerCase().replace(/\s+/g, '_'),
+      item_type: templateKey,
       description: `${row.sub_item_name}${row.description ? ` - ${row.description}` : ''}`,
       quantity: row.default_qty,
       price: row.default_price,
       line_total: row.default_qty * row.default_price,
     }));
     
-    // Remove any empty placeholder items and add new items
-    const validExistingItems = items.filter(item => item.item_type && item.line_total > 0);
-    onItemsChange([...validExistingItems, ...newItems]);
+    // If re-applying, remove existing items of this type first
+    if (reapplyItemId) {
+      const existingItem = items.find(i => i.id === reapplyItemId);
+      const itemType = existingItem?.item_type;
+      const filteredItems = items.filter(item => item.item_type !== itemType);
+      onItemsChange([...filteredItems, ...newItems]);
+      setReapplyItemId(null);
+    } else {
+      // Remove any empty placeholder items and add new items
+      const validExistingItems = items.filter(item => item.item_type && item.line_total > 0);
+      onItemsChange([...validExistingItems, ...newItems]);
+    }
     
-    // Mark this template as applied so we don't prompt again
-    setAppliedTemplates(prev => new Set(prev).add(pendingTemplate.item_name.toLowerCase().replace(/\s+/g, '_')));
+    // Mark this template as applied
+    setAppliedTemplates(prev => new Set(prev).add(templateKey));
     setIsDirty(true);
     toast.success(`"${pendingTemplate.item_name}" টেমপ্লেট প্রয়োগ হয়েছে`);
-  }, [pendingTemplate, items, onItemsChange]);
+  }, [pendingTemplate, items, onItemsChange, reapplyItemId]);
+
+  // Handle re-apply template for a specific item
+  const handleReapplyTemplate = useCallback((itemId: string, itemType: string) => {
+    const template = getTemplateByItemName(itemType);
+    if (template && template.rows.length > 0) {
+      setReapplyItemId(itemId);
+      setPendingTemplate(template);
+      setShowApplyTemplateDialog(true);
+    }
+  }, [getTemplateByItemName]);
 
   // Handle skipping template
   const handleSkipTemplate = useCallback(() => {
@@ -389,6 +411,7 @@ export function InvoiceCostingSection({
       // Mark as applied so we don't prompt again
       setAppliedTemplates(prev => new Set(prev).add(pendingTemplate.item_name.toLowerCase().replace(/\s+/g, '_')));
     }
+    setReapplyItemId(null);
   }, [pendingTemplate]);
 
   // Don't render if user doesn't have view permission
@@ -439,12 +462,12 @@ export function InvoiceCostingSection({
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/30">
-                      <TableHead className="w-[160px]">Item</TableHead>
+                      <TableHead className="w-[200px]">Item</TableHead>
                       <TableHead className="min-w-[200px]">Description</TableHead>
                       <TableHead className="text-center w-20">Qty</TableHead>
                       <TableHead className="text-right w-28">Price</TableHead>
                       <TableHead className="text-right w-28">Total</TableHead>
-                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="w-20"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -458,25 +481,33 @@ export function InvoiceCostingSection({
                       items.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell>
-                            <SearchableSelect
-                              value={item.item_type}
-                              onValueChange={(val) => handleItemTypeChange(item.id, val)}
-                              options={itemTypeOptions}
-                              placeholder="Select item"
-                              searchPlaceholder="Search or type new..."
-                              disabled={!canEdit}
-                              className="w-full"
-                              allowCreate={canEdit}
-                              onCreateNew={(query) => {
-                                const newValue = query.trim().toLowerCase().replace(/\s+/g, '_') || `custom_${Date.now()}`;
-                                const newLabel = query.trim() || 'Custom Item';
-                                if (!customItemTypes.includes(newValue)) {
-                                  setCustomItemTypes(prev => [...prev, newValue]);
-                                }
-                                handleItemTypeChange(item.id, newValue);
-                              }}
-                              createNewLabel="Add new item"
-                            />
+                            <div className="flex items-center gap-2">
+                              <SearchableSelect
+                                value={item.item_type}
+                                onValueChange={(val) => handleItemTypeChange(item.id, val)}
+                                options={itemTypeOptions}
+                                placeholder="Select item"
+                                searchPlaceholder="Search or type new..."
+                                disabled={!canEdit}
+                                className="w-full"
+                                allowCreate={canEdit}
+                                onCreateNew={(query) => {
+                                  const newValue = query.trim().toLowerCase().replace(/\s+/g, '_') || `custom_${Date.now()}`;
+                                  const newLabel = query.trim() || 'Custom Item';
+                                  if (!customItemTypes.includes(newValue)) {
+                                    setCustomItemTypes(prev => [...prev, newValue]);
+                                  }
+                                  handleItemTypeChange(item.id, newValue);
+                                }}
+                                createNewLabel="Add new item"
+                              />
+                              {appliedTemplates.has(item.item_type) && (
+                                <Badge variant="secondary" className="text-[10px] shrink-0 gap-1">
+                                  <Sparkles className="h-3 w-3" />
+                                  Template
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Input
@@ -509,17 +540,35 @@ export function InvoiceCostingSection({
                             {formatCurrency(item.line_total)}
                           </TableCell>
                           <TableCell>
-                            {canEdit && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeItem(item.id)}
-                                className="text-destructive hover:text-destructive h-8 w-8"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {canEdit && item.item_type && getTemplateByItemName(item.item_type) && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleReapplyTemplate(item.id, item.item_type)}
+                                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                    >
+                                      <RefreshCw className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Re-apply Template</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {canEdit && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeItem(item.id)}
+                                  className="text-destructive hover:text-destructive h-8 w-8"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -538,20 +587,41 @@ export function InvoiceCostingSection({
                   items.map((item, index) => (
                     <div key={item.id} className="border rounded-lg p-3 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-muted-foreground">
-                          Item #{index + 1}
-                        </span>
-                        {canEdit && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeItem(item.id)}
-                            className="text-destructive hover:text-destructive h-8 w-8"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Item #{index + 1}
+                          </span>
+                          {appliedTemplates.has(item.item_type) && (
+                            <Badge variant="secondary" className="text-[10px] gap-1">
+                              <Sparkles className="h-3 w-3" />
+                              Template
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {canEdit && item.item_type && getTemplateByItemName(item.item_type) && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleReapplyTemplate(item.id, item.item_type)}
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEdit && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeItem(item.id)}
+                              className="text-destructive hover:text-destructive h-8 w-8"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-3">
