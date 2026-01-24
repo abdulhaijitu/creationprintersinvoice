@@ -30,8 +30,19 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { CostingItem } from './InvoiceCostingSection';
+import { CostingItem, LoadMode } from './InvoiceCostingSection';
 import { Json } from '@/integrations/supabase/types';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Replace, ListPlus } from 'lucide-react';
 
 interface CostingTemplate {
   id: string;
@@ -45,7 +56,8 @@ interface CostingTemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentItems: CostingItem[];
-  onLoadTemplate: (items: CostingItem[]) => void;
+  onLoadTemplate: (items: CostingItem[], mode: LoadMode) => void;
+  hasExistingItems?: boolean;
 }
 
 export function CostingTemplateDialog({
@@ -53,6 +65,7 @@ export function CostingTemplateDialog({
   onOpenChange,
   currentItems,
   onLoadTemplate,
+  hasExistingItems = false,
 }: CostingTemplateDialogProps) {
   const { organization } = useOrganization();
   const { user } = useAuth();
@@ -61,6 +74,10 @@ export function CostingTemplateDialog({
   const [templates, setTemplates] = useState<CostingTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('load');
+  
+  // Load mode selection state
+  const [showLoadModeDialog, setShowLoadModeDialog] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<CostingTemplate | null>(null);
   
   // Save form state
   const [newTemplateName, setNewTemplateName] = useState('');
@@ -150,15 +167,32 @@ export function CostingTemplateDialog({
     }
   };
 
-  const handleLoadTemplate = (template: CostingTemplate) => {
+  const handleLoadClick = (template: CostingTemplate) => {
+    // Check if there are existing items (non-empty)
+    const hasExisting = currentItems.length > 0 && 
+      !(currentItems.length === 1 && !currentItems[0].item_type && currentItems[0].line_total === 0);
+    
+    if (hasExisting || hasExistingItems) {
+      // Show mode selection dialog
+      setSelectedTemplate(template);
+      setShowLoadModeDialog(true);
+    } else {
+      // No existing items, just replace
+      confirmLoad(template, 'replace');
+    }
+  };
+
+  const confirmLoad = (template: CostingTemplate, mode: LoadMode) => {
     // Generate new IDs for items to avoid conflicts
     const itemsWithNewIds = template.items.map(item => ({
       ...item,
       id: crypto.randomUUID(),
     }));
-    onLoadTemplate(itemsWithNewIds);
+    onLoadTemplate(itemsWithNewIds, mode);
+    setShowLoadModeDialog(false);
+    setSelectedTemplate(null);
     onOpenChange(false);
-    toast.success(`"${template.name}" টেমপ্লেট লোড হয়েছে`);
+    toast.success(`"${template.name}" টেমপ্লেট ${mode === 'replace' ? 'লোড' : 'যোগ'} হয়েছে`);
   };
 
   const handleDeleteTemplate = async (templateId: string, templateName: string) => {
@@ -194,6 +228,7 @@ export function CostingTemplateDialog({
     !(currentItems.length === 1 && !currentItems[0].item_type && currentItems[0].line_total === 0);
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
@@ -290,7 +325,7 @@ export function CostingTemplateDialog({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleLoadTemplate(template)}
+                            onClick={() => handleLoadClick(template)}
                             className="gap-1"
                           >
                             <Download className="h-4 w-4" />
@@ -389,5 +424,47 @@ export function CostingTemplateDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    
+    {/* Load Mode Selection Dialog */}
+    <AlertDialog open={showLoadModeDialog} onOpenChange={setShowLoadModeDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>টেমপ্লেট কিভাবে লোড করবেন?</AlertDialogTitle>
+          <AlertDialogDescription>
+            আপনার বর্তমান costing items আছে। টেমপ্লেট দিয়ে Replace করতে চান নাকি শেষে Append করতে চান?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="grid grid-cols-2 gap-3 py-4">
+          <Button
+            variant="outline"
+            className="h-auto flex-col items-center gap-2 py-4"
+            onClick={() => selectedTemplate && confirmLoad(selectedTemplate, 'replace')}
+          >
+            <Replace className="h-6 w-6 text-primary" />
+            <div className="text-center">
+              <p className="font-medium">Replace</p>
+              <p className="text-xs text-muted-foreground">বর্তমান items মুছে যাবে</p>
+            </div>
+          </Button>
+          <Button
+            variant="outline"
+            className="h-auto flex-col items-center gap-2 py-4"
+            onClick={() => selectedTemplate && confirmLoad(selectedTemplate, 'append')}
+          >
+            <ListPlus className="h-6 w-6 text-primary" />
+            <div className="text-center">
+              <p className="font-medium">Append</p>
+              <p className="text-xs text-muted-foreground">বর্তমান items এর পরে যোগ হবে</p>
+            </div>
+          </Button>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setSelectedTemplate(null)}>
+            বাতিল করুন
+          </AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
