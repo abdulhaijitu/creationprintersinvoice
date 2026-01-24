@@ -37,9 +37,11 @@ import PrintTemplate from '@/components/print/PrintTemplate';
 import '@/components/print/printStyles.css';
 import { CreateChallanDialog } from '@/components/delivery-challan/CreateChallanDialog';
 import { AddPaymentDialog } from '@/components/invoice/AddPaymentDialog';
+import { InvoiceCostingSummary } from '@/components/invoice/InvoiceCostingSummary';
 import { calculateInvoiceStatus } from '@/lib/invoiceUtils';
 import { downloadAsPDF } from '@/lib/pdfUtils';
 import { CreateGuard } from '@/components/guards/ActionGuard';
+import { useOrgRolePermissions } from '@/hooks/useOrgRolePermissions';
 
 interface Invoice {
   id: string;
@@ -96,11 +98,15 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 const InvoiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { hasPermission } = useOrgRolePermissions();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  
+  // Check costing view permission
+  const canViewCosting = hasPermission('invoices.costing.view');
 
   // Fetch company settings
   const { data: companySettings } = useQuery({
@@ -469,6 +475,13 @@ const InvoiceDetail = () => {
                 </CardContent>
               </Card>
             )}
+            
+            {/* Costing Summary - Internal Only for authorized users */}
+            <InvoiceCostingSummary
+              invoiceId={invoice.id}
+              invoiceTotal={Number(invoice.total)}
+              canView={canViewCosting}
+            />
           </div>
 
           {/* Summary & Payments */}
