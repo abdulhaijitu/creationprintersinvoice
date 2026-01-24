@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrgRolePermissions } from '@/hooks/useOrgRolePermissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -22,6 +23,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, ArrowLeft, Save } from 'lucide-react';
 import { format } from 'date-fns';
 import { CustomerSelect } from '@/components/shared/CustomerSelect';
+import { InvoiceCostingSection, CostingItem } from '@/components/invoice/InvoiceCostingSection';
 
 interface Customer {
   id: string;
@@ -44,7 +46,12 @@ const InvoiceForm = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { organization } = useOrganization();
+  const { hasPermission } = useOrgRolePermissions();
   const isEditing = Boolean(id);
+  
+  // Check costing permissions
+  const canViewCosting = hasPermission('invoices.costing.view');
+  const canEditCosting = hasPermission('invoices.costing.edit');
   
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,6 +76,9 @@ const InvoiceForm = () => {
   // Initialize with empty array - will be populated by fetchInvoice for edit mode
   // or a default item will be added in useEffect for create mode
   const [items, setItems] = useState<InvoiceItem[]>([]);
+  
+  // Costing items state
+  const [costingItems, setCostingItems] = useState<CostingItem[]>([]);
 
   useEffect(() => {
     fetchCustomers();
@@ -78,6 +88,10 @@ const InvoiceForm = () => {
       // Only add default empty item for NEW invoices, not when editing
       setItems([
         { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
+      ]);
+      // Add default costing item for new invoices
+      setCostingItems([
+        { id: crypto.randomUUID(), item_type: '', description: '', quantity: 1, price: 0, line_total: 0 },
       ]);
     }
     // Invoice number is generated only on successful save, not on form open
@@ -175,6 +189,31 @@ const InvoiceForm = () => {
           unit_price: Number(item.unit_price),
           total: Number(item.total),
         })));
+      }
+      
+      // Fetch costing items
+      if (canViewCosting) {
+        const { data: costingData } = await supabase
+          .from('invoice_costing_items' as any)
+          .select('*')
+          .eq('invoice_id', id)
+          .order('sort_order');
+          
+        if (costingData && (costingData as any[]).length > 0) {
+          setCostingItems((costingData as any[]).map((item: any) => ({
+            id: item.id,
+            item_type: item.item_type,
+            description: item.description || '',
+            quantity: Number(item.quantity),
+            price: Number(item.price),
+            line_total: Number(item.line_total),
+          })));
+        } else {
+          // Set default empty costing item if none exist
+          setCostingItems([
+            { id: crypto.randomUUID(), item_type: '', description: '', quantity: 1, price: 0, line_total: 0 },
+          ]);
+        }
       }
     } catch (error) {
       console.error('Error fetching invoice:', error);
@@ -288,6 +327,28 @@ const InvoiceForm = () => {
 
         const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItems);
         if (itemsError) throw itemsError;
+        
+        // Save costing items
+        if (canEditCosting && costingItems.length > 0) {
+          // Delete existing costing items
+          await supabase.from('invoice_costing_items' as any).delete().eq('invoice_id', id);
+          
+          // Filter out empty rows and insert
+          const validCostingItems = costingItems.filter(item => item.item_type);
+          if (validCostingItems.length > 0) {
+            const costingData = validCostingItems.map((item, index) => ({
+              invoice_id: id,
+              organization_id: organization?.id,
+              item_type: item.item_type,
+              description: item.description || null,
+              quantity: item.quantity,
+              price: item.price,
+              sort_order: index,
+            }));
+            
+            await supabase.from('invoice_costing_items' as any).insert(costingData);
+          }
+        }
 
         toast.success('Invoice updated');
         navigate(`/invoices/${id}`);
@@ -360,6 +421,24 @@ const InvoiceForm = () => {
 
         const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItems);
         if (itemsError) throw itemsError;
+        
+        // Save costing items for new invoice
+        if (canEditCosting && costingItems.length > 0) {
+          const validCostingItems = costingItems.filter(item => item.item_type);
+          if (validCostingItems.length > 0) {
+            const costingData = validCostingItems.map((item, index) => ({
+              invoice_id: invoice.id,
+              organization_id: organization?.id,
+              item_type: item.item_type,
+              description: item.description || null,
+              quantity: item.quantity,
+              price: item.price,
+              sort_order: index,
+            }));
+            
+            await supabase.from('invoice_costing_items' as any).insert(costingData);
+          }
+        }
 
         toast.success('Invoice created');
         navigate(`/invoices/${invoice.id}`);
@@ -465,6 +544,14 @@ const InvoiceForm = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Costing Section - Internal Only */}
+            <InvoiceCostingSection
+              items={costingItems}
+              onItemsChange={setCostingItems}
+              canView={canViewCosting}
+              canEdit={canEditCosting}
+            />
 
             {/* Items */}
             <Card>
