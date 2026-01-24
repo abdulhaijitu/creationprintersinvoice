@@ -192,10 +192,21 @@ export function InvoiceCostingSection({
   
   // Reset to last saved state
   const handleReset = useCallback(() => {
+    // Reset to saved items, or create a default empty item if no saved items exist
     if (savedItems.length > 0) {
       onItemsChange(JSON.parse(JSON.stringify(savedItems)));
-      setIsDirty(false);
+    } else {
+      // Reset to a single empty item (initial state)
+      onItemsChange([{
+        id: crypto.randomUUID(),
+        item_type: '',
+        description: '',
+        quantity: 1,
+        price: 0,
+        line_total: 0,
+      }]);
     }
+    setIsDirty(false);
   }, [savedItems, onItemsChange]);
   
   // Handle accordion open/close with unsaved warning
