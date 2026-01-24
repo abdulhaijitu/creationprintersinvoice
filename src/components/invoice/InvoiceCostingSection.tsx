@@ -82,7 +82,6 @@ export function InvoiceCostingSection({
   isNewInvoice = false,
 }: InvoiceCostingSectionProps) {
   const { organization } = useOrganization();
-  const [isOpen, setIsOpen] = useState(false);
   const [customItemTypes, setCustomItemTypes] = useState<string[]>([]);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
@@ -93,19 +92,32 @@ export function InvoiceCostingSection({
   const [savedItems, setSavedItems] = useState<CostingItem[]>([]);
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
   const pendingCloseRef = useRef(false);
+  const initialLoadRef = useRef(true);
   
-  // Track original items for dirty detection
+  // Auto-expand panel if costing items exist (has valid data with item_type set)
+  const hasValidCostingData = items.some(item => item.item_type);
+  const [isOpen, setIsOpen] = useState(hasValidCostingData);
+  
+  // Sync saved baseline when items change from parent (DB load)
+  // This runs when invoice loads and passes costing items to this component
   useEffect(() => {
-    // When items are first loaded (from DB), set them as saved baseline
-    if (!isDirty && items.length > 0) {
+    if (initialLoadRef.current && items.length > 0) {
+      // First load from DB - set saved baseline and auto-expand if valid data
       setSavedItems(JSON.parse(JSON.stringify(items)));
+      setIsDirty(false);
+      if (items.some(item => item.item_type)) {
+        setIsOpen(true);
+      }
+      initialLoadRef.current = false;
     }
-  }, []);
+  }, [items]);
   
-  // Update saved baseline when invoice ID changes (switching invoices)
+  // Reset state when switching invoices (invoiceId changes)
   useEffect(() => {
     if (invoiceId) {
-      setSavedItems(JSON.parse(JSON.stringify(items)));
+      initialLoadRef.current = true;
+      // Items will be passed from parent after fetch, so we wait for that
+      setSavedItems([]);
       setIsDirty(false);
     }
   }, [invoiceId]);
