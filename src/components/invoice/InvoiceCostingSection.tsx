@@ -63,11 +63,13 @@ interface InvoiceCostingSectionProps {
   onItemsChange: (items: CostingItem[]) => void;
   canEdit: boolean;
   canView: boolean;
-  invoiceTotal?: number; // Invoice total for profit margin calculation
-  customerId?: string; // For filtering price calculations by customer
-  invoiceId?: string; // Required for independent save
-  isNewInvoice?: boolean; // To disable independent save for new invoices
+  invoiceTotal?: number;
+  customerId?: string;
+  invoiceId?: string;
+  isNewInvoice?: boolean;
 }
+
+export type LoadMode = 'replace' | 'append';
 
 export function InvoiceCostingSection({
   items,
@@ -703,9 +705,9 @@ export function InvoiceCostingSection({
         open={showTemplateDialog}
         onOpenChange={setShowTemplateDialog}
         currentItems={items}
-        onLoadTemplate={(templateItems) => {
-          // Replace or append based on current state
-          if (items.length === 1 && !items[0].item_type && items[0].line_total === 0) {
+        hasExistingItems={items.length > 0 && !(items.length === 1 && !items[0].item_type && items[0].line_total === 0)}
+        onLoadTemplate={(templateItems, mode) => {
+          if (mode === 'replace') {
             onItemsChange(templateItems);
           } else {
             onItemsChange([...items, ...templateItems]);
