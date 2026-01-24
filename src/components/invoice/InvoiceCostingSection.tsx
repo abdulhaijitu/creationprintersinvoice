@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Plus, Trash2, ChevronDown, Calculator, Download } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, Calculator, Download, LayoutTemplate } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { ImportPriceCalculationDialog } from './ImportPriceCalculationDialog';
+import { CostingTemplateDialog } from './CostingTemplateDialog';
 
 // Default costing item types
 const DEFAULT_ITEM_TYPES = [
@@ -64,6 +65,7 @@ export function InvoiceCostingSection({
   const [isOpen, setIsOpen] = useState(false);
   const [customItemTypes, setCustomItemTypes] = useState<string[]>([]);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
 
   // Build options list including custom types
   const itemTypeOptions = [
@@ -369,7 +371,17 @@ export function InvoiceCostingSection({
                         className="gap-2"
                       >
                         <Download className="h-4 w-4" />
-                        Import from Price Calculation
+                        <span className="hidden sm:inline">Import from</span> Price Calc
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setShowTemplateDialog(true)}
+                        className="gap-2"
+                      >
+                        <LayoutTemplate className="h-4 w-4" />
+                        Templates
                       </Button>
                     </div>
                   )}
@@ -477,6 +489,21 @@ export function InvoiceCostingSection({
           }
         }}
         customerId={customerId}
+      />
+
+      {/* Costing Template Dialog */}
+      <CostingTemplateDialog
+        open={showTemplateDialog}
+        onOpenChange={setShowTemplateDialog}
+        currentItems={items}
+        onLoadTemplate={(templateItems) => {
+          // Replace or append based on current state
+          if (items.length === 1 && !items[0].item_type && items[0].line_total === 0) {
+            onItemsChange(templateItems);
+          } else {
+            onItemsChange([...items, ...templateItems]);
+          }
+        }}
       />
     </Card>
   );
