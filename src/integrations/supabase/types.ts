@@ -452,6 +452,91 @@ export type Database = {
         }
         Relationships: []
       }
+      costing_item_template_rows: {
+        Row: {
+          created_at: string
+          default_price: number
+          default_qty: number
+          description: string | null
+          id: string
+          sort_order: number
+          sub_item_name: string
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_price?: number
+          default_qty?: number
+          description?: string | null
+          id?: string
+          sort_order?: number
+          sub_item_name: string
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_price?: number
+          default_qty?: number
+          description?: string | null
+          id?: string
+          sort_order?: number
+          sub_item_name?: string
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "costing_item_template_rows_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "costing_item_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      costing_item_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          item_name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          item_name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          item_name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "costing_item_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       costing_templates: {
         Row: {
           created_at: string

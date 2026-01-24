@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Plus, Trash2, ChevronDown, Calculator, Download, LayoutTemplate, Save, RotateCcw, Loader2 } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, Calculator, Download, LayoutTemplate, Save, RotateCcw, Loader2, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Badge } from '@/components/ui/badge';
 import {
   Collapsible,
   CollapsibleContent,
@@ -34,6 +35,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ImportPriceCalculationDialog } from './ImportPriceCalculationDialog';
 import { CostingTemplateDialog } from './CostingTemplateDialog';
+import { ApplyItemTemplateDialog } from './ApplyItemTemplateDialog';
+import { useCostingItemTemplates, CostingItemTemplate, TemplateRow } from '@/hooks/useCostingItemTemplates';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Default costing item types
 const DEFAULT_ITEM_TYPES = [
@@ -95,6 +99,12 @@ export function InvoiceCostingSection({
   const [customItemTypes, setCustomItemTypes] = useState<string[]>([]);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  
+  // Item template integration
+  const { templates, getTemplateByItemName, itemsWithTemplates, isLoading: templatesLoading } = useCostingItemTemplates();
+  const [showApplyTemplateDialog, setShowApplyTemplateDialog] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<CostingItemTemplate | null>(null);
+  const [appliedTemplates, setAppliedTemplates] = useState<Set<string>>(new Set());
   
   // Save state management
   const [isSaving, setIsSaving] = useState(false);
@@ -327,14 +337,59 @@ export function InvoiceCostingSection({
     setIsDirty(true);
   }, [items, onItemsChange]);
 
+  // Handle item type change with template check
   const handleItemTypeChange = useCallback((id: string, value: string) => {
     // Check if this is a new custom type (not in existing options)
     const existingOption = itemTypeOptions.find(opt => opt.value === value);
     if (!existingOption && value && !customItemTypes.includes(value)) {
       setCustomItemTypes(prev => [...prev, value]);
     }
+    
+    // Update the item first
     updateItem(id, 'item_type', value);
-  }, [itemTypeOptions, customItemTypes, updateItem]);
+    
+    // Check if there's a template for this item type and user can edit
+    if (canEdit && value) {
+      const template = getTemplateByItemName(value);
+      if (template && template.rows.length > 0 && !appliedTemplates.has(value)) {
+        // Show confirmation dialog to apply template
+        setPendingTemplate(template);
+        setShowApplyTemplateDialog(true);
+      }
+    }
+  }, [itemTypeOptions, customItemTypes, updateItem, canEdit, getTemplateByItemName, appliedTemplates]);
+
+  // Handle applying a template
+  const handleApplyTemplate = useCallback((rows: TemplateRow[]) => {
+    if (!pendingTemplate) return;
+    
+    // Convert template rows to costing items
+    const newItems: CostingItem[] = rows.map(row => ({
+      id: crypto.randomUUID(),
+      item_type: pendingTemplate.item_name.toLowerCase().replace(/\s+/g, '_'),
+      description: `${row.sub_item_name}${row.description ? ` - ${row.description}` : ''}`,
+      quantity: row.default_qty,
+      price: row.default_price,
+      line_total: row.default_qty * row.default_price,
+    }));
+    
+    // Remove any empty placeholder items and add new items
+    const validExistingItems = items.filter(item => item.item_type && item.line_total > 0);
+    onItemsChange([...validExistingItems, ...newItems]);
+    
+    // Mark this template as applied so we don't prompt again
+    setAppliedTemplates(prev => new Set(prev).add(pendingTemplate.item_name.toLowerCase().replace(/\s+/g, '_')));
+    setIsDirty(true);
+    toast.success(`"${pendingTemplate.item_name}" টেমপ্লেট প্রয়োগ হয়েছে`);
+  }, [pendingTemplate, items, onItemsChange]);
+
+  // Handle skipping template
+  const handleSkipTemplate = useCallback(() => {
+    if (pendingTemplate) {
+      // Mark as applied so we don't prompt again
+      setAppliedTemplates(prev => new Set(prev).add(pendingTemplate.item_name.toLowerCase().replace(/\s+/g, '_')));
+    }
+  }, [pendingTemplate]);
 
   // Don't render if user doesn't have view permission
   if (!canView) return null;
@@ -783,6 +838,16 @@ export function InvoiceCostingSection({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Apply Item Template Dialog */}
+      <ApplyItemTemplateDialog
+        open={showApplyTemplateDialog}
+        onOpenChange={setShowApplyTemplateDialog}
+        template={pendingTemplate}
+        onApply={handleApplyTemplate}
+        onSkip={handleSkipTemplate}
+        hasExistingItems={items.filter(i => i.item_type && i.line_total > 0).length > 0}
+      />
     </Card>
   );
 }

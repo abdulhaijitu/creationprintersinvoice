@@ -40,6 +40,7 @@ import NotFound from "./pages/NotFound";
 import DeliveryChallans from "./pages/DeliveryChallans";
 import ChallanPrintTemplate from "./components/delivery-challan/ChallanPrintTemplate";
 import ResetPassword from "./pages/ResetPassword";
+import CostingItemTemplates from "./pages/CostingItemTemplates";
 
 
 // Create a single QueryClient instance with optimized settings
@@ -103,6 +104,7 @@ const App = () => (
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/team-members" element={<TeamMembers />} />
                     <Route path="/delivery-challans" element={<DeliveryChallans />} />
+                    <Route path="/costing-templates" element={<CostingItemTemplates />} />
                   </Route>
 
                   {/* Catch-all redirect */}
