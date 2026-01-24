@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Plus, Trash2, ChevronDown, Calculator } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, Calculator, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,16 +19,20 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { ImportPriceCalculationDialog } from './ImportPriceCalculationDialog';
 
 // Default costing item types
 const DEFAULT_ITEM_TYPES = [
+  { value: 'design', label: 'Design' },
   { value: 'plate', label: 'Plate' },
+  { value: 'paper', label: 'Paper' },
   { value: 'print', label: 'Print' },
   { value: 'lamination', label: 'Lamination' },
   { value: 'die_cutting', label: 'Die Cutting' },
   { value: 'foil', label: 'Foil' },
   { value: 'binding', label: 'Binding' },
   { value: 'packaging', label: 'Packaging' },
+  { value: 'others', label: 'Others' },
 ];
 
 export interface CostingItem {
@@ -46,6 +50,7 @@ interface InvoiceCostingSectionProps {
   canEdit: boolean;
   canView: boolean;
   invoiceTotal?: number; // Invoice total for profit margin calculation
+  customerId?: string; // For filtering price calculations by customer
 }
 
 export function InvoiceCostingSection({
@@ -54,9 +59,11 @@ export function InvoiceCostingSection({
   canEdit,
   canView,
   invoiceTotal = 0,
+  customerId,
 }: InvoiceCostingSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customItemTypes, setCustomItemTypes] = useState<string[]>([]);
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   // Build options list including custom types
   const itemTypeOptions = [
@@ -343,16 +350,28 @@ export function InvoiceCostingSection({
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   {canEdit && (
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={addItem}
-                      className="gap-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Costing Row
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={addItem}
+                        className="gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Row
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setShowImportDialog(true)}
+                        className="gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Import from Price Calculation
+                      </Button>
+                    </div>
                   )}
                   
                   {items.length > 0 && (
@@ -442,6 +461,23 @@ export function InvoiceCostingSection({
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
+
+      {/* Import from Price Calculation Dialog */}
+      <ImportPriceCalculationDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        onImport={(importedItems) => {
+          // Merge imported items with existing items (or replace if empty)
+          if (items.length === 1 && !items[0].item_type && items[0].line_total === 0) {
+            // Replace the empty default row
+            onItemsChange(importedItems);
+          } else {
+            // Append to existing items
+            onItemsChange([...items, ...importedItems]);
+          }
+        }}
+        customerId={customerId}
+      />
     </Card>
   );
 }
