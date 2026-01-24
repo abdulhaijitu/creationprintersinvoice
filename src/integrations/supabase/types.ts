@@ -1432,6 +1432,8 @@ export type Database = {
           description: string | null
           id: string
           invoice_id: string
+          invoice_item_id: string | null
+          item_no: number | null
           item_type: string
           line_total: number | null
           organization_id: string | null
@@ -1445,6 +1447,8 @@ export type Database = {
           description?: string | null
           id?: string
           invoice_id: string
+          invoice_item_id?: string | null
+          item_no?: number | null
           item_type: string
           line_total?: number | null
           organization_id?: string | null
@@ -1458,6 +1462,8 @@ export type Database = {
           description?: string | null
           id?: string
           invoice_id?: string
+          invoice_item_id?: string | null
+          item_no?: number | null
           item_type?: string
           line_total?: number | null
           organization_id?: string | null
@@ -1472,6 +1478,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_costing_items_invoice_item_id_fkey"
+            columns: ["invoice_item_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_items"
             referencedColumns: ["id"]
           },
           {
