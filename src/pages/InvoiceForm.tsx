@@ -553,6 +553,8 @@ const InvoiceForm = () => {
               canEdit={canEditCosting}
               invoiceTotal={calculateTotal()}
               customerId={formData.customer_id}
+              invoiceId={id}
+              isNewInvoice={!isEditing}
             />
 
             {/* Items */}

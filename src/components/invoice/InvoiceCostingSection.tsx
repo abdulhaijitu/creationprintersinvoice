@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { Plus, Trash2, ChevronDown, Calculator, Download, LayoutTemplate } from 'lucide-react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { Plus, Trash2, ChevronDown, Calculator, Download, LayoutTemplate, Save, RotateCcw, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ImportPriceCalculationDialog } from './ImportPriceCalculationDialog';
 import { CostingTemplateDialog } from './CostingTemplateDialog';
 
@@ -52,6 +65,8 @@ interface InvoiceCostingSectionProps {
   canView: boolean;
   invoiceTotal?: number; // Invoice total for profit margin calculation
   customerId?: string; // For filtering price calculations by customer
+  invoiceId?: string; // Required for independent save
+  isNewInvoice?: boolean; // To disable independent save for new invoices
 }
 
 export function InvoiceCostingSection({
@@ -61,11 +76,156 @@ export function InvoiceCostingSection({
   canView,
   invoiceTotal = 0,
   customerId,
+  invoiceId,
+  isNewInvoice = false,
 }: InvoiceCostingSectionProps) {
+  const { organization } = useOrganization();
   const [isOpen, setIsOpen] = useState(false);
   const [customItemTypes, setCustomItemTypes] = useState<string[]>([]);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  
+  // Save state management
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [savedItems, setSavedItems] = useState<CostingItem[]>([]);
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const pendingCloseRef = useRef(false);
+  
+  // Track original items for dirty detection
+  useEffect(() => {
+    // When items are first loaded (from DB), set them as saved baseline
+    if (!isDirty && items.length > 0) {
+      setSavedItems(JSON.parse(JSON.stringify(items)));
+    }
+  }, []);
+  
+  // Update saved baseline when invoice ID changes (switching invoices)
+  useEffect(() => {
+    if (invoiceId) {
+      setSavedItems(JSON.parse(JSON.stringify(items)));
+      setIsDirty(false);
+    }
+  }, [invoiceId]);
+  
+  // Validate costing items
+  const validateItems = useCallback(() => {
+    const errors: string[] = [];
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item.item_type) {
+        errors.push(`Row ${i + 1}: Item type is required`);
+      }
+      if (item.quantity <= 0) {
+        errors.push(`Row ${i + 1}: Quantity must be greater than 0`);
+      }
+      if (item.price < 0) {
+        errors.push(`Row ${i + 1}: Price cannot be negative`);
+      }
+    }
+    
+    return errors;
+  }, [items]);
+  
+  // Save costing items independently
+  const handleSaveCosting = useCallback(async () => {
+    if (!invoiceId || isNewInvoice) {
+      toast.error('Please save the invoice first before saving costing separately');
+      return;
+    }
+    
+    // Filter out completely empty rows (no item_type set)
+    const validItems = items.filter(item => item.item_type);
+    
+    if (validItems.length === 0) {
+      toast.error('Add at least one costing item with an item type');
+      return;
+    }
+    
+    // Validate
+    const errors = validateItems();
+    if (errors.length > 0) {
+      toast.error(errors[0]); // Show first error
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    try {
+      // Delete existing costing items for this invoice
+      await supabase
+        .from('invoice_costing_items' as any)
+        .delete()
+        .eq('invoice_id', invoiceId);
+      
+      // Insert new costing items
+      const costingData = validItems.map((item, index) => ({
+        invoice_id: invoiceId,
+        organization_id: organization?.id,
+        item_type: item.item_type,
+        description: item.description || null,
+        quantity: item.quantity,
+        price: item.price,
+        line_total: item.line_total,
+        sort_order: index,
+      }));
+      
+      const { error } = await supabase
+        .from('invoice_costing_items' as any)
+        .insert(costingData);
+      
+      if (error) throw error;
+      
+      // Update saved baseline
+      setSavedItems(JSON.parse(JSON.stringify(items)));
+      setIsDirty(false);
+      toast.success('Costing saved successfully');
+    } catch (error: any) {
+      console.error('Error saving costing:', error);
+      toast.error(error.message || 'Failed to save costing');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [invoiceId, isNewInvoice, items, organization?.id, validateItems]);
+  
+  // Reset to last saved state
+  const handleReset = useCallback(() => {
+    if (savedItems.length > 0) {
+      onItemsChange(JSON.parse(JSON.stringify(savedItems)));
+      setIsDirty(false);
+    }
+  }, [savedItems, onItemsChange]);
+  
+  // Handle accordion open/close with unsaved warning
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (!open && isDirty && canEdit) {
+      // Trying to close with unsaved changes
+      pendingCloseRef.current = true;
+      setShowUnsavedWarning(true);
+    } else {
+      setIsOpen(open);
+    }
+  }, [isDirty, canEdit]);
+  
+  // Confirm close without saving
+  const handleConfirmClose = useCallback(() => {
+    setShowUnsavedWarning(false);
+    if (pendingCloseRef.current) {
+      pendingCloseRef.current = false;
+      setIsOpen(false);
+    }
+  }, []);
+  
+  // Save and close
+  const handleSaveAndClose = useCallback(async () => {
+    setShowUnsavedWarning(false);
+    await handleSaveCosting();
+    if (pendingCloseRef.current) {
+      pendingCloseRef.current = false;
+      setIsOpen(false);
+    }
+  }, [handleSaveCosting]);
 
   // Build options list including custom types
   const itemTypeOptions = [
@@ -118,6 +278,7 @@ export function InvoiceCostingSection({
       return updated;
     });
     onItemsChange(updatedItems);
+    setIsDirty(true);
   }, [items, onItemsChange]);
 
   const addItem = useCallback(() => {
@@ -130,11 +291,13 @@ export function InvoiceCostingSection({
       line_total: 0,
     };
     onItemsChange([...items, newItem]);
+    setIsDirty(true);
   }, [items, onItemsChange]);
 
   const removeItem = useCallback((id: string) => {
     if (items.length === 1) return;
     onItemsChange(items.filter((item) => item.id !== id));
+    setIsDirty(true);
   }, [items, onItemsChange]);
 
   const handleItemTypeChange = useCallback((id: string, value: string) => {
@@ -151,7 +314,7 @@ export function InvoiceCostingSection({
 
   return (
     <Card className="border-dashed border-muted-foreground/30">
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Collapsible open={isOpen} onOpenChange={handleOpenChange}>
         <CollapsibleTrigger asChild>
           <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
             <div className="flex items-center justify-between">
@@ -162,6 +325,11 @@ export function InvoiceCostingSection({
                   <span className="text-xs font-normal text-muted-foreground ml-2">
                     (Internal Only)
                   </span>
+                  {isDirty && canEdit && (
+                    <span className="ml-2 text-xs font-normal text-warning">
+                      • Unsaved changes
+                    </span>
+                  )}
                 </CardTitle>
               </div>
               <div className="flex items-center gap-3">
@@ -466,6 +634,45 @@ export function InvoiceCostingSection({
                 )}
               </div>
 
+              {/* Save/Reset Action Bar */}
+              {canEdit && !isNewInvoice && invoiceId && (
+                <div className="flex items-center justify-between gap-3 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={handleSaveCosting}
+                      disabled={!isDirty || isSaving}
+                      className="gap-2"
+                    >
+                      {isSaving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                      Save Costing
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleReset}
+                      disabled={!isDirty || isSaving}
+                      className="gap-2"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      Reset
+                    </Button>
+                  </div>
+                  {isDirty && (
+                    <span className="text-xs text-warning">
+                      You have unsaved changes
+                    </span>
+                  )}
+                </div>
+              )}
+
               <p className="text-xs text-muted-foreground italic">
                 ⚠️ Costing is for internal reference only. It does not affect invoice totals and will not appear in printed invoices or PDFs.
               </p>
@@ -487,6 +694,7 @@ export function InvoiceCostingSection({
             // Append to existing items
             onItemsChange([...items, ...importedItems]);
           }
+          setIsDirty(true);
         }}
         customerId={customerId}
       />
@@ -503,8 +711,29 @@ export function InvoiceCostingSection({
           } else {
             onItemsChange([...items, ...templateItems]);
           }
+          setIsDirty(true);
         }}
       />
+      
+      {/* Unsaved Changes Warning Dialog */}
+      <AlertDialog open={showUnsavedWarning} onOpenChange={setShowUnsavedWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Costing Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved costing changes. Save before closing?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleConfirmClose}>
+              Discard Changes
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveAndClose}>
+              Save & Close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
