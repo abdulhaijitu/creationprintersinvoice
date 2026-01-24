@@ -551,6 +551,7 @@ const InvoiceForm = () => {
               onItemsChange={setCostingItems}
               canView={canViewCosting}
               canEdit={canEditCosting}
+              invoiceTotal={calculateTotal()}
             />
 
             {/* Items */}
