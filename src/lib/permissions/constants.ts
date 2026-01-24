@@ -172,6 +172,13 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: 'team_members.manage', module: 'team_members', action: 'manage', label: 'Manage Team', description: 'Add, edit, and delete team members', category: 'SYSTEM' },
   { key: 'settings.view', module: 'settings', action: 'view', label: 'View Settings', description: 'View system settings', category: 'SYSTEM' },
   { key: 'settings.manage', module: 'settings', action: 'manage', label: 'Manage Settings', description: 'Update system settings', category: 'SYSTEM' },
+  
+  // ===== COSTING (INTERNAL ONLY) =====
+  { key: 'invoices.costing.view', module: 'invoices', action: 'view', label: 'View Costing', description: 'View invoice costing section (internal only)', category: 'MAIN' },
+  { key: 'invoices.costing.edit', module: 'invoices', action: 'edit', label: 'Edit Costing', description: 'Modify costing data (add/remove rows, change values)', category: 'MAIN' },
+  { key: 'invoices.costing.save', module: 'invoices', action: 'manage', label: 'Save Costing', description: 'Persist costing changes to database', category: 'MAIN' },
+  { key: 'invoices.costing.reset', module: 'invoices', action: 'manage', label: 'Reset Costing', description: 'Reset costing data to clear state', category: 'MAIN' },
+  { key: 'invoices.costing.profit_view', module: 'invoices', action: 'view', label: 'View Profit Margin', description: 'View profit and margin calculations', category: 'MAIN' },
 ];
 
 // Get permissions grouped by category

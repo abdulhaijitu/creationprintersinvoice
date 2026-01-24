@@ -29,23 +29,23 @@ interface CostingItem {
 interface InvoiceCostingSummaryProps {
   invoiceId: string;
   invoiceTotal: number;
-  canView: boolean;
+  canViewProfit?: boolean;
 }
 
 export function InvoiceCostingSummary({
   invoiceId,
   invoiceTotal,
-  canView,
+  canViewProfit = true,
 }: InvoiceCostingSummaryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<CostingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (canView && invoiceId) {
+    if (invoiceId) {
       fetchCostingItems();
     }
-  }, [invoiceId, canView]);
+  }, [invoiceId]);
 
   const fetchCostingItems = async () => {
     try {
@@ -72,8 +72,7 @@ export function InvoiceCostingSummary({
     }
   };
 
-  // Don't render if no view permission or no items
-  if (!canView) return null;
+  // Don't render if no items
   if (!loading && items.length === 0) return null;
 
   const formatCurrency = (amount: number) => {
@@ -126,20 +125,22 @@ export function InvoiceCostingSummary({
                 </CardTitle>
               </div>
               <div className="flex items-center gap-3">
-                {/* Quick Profit Badge */}
-                <div className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium",
-                  isPositive 
-                    ? "bg-success/10 text-success" 
-                    : "bg-destructive/10 text-destructive"
-                )}>
-                  {isPositive ? (
-                    <TrendingUp className="h-3 w-3" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3" />
-                  )}
-                  {marginPercent.toFixed(1)}%
-                </div>
+                {/* Quick Profit Badge - Only shown if canViewProfit */}
+                {canViewProfit && (
+                  <div className={cn(
+                    "flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium",
+                    isPositive 
+                      ? "bg-success/10 text-success" 
+                      : "bg-destructive/10 text-destructive"
+                  )}>
+                    {isPositive ? (
+                      <TrendingUp className="h-3 w-3" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3" />
+                    )}
+                    {marginPercent.toFixed(1)}%
+                  </div>
+                )}
                 <ChevronDown 
                   className={cn(
                     "h-4 w-4 text-muted-foreground transition-transform duration-200",
@@ -190,48 +191,50 @@ export function InvoiceCostingSummary({
                 </Table>
               </div>
 
-              {/* Profit Margin Summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {/* Costing Total */}
-                <div className="bg-muted/50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Costing Total</p>
-                  <p className="font-semibold tabular-nums">{formatCurrency(costingTotal)}</p>
-                </div>
-                
-                {/* Invoice Total */}
-                <div className="bg-primary/10 p-3 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Invoice Total</p>
-                  <p className="font-semibold tabular-nums text-primary">{formatCurrency(invoiceTotal)}</p>
-                </div>
-                
-                {/* Profit */}
-                <div className={cn(
-                  "p-3 rounded-lg text-center",
-                  isPositive ? "bg-success/10" : "bg-destructive/10"
-                )}>
-                  <p className="text-xs text-muted-foreground mb-1">Profit</p>
-                  <p className={cn(
-                    "font-semibold tabular-nums",
-                    isPositive ? "text-success" : "text-destructive"
+              {/* Profit Margin Summary - Only shown if canViewProfit */}
+              {canViewProfit && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {/* Costing Total */}
+                  <div className="bg-muted/50 p-3 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Costing Total</p>
+                    <p className="font-semibold tabular-nums">{formatCurrency(costingTotal)}</p>
+                  </div>
+                  
+                  {/* Invoice Total */}
+                  <div className="bg-primary/10 p-3 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Invoice Total</p>
+                    <p className="font-semibold tabular-nums text-primary">{formatCurrency(invoiceTotal)}</p>
+                  </div>
+                  
+                  {/* Profit */}
+                  <div className={cn(
+                    "p-3 rounded-lg text-center",
+                    isPositive ? "bg-success/10" : "bg-destructive/10"
                   )}>
-                    {isPositive ? '+' : ''}{formatCurrency(profit)}
-                  </p>
-                </div>
-                
-                {/* Margin */}
-                <div className={cn(
-                  "p-3 rounded-lg text-center border-2",
-                  isPositive ? "bg-success/10 border-success/30" : "bg-destructive/10 border-destructive/30"
-                )}>
-                  <p className="text-xs text-muted-foreground mb-1">Margin</p>
-                  <p className={cn(
-                    "text-xl font-bold tabular-nums",
-                    isPositive ? "text-success" : "text-destructive"
+                    <p className="text-xs text-muted-foreground mb-1">Profit</p>
+                    <p className={cn(
+                      "font-semibold tabular-nums",
+                      isPositive ? "text-success" : "text-destructive"
+                    )}>
+                      {isPositive ? '+' : ''}{formatCurrency(profit)}
+                    </p>
+                  </div>
+                  
+                  {/* Margin */}
+                  <div className={cn(
+                    "p-3 rounded-lg text-center border-2",
+                    isPositive ? "bg-success/10 border-success/30" : "bg-destructive/10 border-destructive/30"
                   )}>
-                    {isPositive ? '+' : ''}{marginPercent.toFixed(1)}%
-                  </p>
+                    <p className="text-xs text-muted-foreground mb-1">Margin</p>
+                    <p className={cn(
+                      "text-xl font-bold tabular-nums",
+                      isPositive ? "text-success" : "text-destructive"
+                    )}>
+                      {isPositive ? '+' : ''}{marginPercent.toFixed(1)}%
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <p className="text-xs text-muted-foreground italic text-center">
                 ⚠️ This costing information is for internal use only and is not visible to customers.

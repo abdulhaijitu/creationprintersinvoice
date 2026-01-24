@@ -58,11 +58,18 @@ export interface CostingItem {
   line_total: number;
 }
 
+export interface CostingPermissions {
+  canView: boolean;
+  canEdit: boolean;
+  canSave: boolean;
+  canReset: boolean;
+  canViewProfit: boolean;
+}
+
 interface InvoiceCostingSectionProps {
   items: CostingItem[];
   onItemsChange: (items: CostingItem[]) => void;
-  canEdit: boolean;
-  canView: boolean;
+  permissions: CostingPermissions;
   invoiceTotal?: number;
   customerId?: string;
   invoiceId?: string;
@@ -74,14 +81,17 @@ export type LoadMode = 'replace' | 'append';
 export function InvoiceCostingSection({
   items,
   onItemsChange,
-  canEdit,
-  canView,
+  permissions,
   invoiceTotal = 0,
   customerId,
   invoiceId,
   isNewInvoice = false,
 }: InvoiceCostingSectionProps) {
   const { organization } = useOrganization();
+  
+  // Destructure permissions for convenience
+  const { canView, canEdit, canSave, canReset, canViewProfit } = permissions;
+  
   const [customItemTypes, setCustomItemTypes] = useState<string[]>([]);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
@@ -599,8 +609,8 @@ export function InvoiceCostingSection({
                   )}
                 </div>
 
-                {/* Profit Margin Calculator */}
-                {invoiceTotal > 0 && items.length > 0 && calculateGrandTotal() > 0 && (
+                {/* Profit Margin Calculator - Only shown if canViewProfit is true */}
+                {canViewProfit && invoiceTotal > 0 && items.length > 0 && calculateGrandTotal() > 0 && (
                   <div className="border rounded-lg p-4 bg-gradient-to-r from-muted/30 to-muted/10">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div className="space-y-1">
@@ -669,38 +679,42 @@ export function InvoiceCostingSection({
                 )}
               </div>
 
-              {/* Save/Reset Action Bar */}
-              {canEdit && !isNewInvoice && invoiceId && (
+              {/* Save/Reset Action Bar - Only shown based on permissions */}
+              {!isNewInvoice && invoiceId && (canSave || canReset) && (
                 <div className="flex items-center justify-between gap-3 pt-4 border-t">
                   <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="default"
-                      size="sm"
-                      onClick={handleSaveCosting}
-                      disabled={!isDirty || isSaving}
-                      className="gap-2"
-                    >
-                      {isSaving ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4" />
-                      )}
-                      Save Costing
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleReset}
-                      disabled={!isDirty || isSaving}
-                      className="gap-2"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      Reset
-                    </Button>
+                    {canSave && (
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        onClick={handleSaveCosting}
+                        disabled={!isDirty || isSaving}
+                        className="gap-2"
+                      >
+                        {isSaving ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        Save Costing
+                      </Button>
+                    )}
+                    {canReset && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleReset}
+                        disabled={!isDirty || isSaving}
+                        className="gap-2"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        Reset
+                      </Button>
+                    )}
                   </div>
-                  {isDirty && (
+                  {isDirty && canSave && (
                     <span className="text-xs text-warning">
                       You have unsaved changes
                     </span>
