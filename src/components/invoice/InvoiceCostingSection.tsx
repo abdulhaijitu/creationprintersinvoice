@@ -231,7 +231,10 @@ export function InvoiceCostingSection({
   // Build options list including custom types
   const itemTypeOptions = [
     ...DEFAULT_ITEM_TYPES,
-    ...customItemTypes.map(type => ({ value: type, label: type })),
+    ...customItemTypes.map(type => ({ 
+      value: type, 
+      label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) 
+    })),
   ];
 
   const formatCurrency = useCallback((amount: number) => {
@@ -386,6 +389,16 @@ export function InvoiceCostingSection({
                               searchPlaceholder="Search or type new..."
                               disabled={!canEdit}
                               className="w-full"
+                              allowCreate={canEdit}
+                              onCreateNew={(query) => {
+                                const newValue = query.trim().toLowerCase().replace(/\s+/g, '_') || `custom_${Date.now()}`;
+                                const newLabel = query.trim() || 'Custom Item';
+                                if (!customItemTypes.includes(newValue)) {
+                                  setCustomItemTypes(prev => [...prev, newValue]);
+                                }
+                                handleItemTypeChange(item.id, newValue);
+                              }}
+                              createNewLabel="Add new item"
                             />
                           </TableCell>
                           <TableCell>
@@ -473,6 +486,16 @@ export function InvoiceCostingSection({
                             options={itemTypeOptions}
                             placeholder="Select item"
                             disabled={!canEdit}
+                            allowCreate={canEdit}
+                            onCreateNew={(query) => {
+                              const newValue = query.trim().toLowerCase().replace(/\s+/g, '_') || `custom_${Date.now()}`;
+                              const newLabel = query.trim() || 'Custom Item';
+                              if (!customItemTypes.includes(newValue)) {
+                                setCustomItemTypes(prev => [...prev, newValue]);
+                              }
+                              handleItemTypeChange(item.id, newValue);
+                            }}
+                            createNewLabel="Add new item"
                           />
                         </div>
                         <div className="col-span-2">

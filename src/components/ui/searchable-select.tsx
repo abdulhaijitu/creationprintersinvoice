@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 import {
@@ -14,6 +14,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "./command";
 
 export interface SearchableSelectOption {
@@ -47,6 +48,12 @@ export interface SearchableSelectProps {
   icon?: React.ReactNode;
   /** Allow clearing the selection */
   clearable?: boolean;
+  /** Show "Add new item" option that allows creating custom entries */
+  allowCreate?: boolean;
+  /** Callback when user wants to add a new custom item - receives the search query */
+  onCreateNew?: (searchQuery: string) => void;
+  /** Label for the "Add new" action */
+  createNewLabel?: string;
 }
 
 /**
@@ -57,6 +64,7 @@ export interface SearchableSelectProps {
  * - Type to search/filter
  * - "No results found" state
  * - Accessible with proper ARIA attributes
+ * - Optional "Add new item" action
  */
 const SearchableSelect = React.forwardRef<HTMLButtonElement, SearchableSelectProps>(
   (
@@ -73,10 +81,14 @@ const SearchableSelect = React.forwardRef<HTMLButtonElement, SearchableSelectPro
       className,
       icon,
       clearable = false,
+      allowCreate = false,
+      onCreateNew,
+      createNewLabel = "Add new item",
     },
     ref,
   ) => {
     const [open, setOpen] = React.useState(false);
+    const [searchQuery, setSearchQuery] = React.useState("");
 
     const selectedOption = React.useMemo(
       () => options.find((option) => option.value === value),
@@ -91,10 +103,22 @@ const SearchableSelect = React.forwardRef<HTMLButtonElement, SearchableSelectPro
         onValueChange(selectedValue);
       }
       setOpen(false);
+      setSearchQuery("");
+    };
+
+    const handleCreateNew = () => {
+      if (onCreateNew) {
+        onCreateNew(searchQuery);
+      }
+      setOpen(false);
+      setSearchQuery("");
     };
 
     const selectElement = (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (!isOpen) setSearchQuery("");
+      }}>
         <PopoverTrigger asChild>
           <Button
             ref={ref}
@@ -118,7 +142,11 @@ const SearchableSelect = React.forwardRef<HTMLButtonElement, SearchableSelectPro
         </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
           <Command>
-            <CommandInput placeholder={searchPlaceholder} />
+            <CommandInput 
+              placeholder={searchPlaceholder} 
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+            />
             <CommandList>
               <CommandEmpty>{emptyText}</CommandEmpty>
               <CommandGroup>
@@ -140,6 +168,20 @@ const SearchableSelect = React.forwardRef<HTMLButtonElement, SearchableSelectPro
                   </CommandItem>
                 ))}
               </CommandGroup>
+              {allowCreate && onCreateNew && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup>
+                    <CommandItem
+                      onSelect={handleCreateNew}
+                      className="cursor-pointer text-primary"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      {searchQuery ? `Add "${searchQuery}"` : createNewLabel}
+                    </CommandItem>
+                  </CommandGroup>
+                </>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>
