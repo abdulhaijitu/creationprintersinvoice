@@ -159,7 +159,7 @@ export function InvoiceCostingSection({
         .delete()
         .eq('invoice_id', invoiceId);
       
-      // Insert new costing items
+      // Insert new costing items (line_total is auto-calculated by DB)
       const costingData = validItems.map((item, index) => ({
         invoice_id: invoiceId,
         organization_id: organization?.id,
@@ -167,7 +167,6 @@ export function InvoiceCostingSection({
         description: item.description || null,
         quantity: item.quantity,
         price: item.price,
-        line_total: item.line_total,
         sort_order: index,
       }));
       
