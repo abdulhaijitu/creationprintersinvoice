@@ -190,24 +190,13 @@ export function InvoiceCostingSection({
     }
   }, [invoiceId, isNewInvoice, items, organization?.id, validateItems]);
   
-  // Reset to last saved state
+  // Reset - clears ALL costing rows completely
+  // Per requirements: Reset must clear rows, clear profit, reset state - NOT reload saved data
   const handleReset = useCallback(() => {
-    // Reset to saved items, or create a default empty item if no saved items exist
-    if (savedItems.length > 0) {
-      onItemsChange(JSON.parse(JSON.stringify(savedItems)));
-    } else {
-      // Reset to a single empty item (initial state)
-      onItemsChange([{
-        id: crypto.randomUUID(),
-        item_type: '',
-        description: '',
-        quantity: 1,
-        price: 0,
-        line_total: 0,
-      }]);
-    }
+    // Clear ALL costing rows - empty array means costing total = 0, profit recalculates
+    onItemsChange([]);
     setIsDirty(false);
-  }, [savedItems, onItemsChange]);
+  }, [onItemsChange]);
   
   // Handle accordion open/close with unsaved warning
   const handleOpenChange = useCallback((open: boolean) => {
@@ -294,20 +283,21 @@ export function InvoiceCostingSection({
   }, [items, onItemsChange]);
 
   const addItem = useCallback(() => {
+    // Note: line_total is computed (qty * price), initialized to 0 for display only
     const newItem: CostingItem = {
       id: crypto.randomUUID(),
       item_type: '',
       description: '',
       quantity: 1,
       price: 0,
-      line_total: 0,
+      line_total: 0, // Display only - never sent to DB
     };
     onItemsChange([...items, newItem]);
     setIsDirty(true);
   }, [items, onItemsChange]);
 
   const removeItem = useCallback((id: string) => {
-    if (items.length === 1) return;
+    // Allow removing even the last item (empty state is valid)
     onItemsChange(items.filter((item) => item.id !== id));
     setIsDirty(true);
   }, [items, onItemsChange]);
@@ -435,7 +425,6 @@ export function InvoiceCostingSection({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => removeItem(item.id)}
-                                disabled={items.length === 1}
                                 className="text-destructive hover:text-destructive h-8 w-8"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -468,7 +457,6 @@ export function InvoiceCostingSection({
                             variant="ghost"
                             size="icon"
                             onClick={() => removeItem(item.id)}
-                            disabled={items.length === 1}
                             className="text-destructive hover:text-destructive h-8 w-8"
                           >
                             <Trash2 className="h-4 w-4" />
