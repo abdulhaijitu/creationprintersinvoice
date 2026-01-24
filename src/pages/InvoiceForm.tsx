@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { useOrgRolePermissions } from '@/hooks/useOrgRolePermissions';
+import { useCostingPermissions } from '@/hooks/useCostingPermissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -46,12 +46,10 @@ const InvoiceForm = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { organization } = useOrganization();
-  const { hasPermission } = useOrgRolePermissions();
   const isEditing = Boolean(id);
   
-  // Check costing permissions
-  const canViewCosting = hasPermission('invoices.costing.view');
-  const canEditCosting = hasPermission('invoices.costing.edit');
+  // Get costing permissions from dedicated hook
+  const costingPermissions = useCostingPermissions();
   
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -191,8 +189,8 @@ const InvoiceForm = () => {
         })));
       }
       
-      // Fetch costing items
-      if (canViewCosting) {
+      // Fetch costing items (only if user can view costing)
+      if (costingPermissions.canView) {
         const { data: costingData } = await supabase
           .from('invoice_costing_items' as any)
           .select('*')
@@ -328,8 +326,8 @@ const InvoiceForm = () => {
         const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItems);
         if (itemsError) throw itemsError;
         
-        // Save costing items
-        if (canEditCosting && costingItems.length > 0) {
+        // Save costing items (only if user can save costing)
+        if (costingPermissions.canSave && costingItems.length > 0) {
           // Delete existing costing items
           await supabase.from('invoice_costing_items' as any).delete().eq('invoice_id', id);
           
@@ -422,8 +420,8 @@ const InvoiceForm = () => {
         const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItems);
         if (itemsError) throw itemsError;
         
-        // Save costing items for new invoice
-        if (canEditCosting && costingItems.length > 0) {
+        // Save costing items for new invoice (only if user can save costing)
+        if (costingPermissions.canSave && costingItems.length > 0) {
           const validCostingItems = costingItems.filter(item => item.item_type);
           if (validCostingItems.length > 0) {
             const costingData = validCostingItems.map((item, index) => ({
@@ -545,17 +543,18 @@ const InvoiceForm = () => {
               </CardContent>
             </Card>
 
-            {/* Costing Section - Internal Only */}
-            <InvoiceCostingSection
-              items={costingItems}
-              onItemsChange={setCostingItems}
-              canView={canViewCosting}
-              canEdit={canEditCosting}
-              invoiceTotal={calculateTotal()}
-              customerId={formData.customer_id}
-              invoiceId={id}
-              isNewInvoice={!isEditing}
-            />
+            {/* Costing Section - Internal Only (only if user can view) */}
+            {costingPermissions.canView && (
+              <InvoiceCostingSection
+                items={costingItems}
+                onItemsChange={setCostingItems}
+                permissions={costingPermissions}
+                invoiceTotal={calculateTotal()}
+                customerId={formData.customer_id}
+                invoiceId={id}
+                isNewInvoice={!isEditing}
+              />
+            )}
 
             {/* Items */}
             <Card>
