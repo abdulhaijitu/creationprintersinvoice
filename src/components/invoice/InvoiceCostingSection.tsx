@@ -36,6 +36,7 @@ import {
 import { ImportPriceCalculationDialog } from './ImportPriceCalculationDialog';
 import { CostingTemplateDialog } from './CostingTemplateDialog';
 import { ApplyItemTemplateDialog } from './ApplyItemTemplateDialog';
+import { AddCostingItemDialog } from './AddCostingItemDialog';
 import { useCostingItemTemplates, CostingItemTemplate, TemplateRow } from '@/hooks/useCostingItemTemplates';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -96,9 +97,14 @@ export function InvoiceCostingSection({
   // Destructure permissions for convenience
   const { canView, canEdit, canSave, canReset, canViewProfit } = permissions;
   
-  const [customItemTypes, setCustomItemTypes] = useState<string[]>([]);
+  const [customItemTypes, setCustomItemTypes] = useState<{ value: string; label: string }[]>([]);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  
+  // Add new item dialog state
+  const [showAddItemDialog, setShowAddItemDialog] = useState(false);
+  const [addItemQuery, setAddItemQuery] = useState('');
+  const [pendingAddItemRowId, setPendingAddItemRowId] = useState<string | null>(null);
   
   // Item template integration
   const { templates, getTemplateByItemName, itemsWithTemplates, isLoading: templatesLoading } = useCostingItemTemplates();
@@ -264,11 +270,11 @@ export function InvoiceCostingSection({
   // Build options list including custom types
   const itemTypeOptions = [
     ...DEFAULT_ITEM_TYPES,
-    ...customItemTypes.map(type => ({ 
-      value: type, 
-      label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) 
-    })),
+    ...customItemTypes,
   ];
+  
+  // Get all existing item values for duplicate check
+  const existingItemValues = itemTypeOptions.map(opt => opt.value);
 
   const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat('en-BD', {
@@ -340,11 +346,8 @@ export function InvoiceCostingSection({
 
   // Handle item type change with template check
   const handleItemTypeChange = useCallback((id: string, value: string) => {
-    // Check if this is a new custom type (not in existing options)
-    const existingOption = itemTypeOptions.find(opt => opt.value === value);
-    if (!existingOption && value && !customItemTypes.includes(value)) {
-      setCustomItemTypes(prev => [...prev, value]);
-    }
+    // Update the item
+    updateItem(id, 'item_type', value);
     
     // Update the item first
     updateItem(id, 'item_type', value);
@@ -413,6 +416,25 @@ export function InvoiceCostingSection({
     }
     setReapplyItemId(null);
   }, [pendingTemplate]);
+
+  // Handle saving a new custom item from dialog
+  const handleSaveNewItem = useCallback((itemValue: string, itemLabel: string, description?: string) => {
+    // Add to custom item types
+    const newItem = { value: itemValue, label: itemLabel };
+    setCustomItemTypes(prev => [...prev, newItem]);
+    
+    // Auto-select the new item in the pending row
+    if (pendingAddItemRowId) {
+      handleItemTypeChange(pendingAddItemRowId, itemValue);
+      // If description was provided, also set it
+      if (description) {
+        updateItem(pendingAddItemRowId, 'description', description);
+      }
+    }
+    
+    setPendingAddItemRowId(null);
+    setAddItemQuery('');
+  }, [pendingAddItemRowId, handleItemTypeChange, updateItem]);
 
   // Don't render if user doesn't have view permission
   if (!canView) return null;
@@ -487,19 +509,17 @@ export function InvoiceCostingSection({
                                 onValueChange={(val) => handleItemTypeChange(item.id, val)}
                                 options={itemTypeOptions}
                                 placeholder="Select item"
-                                searchPlaceholder="Search or type new..."
+                                searchPlaceholder="Search items..."
                                 disabled={!canEdit}
                                 className="w-full"
                                 allowCreate={canEdit}
                                 onCreateNew={(query) => {
-                                  const newValue = query.trim().toLowerCase().replace(/\s+/g, '_') || `custom_${Date.now()}`;
-                                  const newLabel = query.trim() || 'Custom Item';
-                                  if (!customItemTypes.includes(newValue)) {
-                                    setCustomItemTypes(prev => [...prev, newValue]);
-                                  }
-                                  handleItemTypeChange(item.id, newValue);
+                                  // Open dialog instead of auto-creating
+                                  setAddItemQuery(query.trim());
+                                  setPendingAddItemRowId(item.id);
+                                  setShowAddItemDialog(true);
                                 }}
-                                createNewLabel="Add new item"
+                                createNewLabel="+ Add New Item"
                               />
                               {appliedTemplates.has(item.item_type) && (
                                 <Badge variant="secondary" className="text-[10px] shrink-0 gap-1">
@@ -635,14 +655,12 @@ export function InvoiceCostingSection({
                             disabled={!canEdit}
                             allowCreate={canEdit}
                             onCreateNew={(query) => {
-                              const newValue = query.trim().toLowerCase().replace(/\s+/g, '_') || `custom_${Date.now()}`;
-                              const newLabel = query.trim() || 'Custom Item';
-                              if (!customItemTypes.includes(newValue)) {
-                                setCustomItemTypes(prev => [...prev, newValue]);
-                              }
-                              handleItemTypeChange(item.id, newValue);
+                              // Open dialog instead of auto-creating
+                              setAddItemQuery(query.trim());
+                              setPendingAddItemRowId(item.id);
+                              setShowAddItemDialog(true);
                             }}
-                            createNewLabel="Add new item"
+                            createNewLabel="+ Add New Item"
                           />
                         </div>
                         <div className="col-span-2">
@@ -917,6 +935,21 @@ export function InvoiceCostingSection({
         onApply={handleApplyTemplate}
         onSkip={handleSkipTemplate}
         hasExistingItems={items.filter(i => i.item_type && i.line_total > 0).length > 0}
+      />
+
+      {/* Add New Costing Item Dialog */}
+      <AddCostingItemDialog
+        open={showAddItemDialog}
+        onOpenChange={(open) => {
+          setShowAddItemDialog(open);
+          if (!open) {
+            setPendingAddItemRowId(null);
+            setAddItemQuery('');
+          }
+        }}
+        initialQuery={addItemQuery}
+        existingItems={existingItemValues}
+        onSave={handleSaveNewItem}
       />
     </Card>
   );
