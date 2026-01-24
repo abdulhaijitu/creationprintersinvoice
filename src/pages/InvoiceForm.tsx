@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, ArrowLeft, Save } from 'lucide-react';
 import { format } from 'date-fns';
 import { CustomerSelect } from '@/components/shared/CustomerSelect';
-import { InvoiceCostingSection, CostingItem } from '@/components/invoice/InvoiceCostingSection';
+import { ItemWiseCostingSection, CostingItem, InvoiceLineItem } from '@/components/invoice/ItemWiseCostingSection';
 
 interface Customer {
   id: string;
@@ -87,10 +87,8 @@ const InvoiceForm = () => {
       setItems([
         { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
       ]);
-      // Add default costing item for new invoices
-      setCostingItems([
-        { id: crypto.randomUUID(), item_type: '', description: '', quantity: 1, price: 0, line_total: 0 },
-      ]);
+      // Start with empty costing items for item-wise costing
+      setCostingItems([]);
     }
     // Invoice number is generated only on successful save, not on form open
   }, [id, isEditing]);
@@ -200,6 +198,8 @@ const InvoiceForm = () => {
         if (costingData && (costingData as any[]).length > 0) {
           setCostingItems((costingData as any[]).map((item: any) => ({
             id: item.id,
+            invoice_item_id: item.invoice_item_id || null,
+            item_no: item.item_no || null,
             item_type: item.item_type,
             description: item.description || '',
             quantity: Number(item.quantity),
@@ -207,10 +207,8 @@ const InvoiceForm = () => {
             line_total: Number(item.line_total),
           })));
         } else {
-          // Set default empty costing item if none exist
-          setCostingItems([
-            { id: crypto.randomUUID(), item_type: '', description: '', quantity: 1, price: 0, line_total: 0 },
-          ]);
+          // Start with empty array for item-wise costing
+          setCostingItems([]);
         }
       }
     } catch (error) {
@@ -332,10 +330,12 @@ const InvoiceForm = () => {
           await supabase.from('invoice_costing_items' as any).delete().eq('invoice_id', id);
           
           // Filter out empty rows and insert
-          const validCostingItems = costingItems.filter(item => item.item_type);
+          const validCostingItems = costingItems.filter(item => item.item_type && item.invoice_item_id);
           if (validCostingItems.length > 0) {
             const costingData = validCostingItems.map((item, index) => ({
               invoice_id: id,
+              invoice_item_id: item.invoice_item_id,
+              item_no: item.item_no,
               organization_id: organization?.id,
               item_type: item.item_type,
               description: item.description || null,
@@ -422,10 +422,12 @@ const InvoiceForm = () => {
         
         // Save costing items for new invoice (only if user can save costing)
         if (costingPermissions.canSave && costingItems.length > 0) {
-          const validCostingItems = costingItems.filter(item => item.item_type);
+          const validCostingItems = costingItems.filter(item => item.item_type && item.invoice_item_id);
           if (validCostingItems.length > 0) {
             const costingData = validCostingItems.map((item, index) => ({
               invoice_id: invoice.id,
+              invoice_item_id: item.invoice_item_id,
+              item_no: item.item_no,
               organization_id: organization?.id,
               item_type: item.item_type,
               description: item.description || null,
@@ -543,14 +545,14 @@ const InvoiceForm = () => {
               </CardContent>
             </Card>
 
-            {/* Costing Section - Internal Only (only if user can view) */}
+            {/* Item-wise Costing Section - Internal Only (only if user can view) */}
             {costingPermissions.canView && (
-              <InvoiceCostingSection
-                items={costingItems}
-                onItemsChange={setCostingItems}
+              <ItemWiseCostingSection
+                invoiceItems={items}
+                costingItems={costingItems}
+                onCostingItemsChange={setCostingItems}
                 permissions={costingPermissions}
                 invoiceTotal={calculateTotal()}
-                customerId={formData.customer_id}
                 invoiceId={id}
                 isNewInvoice={!isEditing}
               />
