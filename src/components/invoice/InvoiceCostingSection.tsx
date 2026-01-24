@@ -45,6 +45,7 @@ interface InvoiceCostingSectionProps {
   onItemsChange: (items: CostingItem[]) => void;
   canEdit: boolean;
   canView: boolean;
+  invoiceTotal?: number; // Invoice total for profit margin calculation
 }
 
 export function InvoiceCostingSection({
@@ -52,6 +53,7 @@ export function InvoiceCostingSection({
   onItemsChange,
   canEdit,
   canView,
+  invoiceTotal = 0,
 }: InvoiceCostingSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customItemTypes, setCustomItemTypes] = useState<string[]>([]);
@@ -74,6 +76,22 @@ export function InvoiceCostingSection({
   const calculateGrandTotal = useCallback(() => {
     return items.reduce((sum, item) => sum + item.line_total, 0);
   }, [items]);
+
+  // Calculate profit margin
+  const calculateProfitMargin = useCallback(() => {
+    const costingTotal = items.reduce((sum, item) => sum + item.line_total, 0);
+    if (costingTotal <= 0) return null;
+    
+    const profit = invoiceTotal - costingTotal;
+    const marginPercent = (profit / costingTotal) * 100;
+    
+    return {
+      costingTotal,
+      profit,
+      marginPercent,
+      isPositive: profit >= 0,
+    };
+  }, [items, invoiceTotal]);
 
   const updateItem = useCallback((id: string, field: keyof CostingItem, value: string | number) => {
     const updatedItems = items.map((item) => {
@@ -321,27 +339,98 @@ export function InvoiceCostingSection({
                 )}
               </div>
 
-              {/* Add Row Button & Grand Total */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                {canEdit && (
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={addItem}
-                    className="gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Costing Row
-                  </Button>
-                )}
-                
-                {items.length > 0 && (
-                  <div className="flex items-center gap-3 ml-auto px-3 py-2 bg-muted/50 rounded-lg">
-                    <span className="text-sm font-medium">Grand Total:</span>
-                    <span className="text-lg font-bold tabular-nums text-primary">
-                      {formatCurrency(calculateGrandTotal())}
-                    </span>
+              {/* Add Row Button & Totals */}
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  {canEdit && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={addItem}
+                      className="gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Costing Row
+                    </Button>
+                  )}
+                  
+                  {items.length > 0 && (
+                    <div className="flex items-center gap-3 ml-auto px-3 py-2 bg-muted/50 rounded-lg">
+                      <span className="text-sm font-medium">Costing Total:</span>
+                      <span className="text-lg font-bold tabular-nums text-primary">
+                        {formatCurrency(calculateGrandTotal())}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Profit Margin Calculator */}
+                {invoiceTotal > 0 && items.length > 0 && calculateGrandTotal() > 0 && (
+                  <div className="border rounded-lg p-4 bg-gradient-to-r from-muted/30 to-muted/10">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-semibold flex items-center gap-2">
+                          📊 Profit Margin Calculator
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          Invoice Total vs Costing Total তুলনা
+                        </p>
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-4">
+                        {/* Invoice Total */}
+                        <div className="text-center">
+                          <p className="text-xs text-muted-foreground mb-1">Invoice Total</p>
+                          <p className="font-semibold tabular-nums">{formatCurrency(invoiceTotal)}</p>
+                        </div>
+                        
+                        <span className="text-muted-foreground">−</span>
+                        
+                        {/* Costing Total */}
+                        <div className="text-center">
+                          <p className="text-xs text-muted-foreground mb-1">Costing Total</p>
+                          <p className="font-semibold tabular-nums">{formatCurrency(calculateGrandTotal())}</p>
+                        </div>
+                        
+                        <span className="text-muted-foreground">=</span>
+                        
+                        {/* Profit */}
+                        {(() => {
+                          const margin = calculateProfitMargin();
+                          if (!margin) return null;
+                          return (
+                            <>
+                              <div className="text-center">
+                                <p className="text-xs text-muted-foreground mb-1">Profit</p>
+                                <p className={cn(
+                                  "font-semibold tabular-nums",
+                                  margin.isPositive ? "text-success" : "text-destructive"
+                                )}>
+                                  {margin.isPositive ? '+' : ''}{formatCurrency(margin.profit)}
+                                </p>
+                              </div>
+                              
+                              {/* Margin Percentage Badge */}
+                              <div className={cn(
+                                "px-3 py-2 rounded-lg text-center",
+                                margin.isPositive 
+                                  ? "bg-success/10 border border-success/20" 
+                                  : "bg-destructive/10 border border-destructive/20"
+                              )}>
+                                <p className="text-xs text-muted-foreground mb-1">Margin</p>
+                                <p className={cn(
+                                  "text-xl font-bold tabular-nums",
+                                  margin.isPositive ? "text-success" : "text-destructive"
+                                )}>
+                                  {margin.isPositive ? '+' : ''}{margin.marginPercent.toFixed(1)}%
+                                </p>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
