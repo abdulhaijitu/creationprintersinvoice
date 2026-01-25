@@ -80,14 +80,14 @@ export const MobileBottomNav = () => {
       {/* Quick Actions Overlay */}
       {showQuickActions && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden animate-fade-in"
+          className="fixed inset-0 bg-black/50 z-40 sm:hidden animate-fade-in"
           onClick={() => setShowQuickActions(false)}
         />
       )}
 
       {/* Quick Actions Menu */}
       <div className={cn(
-        "fixed bottom-20 left-1/2 -translate-x-1/2 z-50 md:hidden transition-all duration-300",
+        "fixed bottom-20 left-1/2 -translate-x-1/2 z-50 sm:hidden transition-all duration-300",
         showQuickActions 
           ? "opacity-100 translate-y-0" 
           : "opacity-0 translate-y-4 pointer-events-none"
@@ -99,7 +99,7 @@ export const MobileBottomNav = () => {
               <Button
                 key={action.path}
                 variant="ghost"
-                className="justify-start h-11 text-sm font-medium"
+                className="justify-start h-12 text-sm font-medium touch-target"
                 onClick={() => handleNavClick(action.path)}
               >
                 <Plus className="h-4 w-4 mr-2 text-primary" />
@@ -109,9 +109,9 @@ export const MobileBottomNav = () => {
         </div>
       </div>
 
-      {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-background/95 backdrop-blur-lg border-t safe-area-bottom">
-        <div className="flex items-center justify-around h-16 px-2">
+      {/* Bottom Navigation Bar - Only on mobile (<640px) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-background/95 backdrop-blur-lg border-t safe-area-bottom">
+        <div className="flex items-center justify-around h-16 px-1">
           {navItems.slice(0, 2).map((item) => {
             const active = isActive(item);
             return (
@@ -119,10 +119,10 @@ export const MobileBottomNav = () => {
                 key={item.path}
                 onClick={() => handleNavClick(item.path)}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-200 min-w-[64px]",
+                  "flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px] touch-target",
                   active 
                     ? "text-primary" 
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground active:scale-95"
                 )}
               >
                 <div className={cn(
@@ -140,10 +140,10 @@ export const MobileBottomNav = () => {
           <button
             onClick={() => setShowQuickActions(!showQuickActions)}
             className={cn(
-              "relative -mt-6 flex items-center justify-center h-14 w-14 rounded-full shadow-lg transition-all duration-300",
+              "relative -mt-6 flex items-center justify-center h-14 w-14 rounded-full shadow-lg transition-all duration-300 touch-target",
               showQuickActions 
                 ? "bg-muted rotate-45" 
-                : "bg-primary hover:bg-primary/90"
+                : "bg-primary hover:bg-primary/90 active:scale-95"
             )}
           >
             {showQuickActions ? (
@@ -160,10 +160,10 @@ export const MobileBottomNav = () => {
                 key={item.path}
                 onClick={() => handleNavClick(item.path)}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-200 min-w-[64px]",
+                  "flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px] touch-target",
                   active 
                     ? "text-primary" 
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground active:scale-95"
                 )}
               >
                 <div className={cn(

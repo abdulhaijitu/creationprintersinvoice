@@ -564,38 +564,38 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6 w-full min-w-0">
+    <div className="space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0">
       {/* Header - Company Name in ALL CAPS */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight uppercase truncate">
+          <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold tracking-tight uppercase truncate">
             CREATION PRINTERS
           </h1>
-          <p className="text-muted-foreground text-xs md:text-sm mt-1">
+          <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 sm:mt-1">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={() => navigate('/reports')}>
-            <Receipt className="h-4 w-4 mr-2" />
+          <Button variant="outline" size="sm" className="h-9 sm:h-10" onClick={() => navigate('/reports')}>
+            <Receipt className="h-4 w-4 mr-1.5 sm:mr-2" />
             <span className="hidden sm:inline">View Reports</span>
             <span className="sm:hidden">Reports</span>
           </Button>
         </div>
       </div>
 
-      {/* 5 Summary Cards - Responsive Grid (2-col tablet, 5-col desktop) */}
-      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
+      {/* 5 Summary Cards - Mobile: 1-col, Tablet: 2-col, Desktop: 5-col */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {/* 1. Monthly Invoices */}
         <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-muted-foreground">Monthly Invoices</p>
-              <div className="p-2 rounded-full bg-primary/10">
-                <FileText className="h-4 w-4 text-primary" />
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Monthly Invoices</p>
+              <div className="p-1.5 sm:p-2 rounded-full bg-primary/10">
+                <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
               </div>
             </div>
-            <p className="text-2xl font-bold tabular-nums tracking-tight text-primary">
+            <p className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-primary">
               {formatCurrency(stats.monthlyRevenue + stats.customerDue)}
             </p>
           </CardContent>
@@ -603,14 +603,14 @@ const Dashboard = () => {
 
         {/* 2. Monthly Expenses */}
         <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-muted-foreground">Monthly Expenses</p>
-              <div className="p-2 rounded-full bg-destructive/10">
-                <CreditCard className="h-4 w-4 text-destructive" />
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Monthly Expenses</p>
+              <div className="p-1.5 sm:p-2 rounded-full bg-destructive/10">
+                <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
               </div>
             </div>
-            <p className="text-2xl font-bold tabular-nums tracking-tight text-destructive">
+            <p className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-destructive">
               {formatCurrency(stats.monthlyExpense)}
             </p>
           </CardContent>
@@ -618,22 +618,22 @@ const Dashboard = () => {
 
         {/* 3. Profit (Invoices - Expenses) */}
         <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-muted-foreground">Profit</p>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Profit</p>
               <div className={cn(
-                "p-2 rounded-full",
+                "p-1.5 sm:p-2 rounded-full",
                 stats.netProfit >= 0 ? "bg-success/10" : "bg-destructive/10"
               )}>
                 {stats.netProfit >= 0 ? (
-                  <TrendingUp className="h-4 w-4 text-success" />
+                  <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success" />
                 ) : (
-                  <TrendingDown className="h-4 w-4 text-destructive" />
+                  <TrendingDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
                 )}
               </div>
             </div>
             <p className={cn(
-              "text-2xl font-bold tabular-nums tracking-tight",
+              "text-xl sm:text-2xl font-bold tabular-nums tracking-tight",
               stats.netProfit >= 0 ? "text-success" : "text-destructive"
             )}>
               {formatCurrency(stats.netProfit)}
@@ -643,49 +643,49 @@ const Dashboard = () => {
 
         {/* 4. Monthly Collection */}
         <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-muted-foreground">Monthly Collection</p>
-              <div className="p-2 rounded-full bg-success/10">
-                <CheckCircle className="h-4 w-4 text-success" />
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Monthly Collection</p>
+              <div className="p-1.5 sm:p-2 rounded-full bg-success/10">
+                <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success" />
               </div>
             </div>
-            <p className="text-2xl font-bold tabular-nums tracking-tight text-success">
+            <p className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-success">
               {formatCurrency(monthlyCollection)}
             </p>
           </CardContent>
         </Card>
 
         {/* 5. Monthly Due */}
-        <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-muted-foreground">Monthly Due</p>
-              <div className="p-2 rounded-full bg-warning/10">
-                <AlertCircle className="h-4 w-4 text-warning" />
+        <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 sm:col-span-2 lg:col-span-1">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Monthly Due</p>
+              <div className="p-1.5 sm:p-2 rounded-full bg-warning/10">
+                <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-warning" />
               </div>
             </div>
-            <p className="text-2xl font-bold tabular-nums tracking-tight text-warning">
+            <p className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-warning">
               {formatCurrency(monthlyDue)}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Invoice Dashboard Cards - 6 cards (2-col tablet, 6-col desktop) */}
-      <div className="space-y-3">
-        <h2 className="text-base md:text-lg font-semibold">Invoices</h2>
-        <div className="grid gap-3 md:gap-4 grid-cols-2 xl:grid-cols-6">
+      {/* Invoice Dashboard Cards - Mobile: 2-col, Tablet: 3-col, Desktop: 6-col */}
+      <div className="space-y-2 sm:space-y-3">
+        <h2 className="text-sm sm:text-base md:text-lg font-semibold">Invoices</h2>
+        <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {/* 1. Paid Invoices (count) */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-muted-foreground">Paid Invoices</p>
-                <div className="p-2 rounded-full bg-success/10">
-                  <CheckCircle className="h-4 w-4 text-success" />
+            <CardContent className="p-3 sm:p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Paid</p>
+                <div className="p-1.5 sm:p-2 rounded-full bg-success/10">
+                  <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success" />
                 </div>
               </div>
-              <p className="text-2xl font-bold tabular-nums tracking-tight text-success">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold tabular-nums tracking-tight text-success">
                 {stats.paidInvoices}
               </p>
             </CardContent>
@@ -693,14 +693,14 @@ const Dashboard = () => {
 
           {/* 2. Unpaid Invoices (count) */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-muted-foreground">Unpaid Invoices</p>
-                <div className="p-2 rounded-full bg-info/10">
-                  <Clock className="h-4 w-4 text-info" />
+            <CardContent className="p-3 sm:p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Unpaid</p>
+                <div className="p-1.5 sm:p-2 rounded-full bg-info/10">
+                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-info" />
                 </div>
               </div>
-              <p className="text-2xl font-bold tabular-nums tracking-tight text-info">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold tabular-nums tracking-tight text-info">
                 {stats.pendingInvoices}
               </p>
             </CardContent>
@@ -708,14 +708,14 @@ const Dashboard = () => {
 
           {/* 3. Overdue Invoices (count) */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-muted-foreground">Overdue Invoices</p>
-                <div className="p-2 rounded-full bg-destructive/10">
-                  <AlertCircle className="h-4 w-4 text-destructive" />
+            <CardContent className="p-3 sm:p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Overdue</p>
+                <div className="p-1.5 sm:p-2 rounded-full bg-destructive/10">
+                  <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
                 </div>
               </div>
-              <p className="text-2xl font-bold tabular-nums tracking-tight text-destructive">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold tabular-nums tracking-tight text-destructive">
                 {stats.overdueInvoices}
               </p>
             </CardContent>
@@ -723,14 +723,14 @@ const Dashboard = () => {
 
           {/* 4. Total Invoices (count) */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
-                <div className="p-2 rounded-full bg-muted">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardContent className="p-3 sm:p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total</p>
+                <div className="p-1.5 sm:p-2 rounded-full bg-muted">
+                  <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                 </div>
               </div>
-              <p className="text-2xl font-bold tabular-nums tracking-tight text-foreground">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold tabular-nums tracking-tight text-foreground">
                 {stats.paidInvoices + stats.pendingInvoices + stats.overdueInvoices}
               </p>
             </CardContent>
@@ -738,14 +738,14 @@ const Dashboard = () => {
 
           {/* 5. Total Invoice Amount (BDT) */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-muted-foreground">Total Invoice Amount</p>
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Banknote className="h-4 w-4 text-primary" />
+            <CardContent className="p-3 sm:p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Invoice Amt</p>
+                <div className="p-1.5 sm:p-2 rounded-full bg-primary/10 shrink-0">
+                  <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                 </div>
               </div>
-              <p className="text-2xl font-bold tabular-nums tracking-tight text-primary">
+              <p className="text-base sm:text-lg md:text-xl font-bold tabular-nums tracking-tight text-primary truncate">
                 {formatCurrency(stats.totalInvoiceAmount)}
               </p>
             </CardContent>
@@ -753,14 +753,14 @@ const Dashboard = () => {
 
           {/* 6. Total Due Amount (BDT) */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-muted-foreground">Total Due Amount</p>
-                <div className="p-2 rounded-full bg-warning/10">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
+            <CardContent className="p-3 sm:p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Due Amt</p>
+                <div className="p-1.5 sm:p-2 rounded-full bg-warning/10 shrink-0">
+                  <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-warning" />
                 </div>
               </div>
-              <p className="text-2xl font-bold tabular-nums tracking-tight text-warning">
+              <p className="text-base sm:text-lg md:text-xl font-bold tabular-nums tracking-tight text-warning truncate">
                 {formatCurrency(stats.totalDueAmount)}
               </p>
             </CardContent>

@@ -107,49 +107,53 @@ const AppLayout = () => {
           <MobileSidebarHandler />
           <NotificationManager />
           <SidebarInset className="flex-1 min-w-0 max-w-full flex flex-col overflow-hidden">
-            {/* Top Header Bar */}
-            <header className="sticky top-0 z-20 flex h-12 items-center border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 shadow-sm w-full min-w-0">
-              {/* Left section */}
-              <div className="flex items-center gap-2 pl-3 md:pl-4 min-w-0 shrink-0">
-                <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200" />
+            {/* Top Header Bar - Responsive height */}
+            <header className="sticky top-0 z-20 flex h-12 sm:h-14 items-center border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 shadow-sm w-full min-w-0">
+              {/* Left section - Sidebar trigger + Breadcrumb */}
+              <div className="flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 md:pl-4 min-w-0 shrink-0">
+                <SidebarTrigger className="h-9 w-9 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200 touch-target" />
                 <div className="hidden md:flex items-center gap-2 min-w-0">
                   <Breadcrumb />
                   <FavoriteButton />
                 </div>
               </div>
               
-              {/* Center section */}
+              {/* Center section - Search (hidden on mobile, visible on tablet+) */}
               <div className="flex-1 flex items-center justify-center px-2 md:px-4 min-w-0">
-                <div className="hidden sm:block w-full max-w-sm min-w-0">
+                <div className="hidden sm:block w-full max-w-xs lg:max-w-sm min-w-0">
                   <GlobalSearch />
                 </div>
               </div>
               
-              {/* Right section */}
-              <div className="flex items-center gap-1 pr-3 md:pr-4 shrink-0">
+              {/* Right section - Actions */}
+              <div className="flex items-center gap-0.5 sm:gap-1 pr-2 sm:pr-3 md:pr-4 shrink-0">
                 <QuickActions />
-                <div className="hidden md:flex items-center gap-1">
+                <div className="hidden lg:flex items-center gap-1">
                   <ThemeToggle />
                   <RecentActivity />
                 </div>
-                <PushNotificationToggle />
+                <div className="hidden sm:block">
+                  <PushNotificationToggle />
+                </div>
                 <NotificationBell />
-                <div className="w-px h-5 bg-border/60 mx-1 hidden md:block" />
+                <div className="w-px h-5 bg-border/60 mx-0.5 sm:mx-1 hidden sm:block" />
                 <UserDropdown />
               </div>
             </header>
             
-            {/* Main Content - Use Suspense for lazy-loaded pages */}
-            <main className="flex-1 p-3 md:p-4 lg:p-6 pb-20 md:pb-6 overflow-x-hidden overflow-y-auto w-full min-w-0">
-              <div className="mx-auto max-w-7xl w-full min-w-0 space-y-4">
+            {/* Main Content - Responsive padding, proper overflow */}
+            <main className="flex-1 p-2 sm:p-3 md:p-4 lg:p-6 pb-20 md:pb-6 overflow-x-hidden overflow-y-auto w-full min-w-0">
+              <div className="mx-auto max-w-7xl w-full min-w-0 space-y-3 sm:space-y-4 md:space-y-6">
                 <Suspense fallback={<PageLoadingFallback />}>
                   <Outlet />
                 </Suspense>
               </div>
             </main>
 
-            {/* Footer */}
-            <AppFooter />
+            {/* Footer - Hidden on mobile (bottom nav takes space) */}
+            <div className="hidden md:block">
+              <AppFooter />
+            </div>
 
             {/* Mobile Bottom Navigation */}
             <MobileBottomNav />

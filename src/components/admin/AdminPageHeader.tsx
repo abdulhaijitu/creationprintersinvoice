@@ -34,15 +34,15 @@ export const AdminPageHeader = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-3 min-w-0">
+    <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         {/* Mobile Menu Button */}
         {showMenuButton && (
           <Button
             variant="ghost"
             size="icon"
             onClick={onMenuClick}
-            className="shrink-0 md:hidden h-9 w-9"
+            className="shrink-0 lg:hidden h-10 w-10 touch-target"
           >
             <Menu className="h-5 w-5" />
             <span className="sr-only">Open menu</span>
@@ -57,14 +57,14 @@ export const AdminPageHeader = ({
                 variant="outline"
                 size={isMobile ? 'icon' : 'sm'}
                 onClick={onCommandPaletteOpen}
-                className="gap-2 shrink-0 h-9"
+                className="gap-2 shrink-0 h-10 touch-target"
                 aria-label="Open command palette"
               >
                 <Command className="h-4 w-4" />
                 {!isMobile && (
                   <>
-                    <span className="text-xs text-muted-foreground">Search...</span>
-                    <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:inline-flex">
+                    <span className="text-xs text-muted-foreground hidden sm:inline">Search...</span>
+                    <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 md:inline-flex">
                       <span className="text-xs">⌘</span>K
                     </kbd>
                   </>
@@ -82,8 +82,8 @@ export const AdminPageHeader = ({
           </Tooltip>
         )}
 
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground truncate">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-foreground truncate">
             {title}
           </h1>
           {description && (
@@ -93,6 +93,7 @@ export const AdminPageHeader = ({
           )}
         </div>
       </div>
+      
       <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
         {searchComponent && (
           <div className="w-full sm:w-auto order-last sm:order-none">
@@ -104,10 +105,10 @@ export const AdminPageHeader = ({
           variant="outline"
           size={isMobile ? 'icon' : 'sm'}
           onClick={handleViewApp}
-          className="gap-2 shrink-0"
+          className="gap-2 shrink-0 h-10 touch-target"
         >
           <ExternalLink className="h-4 w-4" />
-          {!isMobile && 'View App'}
+          {!isMobile && <span className="hidden sm:inline">View App</span>}
         </Button>
       </div>
     </div>
