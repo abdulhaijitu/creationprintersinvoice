@@ -6,10 +6,11 @@ import { toast } from "sonner";
 export const QUOTATION_WORKFLOW = ['draft', 'sent', 'accepted', 'converted'] as const;
 export const TERMINAL_STATUSES = ['rejected', 'expired', 'converted'] as const;
 
-export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
+export type QuotationStatus = 'draft' | 'pending' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
 
 export const STATUS_LABELS: Record<QuotationStatus, string> = {
   draft: 'Draft',
+  pending: 'Pending',
   sent: 'Sent',
   accepted: 'Accepted',
   rejected: 'Rejected',
@@ -19,6 +20,7 @@ export const STATUS_LABELS: Record<QuotationStatus, string> = {
 
 export const STATUS_ICONS: Record<QuotationStatus, React.ComponentType<{ className?: string }>> = {
   draft: FileEdit,
+  pending: FileEdit,
   sent: Send,
   accepted: CheckCircle,
   rejected: XCircle,
@@ -27,8 +29,11 @@ export const STATUS_ICONS: Record<QuotationStatus, React.ComponentType<{ classNa
 };
 
 // Get the index of a status in the main workflow
+// 'pending' is treated as equivalent to 'draft' for workflow purposes
 export function getStatusIndex(status: QuotationStatus): number {
-  const idx = QUOTATION_WORKFLOW.indexOf(status as any);
+  // Treat 'pending' as 'draft' for UI purposes
+  const normalizedStatus = status === 'pending' ? 'draft' : status;
+  const idx = QUOTATION_WORKFLOW.indexOf(normalizedStatus as any);
   return idx >= 0 ? idx : -1;
 }
 
@@ -50,13 +55,18 @@ export function canTransitionTo(currentStatus: QuotationStatus, targetStatus: Qu
   }
 
   // Transition rules based on database function
+  // Note: 'pending' is treated as equivalent to 'draft'
   switch (targetStatus) {
     case 'draft':
-      return { allowed: false, reason: 'Cannot revert to draft status' };
+      if (currentStatus !== 'draft' && currentStatus !== 'pending') {
+        return { allowed: false, reason: 'Cannot revert to draft status' };
+      }
+      return { allowed: false, reason: 'Already at this status' };
     
     case 'sent':
-      if (currentStatus !== 'draft') {
-        return { allowed: false, reason: 'Can only send quotations that are in draft status' };
+      // Allow sending from both 'draft' AND 'pending' status
+      if (currentStatus !== 'draft' && currentStatus !== 'pending') {
+        return { allowed: false, reason: 'Can only send quotations that are in draft or pending status' };
       }
       return { allowed: true };
     
