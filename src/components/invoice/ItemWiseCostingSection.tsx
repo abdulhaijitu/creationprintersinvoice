@@ -119,12 +119,31 @@ export function ItemWiseCostingSection({
   const [pendingTemplate, setPendingTemplate] = useState<CostingItemTemplate | null>(null);
   const [appliedTemplates, setAppliedTemplates] = useState<Map<string, Set<string>>>(new Map());
   
-  // Save state
+  // Save state - track dirty state per item
   const [isSaving, setIsSaving] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
+  const [dirtyItems, setDirtyItems] = useState<Set<string>>(new Set());
   const [isOpen, setIsOpen] = useState(false);
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
   const [pendingItemSwitch, setPendingItemSwitch] = useState<string | null>(null);
+  
+  // Track saved baseline per item for dirty detection
+  const [savedItemCostings, setSavedItemCostings] = useState<Map<string, CostingItem[]>>(new Map());
+
+  // Check if currently selected item has unsaved changes
+  const isDirty = useMemo(() => {
+    return selectedItemId ? dirtyItems.has(selectedItemId) : false;
+  }, [selectedItemId, dirtyItems]);
+  
+  // Check costing status per item
+  const getItemCostingStatus = useCallback((itemId: string): 'costed' | 'in-progress' | 'not-costed' => {
+    const itemCostings = costingItems.filter(c => c.invoice_item_id === itemId);
+    const hasValidCostings = itemCostings.some(c => c.item_type && c.line_total > 0);
+    const isDirtyItem = dirtyItems.has(itemId);
+    
+    if (hasValidCostings && !isDirtyItem) return 'costed';
+    if (itemCostings.length > 0 || isDirtyItem) return 'in-progress';
+    return 'not-costed';
+  }, [costingItems, dirtyItems]);
 
   // Build options list for costing steps
   const stepOptions = useMemo(() => [...COSTING_STEPS, ...customStepTypes], [customStepTypes]);
@@ -193,23 +212,46 @@ export function ItemWiseCostingSection({
 
   // Handle invoice item selection
   const handleItemSelect = useCallback((itemId: string) => {
-    if (isDirty && selectedItemId) {
+    if (selectedItemId && dirtyItems.has(selectedItemId)) {
       setPendingItemSwitch(itemId);
       setShowUnsavedWarning(true);
     } else {
       setSelectedItemId(itemId);
     }
-  }, [isDirty, selectedItemId]);
+  }, [selectedItemId, dirtyItems]);
 
-  // Confirm switch without saving
+  // Confirm switch without saving - discard changes for current item
   const handleConfirmSwitch = useCallback(() => {
     setShowUnsavedWarning(false);
-    if (pendingItemSwitch) {
+    if (pendingItemSwitch && selectedItemId) {
+      // Revert unsaved changes by restoring from saved baseline
+      const savedData = savedItemCostings.get(selectedItemId);
+      if (savedData) {
+        // Remove current item's costings and restore saved
+        const otherCostings = costingItems.filter(c => c.invoice_item_id !== selectedItemId);
+        onCostingItemsChange([...otherCostings, ...savedData]);
+      } else {
+        // No saved data, just remove unsaved rows for this item
+        const otherCostings = costingItems.filter(c => c.invoice_item_id !== selectedItemId);
+        onCostingItemsChange(otherCostings);
+      }
+      
+      // Clear dirty state for discarded item
+      setDirtyItems(prev => {
+        const next = new Set(prev);
+        next.delete(selectedItemId);
+        return next;
+      });
+      
       setSelectedItemId(pendingItemSwitch);
       setPendingItemSwitch(null);
-      setIsDirty(false);
     }
-  }, [pendingItemSwitch]);
+  }, [pendingItemSwitch, selectedItemId, savedItemCostings, costingItems, onCostingItemsChange]);
+
+  // Mark item as dirty
+  const markItemDirty = useCallback((itemId: string) => {
+    setDirtyItems(prev => new Set(prev).add(itemId));
+  }, []);
 
   // Update a costing item
   const updateCostingItem = useCallback((id: string, field: keyof CostingItem, value: string | number) => {
@@ -226,8 +268,13 @@ export function ItemWiseCostingSection({
     });
     
     onCostingItemsChange(updated);
-    setIsDirty(true);
-  }, [costingItems, onCostingItemsChange]);
+    
+    // Mark the item as dirty
+    const costingItem = costingItems.find(c => c.id === id);
+    if (costingItem?.invoice_item_id) {
+      markItemDirty(costingItem.invoice_item_id);
+    }
+  }, [costingItems, onCostingItemsChange, markItemDirty]);
 
   // Add new costing row for selected item
   const addCostingRow = useCallback(() => {
@@ -248,14 +295,18 @@ export function ItemWiseCostingSection({
     };
     
     onCostingItemsChange([...costingItems, newItem]);
-    setIsDirty(true);
-  }, [selectedItemId, getItemNumber, costingItems, onCostingItemsChange]);
+    markItemDirty(selectedItemId);
+  }, [selectedItemId, getItemNumber, costingItems, onCostingItemsChange, markItemDirty]);
 
   // Remove costing row
   const removeCostingRow = useCallback((id: string) => {
+    const removedItem = costingItems.find(item => item.id === id);
     onCostingItemsChange(costingItems.filter(item => item.id !== id));
-    setIsDirty(true);
-  }, [costingItems, onCostingItemsChange]);
+    
+    if (removedItem?.invoice_item_id) {
+      markItemDirty(removedItem.invoice_item_id);
+    }
+  }, [costingItems, onCostingItemsChange, markItemDirty]);
 
   // Handle step type change with template check
   const handleStepTypeChange = useCallback((id: string, value: string) => {
@@ -307,9 +358,9 @@ export function ItemWiseCostingSection({
       return newMap;
     });
     
-    setIsDirty(true);
+    markItemDirty(selectedItemId);
     toast.success(`"${pendingTemplate.item_name}" template applied`);
-  }, [pendingTemplate, selectedItemId, getItemNumber, costingItems, onCostingItemsChange]);
+  }, [pendingTemplate, selectedItemId, getItemNumber, costingItems, onCostingItemsChange, markItemDirty]);
 
   // Skip template
   const handleSkipTemplate = useCallback(() => {
@@ -340,7 +391,7 @@ export function ItemWiseCostingSection({
     setAddStepQuery('');
   }, [pendingAddStepRowId, handleStepTypeChange, updateCostingItem]);
 
-  // Save costing
+  // Save costing for ALL items (persists to database)
   const handleSaveCosting = useCallback(async () => {
     if (!invoiceId || isNewInvoice) {
       toast.error('Please save the invoice first');
@@ -381,7 +432,19 @@ export function ItemWiseCostingSection({
       
       if (error) throw error;
       
-      setIsDirty(false);
+      // Update saved baseline for all items
+      const newSavedMap = new Map<string, CostingItem[]>();
+      invoiceItems.forEach(item => {
+        const itemCostings = validItems.filter(c => c.invoice_item_id === item.id);
+        if (itemCostings.length > 0) {
+          newSavedMap.set(item.id, [...itemCostings]);
+        }
+      });
+      setSavedItemCostings(newSavedMap);
+      
+      // Clear all dirty flags
+      setDirtyItems(new Set());
+      
       toast.success('Costing saved successfully');
     } catch (error: any) {
       console.error('Error saving costing:', error);
@@ -389,15 +452,31 @@ export function ItemWiseCostingSection({
     } finally {
       setIsSaving(false);
     }
-  }, [invoiceId, isNewInvoice, costingItems, organization?.id]);
+  }, [invoiceId, isNewInvoice, costingItems, organization?.id, invoiceItems]);
 
   // Reset costing for selected item
   const handleResetSelectedItem = useCallback(() => {
     if (!selectedItemId) return;
     const filtered = costingItems.filter(c => c.invoice_item_id !== selectedItemId);
     onCostingItemsChange(filtered);
-    setIsDirty(true);
-  }, [selectedItemId, costingItems, onCostingItemsChange]);
+    markItemDirty(selectedItemId);
+  }, [selectedItemId, costingItems, onCostingItemsChange, markItemDirty]);
+
+  // Initialize saved baseline from loaded data
+  useEffect(() => {
+    if (!isNewInvoice && costingItems.length > 0 && savedItemCostings.size === 0) {
+      const baseline = new Map<string, CostingItem[]>();
+      invoiceItems.forEach(item => {
+        const itemCostings = costingItems.filter(c => c.invoice_item_id === item.id && c.item_type);
+        if (itemCostings.length > 0) {
+          baseline.set(item.id, [...itemCostings]);
+        }
+      });
+      if (baseline.size > 0) {
+        setSavedItemCostings(baseline);
+      }
+    }
+  }, [isNewInvoice, costingItems, invoiceItems, savedItemCostings.size]);
 
   if (!canView) return null;
 
@@ -416,9 +495,9 @@ export function ItemWiseCostingSection({
                   <span className="text-xs font-normal text-muted-foreground ml-2">
                     (Internal Only)
                   </span>
-                  {isDirty && canEdit && (
+                  {dirtyItems.size > 0 && canEdit && (
                     <span className="ml-2 text-xs font-normal text-warning">
-                      • Unsaved changes
+                      • {dirtyItems.size} unsaved
                     </span>
                   )}
                 </CardTitle>
@@ -449,33 +528,99 @@ export function ItemWiseCostingSection({
               </div>
             ) : (
               <>
-                {/* Invoice Item Selector */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Select Invoice Item</label>
+                {/* Invoice Item Selector - Always visible */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">Select Invoice Item</label>
+                    {dirtyItems.size > 0 && (
+                      <Badge variant="outline" className="text-warning border-warning text-xs">
+                        {dirtyItems.size} item(s) unsaved
+                      </Badge>
+                    )}
+                  </div>
                   <Select value={selectedItemId || ''} onValueChange={handleItemSelect}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Choose an invoice item to add costing..." />
                     </SelectTrigger>
-                    <SelectContent>
-                      {invoiceItems.map((item, index) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              Item-{index + 1}
-                            </Badge>
-                            <span className="truncate max-w-[300px]">
-                              {item.description || 'Untitled Item'}
-                            </span>
-                            {groupedCostings.get(item.id)?.costings.length ? (
-                              <Badge variant="secondary" className="ml-2 text-xs">
-                                {groupedCostings.get(item.id)?.costings.length} costs
+                    <SelectContent className="z-50 bg-popover">
+                      {invoiceItems.map((item, index) => {
+                        const status = getItemCostingStatus(item.id);
+                        return (
+                          <SelectItem key={item.id} value={item.id}>
+                            <div className="flex items-center gap-2 w-full">
+                              <Badge variant="outline" className="text-xs shrink-0">
+                                Item-{index + 1}
                               </Badge>
-                            ) : null}
-                          </div>
-                        </SelectItem>
-                      ))}
+                              <span className="truncate max-w-[200px]">
+                                {item.description?.replace(/<[^>]*>/g, ' ').slice(0, 40) || 'Untitled Item'}
+                              </span>
+                              {status === 'costed' && (
+                                <Badge variant="default" className="ml-auto text-xs bg-success text-success-foreground shrink-0">
+                                  ✓ Costed
+                                </Badge>
+                              )}
+                              {status === 'in-progress' && (
+                                <Badge variant="secondary" className="ml-auto text-xs shrink-0">
+                                  ⏳ In Progress
+                                </Badge>
+                              )}
+                              {status === 'not-costed' && (
+                                <Badge variant="outline" className="ml-auto text-xs text-muted-foreground shrink-0">
+                                  Not Costed
+                                </Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
+                  
+                  {/* Status Summary List */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {invoiceItems.map((item, index) => {
+                      const status = getItemCostingStatus(item.id);
+                      const isSelected = selectedItemId === item.id;
+                      const costData = groupedCostings.get(item.id);
+                      
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleItemSelect(item.id)}
+                          className={cn(
+                            "flex items-center gap-2 p-2 rounded-lg border text-left transition-colors",
+                            isSelected 
+                              ? "border-primary bg-primary/10" 
+                              : "border-border hover:bg-muted/50",
+                            status === 'costed' && !isSelected && "border-success/30 bg-success/5"
+                          )}
+                        >
+                          <Badge 
+                            variant={isSelected ? "default" : "outline"} 
+                            className="text-xs shrink-0"
+                          >
+                            {index + 1}
+                          </Badge>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs truncate">
+                              {item.description?.replace(/<[^>]*>/g, ' ').slice(0, 25) || 'Untitled'}
+                            </p>
+                            {costData && costData.costings.length > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                {formatCurrency(costData.subtotal)}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-sm shrink-0">
+                            {status === 'costed' && '✓'}
+                            {status === 'in-progress' && '⏳'}
+                            {status === 'not-costed' && '○'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Selected Item Costing Section */}
@@ -706,11 +851,11 @@ export function ItemWiseCostingSection({
                           variant="default"
                           size="sm"
                           onClick={handleSaveCosting}
-                          disabled={!isDirty || isSaving}
+                          disabled={dirtyItems.size === 0 || isSaving}
                           className="gap-2"
                         >
                           {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                          Save Costing
+                          Save All Costing
                         </Button>
                       )}
                       {canReset && selectedItemId && (
@@ -723,12 +868,17 @@ export function ItemWiseCostingSection({
                           className="gap-2"
                         >
                           <RotateCcw className="h-4 w-4" />
-                          Reset Item
+                          Reset Item-{getItemNumber(selectedItemId)}
                         </Button>
                       )}
                     </div>
-                    {isDirty && canSave && (
-                      <span className="text-xs text-warning">Unsaved changes</span>
+                    {dirtyItems.size > 0 && canSave && (
+                      <span className="text-xs text-warning">
+                        {dirtyItems.size === 1 
+                          ? `Unsaved changes in Item-${getItemNumber(Array.from(dirtyItems)[0])}`
+                          : `${dirtyItems.size} items have unsaved changes`
+                        }
+                      </span>
                     )}
                   </div>
                 )}
@@ -748,14 +898,35 @@ export function ItemWiseCostingSection({
           <AlertDialogHeader>
             <AlertDialogTitle>Unsaved Costing Changes</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes for the current item. Switching will discard these changes.
+              You have unsaved changes for <strong>Item-{selectedItemId ? getItemNumber(selectedItemId) : ''}</strong>. 
+              Do you want to save before switching, or discard your changes?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowUnsavedWarning(false)}>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel onClick={() => {
+              setShowUnsavedWarning(false);
+              setPendingItemSwitch(null);
+            }}>
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmSwitch}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                handleSaveCosting().then(() => {
+                  setShowUnsavedWarning(false);
+                  if (pendingItemSwitch) {
+                    setSelectedItemId(pendingItemSwitch);
+                    setPendingItemSwitch(null);
+                  }
+                });
+              }}
+              disabled={isSaving}
+              className="gap-2"
+            >
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save & Switch
+            </Button>
+            <AlertDialogAction onClick={handleConfirmSwitch} className="bg-destructive hover:bg-destructive/90">
               Discard & Switch
             </AlertDialogAction>
           </AlertDialogFooter>
