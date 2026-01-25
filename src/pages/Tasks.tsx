@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, AlertTriangle, Lock, Globe, Building2, Archive, ArchiveRestore, RotateCcw } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, AlertTriangle, Lock, Globe, Building2, Archive, ArchiveRestore, RotateCcw, List, GitBranch } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { useTasks, Task, TaskPriority, TaskVisibility } from "@/hooks/useTasks";
@@ -40,6 +40,7 @@ import { TaskDueDateBadge, isTaskOverdue } from "@/components/tasks/TaskDueDateB
 import { PageHeader, TableSkeleton, EmptyState, ConfirmDialog } from "@/components/shared";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateTaskDialog, TaskFormData } from "@/components/tasks/CreateTaskDialog";
+import { TaskHierarchyView } from "@/components/tasks/TaskHierarchyView";
 
 const priorityLabels: Record<TaskPriority, string> = {
   low: "Low",
@@ -74,6 +75,7 @@ const Tasks = () => {
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
   const [archiveConfirmTask, setArchiveConfirmTask] = useState<Task | null>(null);
   const [restoreConfirmTask, setRestoreConfirmTask] = useState<Task | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "hierarchy">("list");
 
   // Get unique departments from employees
   const departments = useMemo(() => {
@@ -336,7 +338,7 @@ const Tasks = () => {
         </div>
 
         {/* Filters - responsive grid for tablet */}
-        <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:flex lg:flex-row">
+        <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:flex lg:flex-row lg:items-center">
           <div className="relative flex-1 min-w-0 lg:max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
@@ -347,25 +349,49 @@ const Tasks = () => {
             />
           </div>
           {activeTab === "active" && (
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full lg:w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {WORKFLOW_STATUSES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {WORKFLOW_LABELS[status]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-full lg:w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {WORKFLOW_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {WORKFLOW_LABELS[status]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 border rounded-md p-1 bg-muted/30">
+                <Button
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 gap-1.5"
+                  onClick={() => setViewMode("list")}
+                >
+                  <List className="h-4 w-4" />
+                  <span className="hidden sm:inline">List</span>
+                </Button>
+                <Button
+                  variant={viewMode === "hierarchy" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 gap-1.5"
+                  onClick={() => setViewMode("hierarchy")}
+                >
+                  <GitBranch className="h-4 w-4" />
+                  <span className="hidden sm:inline">Hierarchy</span>
+                </Button>
+              </div>
+            </>
           )}
         </div>
 
         {/* Active Tasks Content */}
         <TabsContent value="active" className="mt-0">
-          {/* Tasks Table / Mobile Cards */}
+          {/* Tasks Table / Mobile Cards / Hierarchy View */}
           {loading ? (
             <TableSkeleton rows={5} columns={6} />
           ) : filteredTasks.length === 0 ? (
@@ -376,104 +402,112 @@ const Tasks = () => {
                 : "Create your first production task to get started"}
               action={canCreateTasks ? { label: "New Task", onClick: () => setIsDialogOpen(true) } : undefined}
             />
-      ) : isMobile ? (
-        // Mobile Card View
-        <div className="space-y-3">
-          {filteredTasks.map((task) => {
-            const taskIsDelivered = isDelivered(task.status);
-            const nextStatus = getNextStatus(task.status);
-            const canEdit = canEditTask(task);
+          ) : viewMode === "hierarchy" ? (
+            // Hierarchy View
+            <TaskHierarchyView
+              tasks={filteredTasks}
+              onTaskClick={setSelectedTask}
+              onAdvanceStatus={handleAdvanceStatus}
+              canAdvanceStatus={canAdvanceStatus}
+            />
+          ) : isMobile ? (
+            // Mobile Card View
+            <div className="space-y-3">
+              {filteredTasks.map((task) => {
+                const taskIsDelivered = isDelivered(task.status);
+                const nextStatus = getNextStatus(task.status);
+                const canEdit = canEditTask(task);
 
-            return (
-              <Card 
-                key={task.id} 
-                className={`cursor-pointer transition-colors ${taskIsDelivered ? 'opacity-75' : ''}`}
-                onClick={() => setSelectedTask(task)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-sm truncate">{task.title}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {task.assignee?.full_name || 'Unassigned'}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      {getPriorityBadge(task.priority)}
-                      <TaskDueDateBadge deadline={task.deadline} status={task.status} compact />
-                    </div>
-                  </div>
-                  
-                  <div className="mb-3">
-                    <WorkflowStepper currentStatus={task.status} compact />
-                  </div>
-                  
-                    <div className="flex items-center justify-between">
-                      <ProductionStatusBadge status={task.status} />
-                      <div className="flex gap-1">
-                        {canAdvanceStatus && !taskIsDelivered && nextStatus && (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            className="gap-1 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAdvanceStatus(task.id, task.status);
-                            }}
-                          >
-                            Next
-                            <ArrowRight className="h-3 w-3" />
-                          </Button>
-                        )}
-                        {/* Archive button for delivered tasks */}
-                        {canArchiveTasks && taskIsDelivered && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setArchiveConfirmTask(task);
-                            }}
-                          >
-                            <Archive className="h-3 w-3" />
-                            Archive
-                          </Button>
-                        )}
-                        {canEdit && !taskIsDelivered && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditDialog(task);
-                            }}
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                        )}
-                        {canDeleteTask(task) && !taskIsDelivered && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirmTask(task);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        )}
+                return (
+                  <Card 
+                    key={task.id} 
+                    className={`cursor-pointer transition-colors ${taskIsDelivered ? 'opacity-75' : ''}`}
+                    onClick={() => setSelectedTask(task)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-sm truncate">{task.title}</h3>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {task.assignee?.full_name || 'Unassigned'}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          {getPriorityBadge(task.priority)}
+                          <TaskDueDateBadge deadline={task.deadline} status={task.status} compact />
+                        </div>
                       </div>
-                    </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
+                      
+                      <div className="mb-3">
+                        <WorkflowStepper currentStatus={task.status} compact />
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <ProductionStatusBadge status={task.status} />
+                        <div className="flex gap-1">
+                          {canAdvanceStatus && !taskIsDelivered && nextStatus && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="gap-1 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAdvanceStatus(task.id, task.status);
+                              }}
+                            >
+                              Next
+                              <ArrowRight className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {/* Archive button for delivered tasks */}
+                          {canArchiveTasks && taskIsDelivered && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setArchiveConfirmTask(task);
+                              }}
+                            >
+                              <Archive className="h-3 w-3" />
+                              Archive
+                            </Button>
+                          )}
+                          {canEdit && !taskIsDelivered && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditDialog(task);
+                              }}
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {canDeleteTask(task) && !taskIsDelivered && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirmTask(task);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
         // Desktop Table View
         <div className="border rounded-lg overflow-x-auto">
           <div className="min-w-[900px]">

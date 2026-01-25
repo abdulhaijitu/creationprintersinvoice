@@ -42,6 +42,9 @@ export interface Task {
   department: string | null;
   archived_at: string | null;
   archived_by: string | null;
+  parent_task_id: string | null;
+  invoice_item_id: string | null;
+  item_no: number | null;
   assignee?: { full_name: string } | null;
   creator?: { full_name: string; email: string } | null;
 }
@@ -143,6 +146,9 @@ export function useTasks() {
             department: task.department || null,
             archived_at: (task as any).archived_at || null,
             archived_by: (task as any).archived_by || null,
+            parent_task_id: task.parent_task_id || null,
+            invoice_item_id: task.invoice_item_id || null,
+            item_no: task.item_no || null,
             assignee: assignee ? { full_name: assignee.full_name } : null,
             creator: creator ? { full_name: creator.full_name, email: creator.email || '' } : null,
           };
