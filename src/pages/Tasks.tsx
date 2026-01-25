@@ -3,8 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useOrgRolePermissions } from "@/hooks/useOrgRolePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -14,13 +12,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -29,9 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, FileText, AlertTriangle, Lock, Globe, Building2, Archive, ArchiveRestore, RotateCcw } from "lucide-react";
-import { ReferenceSelect, ReferenceLink } from "@/components/tasks/ReferenceSelect";
-import { EmployeeAssignSelect } from "@/components/tasks/EmployeeAssignSelect";
+import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, AlertTriangle, Lock, Globe, Building2, Archive, ArchiveRestore, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { useTasks, Task, TaskPriority, TaskVisibility } from "@/hooks/useTasks";
@@ -50,6 +39,7 @@ import { TaskDetailDrawer } from "@/components/tasks/TaskDetailDrawer";
 import { TaskDueDateBadge, isTaskOverdue } from "@/components/tasks/TaskDueDateBadge";
 import { PageHeader, TableSkeleton, EmptyState, ConfirmDialog } from "@/components/shared";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CreateTaskDialog, TaskFormData } from "@/components/tasks/CreateTaskDialog";
 
 const priorityLabels: Record<TaskPriority, string> = {
   low: "Low",
@@ -62,7 +52,7 @@ const Tasks = () => {
   const { isSuperAdmin, user } = useAuth();
   const { hasPermission } = useOrgRolePermissions();
   const isMobile = useIsMobile();
-  const { tasks, employees, loading, advanceStatus, transitionToStatus, createTask, updateTask, deleteTask, archiveTask, restoreTask } = useTasks();
+  const { tasks, employees, loading, advanceStatus, transitionToStatus, createTask, createTasksFromInvoiceItems, updateTask, deleteTask, archiveTask, restoreTask } = useTasks();
   
   // Permission checks for ACTIONS (not visibility - all org users can see all tasks)
   const canViewTasks = isSuperAdmin || hasPermission('tasks.view') || hasPermission('tasks.manage');
@@ -84,18 +74,6 @@ const Tasks = () => {
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
   const [archiveConfirmTask, setArchiveConfirmTask] = useState<Task | null>(null);
   const [restoreConfirmTask, setRestoreConfirmTask] = useState<Task | null>(null);
-  
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    assigned_to: "",
-    deadline: "",
-    priority: "medium" as TaskPriority,
-    visibility: "public" as TaskVisibility,
-    department: "",
-    reference_type: "" as "" | "invoice" | "challan" | "quotation",
-    reference_id: "",
-  });
 
   // Get unique departments from employees
   const departments = useMemo(() => {
@@ -106,84 +84,57 @@ const Tasks = () => {
     return Array.from(depts).sort();
   }, [employees]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.title) {
-      return;
-    }
-
-    let success: boolean;
+  const handleSubmit = async (formData: TaskFormData): Promise<boolean> => {
     if (editingTask) {
-      success = await updateTask(editingTask.id, {
+      // Update existing task
+      const result = await updateTask(editingTask.id, {
         title: formData.title,
         description: formData.description || undefined,
-        assigned_to: formData.assigned_to || undefined,
+        assigned_to: formData.assignees[0] || undefined,
         deadline: formData.deadline || undefined,
         priority: formData.priority,
         visibility: formData.visibility,
         department: formData.visibility === 'department' ? formData.department : undefined,
-        reference_type: formData.reference_type || undefined,
-        reference_id: formData.reference_id || undefined,
       });
+      return !!result;
     } else {
-      success = await createTask({
-        title: formData.title,
-        description: formData.description || undefined,
-        assigned_to: formData.assigned_to || undefined,
-        deadline: formData.deadline || undefined,
-        priority: formData.priority,
-        visibility: formData.visibility,
-        department: formData.visibility === 'department' ? formData.department : undefined,
-        reference_type: formData.reference_type || undefined,
-        reference_id: formData.reference_id || undefined,
-      });
-    }
-
-    if (success) {
-      setIsDialogOpen(false);
-      resetForm();
+      // Create new task(s)
+      if (formData.jobMode === "invoice" && formData.selectedInvoiceItemIds.length > 0) {
+        // Create tasks from invoice items
+        const result = await createTasksFromInvoiceItems({
+          invoiceItemIds: formData.selectedInvoiceItemIds,
+          description: formData.description || undefined,
+          assignees: formData.assignees.length > 0 ? formData.assignees : undefined,
+          deadline: formData.deadline || undefined,
+          priority: formData.priority,
+          visibility: formData.visibility,
+          department: formData.visibility === 'department' ? formData.department : undefined,
+        });
+        return !!result;
+      } else {
+        // Create single manual task
+        const result = await createTask({
+          title: formData.title,
+          description: formData.description || undefined,
+          assignees: formData.assignees.length > 0 ? formData.assignees : undefined,
+          deadline: formData.deadline || undefined,
+          priority: formData.priority,
+          visibility: formData.visibility,
+          department: formData.visibility === 'department' ? formData.department : undefined,
+        });
+        return !!result;
+      }
     }
   };
 
   const resetForm = () => {
-    setFormData({
-      title: "",
-      description: "",
-      assigned_to: "",
-      deadline: "",
-      priority: "medium",
-      visibility: "public",
-      department: "",
-      reference_type: "" as "" | "invoice" | "challan" | "quotation",
-      reference_id: "",
-    });
     setEditingTask(null);
   };
 
   const openEditDialog = (task: Task) => {
     if (isDelivered(task.status) || isArchived(task.status)) return;
     setEditingTask(task);
-    setFormData({
-      title: task.title,
-      description: task.description || "",
-      assigned_to: task.assigned_to || "",
-      deadline: task.deadline || "",
-      priority: task.priority,
-      visibility: task.visibility || "public",
-      department: task.department || "",
-      reference_type: (task.reference_type || "") as "" | "invoice" | "challan" | "quotation",
-      reference_id: task.reference_id || "",
-    });
     setIsDialogOpen(true);
-  };
-
-  // Check if assignment field should be disabled
-  const isAssignmentDisabled = (isEditing: boolean) => {
-    // For new tasks, allow assignment if user can create
-    if (!isEditing) return !canCreateTasks;
-    // For editing, need assign permission
-    return !canAssignTasks;
   };
 
   const handleDelete = async () => {
@@ -296,167 +247,25 @@ const Tasks = () => {
         description="Track jobs through the printing workflow"
         actions={
           canCreateTasks && (
-            <Dialog open={isDialogOpen} onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button size={isMobile ? "sm" : "default"}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingTask ? "Edit Task" : "Create New Task"}</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Job Title *</Label>
-                    <Input
-                      placeholder="e.g. Invoice #102 – Visiting Card"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Notes / Instructions</Label>
-                    <Textarea
-                      placeholder="Special instructions for this job..."
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Assign To</Label>
-                      <EmployeeAssignSelect
-                        employees={employees}
-                        value={formData.assigned_to}
-                        onChange={(v) => setFormData({ ...formData, assigned_to: v })}
-                        disabled={isAssignmentDisabled(!!editingTask)}
-                        placeholder="Select person..."
-                      />
-                      {editingTask && !canAssignTasks && (
-                        <p className="text-xs text-muted-foreground">
-                          You don't have permission to change assignment
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Deadline</Label>
-                      <Input
-                        type="date"
-                        value={formData.deadline}
-                        onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Priority</Label>
-                      <Select
-                        value={formData.priority}
-                        onValueChange={(v) => setFormData({ ...formData, priority: v as TaskPriority })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2 col-span-2">
-                      <Label>Link to Order (Optional)</Label>
-                      <ReferenceSelect
-                        referenceType={formData.reference_type}
-                        referenceId={formData.reference_id}
-                        onReferenceTypeChange={(type) => setFormData({ ...formData, reference_type: type })}
-                        onReferenceIdChange={(id) => setFormData({ ...formData, reference_id: id })}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Visibility Settings */}
-                  <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
-                    <Label className="text-sm font-medium">Task Visibility</Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Select
-                          value={formData.visibility}
-                          onValueChange={(v) => setFormData({ ...formData, visibility: v as TaskVisibility })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="public">
-                              <div className="flex items-center gap-2">
-                                <Globe className="h-4 w-4" />
-                                Public (All company users)
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="private">
-                              <div className="flex items-center gap-2">
-                                <Lock className="h-4 w-4" />
-                                Private (Creator & Assignee only)
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="department">
-                              <div className="flex items-center gap-2">
-                                <Building2 className="h-4 w-4" />
-                                Department (Selected department only)
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {formData.visibility === 'department' && (
-                        <div className="space-y-2">
-                          <Select
-                            value={formData.department}
-                            onValueChange={(v) => setFormData({ ...formData, department: v })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Department" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {departments.map((dept) => (
-                                <SelectItem key={dept} value={dept}>
-                                  {dept}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {formData.visibility === 'public' && "Everyone in your company can see this task."}
-                      {formData.visibility === 'private' && "Only you and the assigned person can see this task."}
-                      {formData.visibility === 'department' && "Only users in the selected department can see this task."}
-                    </p>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">{editingTask ? "Update" : "Create"}</Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Button size={isMobile ? "sm" : "default"} onClick={() => setIsDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Task
+            </Button>
           )
         }
+      />
+
+      {/* Create/Edit Task Dialog */}
+      <CreateTaskDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        editingTask={editingTask}
+        employees={employees}
+        departments={departments}
+        canAssignTasks={canAssignTasks}
+        canCreateTasks={canCreateTasks}
+        onSubmit={handleSubmit}
+        onReset={resetForm}
       />
 
       {/* Summary Cards - 2-col tablet, 4-col desktop */}
@@ -695,10 +504,7 @@ const Tasks = () => {
                     <TableCell>
                       <div>
                         <p className="font-medium">{task.title}</p>
-                        {task.reference_type && task.reference_id && (
-                          <ReferenceLink referenceType={task.reference_type} referenceId={task.reference_id} />
-                        )}
-                        {!task.reference_type && task.description && (
+                        {task.description && (
                           <p className="text-sm text-muted-foreground line-clamp-1">
                             {task.description}
                           </p>
@@ -807,9 +613,6 @@ const Tasks = () => {
                             <Lock className="h-4 w-4 text-muted-foreground" />
                             <div>
                               <p className="font-medium">{task.title}</p>
-                              {task.reference_type && task.reference_id && (
-                                <ReferenceLink referenceType={task.reference_type} referenceId={task.reference_id} />
-                              )}
                             </div>
                           </div>
                         </TableCell>
