@@ -298,12 +298,16 @@ export function useTasks() {
     title: string;
     description?: string;
     assigned_to?: string;
+    assignees?: string[];
     deadline?: string;
     priority: TaskPriority;
     visibility?: TaskVisibility;
     department?: string;
     reference_type?: string;
     reference_id?: string;
+    parent_task_id?: string;
+    invoice_item_id?: string;
+    item_no?: number;
   }) => {
     try {
       const currentUserId = user?.id;
@@ -328,12 +332,15 @@ export function useTasks() {
       // Calculate SLA deadline based on priority
       const slaDeadline = calculateSlaDeadline(new Date(), data.priority as TaskPriorityLevel);
 
+      // For multi-assign, use first assignee as primary (for backward compatibility)
+      const primaryAssignee = data.assignees?.length ? data.assignees[0] : (data.assigned_to || null);
+
       const { data: newTask, error } = await supabase
         .from('tasks')
         .insert({
           title: data.title,
           description: data.description || null,
-          assigned_to: data.assigned_to || null,
+          assigned_to: primaryAssignee,
           assigned_by: assignedByEmployeeId,
           created_by: currentUserId,
           deadline: data.deadline || null,
@@ -345,6 +352,9 @@ export function useTasks() {
           reference_id: data.reference_id || null,
           organization_id: organization.id,
           sla_deadline: slaDeadline.toISOString(),
+          parent_task_id: data.parent_task_id || null,
+          invoice_item_id: data.invoice_item_id || null,
+          item_no: data.item_no || null,
         } as any)
         .select()
         .single();
@@ -355,6 +365,24 @@ export function useTasks() {
       }
       
       console.log('[Tasks] Task created successfully:', newTask?.id);
+
+      // Add multiple assignees to task_assignees table
+      if (data.assignees && data.assignees.length > 0 && newTask) {
+        const assigneeRecords = data.assignees.map(empId => ({
+          task_id: newTask.id,
+          employee_id: empId,
+          assigned_by: currentUserId,
+          organization_id: organization.id,
+        }));
+
+        const { error: assigneeError } = await supabase
+          .from('task_assignees')
+          .insert(assigneeRecords);
+
+        if (assigneeError) {
+          console.error('[Tasks] Error adding assignees:', assigneeError);
+        }
+      }
 
       // Log activity
       if (organization?.id && currentUserId && newTask) {
@@ -367,24 +395,27 @@ export function useTasks() {
             priority: data.priority,
             visibility: data.visibility || 'public',
             department: data.department,
-            assigned_to: data.assigned_to,
+            assignees: data.assignees,
           },
           performedBy: currentUserId,
           performedByEmail: user?.email,
         });
 
-        // Notify assignee if different from creator
-        if (data.assigned_to && data.assigned_to !== currentUserId) {
-          const assigneeName = employees.find(e => e.id === data.assigned_to)?.full_name || 'someone';
-          await createTaskNotification({
-            organizationId: organization.id,
-            taskId: newTask.id,
-            taskTitle: data.title,
-            type: 'task_assigned',
-            recipientUserId: data.assigned_to,
-            performedByUserId: currentUserId,
-            message: `You have been assigned to task "${data.title}"`,
-          });
+        // Notify all assignees
+        if (data.assignees && data.assignees.length > 0) {
+          for (const assigneeId of data.assignees) {
+            if (assigneeId !== currentUserId) {
+              await createTaskNotification({
+                organizationId: organization.id,
+                taskId: newTask.id,
+                taskTitle: data.title,
+                type: 'task_assigned',
+                recipientUserId: assigneeId,
+                performedByUserId: currentUserId,
+                message: `You have been assigned to task "${data.title}"`,
+              });
+            }
+          }
         }
       }
       
@@ -392,13 +423,109 @@ export function useTasks() {
       await fetchTasks();
       
       toast.success('Task created successfully');
-      return true;
+      return newTask?.id || true;
     } catch (error) {
       console.error('Error creating task:', error);
       toast.error('Failed to create task');
       return false;
     }
   }, [user?.id, user?.email, organization?.id, fetchTasks, employees]);
+
+  /**
+   * Create multiple tasks from invoice items
+   */
+  const createTasksFromInvoiceItems = useCallback(async (data: {
+    invoiceItemIds: string[];
+    description?: string;
+    assignees?: string[];
+    deadline?: string;
+    priority: TaskPriority;
+    visibility?: TaskVisibility;
+    department?: string;
+  }) => {
+    try {
+      const currentUserId = user?.id;
+      if (!organization?.id || !currentUserId) {
+        toast.error('Missing organization or user context');
+        return false;
+      }
+
+      if (!data.invoiceItemIds.length) {
+        toast.error('No invoice items selected');
+        return false;
+      }
+
+      // Fetch invoice items details
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('invoice_items')
+        .select('id, description, invoice_id')
+        .in('id', data.invoiceItemIds);
+
+      if (itemsError) throw itemsError;
+
+      // Get invoice info
+      const invoiceIds = [...new Set(itemsData?.map(item => item.invoice_id) || [])];
+      const { data: invoiceData } = await supabase
+        .from('invoices')
+        .select('id, invoice_number')
+        .in('id', invoiceIds);
+
+      const invoiceMap = new Map(invoiceData?.map(inv => [inv.id, inv.invoice_number]) || []);
+
+      // Create parent task if multiple items
+      let parentTaskId: string | null = null;
+      if (data.invoiceItemIds.length > 1) {
+        const firstInvoiceId = itemsData?.[0]?.invoice_id;
+        const invoiceNumber = invoiceMap.get(firstInvoiceId || '') || 'Invoice';
+        
+        const result = await createTask({
+          title: `${invoiceNumber} - ${data.invoiceItemIds.length} Items`,
+          description: data.description,
+          assignees: data.assignees,
+          deadline: data.deadline,
+          priority: data.priority,
+          visibility: data.visibility,
+          department: data.department,
+        });
+
+        if (typeof result === 'string') {
+          parentTaskId = result;
+        } else if (!result) {
+          return false;
+        }
+      }
+
+      // Create individual tasks for each item
+      for (let i = 0; i < (itemsData || []).length; i++) {
+        const item = itemsData![i];
+        const invoiceNumber = invoiceMap.get(item.invoice_id) || 'Invoice';
+        
+        // Extract plain text from HTML description
+        const plainDesc = item.description.replace(/<[^>]*>/g, ' ').trim().slice(0, 100);
+        const title = `${invoiceNumber} - Item ${i + 1}: ${plainDesc}`;
+
+        await createTask({
+          title,
+          description: data.description,
+          assignees: data.assignees,
+          deadline: data.deadline,
+          priority: data.priority,
+          visibility: data.visibility,
+          department: data.department,
+          parent_task_id: parentTaskId || undefined,
+          invoice_item_id: item.id,
+          item_no: i + 1,
+        });
+      }
+
+      toast.success(`Created ${data.invoiceItemIds.length} task(s) from invoice items`);
+      return true;
+    } catch (error) {
+      console.error('Error creating tasks from invoice items:', error);
+      toast.error('Failed to create tasks');
+      return false;
+    }
+  }, [organization?.id, user?.id, createTask]);
 
   const updateTask = useCallback(async (taskId: string, data: {
     title?: string;
@@ -679,6 +806,7 @@ export function useTasks() {
     advanceStatus,
     transitionToStatus,
     createTask,
+    createTasksFromInvoiceItems,
     updateTask,
     deleteTask,
     archiveTask,

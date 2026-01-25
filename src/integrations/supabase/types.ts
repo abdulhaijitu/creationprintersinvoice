@@ -4274,6 +4274,55 @@ export type Database = {
           },
         ]
       }
+      task_assignees: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          employee_id: string
+          id: string
+          organization_id: string
+          task_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          employee_id: string
+          id?: string
+          organization_id: string
+          task_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assignees_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignees_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignees_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_attachments: {
         Row: {
           created_at: string
@@ -4450,8 +4499,11 @@ export type Database = {
           department: string | null
           description: string | null
           id: string
+          invoice_item_id: string | null
+          item_no: number | null
           last_overdue_notification_at: string | null
           organization_id: string | null
+          parent_task_id: string | null
           priority: Database["public"]["Enums"]["task_priority"] | null
           reference_id: string | null
           reference_type: string | null
@@ -4476,8 +4528,11 @@ export type Database = {
           department?: string | null
           description?: string | null
           id?: string
+          invoice_item_id?: string | null
+          item_no?: number | null
           last_overdue_notification_at?: string | null
           organization_id?: string | null
+          parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"] | null
           reference_id?: string | null
           reference_type?: string | null
@@ -4502,8 +4557,11 @@ export type Database = {
           department?: string | null
           description?: string | null
           id?: string
+          invoice_item_id?: string | null
+          item_no?: number | null
           last_overdue_notification_at?: string | null
           organization_id?: string | null
+          parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"] | null
           reference_id?: string | null
           reference_type?: string | null
@@ -4532,10 +4590,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tasks_invoice_item_id_fkey"
+            columns: ["invoice_item_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_items"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
