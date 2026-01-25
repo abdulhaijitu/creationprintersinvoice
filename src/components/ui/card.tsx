@@ -2,6 +2,17 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Card Components - Standardized Design System
+ * 
+ * All cards use:
+ * - rounded-lg radius
+ * - shadow-sm default, shadow-md on hover
+ * - Semantic bg-card and text-card-foreground tokens
+ * - 200ms ease-out transitions
+ * - Consistent padding: p-6 for header/content/footer
+ */
+
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   hoverable?: boolean;
 }
@@ -23,7 +34,7 @@ Card.displayName = "Card";
 
 const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
+    <div ref={ref} className={cn("flex flex-col space-y-1.5 p-4 md:p-6", className)} {...props} />
   ),
 );
 CardHeader.displayName = "CardHeader";
@@ -44,14 +55,14 @@ CardDescription.displayName = "CardDescription";
 
 const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+    <div ref={ref} className={cn("p-4 pt-0 md:p-6 md:pt-0", className)} {...props} />
   ),
 );
 CardContent.displayName = "CardContent";
 
 const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex items-center p-6 pt-0", className)} {...props} />
+    <div ref={ref} className={cn("flex items-center p-4 pt-0 md:p-6 md:pt-0", className)} {...props} />
   ),
 );
 CardFooter.displayName = "CardFooter";
