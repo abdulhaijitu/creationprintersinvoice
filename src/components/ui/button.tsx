@@ -4,25 +4,48 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Button Component - Standardized Design System
+ * 
+ * Variants: default, secondary, outline, ghost, destructive, success
+ * Sizes: sm (h-9), default (h-10), lg (h-11), icon (h-10 w-10)
+ * 
+ * All buttons use:
+ * - rounded-md radius
+ * - 200ms ease-out transitions
+ * - Consistent focus ring
+ * - Loading and disabled states
+ */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  // Base styles: consistent height, spacing, transitions
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground hover:border-accent-foreground/20",
+        // Primary action - using semantic primary token
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
+        // Secondary action - using semantic secondary token
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm",
+        // Outline - border with hover fill
+        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        // Ghost - minimal, no border
         ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        // Destructive - using semantic destructive token
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm",
+        // Success - using semantic success token
         success: "bg-success text-success-foreground hover:bg-success/90 shadow-sm",
+        // Link style
+        link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-10 px-4 py-2",
+        // Standard sizes with consistent heights
         sm: "h-9 rounded-md px-3 text-xs",
+        default: "h-10 px-4 py-2",
         lg: "h-11 rounded-md px-8",
+        // Icon buttons - square, touch-friendly
         icon: "h-10 w-10",
         "icon-sm": "h-8 w-8",
+        "icon-lg": "h-11 w-11",
       },
     },
     defaultVariants: {
@@ -52,7 +75,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {loading ? (
           <>
             <svg
-              className="animate-spin -ml-1 mr-2 h-4 w-4"
+              className="animate-spin h-4 w-4"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -71,7 +94,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            {children}
+            <span>{children}</span>
           </>
         ) : (
           children

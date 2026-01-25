@@ -4,95 +4,87 @@
  * Single source of truth for all design values.
  * These tokens map to CSS variables defined in index.css.
  * 
+ * CRITICAL: Never use hardcoded colors, spacing, or shadows.
+ * Always reference these tokens or the corresponding Tailwind classes.
+ * 
  * Usage:
  * - Import tokens where needed for JavaScript/TypeScript logic
  * - Use Tailwind classes that reference CSS variables for styling
- * - Reference this file when creating Figma components
+ * - Reference this file when creating new components
  */
 
 // ============================================
-// SPACING
+// SPACING SYSTEM
 // Based on 4px grid (0.25rem base)
+// Allowed values: 1, 2, 3, 4, 6, 8, 12 (units)
 // ============================================
 export const spacing = {
-  /** 2px - Micro spacing */
-  '2xs': '0.125rem',
-  /** 4px - Extra small */
-  xs: '0.25rem',
-  /** 8px - Small */
-  sm: '0.5rem',
-  /** 12px - Medium-small */
-  md: '0.75rem',
-  /** 16px - Medium (base) */
-  base: '1rem',
-  /** 20px - Medium-large */
-  lg: '1.25rem',
-  /** 24px - Large */
-  xl: '1.5rem',
-  /** 32px - Extra large */
-  '2xl': '2rem',
-  /** 40px - 2x Extra large */
-  '3xl': '2.5rem',
-  /** 48px - 3x Extra large */
-  '4xl': '3rem',
-  /** 64px - Section spacing */
-  '5xl': '4rem',
+  /** 4px - p-1 */
+  1: '0.25rem',
+  /** 8px - p-2 */
+  2: '0.5rem',
+  /** 12px - p-3 */
+  3: '0.75rem',
+  /** 16px - p-4 */
+  4: '1rem',
+  /** 24px - p-6 */
+  6: '1.5rem',
+  /** 32px - p-8 */
+  8: '2rem',
+  /** 48px - p-12 */
+  12: '3rem',
 } as const;
 
 // ============================================
-// TYPOGRAPHY
-// Swiss Design inspired - Clear hierarchy
+// TYPOGRAPHY HIERARCHY
+// Semantic text sizes - never use arbitrary sizes
 // ============================================
 export const typography = {
-  fontFamily: {
-    /** Primary font for body text */
-    sans: "'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif",
-    /** Display font for headings (supports Bengali) */
-    display: "'Hind Siliguri', 'Inter', sans-serif",
-    /** Monospace for code/numbers */
-    mono: "ui-monospace, SFMono-Regular, 'Roboto Mono', monospace",
-  },
-  
   fontSize: {
-    /** 10px - Micro text, labels */
-    '2xs': ['0.625rem', { lineHeight: '0.875rem' }],
-    /** 12px - Small text, captions */
-    xs: ['0.75rem', { lineHeight: '1rem' }],
-    /** 14px - Body text small */
-    sm: ['0.875rem', { lineHeight: '1.25rem' }],
-    /** 16px - Body text base */
-    base: ['1rem', { lineHeight: '1.5rem' }],
-    /** 18px - Large body */
-    lg: ['1.125rem', { lineHeight: '1.75rem' }],
-    /** 20px - Small heading */
-    xl: ['1.25rem', { lineHeight: '1.75rem' }],
-    /** 24px - Heading 3 */
-    '2xl': ['1.5rem', { lineHeight: '2rem' }],
-    /** 30px - Heading 2 */
-    '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
-    /** 36px - Heading 1 */
-    '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
-    /** 48px - Display */
-    '5xl': ['3rem', { lineHeight: '1' }],
+    /** 10px - micro labels, helper badges */
+    '2xs': '0.625rem',
+    /** 12px - helper text, captions */
+    xs: '0.75rem',
+    /** 14px - body text small, form labels */
+    sm: '0.875rem',
+    /** 16px - default body text */
+    base: '1rem',
+    /** 18px - section headers, emphasized text */
+    lg: '1.125rem',
+    /** 20px - page subtitles, card headers */
+    xl: '1.25rem',
+    /** 24px - page titles */
+    '2xl': '1.5rem',
+    /** 30px - major headings */
+    '3xl': '1.875rem',
   },
   
   fontWeight: {
-    /** 400 - Regular text */
+    /** 400 - body text */
     normal: '400',
-    /** 500 - Emphasis */
+    /** 500 - emphasized text, labels */
     medium: '500',
-    /** 600 - Strong emphasis */
+    /** 600 - subheadings, important text */
     semibold: '600',
-    /** 700 - Headings */
+    /** 700 - headings, titles */
     bold: '700',
+  },
+  
+  lineHeight: {
+    /** Tight for headings */
+    tight: '1.25',
+    /** Default for body */
+    normal: '1.5',
+    /** Relaxed for readability */
+    relaxed: '1.75',
   },
   
   letterSpacing: {
     /** Tighter for large headings */
     tight: '-0.025em',
-    /** Normal */
+    /** Normal body text */
     normal: '0',
-    /** Wider for small caps/labels */
+    /** Wider for labels, caps */
     wide: '0.025em',
     /** Extra wide for micro labels */
     wider: '0.05em',
@@ -101,50 +93,30 @@ export const typography = {
 
 // ============================================
 // BORDER RADIUS
-// Consistent rounded corners
+// Standard radius values - no custom radii
 // ============================================
 export const borderRadius = {
-  /** 0 - Sharp corners */
-  none: '0',
-  /** 2px - Subtle rounding */
-  sm: '0.125rem',
-  /** 4px - Default small */
-  DEFAULT: '0.25rem',
-  /** 6px - Medium (--radius - 2px) */
+  /** Buttons, Inputs - rounded-md */
   md: '0.375rem',
-  /** 8px - Default (--radius) */
+  /** Cards - rounded-lg */
   lg: '0.5rem',
-  /** 12px - Large */
+  /** Modals, Drawers - rounded-xl */
   xl: '0.75rem',
-  /** 16px - Extra large */
-  '2xl': '1rem',
-  /** 24px - Cards, modals */
-  '3xl': '1.5rem',
-  /** 9999px - Full/pill */
+  /** Badges, Pills - rounded-full */
   full: '9999px',
 } as const;
 
 // ============================================
-// SHADOWS / ELEVATION
-// Subtle depth for professional look
+// SHADOWS
+// Standard elevation levels - no custom shadows
 // ============================================
 export const shadows = {
-  /** No shadow */
-  none: 'none',
-  /** Very subtle - inputs, small elements */
-  '2xs': '0 1px 2px 0 rgb(0 0 0 / 0.04)',
-  /** Subtle - cards at rest */
-  xs: '0 1px 3px 0 rgb(0 0 0 / 0.05)',
-  /** Default - interactive elements */
-  sm: '0 1px 2px 0 rgb(0 0 0 / 0.04), 0 1px 3px 0 rgb(0 0 0 / 0.08)',
-  /** Medium - hover states */
-  DEFAULT: '0 2px 4px -1px rgb(0 0 0 / 0.05), 0 4px 6px -1px rgb(0 0 0 / 0.08)',
-  /** Raised - dropdowns, popovers */
-  md: '0 4px 6px -2px rgb(0 0 0 / 0.04), 0 10px 15px -3px rgb(0 0 0 / 0.08)',
-  /** High - modals, drawers */
-  lg: '0 10px 15px -3px rgb(0 0 0 / 0.06), 0 20px 25px -5px rgb(0 0 0 / 0.08)',
-  /** Highest - floating elements */
-  xl: '0 20px 25px -5px rgb(0 0 0 / 0.08), 0 25px 50px -12px rgb(0 0 0 / 0.12)',
+  /** Inputs - subtle depth */
+  sm: 'shadow-sm',
+  /** Cards - default elevation */
+  DEFAULT: 'shadow',
+  /** Modals, Drawers - high elevation */
+  lg: 'shadow-lg',
 } as const;
 
 // ============================================
@@ -179,36 +151,23 @@ export const zIndex = {
 } as const;
 
 // ============================================
-// ANIMATION
-// Subtle, purposeful motion
+// ANIMATION / MOTION
+// Standard durations: 150-200ms, ease-out only
+// No bounce animations in production
 // ============================================
 export const animation = {
   duration: {
-    /** 100ms - Instant feedback */
-    instant: '100ms',
-    /** 150ms - Fast transitions */
+    /** Fast - quick feedback (150ms) */
     fast: '150ms',
-    /** 200ms - Default transitions */
+    /** Default - standard transitions (200ms) */
     DEFAULT: '200ms',
-    /** 300ms - Standard animations */
-    normal: '300ms',
-    /** 500ms - Slow, deliberate */
-    slow: '500ms',
+    /** Slow - deliberate animations (300ms) */
+    slow: '300ms',
   },
   
   easing: {
-    /** Quick start, smooth end - Most UI */
-    DEFAULT: 'cubic-bezier(0.4, 0, 0.2, 1)',
-    /** Linear - Progress bars */
-    linear: 'linear',
-    /** Quick start - Exit animations */
-    in: 'cubic-bezier(0.4, 0, 1, 1)',
-    /** Smooth end - Enter animations */
-    out: 'cubic-bezier(0, 0, 0.2, 1)',
-    /** Symmetric - Toggle states */
-    inOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
-    /** Bouncy - Playful feedback */
-    bounce: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+    /** Standard ease-out for all transitions */
+    DEFAULT: 'ease-out',
   },
 } as const;
 

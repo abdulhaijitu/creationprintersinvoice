@@ -4,6 +4,17 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Dialog Components - Standardized Design System
+ * 
+ * All dialogs use:
+ * - rounded-xl radius for content
+ * - shadow-lg elevation
+ * - 200-300ms ease-out animations
+ * - Backdrop blur overlay
+ * - Consistent padding: p-4 mobile, p-6 desktop
+ */
+
 const Dialog = DialogPrimitive.Root;
 
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -19,7 +30,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm",
+      "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm",
       "data-[state=open]:animate-in data-[state=closed]:animate-out",
       "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       "duration-200",
@@ -39,12 +50,15 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
+        // Positioning
         "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg",
         "translate-x-[-50%] translate-y-[-50%]",
-        "gap-4 border bg-background p-4 md:p-6 shadow-xl rounded-xl",
+        // Styling - using semantic tokens
+        "gap-4 border bg-background p-4 md:p-6 shadow-lg rounded-xl",
+        // Max height with scroll
         "max-h-[calc(100vh-4rem)] overflow-y-auto",
-        // Smooth entrance/exit animations (200-300ms, ease-out)
-        "duration-300 ease-out",
+        // Animation - 200-300ms, ease-out
+        "duration-200 ease-out",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -70,7 +84,7 @@ const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 DialogHeader.displayName = "DialogHeader";
 
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
+  <div className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-2", className)} {...props} />
 );
 DialogFooter.displayName = "DialogFooter";
 

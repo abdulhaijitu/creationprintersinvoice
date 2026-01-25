@@ -2,6 +2,17 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Table Components - Standardized Design System
+ * 
+ * All tables use:
+ * - Header: bg-muted/50 background
+ * - Rows: hover:bg-muted/50 on interactive rows
+ * - Borders: border-muted/30 subtle borders
+ * - 150ms transitions for hover states
+ * - Sticky header support with backdrop-blur
+ */
+
 interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
   stickyHeader?: boolean;
 }
@@ -72,7 +83,8 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
     <th
       ref={ref}
       className={cn(
-        "h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        "h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-muted-foreground",
+        "[&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}
