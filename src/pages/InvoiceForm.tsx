@@ -374,35 +374,9 @@ const InvoiceForm = () => {
           if (itemsError) throw itemsError;
         }
         
-        // Save costing items (only if user can save costing)
-        // Costing items already reference stable invoice_item_ids, so just upsert them
-        if (costingPermissions.canSave && costingItems.length > 0) {
-          // Delete existing costing items for this invoice
-          await supabase.from('invoice_costing_items' as any).delete().eq('invoice_id', id);
-          
-          // Filter out empty rows - only need item_type to be valid (invoice_item_id can be null for general costing)
-          const validCostingItems = costingItems.filter(item => item.item_type && item.item_type.trim() !== '');
-          if (validCostingItems.length > 0) {
-            const costingData = validCostingItems.map((item, index) => ({
-              invoice_id: id,
-              invoice_item_id: item.invoice_item_id || null,
-              item_no: item.item_no || null,
-              organization_id: organization?.id,
-              item_type: item.item_type,
-              description: item.description || null,
-              quantity: item.quantity,
-              price: item.price,
-              line_total: item.quantity * item.price,
-              sort_order: index,
-            }));
-            
-            const { error: costingError } = await supabase.from('invoice_costing_items' as any).insert(costingData);
-            if (costingError) {
-              console.error('Costing save error:', costingError);
-              toast.error('Failed to save costing data');
-            }
-          }
-        }
+        // NOTE: Costing has its own independent Save action in the costing section.
+        // On invoice update we MUST NOT delete/re-insert all costing rows, otherwise previously
+        // saved costing can be lost (and DB may reject writes to generated columns like line_total).
 
         toast.success('Invoice updated');
         navigate(`/invoices/${id}`);
