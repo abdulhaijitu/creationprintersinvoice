@@ -52,6 +52,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { downloadAsPDF } from '@/lib/pdfUtils';
 import { useQuotationEmails } from '@/hooks/useQuotationEmails';
 import { PartialConversionDialog } from '@/components/quotation/PartialConversionDialog';
+import { QuotationWorkflowStepper, canTransitionTo, QuotationStatus as WorkflowStatus } from '@/components/quotation/QuotationWorkflowStepper';
 
 type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
 
@@ -576,9 +577,31 @@ const QuotationDetail = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex flex-col items-end gap-2">
                     <StatusBadge status={quotation.status} className="text-base py-1 px-3" />
                   </div>
+                </div>
+
+                {/* Status Workflow Stepper */}
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-xs text-muted-foreground mb-2 font-semibold uppercase tracking-wide">Status Workflow</p>
+                  <QuotationWorkflowStepper
+                    currentStatus={quotation.status as WorkflowStatus}
+                    interactive={true}
+                    disabled={updatingStatus}
+                    onStepClick={(targetStatus) => {
+                      // Handle different transitions
+                      if (targetStatus === 'sent') {
+                        setSendDialogOpen(true);
+                      } else if (targetStatus === 'accepted') {
+                        setAcceptDialogOpen(true);
+                      } else if (targetStatus === 'rejected') {
+                        setRejectDialogOpen(true);
+                      } else if (targetStatus === 'converted') {
+                        setConvertDialogOpen(true);
+                      }
+                    }}
+                  />
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-6">
