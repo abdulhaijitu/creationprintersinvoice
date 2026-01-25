@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { QuotationWorkflowStepper } from '@/components/quotation/QuotationWorkflowStepper';
 import { Eye, Edit, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -51,6 +52,13 @@ export function QuotationCard({
           </div>
           <StatusBadge status={quotation.status} />
         </div>
+
+        {/* Compact Workflow Stepper */}
+        <QuotationWorkflowStepper
+          currentStatus={quotation.status as any}
+          compact={true}
+          interactive={false}
+        />
 
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
