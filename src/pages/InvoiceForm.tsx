@@ -307,26 +307,77 @@ const InvoiceForm = () => {
 
         if (invoiceError) throw invoiceError;
 
-        // Delete existing items and re-insert
-        await supabase.from('invoice_items').delete().eq('invoice_id', id);
+        // Get existing invoice items to preserve IDs for costing
+        const { data: existingItems } = await supabase
+          .from('invoice_items')
+          .select('id')
+          .eq('invoice_id', id)
+          .order('created_at');
+        
+        const existingItemIds = existingItems?.map(i => i.id) || [];
+        
+        // Build a mapping from old IDs to items for update
+        const oldIdToNewItem: Map<string, InvoiceItem> = new Map();
+        const itemsToInsert: InvoiceItem[] = [];
+        const itemsToUpdate: { id: string; item: InvoiceItem }[] = [];
+        
+        items.forEach((item, index) => {
+          // Check if this item ID exists in existing items (it's an update)
+          if (existingItemIds.includes(item.id)) {
+            itemsToUpdate.push({ id: item.id, item });
+          } else {
+            // This is a new item
+            itemsToInsert.push(item);
+          }
+        });
+        
+        // Find items to delete (in existing but not in current items)
+        const currentItemIds = items.map(i => i.id);
+        const itemsToDelete = existingItemIds.filter(existingId => !currentItemIds.includes(existingId));
+        
+        // Delete removed items (this will cascade or fail if costing exists - handle gracefully)
+        if (itemsToDelete.length > 0) {
+          // First delete costing items for these invoice items
+          for (const itemId of itemsToDelete) {
+            await supabase.from('invoice_costing_items' as any).delete().eq('invoice_item_id', itemId);
+          }
+          await supabase.from('invoice_items').delete().in('id', itemsToDelete);
+        }
+        
+        // Update existing items
+        for (const { id: itemId, item } of itemsToUpdate) {
+          await supabase.from('invoice_items').update({
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit || null,
+            unit_price: item.unit_price,
+            discount: 0,
+            total: item.total,
+          }).eq('id', itemId);
+        }
+        
+        // Insert new items
+        if (itemsToInsert.length > 0) {
+          const newInvoiceItems = itemsToInsert.map((item) => ({
+            id: item.id, // Preserve the UUID so costing can reference it
+            invoice_id: id,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit || null,
+            unit_price: item.unit_price,
+            discount: 0,
+            total: item.total,
+            organization_id: organization?.id,
+          }));
 
-        const invoiceItems = items.map((item) => ({
-          invoice_id: id,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit || null,
-          unit_price: item.unit_price,
-          discount: 0,
-          total: item.total,
-          organization_id: organization?.id,
-        }));
-
-        const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItems);
-        if (itemsError) throw itemsError;
+          const { error: itemsError } = await supabase.from('invoice_items').insert(newInvoiceItems);
+          if (itemsError) throw itemsError;
+        }
         
         // Save costing items (only if user can save costing)
+        // Costing items already reference stable invoice_item_ids, so just upsert them
         if (costingPermissions.canSave && costingItems.length > 0) {
-          // Delete existing costing items
+          // Delete existing costing items for this invoice
           await supabase.from('invoice_costing_items' as any).delete().eq('invoice_id', id);
           
           // Filter out empty rows and insert
@@ -344,7 +395,11 @@ const InvoiceForm = () => {
               sort_order: index,
             }));
             
-            await supabase.from('invoice_costing_items' as any).insert(costingData);
+            const { error: costingError } = await supabase.from('invoice_costing_items' as any).insert(costingData);
+            if (costingError) {
+              console.error('Costing save error:', costingError);
+              toast.error('Failed to save costing data');
+            }
           }
         }
 
