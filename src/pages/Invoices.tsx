@@ -510,47 +510,47 @@ const Invoices = () => {
 
   return (
     <TooltipProvider>
-      <div className="space-y-4 md:space-y-6 w-full min-w-0 animate-fade-in">
+      <div className="space-y-3 sm:space-y-4 md:space-y-6 w-full min-w-0 animate-fade-in">
         {/* Header */}
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl md:text-2xl font-semibold text-foreground">Invoices</h1>
-          <p className="text-xs md:text-sm text-muted-foreground">
+        <div className="flex flex-col gap-0.5 sm:gap-1">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground">Invoices</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Manage and track all your invoices in one place
           </p>
         </div>
 
-        {/* Stats Cards - 2-col tablet, 5-col desktop */}
-        <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
-          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</p>
-            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{totalInvoices}</p>
+        {/* Stats Cards - Mobile: 2-col, Tablet: 3-col, Desktop: 5-col */}
+        <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
+            <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{totalInvoices}</p>
           </div>
-          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
-            <p className="text-xs font-medium text-success uppercase tracking-wide">Paid</p>
-            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{paidCount}</p>
+          <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
+            <p className="text-[10px] sm:text-xs font-medium text-success uppercase tracking-wide">Paid</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{paidCount}</p>
           </div>
-          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
-            <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Unpaid</p>
-            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{unpaidCount}</p>
+          <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
+            <p className="text-[10px] sm:text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Unpaid</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{unpaidCount}</p>
           </div>
-          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50">
-            <p className="text-xs font-medium text-destructive uppercase tracking-wide">Overdue</p>
-            <p className="text-xl md:text-2xl font-semibold text-foreground mt-1">{overdueCount}</p>
+          <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
+            <p className="text-[10px] sm:text-xs font-medium text-destructive uppercase tracking-wide">Overdue</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{overdueCount}</p>
           </div>
-          <div className="bg-card rounded-xl p-3 md:p-4 shadow-sm border border-border/50 col-span-2 md:col-span-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Due</p>
-            <p className="text-lg md:text-xl font-semibold text-foreground mt-1">{formatCurrency(totalDueAmount)}</p>
+          <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50 col-span-2 sm:col-span-1">
+            <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Due</p>
+            <p className="text-base sm:text-lg md:text-xl font-semibold text-foreground mt-0.5 sm:mt-1">{formatCurrency(totalDueAmount)}</p>
           </div>
         </div>
 
-        {/* Controls - responsive grid for tablet */}
+        {/* Controls - Mobile: stacked, Tablet: 2-col, Desktop: inline */}
         <div className="bg-card rounded-xl shadow-sm border border-border/50">
-          <div className="p-3 md:p-4 grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_auto_auto]">
+          <div className="p-3 sm:p-4 grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto]">
             {/* Search */}
             <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by invoice no or customer..."
+                placeholder="Search invoices..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-background/50 border-border/50 h-10 w-full"
@@ -560,7 +560,7 @@ const Invoices = () => {
             {/* Filter */}
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
               <SelectTrigger className="w-full lg:w-[140px] bg-background/50 border-border/50 h-10">
-                <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                <Filter className="h-4 w-4 mr-2 text-muted-foreground shrink-0" />
                 <SelectValue placeholder="Filter" />
               </SelectTrigger>
               <SelectContent>
@@ -572,13 +572,13 @@ const Invoices = () => {
               </SelectContent>
             </Select>
 
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <div className="flex items-center gap-2 sm:justify-end col-span-1 sm:col-span-2 lg:col-span-1">
               {/* Import - requires create permission */}
               {invoicePerms.canCreate && (
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="h-10 gap-2 border-border/50 flex-1 sm:flex-none" 
+                  className="h-10 gap-1.5 sm:gap-2 border-border/50 flex-1 sm:flex-none touch-target" 
                   onClick={() => setImportOpen(true)}
                 >
                   <Upload className="h-4 w-4" />
@@ -588,12 +588,12 @@ const Invoices = () => {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-10 gap-2 border-border/50 flex-1 sm:flex-none">
+                  <Button variant="outline" size="sm" className="h-10 gap-1.5 sm:gap-2 border-border/50 flex-1 sm:flex-none touch-target">
                     <Download className="h-4 w-4" />
                     <span className="hidden sm:inline">Export</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="bg-popover">
                   <DropdownMenuItem onClick={() => handleExport('csv')}>
                     Download CSV
                   </DropdownMenuItem>
@@ -607,12 +607,12 @@ const Invoices = () => {
               {invoicePerms.canCreate && (
                 <Button 
                   size="sm"
-                  className="h-10 gap-2 shadow-sm flex-1 sm:flex-none" 
+                  className="h-10 gap-1.5 sm:gap-2 shadow-sm flex-1 sm:flex-none touch-target" 
                   onClick={() => navigate('/invoices/new')}
                 >
                   <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">New Invoice</span>
-                  <span className="sm:hidden">New</span>
+                  <span className="hidden xs:inline sm:hidden lg:inline">New Invoice</span>
+                  <span className="xs:hidden sm:inline lg:hidden">New</span>
                 </Button>
               )}
             </div>
