@@ -55,6 +55,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AddPaymentFromListDialog } from '@/components/payments/AddPaymentFromListDialog';
+import { EditPaymentDialog } from '@/components/payments/EditPaymentDialog';
 
 type StatusFilter = 'all' | 'paid' | 'partial' | 'overdue';
 
@@ -66,6 +67,7 @@ const Payments = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [addPaymentOpen, setAddPaymentOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -380,7 +382,8 @@ const Payments = () => {
                                 <EditGuard module="payments">
                                   <DropdownMenuItem
                                     onClick={() => {
-                                      toast.info('Edit payment feature coming soon');
+                                      setSelectedPayment(payment);
+                                      setEditDialogOpen(true);
                                     }}
                                   >
                                     <Edit className="w-4 h-4 mr-2" />
@@ -478,6 +481,18 @@ const Payments = () => {
                         <Eye className="w-4 h-4 mr-2" />
                         View Invoice
                       </Button>
+                      <EditGuard module="payments">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedPayment(payment);
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </EditGuard>
                       <DeleteGuard module="payments">
                         <Button
                           variant="outline"
@@ -506,6 +521,16 @@ const Payments = () => {
         onOpenChange={setAddPaymentOpen}
         onPaymentAdded={refetch}
       />
+
+      {/* Edit Payment Dialog */}
+      {selectedPayment && (
+        <EditPaymentDialog
+          payment={selectedPayment}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onPaymentUpdated={refetch}
+        />
+      )}
 
       {/* Refund Confirmation Dialog */}
       <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
