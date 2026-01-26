@@ -468,7 +468,10 @@ const InvoiceDetail = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p>
+                  <div 
+                    className="prose prose-sm max-w-none prose-p:m-0 prose-p:leading-relaxed prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-a:text-primary prose-a:underline text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: invoice.notes }}
+                  />
                 </CardContent>
               </Card>
             )}
