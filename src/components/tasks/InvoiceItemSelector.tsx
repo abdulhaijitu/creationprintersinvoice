@@ -129,7 +129,7 @@ export function InvoiceItemSelector({
   return (
     <div className="space-y-3">
       {/* Invoice Selector */}
-      <Popover open={invoiceOpen} onOpenChange={setInvoiceOpen}>
+      <Popover open={invoiceOpen} onOpenChange={setInvoiceOpen} modal={true}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
