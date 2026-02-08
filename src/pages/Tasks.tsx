@@ -548,7 +548,7 @@ const Tasks = () => {
                         <p className="font-medium">{task.title}</p>
                         {task.description && (
                           <p className="text-sm text-muted-foreground line-clamp-1">
-                            {task.description}
+                            {task.description.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()}
                           </p>
                         )}
                       </div>
