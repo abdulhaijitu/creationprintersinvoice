@@ -363,7 +363,22 @@ export function CreateTaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="max-w-lg max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => {
+          // Prevent dialog from closing when clicking inside portaled popovers
+          const target = e.target as HTMLElement;
+          if (target?.closest('[data-radix-popper-content-wrapper]') || target?.closest('[role="listbox"]') || target?.closest('[cmdk-list]')) {
+            e.preventDefault();
+          }
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (target?.closest('[data-radix-popper-content-wrapper]') || target?.closest('[role="listbox"]') || target?.closest('[cmdk-list]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
