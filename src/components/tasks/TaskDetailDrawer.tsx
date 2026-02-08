@@ -208,9 +208,10 @@ export function TaskDetailDrawer({
               {task.description && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground">Notes / Instructions</h3>
-                  <p className="text-sm bg-muted/50 p-3 rounded-lg whitespace-pre-wrap">
-                    {task.description}
-                  </p>
+                  <div 
+                    className="text-sm bg-muted/50 p-3 rounded-lg prose prose-sm max-w-none [&_p]:my-0 [&_ul]:my-1 [&_ol]:my-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+                    dangerouslySetInnerHTML={{ __html: task.description }}
+                  />
                 </div>
               )}
             </TabsContent>
