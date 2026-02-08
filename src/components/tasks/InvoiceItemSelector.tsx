@@ -1,21 +1,10 @@
 import * as React from "react";
-import { Check, FileText, ChevronDown } from "lucide-react";
+import { Check, FileText, ChevronDown, X, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/contexts/OrganizationContext";
 
@@ -51,7 +40,22 @@ export function InvoiceItemSelector({
   const { organization } = useOrganization();
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const [invoiceOpen, setInvoiceOpen] = React.useState(false);
+  const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [dropdownOpen]);
 
   // Fetch invoices with items
   React.useEffect(() => {
@@ -61,18 +65,13 @@ export function InvoiceItemSelector({
       try {
         const { data: invoicesData, error: invError } = await supabase
           .from("invoices")
-          .select(`
-            id,
-            invoice_number,
-            customers(name)
-          `)
+          .select(`id, invoice_number, customers(name)`)
           .eq("organization_id", organization.id)
           .order("invoice_date", { ascending: false })
           .limit(50);
 
         if (invError) throw invError;
 
-        // Fetch items for all invoices
         const invoiceIds = invoicesData?.map((inv) => inv.id) || [];
         const { data: itemsData, error: itemsError } = await supabase
           .from("invoice_items")
@@ -108,6 +107,14 @@ export function InvoiceItemSelector({
 
   const selectedInvoice = invoices.find((inv) => inv.id === selectedInvoiceId);
 
+  const filteredInvoices = invoices.filter((inv) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      inv.invoice_number.toLowerCase().includes(query) ||
+      (inv.customer_name || "").toLowerCase().includes(query)
+    );
+  });
+
   const toggleItem = (itemId: string) => {
     if (selectedItemIds.includes(itemId)) {
       onItemsChange(selectedItemIds.filter((id) => id !== itemId));
@@ -126,78 +133,116 @@ export function InvoiceItemSelector({
     onItemsChange([]);
   };
 
+  const handleSelectInvoice = (invoiceId: string) => {
+    onInvoiceChange(invoiceId);
+    onItemsChange([]);
+    setDropdownOpen(false);
+    setSearchQuery("");
+  };
+
+  const handleClearSelection = () => {
+    onInvoiceChange("");
+    onItemsChange([]);
+    setDropdownOpen(false);
+    setSearchQuery("");
+  };
+
   return (
     <div className="space-y-3">
-      {/* Invoice Selector */}
-      <Popover open={invoiceOpen} onOpenChange={setInvoiceOpen} modal={true}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={invoiceOpen}
-            disabled={disabled || loading}
-            className={cn(
-              "w-full justify-between font-normal",
-              !selectedInvoiceId && "text-muted-foreground"
-            )}
-          >
-            <span className="flex items-center gap-2 truncate">
-              <FileText className="h-4 w-4 shrink-0" />
-              {selectedInvoice
-                ? `${selectedInvoice.invoice_number}${selectedInvoice.customer_name ? ` - ${selectedInvoice.customer_name}` : ""}`
-                : "Select Invoice..."}
-            </span>
+      {/* Invoice Selector - Custom inline dropdown (no portal) */}
+      <div className="relative" ref={dropdownRef}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled || loading}
+          className={cn(
+            "w-full justify-between font-normal",
+            !selectedInvoiceId && "text-muted-foreground"
+          )}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDropdownOpen(!dropdownOpen);
+          }}
+        >
+          <span className="flex items-center gap-2 truncate">
+            <FileText className="h-4 w-4 shrink-0" />
+            {selectedInvoice
+              ? `${selectedInvoice.invoice_number}${selectedInvoice.customer_name ? ` - ${selectedInvoice.customer_name}` : ""}`
+              : "Select Invoice..."}
+          </span>
+          {selectedInvoiceId ? (
+            <X
+              className="ml-2 h-4 w-4 shrink-0 opacity-50 hover:opacity-100"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleClearSelection();
+              }}
+            />
+          ) : (
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[320px] p-0 z-50 bg-popover" align="start">
-          <Command>
-            <CommandInput placeholder="Search invoices..." />
-            <CommandList>
-              <CommandEmpty>No invoices found.</CommandEmpty>
-              <CommandGroup>
-                {/* Option to clear */}
-                <CommandItem
-                  value="__clear__"
-                  onSelect={() => {
-                    onInvoiceChange("");
-                    onItemsChange([]);
-                    setInvoiceOpen(false);
-                  }}
-                >
-                  <span className="text-muted-foreground">Clear selection</span>
-                </CommandItem>
-                {invoices.map((invoice) => (
-                  <CommandItem
-                    key={invoice.id}
-                    value={`${invoice.invoice_number} ${invoice.customer_name || ""}`}
-                    onSelect={() => {
-                      onInvoiceChange(invoice.id);
-                      onItemsChange([]);
-                      setInvoiceOpen(false);
-                    }}
-                  >
-                    <Check
+          )}
+        </Button>
+
+        {dropdownOpen && (
+          <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border rounded-md shadow-lg">
+            <div className="p-2 border-b">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search invoices..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-8 text-sm"
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            </div>
+            <ScrollArea className="max-h-[200px]">
+              <div className="p-1">
+                {filteredInvoices.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No invoices found.
+                  </p>
+                ) : (
+                  filteredInvoices.map((invoice) => (
+                    <button
+                      key={invoice.id}
+                      type="button"
                       className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedInvoiceId === invoice.id ? "opacity-100" : "opacity-0"
+                        "w-full flex items-center gap-2 px-2 py-2 text-left rounded-sm hover:bg-accent transition-colors text-sm",
+                        selectedInvoiceId === invoice.id && "bg-accent"
                       )}
-                    />
-                    <div className="flex flex-col">
-                      <span className="font-medium">{invoice.invoice_number}</span>
-                      {invoice.customer_name && (
-                        <span className="text-xs text-muted-foreground">
-                          {invoice.customer_name} • {invoice.items.length} item(s)
-                        </span>
-                      )}
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSelectInvoice(invoice.id);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "h-4 w-4 shrink-0",
+                          selectedInvoiceId === invoice.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-medium truncate">{invoice.invoice_number}</span>
+                        {invoice.customer_name && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            {invoice.customer_name} • {invoice.items.length} item(s)
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+      </div>
 
       {/* Invoice Items - only show when invoice is selected */}
       {selectedInvoice && selectedInvoice.items.length > 0 && (
@@ -205,22 +250,10 @@ export function InvoiceItemSelector({
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Select Items</span>
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={selectAllItems}
-                className="h-6 text-xs"
-              >
+              <Button type="button" variant="ghost" size="sm" onClick={selectAllItems} className="h-6 text-xs">
                 Select All
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={clearAllItems}
-                className="h-6 text-xs"
-              >
+              <Button type="button" variant="ghost" size="sm" onClick={clearAllItems} className="h-6 text-xs">
                 Clear
               </Button>
             </div>
@@ -245,12 +278,9 @@ export function InvoiceItemSelector({
                       Item {index + 1}
                     </span>
                   </div>
-                  <p
-                    className="text-sm line-clamp-2"
-                    dangerouslySetInnerHTML={{
-                      __html: item.description.replace(/<[^>]*>/g, " ").slice(0, 100),
-                    }}
-                  />
+                  <p className="text-sm line-clamp-2">
+                    {item.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 100)}
+                  </p>
                   <span className="text-xs text-muted-foreground">
                     Qty: {item.quantity} × ৳{item.unit_price.toLocaleString()}
                   </span>
