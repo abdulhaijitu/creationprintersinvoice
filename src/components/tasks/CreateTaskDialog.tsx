@@ -174,10 +174,10 @@ export function CreateTaskDialog({
                 selectedInvoiceId={formData.selectedInvoiceId}
                 selectedItemIds={formData.selectedInvoiceItemIds}
                 onInvoiceChange={(id) =>
-                  setFormData({ ...formData, selectedInvoiceId: id })
+                  setFormData(prev => ({ ...prev, selectedInvoiceId: id, selectedInvoiceItemIds: [] }))
                 }
                 onItemsChange={(ids) =>
-                  setFormData({ ...formData, selectedInvoiceItemIds: ids })
+                  setFormData(prev => ({ ...prev, selectedInvoiceItemIds: ids }))
                 }
               />
             </TabsContent>
