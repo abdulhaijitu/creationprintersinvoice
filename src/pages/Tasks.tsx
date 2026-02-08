@@ -249,7 +249,15 @@ const Tasks = () => {
         description="Track jobs through the printing workflow"
         actions={
           canCreateTasks && (
-            <Button size={isMobile ? "sm" : "default"} onClick={() => setIsDialogOpen(true)}>
+            <Button 
+              type="button"
+              size={isMobile ? "sm" : "default"} 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDialogOpen(true);
+              }}
+            >
               <Plus className="mr-2 h-4 w-4" />
               New Task
             </Button>
@@ -400,7 +408,7 @@ const Tasks = () => {
               description={searchTerm || filterStatus !== 'all' 
                 ? "Try adjusting your search or filter" 
                 : "Create your first production task to get started"}
-              action={canCreateTasks ? { label: "New Task", onClick: () => setIsDialogOpen(true) } : undefined}
+              action={canCreateTasks ? { label: "New Task", onClick: (e?: React.MouseEvent) => { e?.preventDefault(); e?.stopPropagation(); setIsDialogOpen(true); } } : undefined}
             />
           ) : viewMode === "hierarchy" ? (
             // Hierarchy View

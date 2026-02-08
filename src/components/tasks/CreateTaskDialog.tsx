@@ -9,6 +9,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -73,6 +80,7 @@ export function CreateTaskDialog({
 }: CreateTaskDialogProps) {
   const [formData, setFormData] = useState<TaskFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isMobile = useIsMobile();
 
   // Reset form when dialog opens/closes or editing task changes
   useEffect(() => {
@@ -126,67 +134,32 @@ export function CreateTaskDialog({
 
   const isAssignmentDisabled = editingTask ? !canAssignTasks : !canCreateTasks;
 
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {editingTask ? "Edit Task" : "Create New Task"}
-          </DialogTitle>
-        </DialogHeader>
+  const title = editingTask ? "Edit Task" : "Create New Task";
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Job Title Mode Toggle - Only for new tasks */}
-          {!editingTask && (
-            <div className="space-y-2">
-              <Label>Job Title</Label>
-              <Tabs
-                value={formData.jobMode}
-                onValueChange={(v) =>
-                  setFormData({ ...formData, jobMode: v as "manual" | "invoice" })
-                }
-              >
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="manual" className="gap-2">
-                    <PenLine className="h-4 w-4" />
-                    Manual Entry
-                  </TabsTrigger>
-                  <TabsTrigger value="invoice" className="gap-2">
-                    <FileText className="h-4 w-4" />
-                    From Invoice
-                  </TabsTrigger>
-                </TabsList>
+  const formContent = (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Job Title Mode Toggle - Only for new tasks */}
+      {!editingTask && (
+        <div className="space-y-2">
+          <Label>Job Title</Label>
+          <Tabs
+            value={formData.jobMode}
+            onValueChange={(v) =>
+              setFormData({ ...formData, jobMode: v as "manual" | "invoice" })
+            }
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="manual" className="gap-2">
+                <PenLine className="h-4 w-4" />
+                Manual Entry
+              </TabsTrigger>
+              <TabsTrigger value="invoice" className="gap-2">
+                <FileText className="h-4 w-4" />
+                From Invoice
+              </TabsTrigger>
+            </TabsList>
 
-                <TabsContent value="manual" className="mt-3">
-                  <Input
-                    placeholder="e.g. Visiting Card Printing"
-                    value={formData.title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
-                    }
-                  />
-                </TabsContent>
-
-                <TabsContent value="invoice" className="mt-3">
-                  <InvoiceItemSelector
-                    selectedInvoiceId={formData.selectedInvoiceId}
-                    selectedItemIds={formData.selectedInvoiceItemIds}
-                    onInvoiceChange={(id) =>
-                      setFormData({ ...formData, selectedInvoiceId: id })
-                    }
-                    onItemsChange={(ids) =>
-                      setFormData({ ...formData, selectedInvoiceItemIds: ids })
-                    }
-                  />
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
-
-          {/* For editing - show title input directly */}
-          {editingTask && (
-            <div className="space-y-2">
-              <Label>Job Title *</Label>
+            <TabsContent value="manual" className="mt-3">
               <Input
                 placeholder="e.g. Visiting Card Printing"
                 value={formData.title}
@@ -194,154 +167,207 @@ export function CreateTaskDialog({
                   setFormData({ ...formData, title: e.target.value })
                 }
               />
-            </div>
-          )}
+            </TabsContent>
 
-          {/* Notes / Instructions - Rich Text */}
-          <div className="space-y-2">
-            <Label>Notes / Instructions</Label>
-            <RichTextEditor
-              value={formData.description}
-              onChange={(val) => setFormData({ ...formData, description: val })}
-              placeholder="Special instructions for this job..."
-              minHeight="100px"
-            />
-          </div>
-
-          {/* Assign To - Multi-select */}
-          <div className="space-y-2">
-            <Label>Assign To</Label>
-            <MultiEmployeeSelect
-              employees={employees}
-              value={formData.assignees}
-              onChange={(vals) => setFormData({ ...formData, assignees: vals })}
-              disabled={isAssignmentDisabled}
-              placeholder="Select assignees..."
-            />
-            {editingTask && !canAssignTasks && (
-              <p className="text-xs text-muted-foreground">
-                You don't have permission to change assignment
-              </p>
-            )}
-          </div>
-
-          {/* Deadline & Priority */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Deadline</Label>
-              <Input
-                type="date"
-                value={formData.deadline}
-                onChange={(e) =>
-                  setFormData({ ...formData, deadline: e.target.value })
+            <TabsContent value="invoice" className="mt-3">
+              <InvoiceItemSelector
+                selectedInvoiceId={formData.selectedInvoiceId}
+                selectedItemIds={formData.selectedInvoiceItemIds}
+                onInvoiceChange={(id) =>
+                  setFormData({ ...formData, selectedInvoiceId: id })
+                }
+                onItemsChange={(ids) =>
+                  setFormData({ ...formData, selectedInvoiceItemIds: ids })
                 }
               />
-            </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
+
+      {/* For editing - show title input directly */}
+      {editingTask && (
+        <div className="space-y-2">
+          <Label>Job Title *</Label>
+          <Input
+            placeholder="e.g. Visiting Card Printing"
+            value={formData.title}
+            onChange={(e) =>
+              setFormData({ ...formData, title: e.target.value })
+            }
+          />
+        </div>
+      )}
+
+      {/* Notes / Instructions - Rich Text */}
+      <div className="space-y-2">
+        <Label>Notes / Instructions</Label>
+        <RichTextEditor
+          value={formData.description}
+          onChange={(val) => setFormData({ ...formData, description: val })}
+          placeholder="Special instructions for this job..."
+          minHeight="100px"
+        />
+      </div>
+
+      {/* Assign To - Multi-select */}
+      <div className="space-y-2">
+        <Label>Assign To</Label>
+        <MultiEmployeeSelect
+          employees={employees}
+          value={formData.assignees}
+          onChange={(vals) => setFormData({ ...formData, assignees: vals })}
+          disabled={isAssignmentDisabled}
+          placeholder="Select assignees..."
+        />
+        {editingTask && !canAssignTasks && (
+          <p className="text-xs text-muted-foreground">
+            You don't have permission to change assignment
+          </p>
+        )}
+      </div>
+
+      {/* Deadline & Priority */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Deadline</Label>
+          <Input
+            type="date"
+            value={formData.deadline}
+            onChange={(e) =>
+              setFormData({ ...formData, deadline: e.target.value })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Priority</Label>
+          <Select
+            value={formData.priority}
+            onValueChange={(v) =>
+              setFormData({ ...formData, priority: v as TaskPriority })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="urgent">Urgent</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Visibility Settings */}
+      <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+        <Label className="text-sm font-medium">Task Visibility</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Select
+              value={formData.visibility}
+              onValueChange={(v) =>
+                setFormData({ ...formData, visibility: v as TaskVisibility })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="public">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    Public
+                  </div>
+                </SelectItem>
+                <SelectItem value="private">
+                  <div className="flex items-center gap-2">
+                    <Lock className="h-4 w-4" />
+                    Private
+                  </div>
+                </SelectItem>
+                <SelectItem value="department">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Department
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {formData.visibility === "department" && (
             <div className="space-y-2">
-              <Label>Priority</Label>
               <Select
-                value={formData.priority}
+                value={formData.department}
                 onValueChange={(v) =>
-                  setFormData({ ...formData, priority: v as TaskPriority })
+                  setFormData({ ...formData, department: v })
                 }
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select Department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {formData.visibility === "public" &&
+            "Everyone in your company can see this task."}
+          {formData.visibility === "private" &&
+            "Only you and the assigned person(s) can see this task."}
+          {formData.visibility === "department" &&
+            "Only users in the selected department can see this task."}
+        </p>
+      </div>
 
-          {/* Visibility Settings */}
-          <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
-            <Label className="text-sm font-medium">Task Visibility</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Select
-                  value={formData.visibility}
-                  onValueChange={(v) =>
-                    setFormData({ ...formData, visibility: v as TaskVisibility })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="public">
-                      <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4" />
-                        Public
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="private">
-                      <div className="flex items-center gap-2">
-                        <Lock className="h-4 w-4" />
-                        Private
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="department">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        Department
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {formData.visibility === "department" && (
-                <div className="space-y-2">
-                  <Select
-                    value={formData.department}
-                    onValueChange={(v) =>
-                      setFormData({ ...formData, department: v })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departments.map((dept) => (
-                        <SelectItem key={dept} value={dept}>
-                          {dept}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {formData.visibility === "public" &&
-                "Everyone in your company can see this task."}
-              {formData.visibility === "private" &&
-                "Only you and the assigned person(s) can see this task."}
-              {formData.visibility === "department" &&
-                "Only users in the selected department can see this task."}
-            </p>
-          </div>
+      {/* Actions */}
+      <div className="flex justify-end gap-2 pt-2">
+        <Button type="button" variant="outline" onClick={handleClose}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting
+            ? "Saving..."
+            : editingTask
+              ? "Update"
+              : formData.jobMode === "invoice" && formData.selectedInvoiceItemIds.length > 1
+                ? `Create ${formData.selectedInvoiceItemIds.length} Tasks`
+                : "Create"}
+        </Button>
+      </div>
+    </form>
+  );
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting
-                ? "Saving..."
-                : editingTask
-                  ? "Update"
-                  : formData.jobMode === "invoice" && formData.selectedInvoiceItemIds.length > 1
-                    ? `Create ${formData.selectedInvoiceItemIds.length} Tasks`
-                    : "Create"}
-            </Button>
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={handleClose}>
+        <DrawerContent className="max-h-[90vh]">
+          <DrawerHeader>
+            <DrawerTitle>{title}</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-4 overflow-y-auto">
+            {formContent}
           </div>
-        </form>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {formContent}
       </DialogContent>
     </Dialog>
   );
