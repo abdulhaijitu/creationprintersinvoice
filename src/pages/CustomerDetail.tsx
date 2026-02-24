@@ -13,9 +13,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, User, Mail, Phone, MapPin, Building2, FileText, CreditCard, AlertCircle } from "lucide-react";
+import { ArrowLeft, User, Mail, Phone, MapPin, Building2, FileText, CreditCard, AlertCircle, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { CustomerStatementPDF } from "@/components/customer/CustomerStatementPDF";
 
 interface Customer {
   id: string;
@@ -56,6 +57,7 @@ const CustomerDetail = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showStatement, setShowStatement] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -178,16 +180,22 @@ const CustomerDetail = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/customers")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">{customer.name}</h1>
-          {customer.company_name && (
-            <p className="text-muted-foreground">{customer.company_name}</p>
-          )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/customers")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">{customer.name}</h1>
+            {customer.company_name && (
+              <p className="text-muted-foreground">{customer.company_name}</p>
+            )}
+          </div>
         </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowStatement(true)}>
+          <Printer className="h-4 w-4" />
+          Print Statement
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -392,6 +400,16 @@ const CustomerDetail = () => {
           </Tabs>
         </Card>
       </div>
+
+      {/* Customer Statement Print */}
+      {showStatement && (
+        <CustomerStatementPDF
+          customer={customer}
+          invoices={invoices}
+          payments={payments}
+          onClose={() => setShowStatement(false)}
+        />
+      )}
     </div>
   );
 };
