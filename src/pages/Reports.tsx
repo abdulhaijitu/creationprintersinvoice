@@ -90,19 +90,19 @@ interface StatCardProps {
 
 const StatCard = ({ title, value, icon, iconBgClass, valueClass = 'text-foreground' }: StatCardProps) => (
   <Card className="group relative overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
-    <CardContent className="p-5">
-      <div className="flex items-center gap-4">
+    <CardContent className="p-3 sm:p-5">
+      <div className="flex items-center gap-2.5 sm:gap-4">
         <div className={cn(
-          "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110",
+          "flex h-9 w-9 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl transition-transform duration-300 group-hover:scale-110",
           iconBgClass
         )}>
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+          <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-0.5">
             {title}
           </p>
-          <p className={cn("text-xl font-bold tracking-tight truncate", valueClass)}>
+          <p className={cn("text-sm sm:text-xl font-bold tracking-tight", valueClass)}>
             {value}
           </p>
         </div>
