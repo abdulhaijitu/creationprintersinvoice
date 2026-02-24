@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO, isPast, isToday } from 'date-fns';
+import { SortableTableHeader, useSortableTable } from '@/components/shared/SortableTableHeader';
 import { usePayments, Payment } from '@/hooks/usePayments';
 import { useActionPermission } from '@/components/guards/ActionGuard';
 import { CreateGuard, EditGuard, DeleteGuard } from '@/components/guards/ActionGuard';
@@ -75,6 +76,7 @@ const Payments = () => {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const { sortKey, sortDirection, handleSort } = useSortableTable<Payment>('payment_date', 'desc');
 
   const formatCurrency = (amount: number) => {
     return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -137,6 +139,58 @@ const Payments = () => {
       return status === statusFilter;
     });
   }, [payments, searchQuery, statusFilter]);
+
+  const sortedPayments = useMemo(() => {
+    if (!sortKey || !sortDirection) return filteredPayments;
+
+    return [...filteredPayments].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (sortKey) {
+        case 'payment_date':
+          aVal = a.payment_date;
+          bVal = b.payment_date;
+          break;
+        case 'invoice_number':
+          aVal = a.invoice?.invoice_number || '';
+          bVal = b.invoice?.invoice_number || '';
+          break;
+        case 'customer':
+          aVal = a.invoice?.customers?.name || '';
+          bVal = b.invoice?.customers?.name || '';
+          break;
+        case 'payment_method':
+          aVal = a.payment_method || '';
+          bVal = b.payment_method || '';
+          break;
+        case 'amount':
+          aVal = Number(a.amount);
+          bVal = Number(b.amount);
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        case 'total':
+          aVal = Number(a.invoice?.total || 0);
+          bVal = Number(b.invoice?.total || 0);
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        case 'due':
+          aVal = Number(a.invoice?.total || 0) - Number(a.invoice?.paid_amount || 0);
+          bVal = Number(b.invoice?.total || 0) - Number(b.invoice?.paid_amount || 0);
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        case 'status':
+          aVal = getInvoiceStatus(a);
+          bVal = getInvoiceStatus(b);
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const cmp = aVal.localeCompare(bVal);
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }
+      return 0;
+    });
+  }, [filteredPayments, sortKey, sortDirection]);
 
   const handleRefund = async () => {
     if (!selectedPayment) return;
@@ -306,19 +360,19 @@ const Payments = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead className="hidden lg:table-cell">Customer</TableHead>
-                  <TableHead className="hidden xl:table-cell">Method</TableHead>
-                  <TableHead className="text-right">Paid</TableHead>
-                  <TableHead className="text-right hidden xl:table-cell">Total</TableHead>
-                  <TableHead className="text-right">Due</TableHead>
-                  <TableHead className="hidden lg:table-cell">Status</TableHead>
+                  <TableHead><SortableTableHeader label="Date" sortKey="payment_date" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} /></TableHead>
+                  <TableHead><SortableTableHeader label="Invoice" sortKey="invoice_number" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} /></TableHead>
+                  <TableHead className="hidden lg:table-cell"><SortableTableHeader label="Customer" sortKey="customer" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} /></TableHead>
+                  <TableHead className="hidden xl:table-cell"><SortableTableHeader label="Method" sortKey="payment_method" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} /></TableHead>
+                  <TableHead className="text-right"><SortableTableHeader label="Paid" sortKey="amount" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" /></TableHead>
+                  <TableHead className="text-right hidden xl:table-cell"><SortableTableHeader label="Total" sortKey="total" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" /></TableHead>
+                  <TableHead className="text-right"><SortableTableHeader label="Due" sortKey="due" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" /></TableHead>
+                  <TableHead className="hidden lg:table-cell"><SortableTableHeader label="Status" sortKey="status" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} /></TableHead>
                   <TableHead className="text-right w-[60px]">Action</TableHead>
                 </TableRow>
               </TableHeader>
                 <TableBody>
-                  {filteredPayments.length === 0 ? (
+                  {sortedPayments.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={9} className="h-24 text-center">
                         <div className="flex flex-col items-center justify-center text-muted-foreground">
@@ -328,7 +382,7 @@ const Payments = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredPayments.map((payment) => {
+                    sortedPayments.map((payment) => {
                       const invoice = payment.invoice;
                       const invoiceTotal = Number(invoice?.total || 0);
                       const paidAmount = Number(invoice?.paid_amount || 0);
@@ -415,13 +469,13 @@ const Payments = () => {
 
           {/* Mobile: Card layout */}
           <div className="block md:hidden space-y-3">
-            {filteredPayments.length === 0 ? (
+            {sortedPayments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <Clock className="w-8 h-8 mb-2" />
                 <p>No payments found</p>
               </div>
             ) : (
-              filteredPayments.map((payment) => {
+              sortedPayments.map((payment) => {
                 const invoice = payment.invoice;
                 const invoiceTotal = Number(invoice?.total || 0);
                 const paidAmount = Number(invoice?.paid_amount || 0);
