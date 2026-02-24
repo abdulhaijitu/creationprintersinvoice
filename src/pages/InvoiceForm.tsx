@@ -4,11 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useCostingPermissions } from '@/hooks/useCostingPermissions';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -20,10 +20,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Trash2, ArrowLeft, Save } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, GripVertical } from 'lucide-react';
 import { format } from 'date-fns';
 import { CustomerSelect } from '@/components/shared/CustomerSelect';
 import { ItemWiseCostingSection, CostingItem, InvoiceLineItem } from '@/components/invoice/ItemWiseCostingSection';
+import { formatCurrency } from '@/lib/formatters';
 
 interface Customer {
   id: string;
@@ -41,14 +42,88 @@ interface InvoiceItem {
   total: number;
 }
 
+// Mobile item card component
+const InvoiceItemCard = ({
+  item,
+  index,
+  updateItem,
+  removeItem,
+  canRemove,
+}: {
+  item: InvoiceItem;
+  index: number;
+  updateItem: (id: string, field: keyof InvoiceItem, value: string | number) => void;
+  removeItem: (id: string) => void;
+  canRemove: boolean;
+}) => (
+  <Card className="relative">
+    <CardContent className="pt-4 pb-3 px-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground">Item #{index + 1}</span>
+        {canRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => removeItem(item.id)}
+            className="h-7 w-7 text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">Description</Label>
+        <Input
+          value={item.description}
+          onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+          placeholder="Item description"
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Qty</Label>
+          <CurrencyInput
+            value={item.quantity}
+            onChange={(val) => updateItem(item.id, 'quantity', val)}
+            decimals={0}
+            formatOnBlur={false}
+            className="text-center"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Unit</Label>
+          <Input
+            value={item.unit}
+            onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
+            placeholder="pcs"
+            className="text-center"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Price</Label>
+          <CurrencyInput
+            value={item.unit_price}
+            onChange={(val) => updateItem(item.id, 'unit_price', val)}
+          />
+        </div>
+      </div>
+      <div className="flex justify-between items-center pt-2 border-t">
+        <span className="text-xs text-muted-foreground">Line Total</span>
+        <span className="font-semibold">{formatCurrency(item.total)}</span>
+      </div>
+    </CardContent>
+  </Card>
+);
+
 const InvoiceForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { organization } = useOrganization();
   const isEditing = Boolean(id);
+  const isMobile = useIsMobile();
   
-  // Get costing permissions from dedicated hook
   const costingPermissions = useCostingPermissions();
   
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -67,15 +142,10 @@ const InvoiceForm = () => {
     tax: 0,
   });
   
-  // Track if notes/terms were loaded from customer defaults
   const [notesFromDefault, setNotesFromDefault] = useState(false);
   const [termsFromDefault, setTermsFromDefault] = useState(false);
 
-  // Initialize with empty array - will be populated by fetchInvoice for edit mode
-  // or a default item will be added in useEffect for create mode
   const [items, setItems] = useState<InvoiceItem[]>([]);
-  
-  // Costing items state
   const [costingItems, setCostingItems] = useState<CostingItem[]>([]);
 
   useEffect(() => {
@@ -83,14 +153,11 @@ const InvoiceForm = () => {
     if (isEditing) {
       fetchInvoice();
     } else {
-      // Only add default empty item for NEW invoices, not when editing
       setItems([
         { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
       ]);
-      // Start with empty costing items for item-wise costing
       setCostingItems([]);
     }
-    // Invoice number is generated only on successful save, not on form open
   }, [id, isEditing]);
 
   const fetchCustomers = async () => {
@@ -107,20 +174,17 @@ const InvoiceForm = () => {
     }
   };
   
-  // Handle customer selection - auto-fill defaults
   const handleCustomerChange = (customerId: string) => {
     const customer = customers.find(c => c.id === customerId);
     
     setFormData(prev => {
       const updates: typeof prev = { ...prev, customer_id: customerId };
       
-      // Only auto-fill notes if empty or was from previous default
       if (customer?.default_notes && (!prev.notes || notesFromDefault)) {
         updates.notes = customer.default_notes;
         setNotesFromDefault(true);
       }
       
-      // Only auto-fill terms if empty or was from previous default
       if (customer?.default_terms && (!prev.terms || termsFromDefault)) {
         updates.terms = customer.default_terms;
         setTermsFromDefault(true);
@@ -130,7 +194,6 @@ const InvoiceForm = () => {
     });
   };
   
-  // Reset to customer default
   const resetNotesToDefault = () => {
     const customer = customers.find(c => c.id === formData.customer_id);
     if (customer?.default_notes) {
@@ -170,7 +233,6 @@ const InvoiceForm = () => {
         tax: Number(invoice.tax) || 0,
       });
 
-      // Fetch items
       const { data: invoiceItems } = await supabase
         .from('invoice_items')
         .select('*')
@@ -187,7 +249,6 @@ const InvoiceForm = () => {
         })));
       }
       
-      // Fetch costing items (only if user can view costing)
       if (costingPermissions.canView) {
         const { data: costingData } = await supabase
           .from('invoice_costing_items' as any)
@@ -207,7 +268,6 @@ const InvoiceForm = () => {
             line_total: Number(item.line_total),
           })));
         } else {
-          // Start with empty array for item-wise costing
           setCostingItems([]);
         }
       }
@@ -219,30 +279,21 @@ const InvoiceForm = () => {
     }
   };
 
-  // Invoice number generation moved to handleSubmit to prevent gaps
-
-  // Memoized update function to prevent cursor jumps
-  // Uses functional update to avoid stale closures
   const updateItem = useCallback((id: string, field: keyof InvoiceItem, value: string | number) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
-
         const updated = { ...item, [field]: value };
-        
-        // Recalculate total only for numeric fields
         if (field === 'quantity' || field === 'unit_price') {
           const qty = Number(updated.quantity) || 0;
           const price = Number(updated.unit_price) || 0;
           updated.total = qty * price;
         }
-
         return updated;
       })
     );
   }, []);
 
-  // Memoized add/remove handlers
   const addItem = useCallback(() => {
     setItems((prev) => [
       ...prev,
@@ -288,7 +339,6 @@ const InvoiceForm = () => {
       const total = calculateTotal();
 
       if (isEditing) {
-        // Update invoice
         const { error: invoiceError } = await supabase
           .from('invoices')
           .update({
@@ -307,7 +357,6 @@ const InvoiceForm = () => {
 
         if (invoiceError) throw invoiceError;
 
-        // Get existing invoice items to preserve IDs for costing
         const { data: existingItems } = await supabase
           .from('invoice_items')
           .select('id')
@@ -316,35 +365,27 @@ const InvoiceForm = () => {
         
         const existingItemIds = existingItems?.map(i => i.id) || [];
         
-        // Build a mapping from old IDs to items for update
-        const oldIdToNewItem: Map<string, InvoiceItem> = new Map();
         const itemsToInsert: InvoiceItem[] = [];
         const itemsToUpdate: { id: string; item: InvoiceItem }[] = [];
         
-        items.forEach((item, index) => {
-          // Check if this item ID exists in existing items (it's an update)
+        items.forEach((item) => {
           if (existingItemIds.includes(item.id)) {
             itemsToUpdate.push({ id: item.id, item });
           } else {
-            // This is a new item
             itemsToInsert.push(item);
           }
         });
         
-        // Find items to delete (in existing but not in current items)
         const currentItemIds = items.map(i => i.id);
         const itemsToDelete = existingItemIds.filter(existingId => !currentItemIds.includes(existingId));
         
-        // Delete removed items (this will cascade or fail if costing exists - handle gracefully)
         if (itemsToDelete.length > 0) {
-          // First delete costing items for these invoice items
           for (const itemId of itemsToDelete) {
             await supabase.from('invoice_costing_items' as any).delete().eq('invoice_item_id', itemId);
           }
           await supabase.from('invoice_items').delete().in('id', itemsToDelete);
         }
         
-        // Update existing items
         for (const { id: itemId, item } of itemsToUpdate) {
           await supabase.from('invoice_items').update({
             description: item.description,
@@ -356,10 +397,9 @@ const InvoiceForm = () => {
           }).eq('id', itemId);
         }
         
-        // Insert new items
         if (itemsToInsert.length > 0) {
           const newInvoiceItems = itemsToInsert.map((item) => ({
-            id: item.id, // Preserve the UUID so costing can reference it
+            id: item.id,
             invoice_id: id,
             description: item.description,
             quantity: item.quantity,
@@ -373,15 +413,10 @@ const InvoiceForm = () => {
           const { error: itemsError } = await supabase.from('invoice_items').insert(newInvoiceItems);
           if (itemsError) throw itemsError;
         }
-        
-        // NOTE: Costing has its own independent Save action in the costing section.
-        // On invoice update we MUST NOT delete/re-insert all costing rows, otherwise previously
-        // saved costing can be lost (and DB may reject writes to generated columns like line_total).
 
         toast.success('Invoice updated');
         navigate(`/invoices/${id}`);
       } else {
-        // Generate invoice number only at save time using the new v2 function
         let newInvoiceNumber: string;
         let invoiceNoRaw: number | null = null;
         
@@ -397,7 +432,6 @@ const InvoiceForm = () => {
             throw new Error('No data returned');
           }
         } catch (error) {
-          // Fallback to old method if org-based fails
           console.warn('Falling back to legacy invoice number generation:', error);
           const { data, error: oldError } = await supabase.rpc('generate_invoice_number');
           if (!oldError && data) {
@@ -410,7 +444,6 @@ const InvoiceForm = () => {
           }
         }
 
-        // Create invoice with generated number
         const { data: invoice, error: invoiceError } = await supabase
           .from('invoices')
           .insert([
@@ -450,7 +483,6 @@ const InvoiceForm = () => {
         const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItems);
         if (itemsError) throw itemsError;
         
-        // Save costing items for new invoice (only if user can save costing)
         if (costingPermissions.canSave && costingItems.length > 0) {
           const validCostingItems = costingItems.filter(item => item.item_type && item.invoice_item_id);
           if (validCostingItems.length > 0) {
@@ -481,15 +513,6 @@ const InvoiceForm = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-BD', {
-      style: 'currency',
-      currency: 'BDT',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
-
   if (fetching) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -500,82 +523,182 @@ const InvoiceForm = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/invoices')}>
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/invoices')} className="shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">{isEditing ? 'Edit Invoice' : 'New Invoice'}</h1>
-          <p className="text-muted-foreground">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold truncate">{isEditing ? 'Edit Invoice' : 'New Invoice'}</h1>
+          <p className="text-sm text-muted-foreground truncate">
             {isEditing ? `Invoice No: ${invoiceNumber}` : 'Invoice number will be generated on save'}
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} autoComplete="off">
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
-            {/* Customer & Date */}
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            {/* Customer, Date & Subject — merged into one card */}
             <Card>
-              <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Invoice Details</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>Customer *</Label>
-                  <CustomerSelect
-                    value={formData.customer_id}
-                    onValueChange={handleCustomerChange}
-                    customers={customers}
-                    onCustomerAdded={fetchCustomers}
-                  />
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Customer *</Label>
+                    <CustomerSelect
+                      value={formData.customer_id}
+                      onValueChange={handleCustomerChange}
+                      customers={customers}
+                      onCustomerAdded={fetchCustomers}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Invoice Date</Label>
+                    <Input
+                      type="date"
+                      value={formData.invoice_date}
+                      onChange={(e) =>
+                        setFormData({ ...formData, invoice_date: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Due Date</Label>
+                    <Input
+                      type="date"
+                      value={formData.due_date}
+                      onChange={(e) =>
+                        setFormData({ ...formData, due_date: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Invoice Date</Label>
-                  <Input
-                    type="date"
-                    value={formData.invoice_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, invoice_date: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Due Date</Label>
-                  <Input
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, due_date: e.target.value })
-                    }
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Subject Field */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Subject</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Subject <span className="text-muted-foreground font-normal">(optional)</span></Label>
                   <Input
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value.slice(0, 255) })}
                     placeholder="e.g., Stall design & printing work for Dhaka Fair 2026"
-                    className="font-medium"
                     maxLength={255}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {formData.subject.length}/255 characters • Optional short title for this invoice
-                  </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Item-wise Costing Section - Internal Only (only if user can view) */}
+            {/* Items */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base">Items</CardTitle>
+                <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Add Item
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {isMobile ? (
+                  /* Mobile: Card-based layout */
+                  <div className="space-y-3">
+                    {items.map((item, index) => (
+                      <InvoiceItemCard
+                        key={item.id}
+                        item={item}
+                        index={index}
+                        updateItem={updateItem}
+                        removeItem={removeItem}
+                        canRemove={items.length > 1}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  /* Desktop: Table layout */
+                  <div className="rounded-lg border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10 text-center">#</TableHead>
+                          <TableHead className="min-w-[240px]">Description</TableHead>
+                          <TableHead className="text-center w-[80px]">Qty</TableHead>
+                          <TableHead className="text-center w-[80px]">Unit</TableHead>
+                          <TableHead className="text-right w-[120px]">Price</TableHead>
+                          <TableHead className="text-right w-[120px]">Total</TableHead>
+                          <TableHead className="w-10"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {items.map((item, index) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="text-center text-muted-foreground text-sm font-medium">
+                              {index + 1}
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={item.description}
+                                onChange={(e) =>
+                                  updateItem(item.id, 'description', e.target.value)
+                                }
+                                placeholder="Item description"
+                                className="border-0 shadow-none px-0 focus-visible:ring-0 h-auto py-1"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <CurrencyInput
+                                value={item.quantity}
+                                onChange={(val) =>
+                                  updateItem(item.id, 'quantity', val)
+                                }
+                                decimals={0}
+                                formatOnBlur={false}
+                                className="text-center w-full border-0 shadow-none focus-visible:ring-0"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={item.unit}
+                                onChange={(e) =>
+                                  updateItem(item.id, 'unit', e.target.value)
+                                }
+                                placeholder="pcs"
+                                className="text-center w-full border-0 shadow-none focus-visible:ring-0"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <CurrencyInput
+                                value={item.unit_price}
+                                onChange={(val) =>
+                                  updateItem(item.id, 'unit_price', val)
+                                }
+                                className="w-full border-0 shadow-none focus-visible:ring-0 text-right"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right font-medium tabular-nums">
+                              {formatCurrency(item.total)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeItem(item.id)}
+                                disabled={items.length === 1}
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Item-wise Costing Section — AFTER Items (logical order) */}
             {costingPermissions.canView && (
               <ItemWiseCostingSection
                 invoiceItems={items}
@@ -588,108 +711,18 @@ const InvoiceForm = () => {
               />
             )}
 
-            {/* Items */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Items</CardTitle>
-                <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Item
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-lg border overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[280px] w-[50%]">Description</TableHead>
-                        <TableHead className="text-center w-20">Qty</TableHead>
-                        <TableHead className="text-center w-20">Unit</TableHead>
-                        <TableHead className="text-right w-28">Price</TableHead>
-                        <TableHead className="text-right w-28">Total</TableHead>
-                        <TableHead className="w-10"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="min-w-[280px]">
-                            <Textarea
-                              value={item.description}
-                              onChange={(e) =>
-                                updateItem(item.id, 'description', e.target.value)
-                              }
-                              placeholder="Item description"
-                              rows={2}
-                              className="min-h-[60px] resize-y overflow-hidden text-wrap break-words"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <CurrencyInput
-                              value={item.quantity}
-                              onChange={(val) =>
-                                updateItem(item.id, 'quantity', val)
-                              }
-                              decimals={0}
-                              formatOnBlur={false}
-                              className="text-center w-20"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              value={item.unit}
-                              onChange={(e) =>
-                                updateItem(item.id, 'unit', e.target.value)
-                              }
-                              placeholder="pcs"
-                              className="text-center w-20"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <CurrencyInput
-                              value={item.unit_price}
-                              onChange={(val) =>
-                                updateItem(item.id, 'unit_price', val)
-                              }
-                              className="w-28"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(item.total)}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeItem(item.id)}
-                              disabled={items.length === 1}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Notes & Terms */}
             <Card>
-              <CardHeader>
-                <CardTitle>Notes & Terms</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Notes & Terms</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Notes Section */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label>Notes</Label>
+                    <Label className="text-xs">Notes</Label>
                     {notesFromDefault && formData.customer_id && (
-                      <span className="text-xs text-muted-foreground">
-                        Loaded from customer default
+                      <span className="text-[10px] text-muted-foreground">
+                        From customer default
                       </span>
                     )}
                   </div>
@@ -715,13 +748,12 @@ const InvoiceForm = () => {
                   )}
                 </div>
                 
-                {/* Terms Section */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label>Terms & Conditions</Label>
+                    <Label className="text-xs">Terms & Conditions</Label>
                     {termsFromDefault && formData.customer_id && (
-                      <span className="text-xs text-muted-foreground">
-                        Loaded from customer default
+                      <span className="text-[10px] text-muted-foreground">
+                        From customer default
                       </span>
                     )}
                   </div>
@@ -750,19 +782,19 @@ const InvoiceForm = () => {
             </Card>
           </div>
 
-          {/* Summary */}
-          <div className="space-y-6">
-            <Card className="sticky top-20">
-              <CardHeader>
-                <CardTitle>Summary</CardTitle>
+          {/* Summary — sticky sidebar */}
+          <div className="space-y-4 sm:space-y-6">
+            <Card className="lg:sticky lg:top-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Summary</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
+              <CardContent className="space-y-3">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">{formatCurrency(calculateSubtotal())}</span>
+                  <span className="font-medium tabular-nums">{formatCurrency(calculateSubtotal())}</span>
                 </div>
-                <div className="space-y-2">
-                  <Label>Discount</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Discount</Label>
                   <CurrencyInput
                     value={formData.discount}
                     onChange={(val) =>
@@ -770,8 +802,8 @@ const InvoiceForm = () => {
                     }
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Tax/VAT</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tax/VAT</Label>
                   <CurrencyInput
                     value={formData.tax}
                     onChange={(val) =>
@@ -779,13 +811,13 @@ const InvoiceForm = () => {
                     }
                   />
                 </div>
-                <div className="pt-4 border-t">
-                  <div className="flex justify-between text-xl font-bold">
+                <div className="pt-3 border-t">
+                  <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span className="text-primary">{formatCurrency(calculateTotal())}</span>
+                    <span className="text-primary tabular-nums">{formatCurrency(calculateTotal())}</span>
                   </div>
                 </div>
-                <Button type="submit" className="w-full gap-2" disabled={loading}>
+                <Button type="submit" className="w-full gap-2 mt-2" disabled={loading}>
                   <Save className="h-4 w-4" />
                   {loading ? 'Saving...' : (isEditing ? 'Update Invoice' : 'Create Invoice')}
                 </Button>
