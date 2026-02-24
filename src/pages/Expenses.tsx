@@ -785,7 +785,7 @@ const Expenses = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-5 pb-4">
-            <p className="text-2xl font-bold tabular-nums">{vendors.length}</p>
+            <p className="text-lg sm:text-2xl font-bold tabular-nums">{vendors.length}</p>
           </CardContent>
         </Card>
         
@@ -797,7 +797,7 @@ const Expenses = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-5 pb-4">
-            <p className="text-2xl font-bold tabular-nums">
+            <p className="text-lg sm:text-2xl font-bold tabular-nums truncate">
               {formatCurrency(vendors.reduce((sum, v) => sum + (v.total_bills || 0), 0))}
             </p>
           </CardContent>
@@ -811,7 +811,7 @@ const Expenses = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-5 pb-4">
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400 tabular-nums">{formatCurrency(totalVendorDue)}</p>
+            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400 tabular-nums truncate">{formatCurrency(totalVendorDue)}</p>
           </CardContent>
         </Card>
         
@@ -823,7 +823,7 @@ const Expenses = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-5 pb-4">
-            <p className="text-2xl font-bold tabular-nums">{formatCurrency(totalExpenses)}</p>
+            <p className="text-lg sm:text-2xl font-bold tabular-nums truncate">{formatCurrency(totalExpenses)}</p>
           </CardContent>
         </Card>
       </div>

@@ -574,11 +574,11 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0">
-      {/* Header - Company Name in ALL CAPS */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold tracking-tight uppercase truncate">
-            CREATION PRINTERS
+            {companyName}
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 sm:mt-1">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
