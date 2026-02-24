@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ApprovalsPanel } from '@/components/approvals/ApprovalsPanel';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -680,6 +681,9 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Pending Approvals */}
+      <ApprovalsPanel compact />
 
       {/* Invoice Dashboard Cards - Mobile: 2-col, Tablet: 3-col, Desktop: 6-col */}
       <div className="space-y-2 sm:space-y-3">
