@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -138,6 +138,7 @@ const PIE_COLORS = [
 ];
 
 const Dashboard = () => {
+  const location = useLocation();
   const { user, isAdmin } = useAuth();
   const { organization } = useOrganization();
   const navigate = useNavigate();
@@ -495,8 +496,8 @@ const Dashboard = () => {
   // Calculate monthly due (total - paid_amount from all invoices)
   const monthlyDue = stats.customerDue;
 
-  // Mobile: show tile navigation instead of dashboard
-  if (isMobile) {
+  // Mobile: show tile navigation on "/" root, but show dashboard content on "/dashboard"
+  if (isMobile && location.pathname === '/') {
     return <MobileHomeTiles />;
   }
 
