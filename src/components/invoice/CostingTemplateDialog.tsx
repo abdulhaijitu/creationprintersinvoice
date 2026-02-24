@@ -316,7 +316,7 @@ export function CostingTemplateDialog({
                             </Badge>
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {format(new Date(template.created_at), 'dd MMM yyyy')}
+                              {format(new Date(template.created_at), 'dd/MM/yyyy')}
                             </span>
                           </div>
                         </div>

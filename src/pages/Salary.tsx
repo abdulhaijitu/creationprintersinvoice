@@ -1550,7 +1550,7 @@ const Salary = () => {
                             <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeletingSalary(record)}><Trash2 className="h-4 w-4" /></Button>
                           </>
                         )}
-                        {record.status === "paid" && record.paid_date && <span className="text-xs text-muted-foreground">{format(new Date(record.paid_date), "dd MMM")}</span>}
+                        {record.status === "paid" && record.paid_date && <span className="text-xs text-muted-foreground">{format(new Date(record.paid_date), "dd/MM/yyyy")}</span>}
                       </div>
                     </TableCell>
                   )}
@@ -1648,7 +1648,7 @@ const Salary = () => {
                 ) : (
                   advances.map((advance) => (
                     <TableRow key={advance.id}>
-                      <TableCell>{format(new Date(advance.date), "dd MMM")}</TableCell>
+                      <TableCell>{format(new Date(advance.date), "dd/MM/yyyy")}</TableCell>
                       <TableCell className="font-medium truncate max-w-[100px]">
                         {advance.employee?.full_name || "-"}
                       </TableCell>

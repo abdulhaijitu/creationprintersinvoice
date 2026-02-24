@@ -236,7 +236,7 @@ export function InvoicePaymentSummary({
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {format(new Date(payment.payment_date), 'MMM d, yyyy')}
+                    {format(new Date(payment.payment_date), 'dd/MM/yyyy')}
                   </span>
                 </div>
               ))}

@@ -222,7 +222,7 @@ export function ChallanDetailDrawer({
                   <span className="text-xs font-medium uppercase tracking-wide">Date</span>
                 </div>
                 <p className="font-semibold text-sm">
-                  {format(new Date(challan.challan_date), 'dd MMM yyyy')}
+                  {format(new Date(challan.challan_date), 'dd/MM/yyyy')}
                 </p>
               </div>
               <div className="bg-muted/40 rounded-xl p-4 space-y-1">

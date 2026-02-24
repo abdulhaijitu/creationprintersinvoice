@@ -160,7 +160,7 @@ export const BillPaymentHistoryDialog = ({
             </div>
             <div>
               <p className="text-muted-foreground">Bill Date</p>
-              <p className="font-medium">{format(new Date(bill.bill_date), "dd MMM yyyy")}</p>
+              <p className="font-medium">{format(new Date(bill.bill_date), "dd/MM/yyyy")}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Net Amount</p>
@@ -231,7 +231,7 @@ export const BillPaymentHistoryDialog = ({
                   <TableRow key={payment.id}>
                     <TableCell className="text-muted-foreground">{index + 1}</TableCell>
                     <TableCell>
-                      {format(new Date(payment.payment_date), "dd MMM yyyy")}
+                      {format(new Date(payment.payment_date), "dd/MM/yyyy")}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">

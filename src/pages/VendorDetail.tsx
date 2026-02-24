@@ -978,7 +978,7 @@ const VendorDetail = () => {
                     return (
                       <TableRow key={index}>
                         <TableCell>
-                          {format(new Date(item.date), "dd MMM yyyy")}
+                          {format(new Date(item.date), "dd/MM/yyyy")}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {item.reference_no || "—"}
@@ -1033,7 +1033,7 @@ const VendorDetail = () => {
                     return (
                       <TableRow key={bill.id}>
                         <TableCell>
-                          {format(new Date(bill.bill_date), "dd MMM yyyy")}
+                          {format(new Date(bill.bill_date), "dd/MM/yyyy")}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {bill.reference_no || "-"}

@@ -119,7 +119,7 @@ export const OwnershipTransferRequest = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Requested</span>
-                <span className="text-sm">{format(new Date(pendingRequest.created_at), 'MMM d, yyyy')}</span>
+                <span className="text-sm">{format(new Date(pendingRequest.created_at), 'dd/MM/yyyy')}</span>
               </div>
               {pendingRequest.note && (
                 <div className="pt-2 border-t">

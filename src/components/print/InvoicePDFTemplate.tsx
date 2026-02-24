@@ -413,14 +413,14 @@ export function InvoicePDFTemplate({ data }: { data: InvoicePDFData }) {
               <tr>
                 <td style={{ color: '#6b7280', padding: '2px 0' }}>Date:</td>
                 <td style={{ fontWeight: '500', textAlign: 'right' }}>
-                  {format(new Date(data.invoice.date), 'dd MMM yyyy')}
+                  {format(new Date(data.invoice.date), 'dd/MM/yyyy')}
                 </td>
               </tr>
               {data.invoice.dueDate && (
                 <tr>
                   <td style={{ color: '#6b7280', padding: '2px 0' }}>Due Date:</td>
                   <td style={{ fontWeight: '500', textAlign: 'right' }}>
-                    {format(new Date(data.invoice.dueDate), 'dd MMM yyyy')}
+                    {format(new Date(data.invoice.dueDate), 'dd/MM/yyyy')}
                   </td>
                 </tr>
               )}

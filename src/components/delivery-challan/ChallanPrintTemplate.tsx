@@ -273,7 +273,7 @@ export default function ChallanPrintTemplate() {
             </p>
             <div style={{ marginTop: '8px', fontSize: '8pt', color: '#6b7280' }}>
               <p style={{ margin: '2px 0' }}>
-                Issue Date: {format(new Date(challan.challan_date), 'dd MMM yyyy')}
+                Issue Date: {format(new Date(challan.challan_date), 'dd/MM/yyyy')}
               </p>
               {(challan as any).invoice?.invoice_number && (
                 <p style={{ margin: '2px 0' }}>
@@ -611,7 +611,7 @@ export default function ChallanPrintTemplate() {
             {/* Generation info */}
             <div style={{ textAlign: 'right' }}>
               <p style={{ fontSize: '7pt', color: '#9ca3af', margin: '0 0 2px' }}>
-                Generated: {format(new Date(), 'dd MMM yyyy, HH:mm')}
+                Generated: {format(new Date(), 'dd/MM/yyyy HH:mm')}
               </p>
               <p style={{ fontSize: '7pt', color: '#9ca3af', margin: 0 }}>
                 © {new Date().getFullYear()} {company?.company_name || 'Company'}

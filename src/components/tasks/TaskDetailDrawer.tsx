@@ -176,7 +176,7 @@ export function TaskDetailDrawer({
                     </div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium">
-                        {format(new Date(task.deadline), 'dd MMM yyyy')}
+                        {format(new Date(task.deadline), 'dd/MM/yyyy')}
                       </p>
                       <TaskDueDateBadge deadline={task.deadline} status={task.status} compact showIcon={false} />
                     </div>
@@ -199,7 +199,7 @@ export function TaskDetailDrawer({
                     Last Updated
                   </div>
                   <p className="text-sm font-medium">
-                    {format(new Date(task.updated_at), 'dd MMM yyyy, HH:mm')}
+                    {format(new Date(task.updated_at), 'dd/MM/yyyy HH:mm')}
                   </p>
                 </div>
               </div>

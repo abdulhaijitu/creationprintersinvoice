@@ -273,7 +273,7 @@ export function ImportPriceCalculationDialog({
                         )}
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3.5 w-3.5" />
-                          {format(new Date(calc.created_at), 'dd MMM yyyy')}
+                          {format(new Date(calc.created_at), 'dd/MM/yyyy')}
                         </span>
                       </div>
                     </div>

@@ -936,7 +936,7 @@ export const PrintTemplate = ({
             {/* Generation info */}
             <div style={{ textAlign: 'right' }}>
               <p style={{ fontSize: '7pt', color: '#9ca3af', margin: '0 0 2px' }}>
-                Generated: {format(new Date(), 'dd MMM yyyy, HH:mm')}
+                Generated: {format(new Date(), 'dd/MM/yyyy HH:mm')}
               </p>
               <p style={{ fontSize: '7pt', color: '#9ca3af', margin: 0 }}>
                 © {new Date().getFullYear()} {companyName}

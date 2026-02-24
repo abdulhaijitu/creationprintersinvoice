@@ -283,7 +283,7 @@ export const OrgAuditLogViewer: React.FC = () => {
                         onClick={() => { setSelectedLog(log); setDetailOpen(true); }}
                       >
                         <TableCell className="font-mono text-xs text-muted-foreground">
-                          {format(new Date(log.timestamp), 'MMM d, HH:mm')}
+                          {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')}
                         </TableCell>
                         <TableCell>
                           <Badge className={cn('text-xs font-medium', ACTION_TYPE_COLORS[log.action_type] || 'bg-muted')}>

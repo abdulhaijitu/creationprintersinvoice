@@ -55,7 +55,7 @@ export function PriceCalculationCard({
 
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
-            {format(new Date(calculation.created_at), 'dd MMM yyyy')}
+            {format(new Date(calculation.created_at), 'dd/MM/yyyy')}
           </span>
           <span className="font-semibold text-primary">
             {formatCurrency(Number(calculation.final_price) || 0)}

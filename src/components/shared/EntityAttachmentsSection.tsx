@@ -99,7 +99,7 @@ export function EntityAttachmentsSection({ entityType, entityId, canUpload = tru
                     <p className="text-sm font-medium truncate">{att.file_name}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatFileSize(att.file_size)}
-                      {att.created_at && ` · ${format(new Date(att.created_at), 'MMM d, yyyy')}`}
+                      {att.created_at && ` · ${format(new Date(att.created_at), 'dd/MM/yyyy')}`}
                     </p>
                   </div>
                 </div>

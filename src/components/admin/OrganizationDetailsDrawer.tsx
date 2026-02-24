@@ -467,7 +467,7 @@ const OrganizationDetailsDrawer = ({
                     <div>
                       <p className="text-muted-foreground">Created</p>
                       <p className="font-medium">
-                        {format(new Date(organization.created_at), 'MMM d, yyyy')}
+                        {format(new Date(organization.created_at), 'dd/MM/yyyy')}
                       </p>
                     </div>
                   </div>
@@ -704,7 +704,7 @@ const OrganizationDetailsDrawer = ({
                             </TableCell>
                             <TableCell>{getRoleBadge(member.role)}</TableCell>
                             <TableCell>
-                              {format(new Date(member.created_at), 'MMM d, yyyy')}
+                              {format(new Date(member.created_at), 'dd/MM/yyyy')}
                             </TableCell>
                             <TableCell>
                               <Button
@@ -809,7 +809,7 @@ const OrganizationDetailsDrawer = ({
                   <CardContent>
                     <div className="text-lg font-medium">
                       {usageStats?.last_activity 
-                        ? format(new Date(usageStats.last_activity), 'MMM d, yyyy')
+                        ? format(new Date(usageStats.last_activity), 'dd/MM/yyyy')
                         : 'No activity'}
                     </div>
                   </CardContent>

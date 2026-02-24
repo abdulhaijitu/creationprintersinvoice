@@ -288,7 +288,7 @@ const CustomerDetail = () => {
             )}
             <div className="pt-4 border-t">
               <p className="text-xs text-muted-foreground">
-                Customer since {format(new Date(customer.created_at), "MMM dd, yyyy")}
+                Customer since {format(new Date(customer.created_at), "dd/MM/yyyy")}
               </p>
             </div>
           </CardContent>
@@ -330,10 +330,10 @@ const CustomerDetail = () => {
                             onClick={() => navigate(`/invoices/${invoice.id}`)}
                           >
                             <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                            <TableCell>{format(new Date(invoice.invoice_date), "MMM dd, yyyy")}</TableCell>
+                            <TableCell>{format(new Date(invoice.invoice_date), "dd/MM/yyyy")}</TableCell>
                             <TableCell>
                               {invoice.due_date
-                                ? format(new Date(invoice.due_date), "MMM dd, yyyy")
+                                ? format(new Date(invoice.due_date), "dd/MM/yyyy")
                                 : "-"}
                             </TableCell>
                             <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
@@ -367,7 +367,7 @@ const CustomerDetail = () => {
                       <TableBody>
                         {payments.map((payment) => (
                           <TableRow key={payment.id}>
-                            <TableCell>{format(new Date(payment.payment_date), "MMM dd, yyyy")}</TableCell>
+                            <TableCell>{format(new Date(payment.payment_date), "dd/MM/yyyy")}</TableCell>
                             <TableCell
                               className="font-medium cursor-pointer hover:underline"
                               onClick={() => navigate(`/invoices/${payment.invoice_id}`)}

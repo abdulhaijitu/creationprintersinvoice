@@ -323,7 +323,7 @@ const Payments = () => {
                       return (
                         <TableRow key={payment.id}>
                           <TableCell>
-                            {format(parseISO(payment.payment_date), 'dd MMM')}
+                            {format(parseISO(payment.payment_date), 'dd/MM/yyyy')}
                           </TableCell>
                           <TableCell>
                             <Button
@@ -430,7 +430,7 @@ const Payments = () => {
                           {invoice?.customers?.name || 'No Customer'}
                         </p>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
-                          <span>{format(parseISO(payment.payment_date), 'dd MMM yyyy')}</span>
+                          <span>{format(parseISO(payment.payment_date), 'dd/MM/yyyy')}</span>
                           {payment.payment_method && (
                             <span className="capitalize">• {payment.payment_method}</span>
                           )}

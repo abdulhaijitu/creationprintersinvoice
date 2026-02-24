@@ -138,7 +138,7 @@ function TaskTreeItem({
                       {task.deadline && (
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {format(new Date(task.deadline), 'dd MMM')}
+                          {format(new Date(task.deadline), 'dd/MM/yyyy')}
                         </span>
                       )}
                       {childStatusSummary && (

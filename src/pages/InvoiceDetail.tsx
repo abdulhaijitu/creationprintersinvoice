@@ -266,7 +266,7 @@ const InvoiceDetail = () => {
             <div>
               <h1 className="text-3xl font-bold">Invoice #{invoice.invoice_number}</h1>
               <p className="text-muted-foreground">
-                {format(new Date(invoice.invoice_date), 'dd MMMM yyyy')}
+                {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
               </p>
             </div>
           </div>
@@ -593,7 +593,7 @@ const InvoiceDetail = () => {
                           <div className="flex items-center gap-1 text-xs text-muted-foreground pt-1 border-t border-border/50">
                             <User className="h-3 w-3" />
                             <span>
-                              Recorded {format(new Date(payment.created_at), 'dd MMM yyyy, HH:mm')}
+                              Recorded {format(new Date(payment.created_at), 'dd/MM/yyyy HH:mm')}
                             </span>
                           </div>
                         </div>

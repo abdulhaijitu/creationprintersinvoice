@@ -162,11 +162,11 @@ export const DeviceRestrictionSettings: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {device.last_used_at
-                          ? format(new Date(device.last_used_at), 'MMM d, h:mm a')
+                          ? format(new Date(device.last_used_at), 'dd/MM/yyyy HH:mm')
                           : 'Never'}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(device.created_at), 'MMM d, yyyy')}
+                        {format(new Date(device.created_at), 'dd/MM/yyyy')}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">

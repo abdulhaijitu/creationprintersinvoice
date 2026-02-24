@@ -272,7 +272,7 @@ export const InvestorDashboard: React.FC = () => {
                         if (active && payload && payload.length) {
                           return (
                             <div className="bg-popover border rounded-lg shadow-lg p-3">
-                              <p className="text-sm font-medium">{format(new Date(payload[0].payload.snapshot_date), 'MMM d, yyyy')}</p>
+                              <p className="text-sm font-medium">{format(new Date(payload[0].payload.snapshot_date), 'dd/MM/yyyy')}</p>
                               <p className="text-sm text-muted-foreground">
                                 MRR: <span className="font-medium text-foreground">{formatCurrency(payload[0].value as number)}</span>
                               </p>
