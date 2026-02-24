@@ -42,8 +42,10 @@ import {
   Plus, Search, Wallet, Calendar, Filter, Download, 
   Building2, Eye, Edit2, Phone, Mail, AlertCircle,
   FileText, CreditCard, Receipt, Tag, Trash2, Users, Pencil,
-  BarChart3, ChevronDown,
+  BarChart3, ChevronDown, Smartphone, X,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { TableFooter } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { VendorSelect } from "@/components/shared/VendorSelect";
@@ -759,6 +761,46 @@ const Expenses = () => {
   const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
   const totalVendorDue = vendors.reduce((sum, v) => sum + (v.due_amount || 0), 0);
 
+  // Category expense totals for progress bars
+  const categoryExpenseTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    expenses.forEach((exp) => {
+      if (exp.category_id) {
+        totals[exp.category_id] = (totals[exp.category_id] || 0) + exp.amount;
+      }
+    });
+    return totals;
+  }, [expenses]);
+
+  const maxCategoryTotal = useMemo(() => {
+    const vals = Object.values(categoryExpenseTotals);
+    return vals.length > 0 ? Math.max(...vals) : 1;
+  }, [categoryExpenseTotals]);
+
+  // Active filter count
+  const activeFilterCount = [
+    filterCategory !== "all" ? 1 : 0,
+    filterVendor !== "all" ? 1 : 0,
+    filterMonth ? 1 : 0,
+    searchTerm ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
+
+  const clearAllFilters = () => {
+    setSearchTerm("");
+    setFilterCategory("all");
+    setFilterVendor("all");
+    setFilterMonth("");
+  };
+
+  const getPaymentMethodIcon = (method: string) => {
+    switch (method) {
+      case "cash": return <Wallet className="h-3.5 w-3.5" />;
+      case "bank": return <CreditCard className="h-3.5 w-3.5" />;
+      case "bkash": return <Smartphone className="h-3.5 w-3.5" />;
+      default: return <Wallet className="h-3.5 w-3.5" />;
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-BD", {
       style: "currency",
@@ -898,6 +940,7 @@ const Expenses = () => {
           >
             <Building2 className="h-4 w-4" />
             <span>Vendors</span>
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-medium">{vendors.length}</Badge>
           </TabsTrigger>
           <TabsTrigger 
             value="expenses" 
@@ -905,6 +948,7 @@ const Expenses = () => {
           >
             <Wallet className="h-4 w-4" />
             <span>Expenses</span>
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-medium">{expenses.length}</Badge>
           </TabsTrigger>
           <TabsTrigger 
             value="categories" 
@@ -912,6 +956,7 @@ const Expenses = () => {
           >
             <Tag className="h-4 w-4" />
             <span>Categories</span>
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-medium">{categories.length}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -1276,11 +1321,17 @@ const Expenses = () => {
                   </TableRow>
                 ) : (
                   filteredVendors.map((vendor) => (
-                    <TableRow key={vendor.id} className="hover:bg-muted/30 transition-colors duration-150">
+                    <TableRow key={vendor.id} className={cn(
+                      "hover:bg-muted/30 transition-colors duration-150",
+                      (vendor.due_amount || 0) > 0 && "bg-destructive/5"
+                    )}>
                       <TableCell className="py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/60 flex-shrink-0">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <div className={cn(
+                            "flex h-9 w-9 items-center justify-center rounded-full flex-shrink-0 text-sm font-semibold",
+                            (vendor.due_amount || 0) > 0 ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
+                          )}>
+                            {vendor.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
                             <p className="font-medium truncate max-w-[150px]">{vendor.name}</p>
@@ -1385,27 +1436,35 @@ const Expenses = () => {
               filteredVendors.map((vendor) => (
                 <div
                   key={vendor.id}
-                  className="bg-card border rounded-lg p-4 space-y-3"
+                  className={cn(
+                    "bg-card border rounded-lg p-4 space-y-3 border-l-4",
+                    (vendor.due_amount || 0) > 0 ? "border-l-destructive" : "border-l-primary"
+                  )}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="font-semibold text-sm truncate">{vendor.name}</span>
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={cn(
+                        "flex h-10 w-10 items-center justify-center rounded-full flex-shrink-0 text-sm font-bold",
+                        (vendor.due_amount || 0) > 0 ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
+                      )}>
+                        {vendor.name.charAt(0).toUpperCase()}
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
-                        {vendor.phone && (
-                          <span className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" />
-                            {vendor.phone}
-                          </span>
-                        )}
-                        {vendor.email && (
-                          <span className="flex items-center gap-1 truncate max-w-[150px]">
-                            <Mail className="h-3 w-3" />
-                            {vendor.email}
-                          </span>
-                        )}
+                      <div className="min-w-0">
+                        <span className="font-semibold text-sm truncate block">{vendor.name}</span>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                          {vendor.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {vendor.phone}
+                            </span>
+                          )}
+                          {vendor.email && (
+                            <span className="flex items-center gap-1 truncate max-w-[150px]">
+                              <Mail className="h-3 w-3" />
+                              {vendor.email}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <Button 
@@ -1426,44 +1485,52 @@ const Expenses = () => {
                       <span className="font-medium text-success">{formatCurrency(vendor.total_paid || 0)}</span>
                     </div>
                     {(vendor.due_amount || 0) > 0 && (
-                      <div>
-                        <span className="text-muted-foreground">Due: </span>
-                        <span className="font-medium text-destructive">{formatCurrency(vendor.due_amount || 0)}</span>
-                      </div>
+                      <Badge variant="destructive" className="text-xs font-semibold">
+                        Due: {formatCurrency(vendor.due_amount || 0)}
+                      </Badge>
                     )}
                   </div>
-                  {(canEditVendors || canDeleteVendors) && (
-                    <div className="flex items-center gap-2 pt-2">
+                  {/* Quick actions row */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-8 text-xs"
+                      onClick={() => openVendorBillDialog(vendor.id)}
+                    >
+                      <FileText className="h-3.5 w-3.5 mr-1" />
+                      Add Bill
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-8 text-xs"
+                      onClick={() => openVendorPaymentDialog(vendor.id)}
+                    >
+                      <CreditCard className="h-3.5 w-3.5 mr-1" />
+                      Pay
+                    </Button>
+                    {canEditVendors && (
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
-                        onClick={() => navigate(`/vendors/${vendor.id}`)}
+                        className="h-8 w-8 p-0"
+                        onClick={() => openEditVendorDialog(vendor)}
                       >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
+                        <Edit2 className="h-3.5 w-3.5" />
                       </Button>
-                      {canEditVendors && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditVendorDialog(vendor)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canDeleteVendors && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteVendor(vendor.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                    )}
+                    {canDeleteVendors && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteVendor(vendor.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))
             )}
@@ -1473,7 +1540,7 @@ const Expenses = () => {
         {/* Daily Expenses Tab - Polished */}
         <TabsContent value="expenses" className="space-y-4">
           {/* Single Row Filter Bar - Scrollable on small screens */}
-          <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin">
+           <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin">
             {/* Search */}
             <div className="relative flex-shrink-0 w-[180px] sm:w-[200px] lg:flex-1 lg:max-w-xs">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
@@ -1531,6 +1598,21 @@ const Expenses = () => {
                 className="h-10 w-full pl-10 bg-muted/40 border-muted/60"
               />
             </div>
+
+            {/* Clear Filters */}
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" size="sm" className="h-10 gap-1.5 flex-shrink-0 text-muted-foreground hover:text-foreground" onClick={clearAllFilters}>
+                <X className="h-3.5 w-3.5" />
+                Clear ({activeFilterCount})
+              </Button>
+            )}
+
+            {/* Total Amount Badge */}
+            {filteredExpenses.length > 0 && (
+              <Badge variant="destructive" className="flex-shrink-0 h-7 px-3 text-xs font-semibold hidden sm:flex">
+                Total: {formatCurrency(totalExpenses)}
+              </Badge>
+            )}
             
             {/* Spacer to push buttons to right on large screens */}
             <div className="hidden lg:flex flex-1" />
@@ -1762,7 +1844,7 @@ const Expenses = () => {
                         )}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">{getPaymentMethodBadge(expense.payment_method || "cash")}</TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">
+                      <TableCell className="text-right font-semibold tabular-nums text-destructive">
                         {formatCurrency(expense.amount)}
                       </TableCell>
                       {(canEditExpenses || canDeleteExpenses) && (
@@ -1790,6 +1872,20 @@ const Expenses = () => {
                   ))
                 )}
               </TableBody>
+              {/* Table Footer with Total */}
+              {sortedExpenses.length > 0 && (
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-right font-semibold text-sm">
+                      Total
+                    </TableCell>
+                    <TableCell className="text-right font-bold tabular-nums text-destructive">
+                      {formatCurrency(totalExpenses)}
+                    </TableCell>
+                    {(canEditExpenses || canDeleteExpenses) && <TableCell />}
+                  </TableRow>
+                </TableFooter>
+              )}
             </Table>
           </div>
 
@@ -1814,21 +1910,29 @@ const Expenses = () => {
               sortedExpenses.map((expense) => (
                 <div
                   key={expense.id}
-                  className="bg-card border rounded-lg p-4 space-y-3"
+                  className="bg-card border rounded-lg p-4 space-y-3 border-l-4 border-l-destructive"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm line-clamp-2">
-                        {expense.description}
-                      </p>
-                      <p className="text-lg font-semibold text-destructive mt-1">
-                        {formatCurrency(expense.amount)}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
-                        <span>{format(new Date(expense.date), 'dd/MM/yyyy')}</span>
-                        {expense.payment_method && (
-                          <span className="capitalize">• {expense.payment_method}</span>
-                        )}
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive flex-shrink-0 mt-0.5">
+                        {getPaymentMethodIcon(expense.payment_method || "cash")}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm line-clamp-2">
+                          {expense.description}
+                        </p>
+                        <p className="text-lg font-bold text-destructive mt-0.5">
+                          {formatCurrency(expense.amount)}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                          <span>{format(new Date(expense.date), 'dd/MM/yyyy')}</span>
+                          {expense.payment_method && (
+                            <span className="capitalize flex items-center gap-1">
+                              {getPaymentMethodIcon(expense.payment_method)}
+                              {expense.payment_method}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     {(canEditExpenses || canDeleteExpenses) && (
@@ -1879,7 +1983,10 @@ const Expenses = () => {
         <TabsContent value="categories" className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h2 className="text-lg font-semibold">Expense Categories</h2>
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                Expense Categories
+                <Badge variant="secondary" className="text-xs">{categories.length}</Badge>
+              </h2>
               <p className="text-sm text-muted-foreground">Create categories by expense type</p>
             </div>
             {canCreateCategories && (
@@ -1969,14 +2076,23 @@ const Expenses = () => {
               categories.map((category) => {
                 const expenseCount = expenses.filter(e => e.category_id === category.id).length;
                 const hasLinkedExpenses = expenseCount > 0;
+                const categoryTotal = categoryExpenseTotals[category.id] || 0;
+                const progressPercent = maxCategoryTotal > 0 ? (categoryTotal / maxCategoryTotal) * 100 : 0;
                 
                 return (
-                  <Card key={category.id}>
+                  <Card key={category.id} className="hover:shadow-md transition-shadow duration-200">
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <Tag className="h-5 w-5 text-primary" />
-                          <CardTitle className="text-lg">{category.name}</CardTitle>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 flex-shrink-0">
+                            <Tag className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-base">{category.name}</CardTitle>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {expenseCount} expense{expenseCount !== 1 ? 's' : ''}
+                            </p>
+                          </div>
                         </div>
                         {(canEditCategories || canDeleteCategories) && (
                           <div className="flex gap-1">
@@ -2022,13 +2138,16 @@ const Expenses = () => {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-muted-foreground">
-                        {category.description || "No description"}
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {category.description || <span className="italic opacity-60">No description</span>}
                       </p>
-                      <div className="mt-3 text-sm">
-                        <Badge variant="outline">
-                          {expenseCount} expense{expenseCount !== 1 ? 's' : ''}
-                        </Badge>
+                      {/* Total spending + progress */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Total Spent</span>
+                          <span className="font-semibold text-destructive tabular-nums">{formatCurrency(categoryTotal)}</span>
+                        </div>
+                        <Progress value={progressPercent} className="h-2" />
                       </div>
                     </CardContent>
                   </Card>
