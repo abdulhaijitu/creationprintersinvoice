@@ -93,7 +93,7 @@ const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const isHomePage = location.pathname === '/' || location.pathname === '/dashboard';
+  const isHomePage = location.pathname === '/';
 
   // Only block on auth loading - show shell immediately
   // Organization loading can happen in background
