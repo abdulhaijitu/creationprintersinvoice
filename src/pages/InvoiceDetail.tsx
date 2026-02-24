@@ -459,20 +459,38 @@ const InvoiceDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Notes */}
-            {invoice.notes && (
-              <Card className="border-info/20 bg-info/5">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-info flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-info" />
-                    Notes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div 
-                    className="prose prose-sm max-w-none prose-p:m-0 prose-p:leading-relaxed prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-a:text-primary prose-a:underline text-muted-foreground"
-                    dangerouslySetInnerHTML={{ __html: invoice.notes }}
-                  />
+            {/* Notes & Terms Footer */}
+            {(invoice.notes || (invoice as any).terms) && (
+              <Card className="overflow-hidden">
+                <div className="h-1 bg-gradient-to-r from-info/60 to-warning/60" />
+                <CardContent className="p-0 divide-y divide-border/50">
+                  {/* Notes */}
+                  {invoice.notes && (
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="w-1.5 h-1.5 rounded-full bg-info" />
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notes</h4>
+                      </div>
+                      <div 
+                        className="prose prose-sm max-w-none prose-p:m-0 prose-p:leading-relaxed prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-a:text-primary prose-a:underline text-muted-foreground"
+                        dangerouslySetInnerHTML={{ __html: invoice.notes }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Terms & Conditions */}
+                  {(invoice as any).terms && (
+                    <div className="p-5 bg-muted/30">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Terms & Conditions</h4>
+                      </div>
+                      <div 
+                        className="prose prose-sm max-w-none prose-p:m-0 prose-p:leading-relaxed prose-ul:my-1 prose-ol:my-1 prose-li:my-0 text-muted-foreground"
+                        dangerouslySetInnerHTML={{ __html: (invoice as any).terms }}
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
