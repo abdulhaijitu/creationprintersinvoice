@@ -2,24 +2,18 @@
 
 ## সমস্যা
 
-`Settings.tsx` ফাইলের শেষে (line 825-829) `SmsNotificationSettings` এবং `DataExportSection` কম্পোনেন্ট দুটি `<Tabs>` এর **বাইরে** রেন্ডার হচ্ছে। ফলে প্রতিটি ট্যাবে এই দুটি সেকশন দেখা যাচ্ছে।
-
-## সমাধান
-
-| কম্পোনেন্ট | সঠিক স্থান |
-|---|---|
-| `SmsNotificationSettings` | **Invoice** ট্যাবের ভেতরে (Invoice Settings কার্ডের পরে) |
-| `DataExportSection` | **Company** ট্যাবের ভেতরে (Company Information কার্ডের পরে) |
+বর্তমানে "Add Item" বাটনটি Items কার্ডের **হেডারে** (উপরে ডানদিকে) আছে। ইউজার চাইছেন এটি আইটেম লিস্টের **নিচে ইনলাইন** থাকুক — যেমন অনেক ইনভয়েস সফটওয়্যারে থাকে।
 
 ## পরিবর্তন
 
-### ফাইল: `src/pages/Settings.tsx`
+### ফাইল: `src/pages/InvoiceForm.tsx`
 
-1. **Invoice ট্যাবে SMS Notifications সরানো** — `TabsContent value="invoice"` ব্লকের ভেতরে, Invoice Settings কার্ডের পরে `<SmsNotificationSettings isReadOnly={tabPermissions.invoice.isReadOnly} />` যোগ করা হবে।
+1. **হেডার থেকে "Add Item" বাটন সরানো** — CardHeader থেকে বাটনটি মুছে দেওয়া হবে, শুধু "Items" টাইটেল থাকবে।
 
-2. **Company ট্যাবে Data Export সরানো** — `TabsContent value="company"` ব্লকের ভেতরে, Company Information কার্ডের পরে `<DataExportSection />` যোগ করা হবে।
+2. **ইনলাইনে "Add Item" বাটন যোগ করা** — CardContent এর ভেতরে, আইটেম টেবিল/কার্ড লিস্টের পরে একটি `+ Add Item` বাটন যোগ হবে:
+   - Desktop: টেবিলের নিচে full-width dashed border বাটন
+   - Mobile: কার্ড লিস্টের নিচে একই ধরনের বাটন
+   - স্টাইল: `variant="ghost"` বা dashed border, `text-muted-foreground` কালার, হোভারে হাইলাইট
 
-3. **বাইরের রেন্ডার সরিয়ে দেওয়া** — Line 825-829 এর `<SmsNotificationSettings />` এবং `<DataExportSection />` মুছে ফেলা হবে।
-
-এতে প্রতিটি কম্পোনেন্ট শুধুমাত্র তার প্রাসঙ্গিক ট্যাবেই দেখা যাবে।
+এতে Items সেকশনের UX আরও ইন্টুইটিভ হবে — ইউজার আইটেম যোগ করতে স্ক্রল করে উপরে যেতে হবে না।
 
