@@ -1284,6 +1284,53 @@ export type Database = {
         }
         Relationships: []
       }
+      entity_attachments: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          organization_id: string
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          organization_id: string
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          organization_id?: string
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_attachments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_categories: {
         Row: {
           created_at: string

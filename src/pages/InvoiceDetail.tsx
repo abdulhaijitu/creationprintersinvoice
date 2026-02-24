@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { EntityAttachmentsSection } from '@/components/shared/EntityAttachmentsSection';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -600,6 +601,9 @@ const InvoiceDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Attachments */}
+      <EntityAttachmentsSection entityType="invoice" entityId={id} />
 
       {/* Add Payment Dialog */}
       <AddPaymentDialog

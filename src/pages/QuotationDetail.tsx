@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { EntityAttachmentsSection } from '@/components/shared/EntityAttachmentsSection';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -982,6 +983,9 @@ const QuotationDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Attachments */}
+      <EntityAttachmentsSection entityType="quotation" entityId={id} />
 
       {/* Convert to Invoice Dialog - Partial Conversion Enabled */}
       <PartialConversionDialog
