@@ -15,6 +15,7 @@ import {
   ArrowUp,
   Shield,
   Layers,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.png';
@@ -413,26 +414,62 @@ export const AdminSidebar = ({
     </div>
   );
 
-  // Mobile: Render Sheet
+  // Mobile: Render full-screen overlay with grid tiles
   if (isMobile) {
+    if (!mobileOpen) return null;
     return (
-      <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
-        <SheetContent 
-          side="left" 
-          className="w-[280px] p-0 bg-sidebar text-sidebar-foreground"
-        >
-          <SheetHeader className="h-16 flex-row items-center justify-between border-b border-sidebar-border px-4">
-            <SheetTitle className="flex items-center">
-              <img 
-                src={logo} 
-                alt="PrintoSaas" 
-                className="h-8 w-auto object-contain"
-              />
-            </SheetTitle>
-          </SheetHeader>
-          <SidebarContent isMobileView />
-        </SheetContent>
-      </Sheet>
+      <div className="fixed inset-0 z-50 bg-sidebar text-sidebar-foreground flex flex-col animate-in fade-in duration-200">
+        {/* Header */}
+        <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4 shrink-0">
+          <img src={logo} alt="PrintoSaas" className="h-8 w-auto object-contain" />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => onMobileOpenChange?.(false)}
+            className="text-sidebar-muted hover:text-sidebar-foreground"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* Grid Tiles */}
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-5">
+            {filteredGroups.map((group) => (
+              <div key={group.id}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted mb-2 px-1">
+                  {group.label}
+                </p>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {group.items.map((item) => {
+                    const isActive = activeSection === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleSectionClick(item.id)}
+                        className={cn(
+                          'flex flex-col items-center justify-center gap-2 rounded-xl p-3 aspect-square text-center transition-all duration-200',
+                          isActive
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                            : 'bg-sidebar-accent/50 text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                        )}
+                      >
+                        <item.icon className={cn('h-6 w-6 shrink-0', isActive ? 'text-sidebar-primary-foreground' : 'text-sidebar-muted')} />
+                        <span className="text-[10px] font-medium leading-tight line-clamp-2">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+
+        {/* Footer */}
+        <div className="border-t border-sidebar-border p-3 shrink-0">
+          <AdminUserMenu collapsed={false} onSignOut={onSignOut} />
+        </div>
+      </div>
     );
   }
 
