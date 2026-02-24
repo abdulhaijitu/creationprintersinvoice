@@ -182,7 +182,7 @@ function KanbanCard({ task, isDragging, canDrag, onClick, onDragStart, onDragEnd
             </Badge>
           )}
           {task.priority === "high" && (
-            <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] px-1.5 py-0 h-4">
+            <Badge className="bg-warning hover:bg-warning/90 text-warning-foreground text-[10px] px-1.5 py-0 h-4">
               High
             </Badge>
           )}

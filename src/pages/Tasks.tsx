@@ -173,7 +173,7 @@ const Tasks = () => {
       case "urgent":
         return <Badge variant="destructive" className="animate-pulse">Urgent</Badge>;
       case "high":
-        return <Badge className="bg-orange-500 hover:bg-orange-600 text-white">{priorityLabels[priority]}</Badge>;
+        return <Badge className="bg-warning hover:bg-warning/90 text-warning-foreground">{priorityLabels[priority]}</Badge>;
       case "medium":
         return <Badge variant="secondary">{priorityLabels[priority]}</Badge>;
       default:

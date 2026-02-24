@@ -727,7 +727,7 @@ const Expenses = () => {
       case "bank":
         return <Badge variant="secondary">Bank</Badge>;
       case "bkash":
-        return <Badge className="bg-pink-500">bKash</Badge>;
+        return <Badge className="bg-primary/80 text-primary-foreground">bKash</Badge>;
       default:
         return <Badge variant="outline">{method}</Badge>;
     }
@@ -803,15 +803,15 @@ const Expenses = () => {
           </CardContent>
         </Card>
         
-        <Card className="border-red-200/50 bg-red-50/30 dark:border-red-900/30 dark:bg-red-950/20 shadow-sm">
+        <Card className="border-destructive/20 bg-destructive/5 shadow-sm">
           <CardHeader className="pb-2 pt-4 px-5">
-            <CardTitle className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wider flex items-center gap-2">
+            <CardTitle className="text-xs font-medium text-destructive uppercase tracking-wider flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
               Vendor Due
             </CardTitle>
           </CardHeader>
           <CardContent className="px-5 pb-4">
-            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400 tabular-nums truncate">{formatCurrency(totalVendorDue)}</p>
+            <p className="text-lg sm:text-2xl font-bold text-destructive tabular-nums truncate">{formatCurrency(totalVendorDue)}</p>
           </CardContent>
         </Card>
         
@@ -1250,7 +1250,7 @@ const Expenses = () => {
                       <TableCell className="py-4 text-right font-medium tabular-nums">
                         {formatCurrency(vendor.total_bills || 0)}
                       </TableCell>
-                      <TableCell className="py-4 text-right font-medium text-green-600 dark:text-green-400 tabular-nums hidden xl:table-cell">
+                      <TableCell className="py-4 text-right font-medium text-success tabular-nums hidden xl:table-cell">
                         {formatCurrency(vendor.total_paid || 0)}
                       </TableCell>
                       <TableCell className="py-4 text-right">

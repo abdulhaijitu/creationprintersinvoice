@@ -49,7 +49,7 @@ export function TaskPriorityBadge({
     high: {
       variant: 'default' as const,
       icon: ArrowUp,
-      className: 'bg-orange-500 hover:bg-orange-600 text-white',
+      className: 'bg-warning hover:bg-warning/90 text-warning-foreground',
     },
     urgent: {
       variant: 'destructive' as const,

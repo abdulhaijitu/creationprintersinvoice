@@ -709,17 +709,17 @@ const Reports = () => {
                 <CardDescription>Payment status overview</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex justify-between items-center p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/50 dark:border-emerald-800/30">
-                  <span className="font-medium text-emerald-700 dark:text-emerald-300">Paid</span>
-                  <Badge className="bg-emerald-600 text-white text-sm px-3">{reportData.paidInvoices}</Badge>
+                <div className="flex justify-between items-center p-4 rounded-xl bg-success/5 border border-success/20">
+                  <span className="font-medium text-success">Paid</span>
+                  <Badge className="bg-success text-success-foreground text-sm px-3">{reportData.paidInvoices}</Badge>
                 </div>
-                <div className="flex justify-between items-center p-4 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200/50 dark:border-rose-800/30">
-                  <span className="font-medium text-rose-700 dark:text-rose-300">Unpaid/Partial</span>
-                  <Badge className="bg-rose-600 text-white text-sm px-3">{reportData.unpaidInvoices}</Badge>
+                <div className="flex justify-between items-center p-4 rounded-xl bg-destructive/5 border border-destructive/20">
+                  <span className="font-medium text-destructive">Unpaid/Partial</span>
+                  <Badge className="bg-destructive text-destructive-foreground text-sm px-3">{reportData.unpaidInvoices}</Badge>
                 </div>
-                <div className="flex justify-between items-center p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/30">
-                  <span className="font-medium text-amber-700 dark:text-amber-300">Vendor Due</span>
-                  <span className="font-bold text-amber-600 dark:text-amber-400">{formatCurrency(reportData.vendorDue)}</span>
+                <div className="flex justify-between items-center p-4 rounded-xl bg-warning/5 border border-warning/20">
+                  <span className="font-medium text-warning">Vendor Due</span>
+                  <span className="font-bold text-warning">{formatCurrency(reportData.vendorDue)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -909,10 +909,10 @@ const Reports = () => {
                     >
                       <div className="flex items-center gap-4">
                         <div className={cn(
-                          "w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm transition-transform group-hover:scale-110",
-                          index === 0 ? "bg-gradient-to-br from-amber-500 to-orange-500" :
-                          index === 1 ? "bg-gradient-to-br from-slate-400 to-slate-500" :
-                          index === 2 ? "bg-gradient-to-br from-amber-700 to-amber-800" :
+                          "w-10 h-10 rounded-xl flex items-center justify-center text-primary-foreground font-bold text-sm shadow-sm transition-transform group-hover:scale-110",
+                          index === 0 ? "bg-gradient-to-br from-warning to-primary" :
+                          index === 1 ? "bg-gradient-to-br from-muted-foreground/60 to-muted-foreground/80" :
+                          index === 2 ? "bg-gradient-to-br from-warning/70 to-warning/90" :
                           "bg-gradient-to-br from-primary to-primary/80"
                         )}>
                           {index + 1}
