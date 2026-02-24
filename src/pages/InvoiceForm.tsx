@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useCompanySettings } from '@/contexts/CompanySettingsContext';
 import { useCostingPermissions } from '@/hooks/useCostingPermissions';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
@@ -121,10 +122,12 @@ const InvoiceForm = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { organization } = useOrganization();
+  const { settings: companySettings } = useCompanySettings();
   const isEditing = Boolean(id);
   const isMobile = useIsMobile();
   
   const costingPermissions = useCostingPermissions();
+  const [termsFromCompany, setTermsFromCompany] = useState(false);
   
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -160,6 +163,24 @@ const InvoiceForm = () => {
     }
   }, [id, isEditing]);
 
+  // Auto-populate terms from company settings for new invoices
+  useEffect(() => {
+    if (!isEditing && companySettings) {
+      setFormData(prev => {
+        const updates = { ...prev };
+        if (companySettings.invoice_terms && !prev.terms) {
+          updates.terms = companySettings.invoice_terms;
+          setTermsFromCompany(true);
+        }
+        if (companySettings.invoice_footer && !prev.notes) {
+          updates.notes = companySettings.invoice_footer;
+          setNotesFromDefault(true);
+        }
+        return updates;
+      });
+    }
+  }, [isEditing, companySettings]);
+
   const fetchCustomers = async () => {
     try {
       const { data, error } = await supabase
@@ -185,9 +206,10 @@ const InvoiceForm = () => {
         setNotesFromDefault(true);
       }
       
-      if (customer?.default_terms && (!prev.terms || termsFromDefault)) {
+      if (customer?.default_terms && (!prev.terms || termsFromDefault || termsFromCompany)) {
         updates.terms = customer.default_terms;
         setTermsFromDefault(true);
+        setTermsFromCompany(false);
       }
       
       return updates;
@@ -207,6 +229,15 @@ const InvoiceForm = () => {
     if (customer?.default_terms) {
       setFormData(prev => ({ ...prev, terms: customer.default_terms || '' }));
       setTermsFromDefault(true);
+      setTermsFromCompany(false);
+    }
+  };
+
+  const resetTermsToCompanyDefault = () => {
+    if (companySettings?.invoice_terms) {
+      setFormData(prev => ({ ...prev, terms: companySettings.invoice_terms || '' }));
+      setTermsFromCompany(true);
+      setTermsFromDefault(false);
     }
   };
 
@@ -756,27 +787,46 @@ const InvoiceForm = () => {
                         From customer default
                       </span>
                     )}
+                    {termsFromCompany && !termsFromDefault && (
+                      <span className="text-[10px] text-muted-foreground">
+                        From company settings
+                      </span>
+                    )}
                   </div>
                   <RichTextEditor
                     value={formData.terms}
                     onChange={(val) => {
                       setFormData({ ...formData, terms: val });
                       setTermsFromDefault(false);
+                      setTermsFromCompany(false);
                     }}
                     placeholder="Terms & conditions..."
                     minHeight="80px"
                   />
-                  {formData.customer_id && customers.find(c => c.id === formData.customer_id)?.default_terms && !termsFromDefault && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs h-auto py-1 px-2"
-                      onClick={resetTermsToDefault}
-                    >
-                      Reset to customer default
-                    </Button>
-                  )}
+                  <div className="flex gap-1 flex-wrap">
+                    {formData.customer_id && customers.find(c => c.id === formData.customer_id)?.default_terms && !termsFromDefault && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs h-auto py-1 px-2"
+                        onClick={resetTermsToDefault}
+                      >
+                        Reset to customer default
+                      </Button>
+                    )}
+                    {companySettings?.invoice_terms && !termsFromCompany && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs h-auto py-1 px-2"
+                        onClick={resetTermsToCompanyDefault}
+                      >
+                        Reset to company default
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

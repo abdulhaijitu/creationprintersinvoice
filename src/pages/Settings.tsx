@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -750,15 +751,18 @@ export default function Settings() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Invoice Footer</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Displayed at the bottom of invoices..." 
-                              rows={3}
-                              {...field} 
-                              value={field.value || ''} 
-                              disabled={tabPermissions.invoice.isReadOnly}
-                            />
-                          </FormControl>
+                          {tabPermissions.invoice.isReadOnly ? (
+                            <div className="border border-input rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: field.value || '<span class="text-muted-foreground">No footer set</span>' }} />
+                          ) : (
+                            <FormControl>
+                              <RichTextEditor
+                                value={field.value || ''}
+                                onChange={field.onChange}
+                                placeholder="Displayed at the bottom of invoices..."
+                                minHeight="80px"
+                              />
+                            </FormControl>
+                          )}
                           <FormMessage />
                         </FormItem>
                       )}
@@ -770,15 +774,18 @@ export default function Settings() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Terms & Conditions</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Payment and delivery terms..." 
-                              rows={4}
-                              {...field} 
-                              value={field.value || ''} 
-                              disabled={tabPermissions.invoice.isReadOnly}
-                            />
-                          </FormControl>
+                          {tabPermissions.invoice.isReadOnly ? (
+                            <div className="border border-input rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: field.value || '<span class="text-muted-foreground">No terms set</span>' }} />
+                          ) : (
+                            <FormControl>
+                              <RichTextEditor
+                                value={field.value || ''}
+                                onChange={field.onChange}
+                                placeholder="Payment and delivery terms..."
+                                minHeight="100px"
+                              />
+                            </FormControl>
+                          )}
                           <FormMessage />
                         </FormItem>
                       )}
