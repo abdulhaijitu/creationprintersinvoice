@@ -594,6 +594,9 @@ const Attendance = () => {
           <TabsTrigger value="daily" className="gap-1.5">
             <CalendarDays className="h-4 w-4" />
             <span className="hidden sm:inline">Daily</span>
+            {attendance.length > 0 && (
+              <Badge variant="secondary" size="sm" className="ml-1">{attendance.length}</Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="calendar" className="gap-1.5">
             <Calendar className="h-4 w-4" />
@@ -603,6 +606,9 @@ const Attendance = () => {
             <TabsTrigger value="bulk" className="gap-1.5">
               <Grid3X3 className="h-4 w-4" />
               <span className="hidden sm:inline">Bulk Entry</span>
+              {employees.length > 0 && (
+                <Badge variant="muted" size="sm" className="ml-1">{employees.length}</Badge>
+              )}
             </TabsTrigger>
           )}
         </TabsList>
@@ -610,21 +616,30 @@ const Attendance = () => {
         {/* Daily Tab */}
         <TabsContent value="daily" className="space-y-4">
           {/* Filters */}
-          <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:flex lg:flex-row lg:gap-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-[180px]" />
-            </div>
-            {(isAdmin || isSuperAdmin) && (
-              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger className="w-[200px]"><SelectValue placeholder="Select Employee" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Employees</SelectItem>
-                  {employees.map((emp) => (<SelectItem key={emp.id} value={emp.id}>{emp.full_name}</SelectItem>))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+          <Card>
+            <CardContent className="p-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-[180px]" />
+                </div>
+                {(isAdmin || isSuperAdmin) && (
+                  <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                    <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Select Employee" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Employees</SelectItem>
+                      {employees.map((emp) => (<SelectItem key={emp.id} value={emp.id}>{emp.full_name}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {selectedEmployee !== "all" && (
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedEmployee("all")} className="text-muted-foreground">
+                    Clear filter
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Weekly Holiday Alert */}
           {!holidaysLoading && selectedDate && isWeeklyHoliday(parseISO(selectedDate)) && (
@@ -641,13 +656,15 @@ const Attendance = () => {
           {loading ? (
             <AttendanceTableSkeleton rows={5} showActions={isAdmin} />
           ) : attendance.length === 0 ? (
-            <div className="border rounded-lg p-8">
-              <EmptyState
-                icon={ClipboardList}
-                title={isWeeklyHoliday(parseISO(selectedDate)) ? "Weekly Holiday" : "No attendance records"}
-                description={isWeeklyHoliday(parseISO(selectedDate)) ? `${format(parseISO(selectedDate), "EEEE")} is a weekly holiday.` : "No attendance records found for the selected date"}
-              />
-            </div>
+            <Card>
+              <CardContent className="p-8">
+                <EmptyState
+                  icon={isWeeklyHoliday(parseISO(selectedDate)) ? CalendarOff : ClipboardList}
+                  title={isWeeklyHoliday(parseISO(selectedDate)) ? "Weekly Holiday" : "No attendance records"}
+                  description={isWeeklyHoliday(parseISO(selectedDate)) ? `${format(parseISO(selectedDate), "EEEE")} is a weekly holiday.` : "No attendance records found for the selected date"}
+                />
+              </CardContent>
+            </Card>
           ) : (
             <>
               {/* Mobile Card View */}
@@ -666,11 +683,10 @@ const Attendance = () => {
 
               {/* Desktop Table View */}
               <div className="hidden md:block border rounded-lg overflow-x-auto">
-                <div className="min-w-[800px]">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="whitespace-nowrap">Date</TableHead>
+                        <TableHead className="whitespace-nowrap w-[40px]">#</TableHead>
                         <TableHead className="whitespace-nowrap">Employee</TableHead>
                         <TableHead className="whitespace-nowrap">Check In</TableHead>
                         <TableHead className="whitespace-nowrap">Check Out</TableHead>
@@ -682,7 +698,7 @@ const Attendance = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {attendance.map((record) => {
+                      {attendance.map((record, index) => {
                         const checkInTime = extractTimeFromDateTime(record.check_in);
                         const checkOutTime = extractTimeFromDateTime(record.check_out);
                         const duration = checkInTime && checkOutTime ? calculateDuration(checkInTime, checkOutTime, record.is_overnight_shift || false) : 0;
@@ -692,7 +708,7 @@ const Attendance = () => {
 
                         return (
                           <TableRow key={record.id} className={cn(isUpdating ? 'opacity-50' : '', statusRowBg[record.status])}>
-                            <TableCell className="whitespace-nowrap">{format(new Date(record.date), "dd MMM yyyy")}</TableCell>
+                            <TableCell className="text-muted-foreground text-xs whitespace-nowrap">{index + 1}</TableCell>
                             <TableCell className="font-medium whitespace-nowrap">{record.employee?.full_name || "-"}</TableCell>
                             <TableCell className="whitespace-nowrap">
                               {(isAdmin || canEditAttendance) ? (
@@ -749,7 +765,6 @@ const Attendance = () => {
                       })}
                     </TableBody>
                   </Table>
-                </div>
               </div>
             </>
           )}
