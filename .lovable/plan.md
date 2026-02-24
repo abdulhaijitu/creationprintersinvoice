@@ -1,44 +1,87 @@
 
 
-## Column Sorting — Invoices Table
+## Attendance পেইজ — ৪টি ফিচার যোগ করার পরিকল্পনা
 
-### পরিবর্তন
+নির্বাচিত ফিচার: **1. Monthly Calendar View**, **3. Bulk Attendance Entry**, **6. Mobile Card View**, **8. Design Enhancement**
 
-**ফাইল: `src/pages/Invoices.tsx`**
+---
 
-1. **`SortableTableHeader` ও `useSortableTable` ইম্পোর্ট করা** — `src/components/shared/SortableTableHeader.tsx` থেকে।
+### ফাইল পরিবর্তন
 
-2. **Sort state যোগ করা** — `useSortableTable` হুক ব্যবহার করে sort key ও direction ম্যানেজ করা হবে। ডিফল্ট sort: `invoice_date` descending।
+#### 1. নতুন কম্পোনেন্ট: `src/components/attendance/MonthlyCalendarView.tsx`
+- মাসভিত্তিক গ্রিড ক্যালেন্ডার (7 কলাম × 4-6 রো)
+- প্রতিটি দিনে রঙ-কোডেড ব্যাজ: Present (সবুজ), Absent (লাল), Late (হলুদ), Holiday (নীল), Leave (বেগুনি), Half Day (কমলা)
+- মাসের সামারি: Total Working Days, Present, Absent, Late, Total Hours
+- Employee ফিল্টার — নির্দিষ্ট কর্মচারীর মাসিক ভিউ অথবা সবার সামারি
+- মাস পরিবর্তনের জন্য আগের/পরের মাস বাটন
+- ক্যালেন্ডারের প্রতিটি দিনে ক্লিক করলে সেই দিনের attendance details টুলটিপে দেখাবে
 
-3. **`filteredInvoices` এ sorting প্রয়োগ** — ফিল্টার করার পরে `sortData()` কল করা হবে। তবে কিছু কলামে nested/calculated value আছে (যেমন `customers.name`, `dueAmount`), তাই `sortData` এর বদলে কাস্টম sort লজিক লাগবে:
-   - `invoice_date` → সরাসরি date comparison
-   - `invoice_number` → string sort
-   - `customer` → `invoice.customers?.name` দিয়ে sort
-   - `total` → numeric
-   - `paid_amount` → numeric
-   - `due` → calculated `total - paid_amount`
-   - `status` → `getDisplayStatus()` ফাংশন দিয়ে sort
+#### 2. নতুন কম্পোনেন্ট: `src/components/attendance/BulkAttendanceEntry.tsx`
+- Spreadsheet-style টেবিল: বাম কলামে Employee নাম, ডানে Check In ও Check Out ইনপুট
+- সব কর্মচারীর জন্য একসাথে সময় এন্ট্রি দেওয়ার সুবিধা
+- "Apply to All" বাটন — একটি সময় সবার জন্য কপি করার অপশন
+- সেভ বাটনে ক্লিক করলে batch insert/update করবে
+- ইতিমধ্যে মার্ক করা কর্মচারীদের আলাদা রঙে দেখাবে (edit mode)
+- Validation: প্রতিটি রো-তে সময় ভ্যালিডেশন চেক
 
-4. **টেবিল হেডার আপডেট** — প্রতিটি sortable কলামে `SortableTableHeader` কম্পোনেন্ট ব্যবহার করা হবে (Bulk Select ও Action কলাম বাদে)। ক্লিক করলে asc → desc → reset cycle হবে।
+#### 3. নতুন কম্পোনেন্ট: `src/components/attendance/AttendanceMobileCard.tsx`
+- মোবাইলে টেবিলের বদলে কার্ড লেআউট
+- প্রতিটি কার্ডে: Employee নাম, Check In/Out সময়, Duration, Status ব্যাজ
+- Admin হলে: inline status change ও overnight toggle
+- Swipe-friendly ডিজাইন
+
+#### 4. প্রধান ফাইল পরিবর্তন: `src/pages/Attendance.tsx`
+
+**View Tabs যোগ:**
+- তিনটি ট্যাব: "Daily" (বর্তমান ভিউ), "Calendar" (Monthly), "Bulk Entry"
+- `Tabs` কম্পোনেন্ট ব্যবহার করে ভিউ সুইচিং
+
+**Design Enhancement:**
+- **Header:** আইকনসহ টাইটেল, তারিখ ব্যাজ, এবং attendance rate percentage
+- **Summary Cards:** Collapsible করা হবে (Expenses পেইজের মতো), হোভার ইফেক্ট, গ্র্যাডিয়েন্ট আইকন ব্যাকগ্রাউন্ড
+- **টেবিল রো কালার কোডিং:** Present রো-তে সূক্ষ্ম সবুজ ব্যাকগ্রাউন্ড, Late-এ হলুদ, Absent-এ লাল
+- **Mobile Responsive:** `md:` breakpoint-এ টেবিলের বদলে `AttendanceMobileCard` দেখাবে
+
+---
 
 ### টেকনিক্যাল ডিটেইল
 
 ```text
-Before:
-<TableHead>Date</TableHead>  (plain text)
-
-After:
-<TableHead>
-  <SortableTableHeader
-    label="Date"
-    sortKey="invoice_date"
-    currentSortKey={sortKey}
-    currentSortDirection={sortDirection}
-    onSort={handleSort}
-  />
-</TableHead>
+Attendance Page Layout (After):
+┌─────────────────────────────────────┐
+│ Header: Icon + Title + Date Badge   │
+│ [Show/Hide Stats] button            │
+├─────────────────────────────────────┤
+│ Collapsible Summary Cards (4 cards) │
+├─────────────────────────────────────┤
+│ Tabs: [Daily] [Calendar] [Bulk]     │
+├─────────────────────────────────────┤
+│ Filters: Date + Employee            │
+├─────────────────────────────────────┤
+│ Daily Tab:                          │
+│   Desktop → Color-coded Table       │
+│   Mobile  → AttendanceMobileCard    │
+│                                     │
+│ Calendar Tab:                       │
+│   MonthlyCalendarView (grid)        │
+│                                     │
+│ Bulk Tab:                           │
+│   BulkAttendanceEntry (spreadsheet) │
+└─────────────────────────────────────┘
 ```
 
-- কাস্টম sort function তৈরি হবে যা nested fields (customer name) ও calculated fields (due amount) হ্যান্ডেল করবে
-- `filteredInvoices` কে sort করে `sortedInvoices` বানানো হবে, এবং টেবিল ও মোবাইল কার্ড উভয়েই `sortedInvoices` ব্যবহার করবে
+**Monthly Calendar Data Fetch:**
+- `employee_attendance` টেবিল থেকে পুরো মাসের ডাটা একবারে ফেচ (date range query)
+- Weekly holidays `useWeeklyHolidays` থেকে ম্যাপ করা হবে
+
+**Bulk Entry Save Logic:**
+- নতুন রেকর্ড → `insert`
+- বিদ্যমান রেকর্ড → `update`
+- `upsert` ব্যবহার করে একটি কলে সব সেভ হবে
+
+**Mobile Card Breakpoint:**
+- `md:hidden` → কার্ড ভিউ দেখাবে
+- `hidden md:block` → টেবিল ভিউ দেখাবে
+
+**কোনো ডাটাবেস পরিবর্তন লাগবে না** — বিদ্যমান `employee_attendance` টেবিলই ব্যবহার হবে।
 
