@@ -21,11 +21,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Trash2, ArrowLeft, Save, GripVertical } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, FileText, CalendarDays, User, Package, Receipt, StickyNote } from 'lucide-react';
 import { format } from 'date-fns';
 import { CustomerSelect } from '@/components/shared/CustomerSelect';
 import { ItemWiseCostingSection, CostingItem, InvoiceLineItem } from '@/components/invoice/ItemWiseCostingSection';
 import { formatCurrency } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 interface Customer {
   id: string;
@@ -57,64 +60,67 @@ const InvoiceItemCard = ({
   removeItem: (id: string) => void;
   canRemove: boolean;
 }) => (
-  <Card className="relative">
-    <CardContent className="pt-4 pb-3 px-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted-foreground">Item #{index + 1}</span>
-        {canRemove && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => removeItem(item.id)}
-            className="h-7 w-7 text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        )}
+  <div className="relative bg-card border border-border/60 rounded-xl p-4 space-y-3 shadow-sm">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
+          {index + 1}
+        </span>
+        <span className="text-xs font-medium text-muted-foreground">Item</span>
       </div>
+      {canRemove && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => removeItem(item.id)}
+          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      )}
+    </div>
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">Description</Label>
+      <Input
+        value={item.description}
+        onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+        placeholder="Item description"
+      />
+    </div>
+    <div className="grid grid-cols-3 gap-2">
       <div className="space-y-1.5">
-        <Label className="text-xs">Description</Label>
-        <Input
-          value={item.description}
-          onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-          placeholder="Item description"
+        <Label className="text-xs text-muted-foreground">Qty</Label>
+        <CurrencyInput
+          value={item.quantity}
+          onChange={(val) => updateItem(item.id, 'quantity', val)}
+          decimals={0}
+          formatOnBlur={false}
+          className="text-center"
         />
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="space-y-1.5">
-          <Label className="text-xs">Qty</Label>
-          <CurrencyInput
-            value={item.quantity}
-            onChange={(val) => updateItem(item.id, 'quantity', val)}
-            decimals={0}
-            formatOnBlur={false}
-            className="text-center"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Unit</Label>
-          <Input
-            value={item.unit}
-            onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
-            placeholder="pcs"
-            className="text-center"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Price</Label>
-          <CurrencyInput
-            value={item.unit_price}
-            onChange={(val) => updateItem(item.id, 'unit_price', val)}
-          />
-        </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Unit</Label>
+        <Input
+          value={item.unit}
+          onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
+          placeholder="pcs"
+          className="text-center"
+        />
       </div>
-      <div className="flex justify-between items-center pt-2 border-t">
-        <span className="text-xs text-muted-foreground">Line Total</span>
-        <span className="font-semibold">{formatCurrency(item.total)}</span>
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Price</Label>
+        <CurrencyInput
+          value={item.unit_price}
+          onChange={(val) => updateItem(item.id, 'unit_price', val)}
+        />
       </div>
-    </CardContent>
-  </Card>
+    </div>
+    <div className="flex justify-between items-center pt-3 border-t border-border/50">
+      <span className="text-xs text-muted-foreground">Line Total</span>
+      <span className="font-bold text-foreground">{formatCurrency(item.total)}</span>
+    </div>
+  </div>
 );
 
 const InvoiceForm = () => {
@@ -163,7 +169,6 @@ const InvoiceForm = () => {
     }
   }, [id, isEditing]);
 
-  // Auto-populate terms from company settings for new invoices
   useEffect(() => {
     if (!isEditing && companySettings) {
       setFormData(prev => {
@@ -187,7 +192,6 @@ const InvoiceForm = () => {
         .from('customers')
         .select('id, name, default_notes, default_terms')
         .order('name');
-
       if (error) throw error;
       setCustomers(data || []);
     } catch (error) {
@@ -197,21 +201,17 @@ const InvoiceForm = () => {
   
   const handleCustomerChange = (customerId: string) => {
     const customer = customers.find(c => c.id === customerId);
-    
     setFormData(prev => {
       const updates: typeof prev = { ...prev, customer_id: customerId };
-      
       if (customer?.default_notes && (!prev.notes || notesFromDefault)) {
         updates.notes = customer.default_notes;
         setNotesFromDefault(true);
       }
-      
       if (customer?.default_terms && (!prev.terms || termsFromDefault || termsFromCompany)) {
         updates.terms = customer.default_terms;
         setTermsFromDefault(true);
         setTermsFromCompany(false);
       }
-      
       return updates;
     });
   };
@@ -249,7 +249,6 @@ const InvoiceForm = () => {
         .select('*')
         .eq('id', id)
         .single();
-
       if (error) throw error;
 
       setInvoiceNumber(invoice.invoice_number);
@@ -440,7 +439,6 @@ const InvoiceForm = () => {
             total: item.total,
             organization_id: organization?.id,
           }));
-
           const { error: itemsError } = await supabase.from('invoice_items').insert(newInvoiceItems);
           if (itemsError) throw itemsError;
         }
@@ -528,7 +526,6 @@ const InvoiceForm = () => {
               price: item.price,
               sort_order: index,
             }));
-            
             await supabase.from('invoice_costing_items' as any).insert(costingData);
           }
         }
@@ -553,33 +550,56 @@ const InvoiceForm = () => {
     );
   }
 
+  const subtotal = calculateSubtotal();
+  const total = calculateTotal();
+
   return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/invoices')} className="shrink-0">
+    <div className="space-y-5 sm:space-y-6 animate-fade-in">
+      {/* Enhanced Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/invoices')} className="shrink-0 rounded-xl hover:bg-accent">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold truncate">{isEditing ? 'Edit Invoice' : 'New Invoice'}</h1>
-          <p className="text-sm text-muted-foreground truncate">
-            {isEditing ? `Invoice No: ${invoiceNumber}` : 'Invoice number will be generated on save'}
-          </p>
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="hidden sm:flex items-center justify-center w-11 h-11 rounded-xl bg-primary/10 text-primary shrink-0">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-bold truncate text-foreground">
+                {isEditing ? 'Edit Invoice' : 'New Invoice'}
+              </h1>
+              {isEditing && (
+                <Badge variant="secondary" className="hidden sm:inline-flex font-mono text-xs">
+                  {invoiceNumber}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+              {isEditing ? `Editing invoice ${invoiceNumber}` : 'Fill in details below — invoice number auto-generates on save'}
+            </p>
+          </div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} autoComplete="off">
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            {/* Customer, Date & Subject — merged into one card */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Invoice Details</CardTitle>
+        <div className="grid gap-5 sm:gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-5 sm:space-y-6">
+            
+            {/* Invoice Details Card - Enhanced */}
+            <Card className="overflow-hidden border-border/60">
+              <CardHeader className="pb-3 bg-muted/20">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
+                    <User className="h-3.5 w-3.5" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">Invoice Details</CardTitle>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="pt-5 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Customer *</Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-muted-foreground">Customer <span className="text-destructive">*</span></Label>
                     <CustomerSelect
                       value={formData.customer_id}
                       onValueChange={handleCustomerChange}
@@ -587,8 +607,8 @@ const InvoiceForm = () => {
                       onCustomerAdded={fetchCustomers}
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Invoice Date</Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-muted-foreground">Invoice Date</Label>
                     <Input
                       type="date"
                       value={formData.invoice_date}
@@ -597,8 +617,8 @@ const InvoiceForm = () => {
                       }
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Due Date</Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-muted-foreground">Due Date</Label>
                     <Input
                       type="date"
                       value={formData.due_date}
@@ -608,8 +628,10 @@ const InvoiceForm = () => {
                     />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Subject <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-muted-foreground">
+                    Subject <span className="text-muted-foreground/60 font-normal">(optional)</span>
+                  </Label>
                   <Input
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value.slice(0, 255) })}
@@ -620,12 +642,22 @@ const InvoiceForm = () => {
               </CardContent>
             </Card>
 
-            {/* Items */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Items</CardTitle>
+            {/* Items Card - Enhanced */}
+            <Card className="overflow-hidden border-border/60">
+              <CardHeader className="pb-3 bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
+                      <Package className="h-3.5 w-3.5" />
+                    </div>
+                    <CardTitle className="text-sm font-semibold">Line Items</CardTitle>
+                  </div>
+                  <Badge variant="outline" className="text-xs font-mono">
+                    {items.length} {items.length === 1 ? 'item' : 'items'}
+                  </Badge>
+                </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-5">
                 {isMobile ? (
                   /* Mobile: Card-based layout */
                   <div className="space-y-3">
@@ -641,25 +673,27 @@ const InvoiceForm = () => {
                     ))}
                   </div>
                 ) : (
-                  /* Desktop: Table layout */
-                  <div className="rounded-lg border overflow-hidden">
+                  /* Desktop: Enhanced Table layout */
+                  <div className="rounded-xl border border-border/60 overflow-hidden">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-10 text-center">#</TableHead>
-                          <TableHead className="min-w-[240px]">Description</TableHead>
-                          <TableHead className="text-center w-[80px]">Qty</TableHead>
-                          <TableHead className="text-center w-[80px]">Unit</TableHead>
-                          <TableHead className="text-right w-[120px]">Price</TableHead>
-                          <TableHead className="text-right w-[120px]">Total</TableHead>
-                          <TableHead className="w-10"></TableHead>
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <TableHead className="w-12 text-center font-semibold text-xs">#</TableHead>
+                          <TableHead className="min-w-[240px] font-semibold text-xs">DESCRIPTION</TableHead>
+                          <TableHead className="text-center w-[80px] font-semibold text-xs">QTY</TableHead>
+                          <TableHead className="text-center w-[80px] font-semibold text-xs">UNIT</TableHead>
+                          <TableHead className="text-right w-[120px] font-semibold text-xs">PRICE</TableHead>
+                          <TableHead className="text-right w-[120px] font-semibold text-xs">TOTAL</TableHead>
+                          <TableHead className="w-12"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {items.map((item, index) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="text-center text-muted-foreground text-sm font-medium">
-                              {index + 1}
+                          <TableRow key={item.id} className="group hover:bg-accent/30 transition-colors">
+                            <TableCell className="text-center">
+                              <span className="flex items-center justify-center w-6 h-6 mx-auto rounded-full bg-muted/50 text-muted-foreground text-xs font-medium">
+                                {index + 1}
+                              </span>
                             </TableCell>
                             <TableCell>
                               <Input
@@ -668,7 +702,7 @@ const InvoiceForm = () => {
                                   updateItem(item.id, 'description', e.target.value)
                                 }
                                 placeholder="Item description"
-                                className="border-0 shadow-none px-0 focus-visible:ring-0 h-auto py-1"
+                                className="border-0 shadow-none px-0 focus-visible:ring-0 h-auto py-1.5 text-sm"
                               />
                             </TableCell>
                             <TableCell>
@@ -701,7 +735,7 @@ const InvoiceForm = () => {
                                 className="w-full border-0 shadow-none focus-visible:ring-0 text-right"
                               />
                             </TableCell>
-                            <TableCell className="text-right font-medium tabular-nums">
+                            <TableCell className="text-right font-semibold tabular-nums text-sm">
                               {formatCurrency(item.total)}
                             </TableCell>
                             <TableCell>
@@ -711,7 +745,7 @@ const InvoiceForm = () => {
                                 size="icon"
                                 onClick={() => removeItem(item.id)}
                                 disabled={items.length === 1}
-                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive hover:bg-destructive/10"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -723,11 +757,11 @@ const InvoiceForm = () => {
                   </div>
                 )}
 
-                {/* Inline Add Item button */}
+                {/* Enhanced Add Item button */}
                 <button
                   type="button"
                   onClick={addItem}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-muted-foreground/25 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary hover:bg-accent/50"
+                  className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/20 py-3 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:text-primary hover:bg-primary/5"
                 >
                   <Plus className="h-4 w-4" />
                   Add Item
@@ -735,32 +769,37 @@ const InvoiceForm = () => {
               </CardContent>
             </Card>
 
-            {/* Item-wise Costing Section — AFTER Items (logical order) */}
+            {/* Item-wise Costing Section */}
             {costingPermissions.canView && (
               <ItemWiseCostingSection
                 invoiceItems={items}
                 costingItems={costingItems}
                 onCostingItemsChange={setCostingItems}
                 permissions={costingPermissions}
-                invoiceTotal={calculateTotal()}
+                invoiceTotal={total}
                 invoiceId={id}
                 isNewInvoice={!isEditing}
               />
             )}
 
-            {/* Notes & Terms */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Notes & Terms</CardTitle>
+            {/* Notes & Terms Card - Enhanced */}
+            <Card className="overflow-hidden border-border/60">
+              <CardHeader className="pb-3 bg-muted/20">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
+                    <StickyNote className="h-3.5 w-3.5" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">Notes & Terms</CardTitle>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
+              <CardContent className="pt-5 space-y-5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Notes</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">Notes</Label>
                     {notesFromDefault && formData.customer_id && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <Badge variant="outline" className="text-[10px] h-5">
                         From customer default
-                      </span>
+                      </Badge>
                     )}
                   </div>
                   <RichTextEditor
@@ -777,7 +816,7 @@ const InvoiceForm = () => {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-xs h-auto py-1 px-2"
+                      className="text-xs h-auto py-1 px-2 text-muted-foreground hover:text-primary"
                       onClick={resetNotesToDefault}
                     >
                       Reset to customer default
@@ -785,18 +824,20 @@ const InvoiceForm = () => {
                   )}
                 </div>
                 
-                <div className="space-y-1.5">
+                <Separator />
+                
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Terms & Conditions</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">Terms & Conditions</Label>
                     {termsFromDefault && formData.customer_id && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <Badge variant="outline" className="text-[10px] h-5">
                         From customer default
-                      </span>
+                      </Badge>
                     )}
                     {termsFromCompany && !termsFromDefault && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <Badge variant="outline" className="text-[10px] h-5">
                         From company settings
-                      </span>
+                      </Badge>
                     )}
                   </div>
                   <RichTextEditor
@@ -815,7 +856,7 @@ const InvoiceForm = () => {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-xs h-auto py-1 px-2"
+                        className="text-xs h-auto py-1 px-2 text-muted-foreground hover:text-primary"
                         onClick={resetTermsToDefault}
                       >
                         Reset to customer default
@@ -826,7 +867,7 @@ const InvoiceForm = () => {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-xs h-auto py-1 px-2"
+                        className="text-xs h-auto py-1 px-2 text-muted-foreground hover:text-primary"
                         onClick={resetTermsToCompanyDefault}
                       >
                         Reset to company default
@@ -838,19 +879,25 @@ const InvoiceForm = () => {
             </Card>
           </div>
 
-          {/* Summary — sticky sidebar */}
-          <div className="space-y-4 sm:space-y-6">
-            <Card className="lg:sticky lg:top-4">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium tabular-nums">{formatCurrency(calculateSubtotal())}</span>
+          {/* Summary Sidebar - Enhanced */}
+          <div className="space-y-5 sm:space-y-6">
+            <Card className="lg:sticky lg:top-4 overflow-hidden border-border/60">
+              <CardHeader className="pb-3 bg-muted/20">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
+                    <Receipt className="h-3.5 w-3.5" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">Summary</CardTitle>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Discount</Label>
+              </CardHeader>
+              <CardContent className="pt-5 space-y-4">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="font-medium tabular-nums">{formatCurrency(subtotal)}</span>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-muted-foreground">Discount</Label>
                   <CurrencyInput
                     value={formData.discount}
                     onChange={(val) =>
@@ -858,8 +905,8 @@ const InvoiceForm = () => {
                     }
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Tax/VAT</Label>
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-muted-foreground">Tax/VAT</Label>
                   <CurrencyInput
                     value={formData.tax}
                     onChange={(val) =>
@@ -867,13 +914,17 @@ const InvoiceForm = () => {
                     }
                   />
                 </div>
-                <div className="pt-3 border-t">
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total</span>
-                    <span className="text-primary tabular-nums">{formatCurrency(calculateTotal())}</span>
+                
+                <Separator />
+                
+                <div className="rounded-xl bg-primary/5 border border-primary/10 p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold text-foreground">Total</span>
+                    <span className="text-xl font-bold text-primary tabular-nums">{formatCurrency(total)}</span>
                   </div>
                 </div>
-                <Button type="submit" className="w-full gap-2 mt-2" disabled={loading}>
+                
+                <Button type="submit" className="w-full gap-2 h-11 text-sm font-semibold rounded-xl" disabled={loading}>
                   <Save className="h-4 w-4" />
                   {loading ? 'Saving...' : (isEditing ? 'Update Invoice' : 'Create Invoice')}
                 </Button>
