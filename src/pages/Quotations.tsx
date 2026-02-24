@@ -37,6 +37,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { QuotationCard } from '@/components/shared/mobile-cards/QuotationCard';
 import { formatCurrency } from '@/lib/formatters';
 import { Badge } from '@/components/ui/badge';
+import { SortableTableHeader, type SortDirection } from '@/components/shared/SortableTableHeader';
 
 type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
 
@@ -83,6 +84,8 @@ const Quotations = () => {
   const [dateRangeFilter, setDateRangeFilter] = useState('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null);
+  const [sortKey, setSortKey] = useState<string | null>('quotation_date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   // Permission checks
   const hasViewAccess = canPerform('quotations', 'view');
@@ -216,6 +219,52 @@ const Quotations = () => {
 
     return filtered;
   }, [quotations, statusFilter, dateRangeFilter, searchQuery]);
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') { setSortDirection(null); setSortKey(null); }
+      else setSortDirection('asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedQuotations = useMemo(() => {
+    if (!sortKey || !sortDirection) return filteredQuotations;
+
+    return [...filteredQuotations].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (sortKey) {
+        case 'quotation_number':
+          aVal = a.quotation_number; bVal = b.quotation_number; break;
+        case 'customer':
+          aVal = a.customers?.name?.toLowerCase() || ''; bVal = b.customers?.name?.toLowerCase() || ''; break;
+        case 'quotation_date':
+          aVal = new Date(a.quotation_date).getTime(); bVal = new Date(b.quotation_date).getTime(); break;
+        case 'valid_until':
+          aVal = a.valid_until ? new Date(a.valid_until).getTime() : 0;
+          bVal = b.valid_until ? new Date(b.valid_until).getTime() : 0; break;
+        case 'total':
+          aVal = Number(a.total); bVal = Number(b.total); break;
+        case 'status':
+          aVal = a.status; bVal = b.status; break;
+        default: return 0;
+      }
+
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
+      if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
+
+      let comparison: number;
+      if (typeof aVal === 'string') comparison = aVal.localeCompare(bVal);
+      else comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredQuotations, sortKey, sortDirection]);
 
   // Status counts for filter badges
   const statusCounts = useMemo(() => {
@@ -408,7 +457,7 @@ const Quotations = () => {
             <>
               {/* Mobile Card View */}
               <div className="md:hidden space-y-3 px-4">
-                {filteredQuotations.map((quotation) => (
+                {sortedQuotations.map((quotation) => (
                   <QuotationCard
                     key={quotation.id}
                     quotation={quotation}
@@ -428,18 +477,30 @@ const Quotations = () => {
               <div className="hidden md:block rounded-lg border mx-0">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="whitespace-nowrap">Quotation No</TableHead>
-                      <TableHead className="whitespace-nowrap">Customer</TableHead>
-                      <TableHead className="whitespace-nowrap hidden lg:table-cell">Date</TableHead>
-                      <TableHead className="whitespace-nowrap hidden xl:table-cell">Valid Until</TableHead>
-                      <TableHead className="text-right whitespace-nowrap">Total</TableHead>
-                      <TableHead className="whitespace-nowrap">Status</TableHead>
+                     <TableRow>
+                      <TableHead className="whitespace-nowrap">
+                        <SortableTableHeader label="Quotation No" sortKey="quotation_number" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <SortableTableHeader label="Customer" sortKey="customer" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap hidden lg:table-cell">
+                        <SortableTableHeader label="Date" sortKey="quotation_date" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap hidden xl:table-cell">
+                        <SortableTableHeader label="Valid Until" sortKey="valid_until" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <SortableTableHeader label="Total" sortKey="total" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <SortableTableHeader label="Status" sortKey="status" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
                       <TableHead className="text-right whitespace-nowrap">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredQuotations.map((quotation) => (
+                    {sortedQuotations.map((quotation) => (
                       <TableRow 
                         key={quotation.id}
                         className="cursor-pointer hover:bg-muted/50"
