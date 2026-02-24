@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -134,5 +135,3 @@ export function useSortableTable<T>(initialKey?: string, initialDirection: SortD
   };
 }
 
-// Need to import useState
-import { useState } from 'react';
