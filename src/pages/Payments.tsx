@@ -52,7 +52,10 @@ import {
   Calendar,
   CheckCircle,
   Filter,
+  BarChart3,
+  ChevronDown,
 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { AddPaymentFromListDialog } from '@/components/payments/AddPaymentFromListDialog';
 import { EditPaymentDialog } from '@/components/payments/EditPaymentDialog';
@@ -71,6 +74,7 @@ const Payments = () => {
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -220,32 +224,43 @@ const Payments = () => {
 
   return (
     <div className="space-y-4 md:space-y-6 w-full min-w-0">
-      {/* Stats Cards - 2-col tablet, 4-col desktop */}
-      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Received (This Month)"
-          value={formatCurrency(stats.totalReceivedThisMonth)}
-          icon={TrendingUp}
-          variant="success"
-        />
-        <StatCard
-          title="Pending Due"
-          value={formatCurrency(stats.pendingDue)}
-          icon={Clock}
-          variant="warning"
-        />
-        <StatCard
-          title="Due Amount"
-          value={formatCurrency(stats.overdueAmount)}
-          icon={AlertCircle}
-          variant="destructive"
-        />
-        <StatCard
-          title="Today's Collections"
-          value={formatCurrency(stats.todayCollections)}
-          icon={Calendar}
-        />
-      </div>
+      {/* Stats Cards - Collapsible */}
+      <Collapsible open={showStats} onOpenChange={setShowStats}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            {showStats ? 'Hide Stats' : 'Show Stats'}
+            <ChevronDown className={cn("w-4 h-4 transition-transform", showStats && "rotate-180")} />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-3">
+          <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Total Received (This Month)"
+              value={formatCurrency(stats.totalReceivedThisMonth)}
+              icon={TrendingUp}
+              variant="success"
+            />
+            <StatCard
+              title="Pending Due"
+              value={formatCurrency(stats.pendingDue)}
+              icon={Clock}
+              variant="warning"
+            />
+            <StatCard
+              title="Due Amount"
+              value={formatCurrency(stats.overdueAmount)}
+              icon={AlertCircle}
+              variant="destructive"
+            />
+            <StatCard
+              title="Today's Collections"
+              value={formatCurrency(stats.todayCollections)}
+              icon={Calendar}
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Payments Table */}
       <Card>

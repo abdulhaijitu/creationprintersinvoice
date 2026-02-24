@@ -50,8 +50,12 @@ import {
   MoreHorizontal,
   Filter,
   Send,
-  Edit
+  Edit,
+  BarChart3,
+  ChevronDown
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { format, isPast, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
@@ -95,6 +99,7 @@ const Invoices = () => {
   const [deleteProgress, setDeleteProgress] = useState<{ current: number; total: number } | null>(null);
   const [sortKey, setSortKey] = useState<string | null>('invoice_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [showStats, setShowStats] = useState(false);
 
   const {
     selectedIds,
@@ -569,29 +574,40 @@ const Invoices = () => {
           </p>
         </div>
 
-        {/* Stats Cards - Mobile: 2-col, Tablet: 3-col, Desktop: 5-col */}
-        <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-          <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
-            <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</p>
-            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{totalInvoices}</p>
-          </div>
-          <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
-            <p className="text-[10px] sm:text-xs font-medium text-success uppercase tracking-wide">Paid</p>
-            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{paidCount}</p>
-          </div>
-          <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
-            <p className="text-[10px] sm:text-xs font-medium text-destructive uppercase tracking-wide">Due</p>
-            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{dueCount}</p>
-          </div>
-          <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
-            <p className="text-[10px] sm:text-xs font-medium text-warning uppercase tracking-wide">Partial</p>
-            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{partialCount}</p>
-          </div>
-          <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50 col-span-2 sm:col-span-1">
-            <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Due</p>
-            <p className="text-base sm:text-lg md:text-xl font-semibold text-foreground mt-0.5 sm:mt-1">{formatCurrency(totalDueAmount)}</p>
-          </div>
-        </div>
+        {/* Stats Cards - Collapsible */}
+        <Collapsible open={showStats} onOpenChange={setShowStats}>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              {showStats ? 'Hide Stats' : 'Show Stats'}
+              <ChevronDown className={cn("w-4 h-4 transition-transform", showStats && "rotate-180")} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+              <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
+                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{totalInvoices}</p>
+              </div>
+              <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
+                <p className="text-[10px] sm:text-xs font-medium text-success uppercase tracking-wide">Paid</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{paidCount}</p>
+              </div>
+              <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
+                <p className="text-[10px] sm:text-xs font-medium text-destructive uppercase tracking-wide">Due</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{dueCount}</p>
+              </div>
+              <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
+                <p className="text-[10px] sm:text-xs font-medium text-warning uppercase tracking-wide">Partial</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{partialCount}</p>
+              </div>
+              <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50 col-span-2 sm:col-span-1">
+                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Due</p>
+                <p className="text-base sm:text-lg md:text-xl font-semibold text-foreground mt-0.5 sm:mt-1">{formatCurrency(totalDueAmount)}</p>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Controls - Mobile: stacked, Tablet: 2-col, Desktop: inline */}
         <div className="bg-card rounded-xl shadow-sm border border-border/50">
