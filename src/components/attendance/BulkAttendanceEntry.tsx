@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,7 @@ export function BulkAttendanceEntry({ organizationId, employees, selectedDate, o
   // Initialize rows
   const [rows, setRows] = useState<BulkRow[]>([]);
 
-  useMemo(() => {
+  useEffect(() => {
     const newRows = employees.map((emp) => {
       const existing = existingRecords.find((r) => r.employee_id === emp.id);
       return {
