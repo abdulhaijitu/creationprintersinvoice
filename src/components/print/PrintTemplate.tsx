@@ -917,14 +917,15 @@ export const PrintTemplate = ({
 
             {/* Thank you message */}
             <div style={{ textAlign: 'center', maxWidth: '200px' }}>
-              <p style={{ 
-                fontSize: '10pt', 
-                color: '#374151', 
-                fontWeight: '600',
-                margin: '0 0 4px',
-              }}>
-                {invoiceFooter}
-              </p>
+              <div 
+                style={{ 
+                  fontSize: '10pt', 
+                  color: '#374151', 
+                  fontWeight: '600',
+                  marginBottom: '4px',
+                }}
+                dangerouslySetInnerHTML={{ __html: invoiceFooter }}
+              />
               {companyPhone && (
                 <p style={{ fontSize: '7pt', color: '#9ca3af', margin: 0 }}>
                   Questions? Contact: {companyPhone}
