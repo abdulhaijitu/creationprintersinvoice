@@ -1,130 +1,50 @@
 
 
-## ৭টি ফিচার ইমপ্লিমেন্টেশন পরিকল্পনা
+## পরিকল্পনা: Invoice Terms & Conditions সেটাপ
 
-নির্বাচিত ফিচারগুলো:
-- **৩** — SMS/WhatsApp নোটিফিকেশন
-- **৬** — টাস্কের কানবান বোর্ড
-- **৭** — ক্যালেন্ডার ভিউ
-- **৮** — অনুমোদন কর্মপ্রবাহ (Approval Workflows)
-- **৯** — ডকুমেন্ট অ্যাটাচমেন্ট (ইনভয়েস ও কোটেশনে)
-- **১৫** — ডার্ক মোড পলিশ
-- **২১** — ডেটা এক্সপোর্ট (সম্পূর্ণ সংস্থার ডেটা)
+### বর্তমান অবস্থা
+- Settings → Invoice ট্যাবে `invoice_terms` ফিল্ড **আছে** (plain Textarea)
+- কিন্তু InvoiceForm এ `useCompanySettings` ব্যবহার হয় না — তাই নতুন ইনভয়েস তৈরি করলে Settings থেকে Terms **অটো-পপুলেট হয় না**
+- শুধু Customer-এর `default_terms` থেকে আসে (যদি সেট করা থাকে)
 
----
+### যা করা হবে
 
-### এই কাজগুলো অনেক বড়
+#### ১. Settings → Invoice ট্যাবে Terms ফিল্ড উন্নত করা
+- Plain `Textarea` → **RichTextEditor** এ পরিবর্তন করা (`invoice_terms` এবং `invoice_footer` উভয়ের জন্য)
+- এতে বোল্ড, লিস্ট ইত্যাদি ফরম্যাটিং সুবিধা পাওয়া যাবে
 
-এই ৭টি ফিচার একসাথে ইমপ্লিমেন্ট করা সম্ভব নয় কারণ প্রতিটি ফিচারে একাধিক ফাইল, ডেটাবেস মাইগ্রেশন, এবং UI পরিবর্তন দরকার। আমি ধাপে ধাপে করার পরিকল্পনা করছি।
+#### ২. InvoiceForm এ Company Settings থেকে অটো-পপুলেট
+- `useCompanySettings` হুক ইমপোর্ট করা
+- নতুন ইনভয়েস তৈরি করার সময় (isEditing = false):
+  - `settings.invoice_terms` থাকলে → Terms ফিল্ডে অটো সেট হবে
+  - `settings.invoice_footer` থাকলে → Notes ফিল্ডে fallback হিসেবে ব্যবহার হবে (যদি খালি থাকে)
+- **Priority চেইন:** Customer default → Company Settings → খালি
+- "Reset to company default" বাটন যোগ করা (বর্তমান "Reset to customer default" এর পাশে)
 
----
+#### ৩. ফাইল পরিবর্তন
 
-### ধাপ ১: টাস্কের কানবান বোর্ড (ফিচার ৬)
+| ফাইল | পরিবর্তন |
+|------|----------|
+| `src/pages/Settings.tsx` | `invoice_terms` ও `invoice_footer` ফিল্ডে `RichTextEditor` ব্যবহার |
+| `src/pages/InvoiceForm.tsx` | `useCompanySettings` ইমপোর্ট, নতুন ইনভয়েসে Terms অটো-পপুলেট, "Reset to company default" বাটন |
 
-**বর্তমান অবস্থা:** টাস্ক পেইজে `list` এবং `hierarchy` ভিউ আছে। `viewMode` state ইতিমধ্যে আছে।
+### Technical Details
 
-**পরিবর্তন:**
-- নতুন কম্পোনেন্ট `src/components/tasks/TaskKanbanBoard.tsx` তৈরি
-- `framer-motion` দিয়ে ড্র্যাগ-অ্যান্ড-ড্রপ (ইতিমধ্যে ইনস্টল আছে)
-- বিদ্যমান `ProductionWorkflow` এর স্ট্যাটাস (design → plate → printing → finishing → packaging → quality_check → delivered) কলাম হিসেবে ব্যবহার
-- `Tasks.tsx` এ `viewMode`-এ `"kanban"` অপশন যোগ
-- কার্ড ড্র্যাগ করলে `transitionToStatus` কল হবে
+**InvoiceForm auto-populate logic (নতুন ইনভয়েস):**
+```text
+useEffect (isEditing === false):
+  if (settings?.invoice_terms && !formData.terms)
+    → setFormData({ terms: settings.invoice_terms })
+```
 
----
+**Customer select override:**
+```text
+handleCustomerChange:
+  1. customer.default_terms আছে → customer terms ব্যবহার
+  2. customer.default_terms নেই → company settings.invoice_terms রাখা
+```
 
-### ধাপ ২: ক্যালেন্ডার ভিউ (ফিচার ৭)
-
-**পরিবর্তন:**
-- নতুন পেইজ `src/pages/CalendarView.tsx` তৈরি
-- `react-day-picker` (ইতিমধ্যে ইনস্টল আছে) ব্যবহার করে মাসিক ক্যালেন্ডার
-- ডেটা সোর্স: টাস্ক ডেডলাইন, ইনভয়েস ডিউ ডেট, ছুটি, উপস্থিতি
-- রাউট `/calendar` যোগ `App.tsx`-এ
-- সাইডবারে ক্যালেন্ডার লিংক যোগ
-
----
-
-### ধাপ ৩: অনুমোদন কর্মপ্রবাহ (ফিচার ৮)
-
-**বর্তমান অবস্থা:** ছুটির আবেদনে `handleApprove`/`handleReject` আছে। কোটেশনে `update_quotation_status` ফাংশন আছে।
-
-**পরিবর্তন:**
-- নতুন ডেটাবেস টেবিল `approval_requests` (type, entity_id, requested_by, approved_by, status, notes)
-- এক্সপেন্স অনুমোদন: নির্দিষ্ট পরিমাণের উপরে ম্যানেজার অনুমোদন দরকার
-- কোটেশন অনুমোদন: পাঠানোর আগে অনুমোদন
-- নোটিফিকেশন: অনুমোদন মুলতুবি থাকলে ম্যানেজারকে জানানো
-- ড্যাশবোর্ডে "অনুমোদনের অপেক্ষায়" কার্ড
-
----
-
-### ধাপ ৪: ডকুমেন্ট অ্যাটাচমেন্ট — ইনভয়েস ও কোটেশন (ফিচার ৯)
-
-**বর্তমান অবস্থা:** টাস্কে ইতিমধ্যে অ্যাটাচমেন্ট সিস্টেম আছে (`useTaskAttachments`, `TaskAttachments` কম্পোনেন্ট)।
-
-**পরিবর্তন:**
-- বিদ্যমান অ্যাটাচমেন্ট সিস্টেম জেনেরিক করা — `useEntityAttachments(entityType, entityId)` হুক
-- নতুন ডেটাবেস টেবিল `entity_attachments` (entity_type, entity_id, file_name, storage_path, etc.)
-- `InvoiceDetail.tsx` এবং `QuotationDetail.tsx` এ অ্যাটাচমেন্ট সেকশন যোগ
-- Supabase Storage bucket `entity-attachments` তৈরি
-
----
-
-### ধাপ ৫: ডার্ক মোড পলিশ (ফিচার ১৫)
-
-**বর্তমান অবস্থা:** ডার্ক মোড CSS ভেরিয়েবল আছে, ThemeToggle কম্পোনেন্ট আছে।
-
-**পরিবর্তন:**
-- সব পেইজ ডার্ক মোডে অডিট
-- PDF/প্রিন্ট টেমপ্লেটে ডার্ক মোড ফিক্স (সাদা ব্যাকগ্রাউন্ড নিশ্চিত)
-- চার্ট/গ্রাফে ডার্ক মোড রং ফিক্স
-- সাইডবার, হেডার, ফুটার ডার্ক মোড চেক
-- `hardcoded` রঙের পরিবর্তে CSS ভেরিয়েবল ব্যবহার
-
----
-
-### ধাপ ৬: SMS/WhatsApp নোটিফিকেশন (ফিচার ৩)
-
-**পরিবর্তন:**
-- Edge Function `send-sms-notification` তৈরি
-- Settings পেইজে SMS কনফিগারেশন ট্যাব (API Key, Sender ID)
-- নোটিফিকেশন প্রেফারেন্স: কোন ইভেন্টে SMS পাঠাতে হবে
-- ইনভয়েস রিমাইন্ডার, পেমেন্ট কনফার্মেশন, টাস্ক আপডেটে SMS
-- SMS গেটওয়ে ইন্টিগ্রেশন (বাংলাদেশে জনপ্রিয় — BulkSMSBD, SSL Wireless ইত্যাদি)
-
----
-
-### ধাপ ৭: সম্পূর্ণ ডেটা এক্সপোর্ট (ফিচার ২১)
-
-**বর্তমান অবস্থা:** `exportUtils.ts` এ CSV/Excel এক্সপোর্ট আছে, কিন্তু শুধু পৃথক টেবিলের জন্য।
-
-**পরিবর্তন:**
-- Settings পেইজে "ডেটা এক্সপোর্ট" সেকশন
-- সব টেবিলের ডেটা একসাথে ZIP ফাইলে ডাউনলোড (CSV/JSON)
-- মডিউল অনুযায়ী আলাদা আলাদা এক্সপোর্ট অপশন
-- Edge Function `export-organization-data` — সার্ভার-সাইডে ডেটা সংগ্রহ ও ZIP তৈরি
-- প্রগ্রেস ইন্ডিকেটর
-
----
-
-### কাজের ক্রম (প্রস্তাবিত)
-
-| ক্রম | ফিচার | জটিলতা | সময় |
-|------|--------|---------|------|
-| ১ | কানবান বোর্ড (৬) | মাঝারি | প্রথমে |
-| ২ | ডার্ক মোড পলিশ (১৫) | সহজ | দ্বিতীয় |
-| ৩ | ক্যালেন্ডার ভিউ (৭) | মাঝারি | তৃতীয় |
-| ৪ | ডকুমেন্ট অ্যাটাচমেন্ট (৯) | মাঝারি | চতুর্থ |
-| ৫ | ডেটা এক্সপোর্ট (২১) | মাঝারি | পঞ্চম |
-| ৬ | অনুমোদন কর্মপ্রবাহ (৮) | জটিল | ষষ্ঠ |
-| ৭ | SMS/WhatsApp (৩) | জটিল | সপ্তম |
-
----
-
-### গুরুত্বপূর্ণ তথ্য
-
-- প্রতিটি ধাপ আলাদা মেসেজে ইমপ্লিমেন্ট করতে হবে
-- ডেটাবেস মাইগ্রেশন দরকার হবে ফিচার ৮, ৯, ৩, ২১ এর জন্য
-- SMS ফিচারের জন্য একটি SMS গেটওয়ে API Key দরকার হবে
-- বিদ্যমান পারমিশন সিস্টেম ও RLS পলিসি মেনে চলা হবে
-
-আপনি কি এই পরিকল্পনা অনুমোদন করেন? অনুমোদন করলে আমি ক্রম অনুযায়ী **কানবান বোর্ড** দিয়ে শুরু করবো।
+**Reset বাটন priority:**
+- Customer default আছে → "Reset to customer default"
+- Customer default নেই, Company default আছে → "Reset to company default"
 
