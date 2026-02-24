@@ -117,7 +117,7 @@ const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const isHomePage = location.pathname === '/';
+  const isHomePage = location.pathname === '/' || location.pathname === '/dashboard';
 
   const mobilePageTitle = useMemo(() => {
     const basePath = '/' + location.pathname.split('/').filter(Boolean)[0];
