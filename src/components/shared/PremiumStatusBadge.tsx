@@ -98,9 +98,9 @@ export function PremiumStatusBadge({
 // Pre-configured invoice status badges
 export function InvoiceStatusBadge({ status }: { status: 'paid' | 'partial' | 'due' }) {
   const statusMap: Record<string, { variant: BadgeVariant; label: string }> = {
-    paid: { variant: 'success', label: 'Paid' },
-    partial: { variant: 'warning', label: 'Partial' },
-    due: { variant: 'destructive', label: 'Due' },
+    paid: { variant: 'success', label: 'PAID' },
+    partial: { variant: 'warning', label: 'PARTIAL' },
+    due: { variant: 'destructive', label: 'DUE' },
   };
 
   const config = statusMap[status] || statusMap.due;
