@@ -513,6 +513,7 @@ export default function Settings() {
                     </div>
                   </CardContent>
                 </Card>
+                <DataExportSection />
               </TabsContent>
             )}
 
@@ -792,6 +793,7 @@ export default function Settings() {
                     />
                   </CardContent>
                 </Card>
+                <SmsNotificationSettings isReadOnly={tabPermissions.invoice.isReadOnly} />
               </TabsContent>
             )}
             
@@ -822,11 +824,6 @@ export default function Settings() {
         </form>
       </Form>
 
-      {/* SMS Notification Settings */}
-      <SmsNotificationSettings />
-
-      {/* Data Export Section */}
-      <DataExportSection />
     </div>
   );
 }
