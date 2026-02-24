@@ -53,6 +53,7 @@ import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { parseValidatedFloat } from "@/lib/validation";
+import { SortableTableHeader, type SortDirection } from '@/components/shared/SortableTableHeader';
 
 interface Expense {
   id: string;
@@ -133,6 +134,8 @@ const Expenses = () => {
     open: false,
     category: null,
   });
+  const [expSortKey, setExpSortKey] = useState<string | null>('date');
+  const [expSortDirection, setExpSortDirection] = useState<SortDirection>('desc');
   const [categoryFormData, setCategoryFormData] = useState({
     name: "",
     description: "",
@@ -700,6 +703,47 @@ const Expenses = () => {
       expense.category?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.vendor?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleExpSort = (key: string) => {
+    if (expSortKey === key) {
+      if (expSortDirection === 'asc') setExpSortDirection('desc');
+      else if (expSortDirection === 'desc') { setExpSortDirection(null); setExpSortKey(null); }
+      else setExpSortDirection('asc');
+    } else {
+      setExpSortKey(key);
+      setExpSortDirection('asc');
+    }
+  };
+
+  const sortedExpenses = useMemo(() => {
+    if (!expSortKey || !expSortDirection) return filteredExpenses;
+
+    return [...filteredExpenses].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (expSortKey) {
+        case 'date':
+          aVal = new Date(a.date).getTime(); bVal = new Date(b.date).getTime(); break;
+        case 'description':
+          aVal = a.description.toLowerCase(); bVal = b.description.toLowerCase(); break;
+        case 'vendor':
+          aVal = (a.vendor?.name || '').toLowerCase(); bVal = (b.vendor?.name || '').toLowerCase(); break;
+        case 'category':
+          aVal = (a.category?.name || '').toLowerCase(); bVal = (b.category?.name || '').toLowerCase(); break;
+        case 'payment_method':
+          aVal = a.payment_method || ''; bVal = b.payment_method || ''; break;
+        case 'amount':
+          aVal = a.amount; bVal = b.amount; break;
+        default: return 0;
+      }
+
+      let comparison: number;
+      if (typeof aVal === 'string') comparison = aVal.localeCompare(bVal);
+      else comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      return expSortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredExpenses, expSortKey, expSortDirection]);
 
   const filteredVendors = vendors.filter(
     (vendor) =>
@@ -1632,12 +1676,24 @@ const Expenses = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="hidden lg:table-cell">Vendor</TableHead>
-                  <TableHead className="hidden xl:table-cell">Category</TableHead>
-                  <TableHead className="hidden lg:table-cell">Method</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>
+                    <SortableTableHeader label="Date" sortKey="date" currentSortKey={expSortKey} currentSortDirection={expSortDirection} onSort={handleExpSort} />
+                  </TableHead>
+                  <TableHead>
+                    <SortableTableHeader label="Description" sortKey="description" currentSortKey={expSortKey} currentSortDirection={expSortDirection} onSort={handleExpSort} />
+                  </TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    <SortableTableHeader label="Vendor" sortKey="vendor" currentSortKey={expSortKey} currentSortDirection={expSortDirection} onSort={handleExpSort} />
+                  </TableHead>
+                  <TableHead className="hidden xl:table-cell">
+                    <SortableTableHeader label="Category" sortKey="category" currentSortKey={expSortKey} currentSortDirection={expSortDirection} onSort={handleExpSort} />
+                  </TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    <SortableTableHeader label="Method" sortKey="payment_method" currentSortKey={expSortKey} currentSortDirection={expSortDirection} onSort={handleExpSort} />
+                  </TableHead>
+                  <TableHead>
+                    <SortableTableHeader label="Amount" sortKey="amount" currentSortKey={expSortKey} currentSortDirection={expSortDirection} onSort={handleExpSort} align="right" />
+                  </TableHead>
                   {(canEditExpenses || canDeleteExpenses) && <TableHead className="text-right w-[80px]">Action</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -1666,7 +1722,7 @@ const Expenses = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredExpenses.map((expense) => (
+                  sortedExpenses.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell>
                         {format(new Date(expense.date), "dd MMM")}
@@ -1738,7 +1794,7 @@ const Expenses = () => {
                 } : undefined}
               />
             ) : (
-              filteredExpenses.map((expense) => (
+              sortedExpenses.map((expense) => (
                 <div
                   key={expense.id}
                   className="bg-card border rounded-lg p-4 space-y-3"

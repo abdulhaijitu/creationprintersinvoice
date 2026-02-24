@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -65,6 +65,7 @@ import { ImportResult } from '@/lib/importUtils';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BulkActionsBar } from '@/components/shared/BulkActionsBar';
 import { canRolePerform, OrgRole } from '@/lib/permissions/constants';
+import { SortableTableHeader, type SortDirection } from '@/components/shared/SortableTableHeader';
 
 interface Customer {
   id: string;
@@ -95,6 +96,8 @@ const Customers = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [sortKey, setSortKey] = useState<string | null>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -324,6 +327,45 @@ const Customers = () => {
       customer.phone?.includes(searchQuery) ||
       customer.company_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') { setSortDirection(null); setSortKey(null); }
+      else setSortDirection('asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedCustomers = useMemo(() => {
+    if (!sortKey || !sortDirection) return filteredCustomers;
+
+    return [...filteredCustomers].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (sortKey) {
+        case 'name':
+          aVal = a.name.toLowerCase(); bVal = b.name.toLowerCase(); break;
+        case 'company_name':
+          aVal = (a.company_name || '').toLowerCase(); bVal = (b.company_name || '').toLowerCase(); break;
+        case 'total_invoiced':
+          aVal = a.total_invoiced || 0; bVal = b.total_invoiced || 0; break;
+        case 'total_paid':
+          aVal = a.total_paid || 0; bVal = b.total_paid || 0; break;
+        case 'total_due':
+          aVal = a.total_due || 0; bVal = b.total_due || 0; break;
+        default: return 0;
+      }
+
+      let comparison: number;
+      if (typeof aVal === 'string') comparison = aVal.localeCompare(bVal);
+      else comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredCustomers, sortKey, sortDirection]);
 
   const formatCurrency = (amount: number) => {
     return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -724,7 +766,7 @@ const Customers = () => {
               <>
                 {/* Mobile Card View */}
                 <div className="md:hidden divide-y divide-border/50">
-                  {filteredCustomers.map((customer) => (
+                  {sortedCustomers.map((customer) => (
                     <div
                       key={customer.id}
                       className={cn(
@@ -813,23 +855,23 @@ const Customers = () => {
                             />
                           </TableHead>
                         )}
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
-                          Name
+                        <TableHead>
+                          <SortableTableHeader label="Name" sortKey="name" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground hidden lg:table-cell">
+                        <TableHead className="hidden lg:table-cell font-semibold text-xs uppercase tracking-wide text-muted-foreground">
                           Contact
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground hidden xl:table-cell">
-                          Company
+                        <TableHead className="hidden xl:table-cell">
+                          <SortableTableHeader label="Company" sortKey="company_name" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right hidden lg:table-cell">
-                          Invoiced
+                        <TableHead className="hidden lg:table-cell">
+                          <SortableTableHeader label="Invoiced" sortKey="total_invoiced" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right hidden xl:table-cell">
-                          Paid
+                        <TableHead className="hidden xl:table-cell">
+                          <SortableTableHeader label="Paid" sortKey="total_paid" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right">
-                          Due
+                        <TableHead>
+                          <SortableTableHeader label="Due" sortKey="total_due" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
                         </TableHead>
                         <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right w-[100px]">
                           Action
@@ -837,7 +879,7 @@ const Customers = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredCustomers.map((customer, index) => (
+                      {sortedCustomers.map((customer, index) => (
                         <TableRow 
                           key={customer.id}
                           className={cn(
