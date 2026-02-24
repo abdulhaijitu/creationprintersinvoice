@@ -20,8 +20,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { ArrowLeft, Save, FileText, Receipt, Trash2, ShieldAlert, Plus, X } from 'lucide-react';
+import { ArrowLeft, Save, FileText, Receipt, Trash2, ShieldAlert, Plus, X, Calculator, Briefcase, User, Layers, TrendingUp, Hash, Percent, BadgeDollarSign } from 'lucide-react';
 import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 interface Customer {
   id: string;
@@ -83,59 +85,59 @@ const CostLineItemRow = ({
   return (
     <div 
       className={`
-        flex flex-wrap items-center gap-3 sm:gap-4 py-3 px-3 rounded-md
+        group flex flex-wrap items-center gap-3 sm:gap-4 py-3 px-3 rounded-lg
         transition-all duration-200 ease-out
-        hover:bg-muted/30
-        ${showDivider ? 'border-b border-muted/20' : ''}
+        hover:bg-muted/40 hover:shadow-sm
+        ${showDivider ? 'border-b border-border/40' : ''}
         ${isFirst ? '' : 'sm:pl-6'}
       `}
     >
       {/* Label */}
       <div className="w-full sm:w-28 shrink-0">
         {showLabel ? (
-          <span className="text-sm font-medium text-foreground">{label}</span>
+          <span className="text-sm font-semibold text-foreground">{label}</span>
         ) : (
-          <span className="text-xs text-muted-foreground/60 hidden sm:inline">—</span>
+          <span className="text-xs text-muted-foreground/40 hidden sm:inline">└─</span>
         )}
       </div>
       
       {/* Quantity */}
       <div className="flex flex-col gap-1">
-        <Label className="text-[10px] uppercase tracking-wider sm:hidden">Qty</Label>
+        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground sm:hidden">Qty</Label>
         <CurrencyInput
           value={item.qty}
           onChange={onQtyChange}
           decimals={0}
           formatOnBlur={false}
           placeholder="0"
-          className="w-20 h-10 text-center"
+          className="w-20 h-9 text-center bg-background border-border/60 focus:border-primary/50 transition-colors"
         />
       </div>
       
       {/* Unit */}
       <div className="flex flex-col gap-1">
-        <Label className="text-[10px] uppercase tracking-wider sm:hidden">Unit</Label>
+        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground sm:hidden">Unit</Label>
         <Input
           value={item.unit}
           onChange={(e) => onUnitChange(e.target.value)}
           placeholder="Pcs"
-          className="w-20 h-10 text-center"
+          className="w-20 h-9 text-center bg-background border-border/60 focus:border-primary/50 transition-colors"
         />
       </div>
       
       {/* Price */}
       <div className="flex flex-col gap-1">
-        <Label className="text-[10px] uppercase tracking-wider sm:hidden">Price</Label>
+        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground sm:hidden">Price</Label>
         <CurrencyInput
           value={item.price}
           onChange={onPriceChange}
-          className="w-28 h-10"
+          className="w-28 h-9 bg-background border-border/60 focus:border-primary/50 transition-colors"
         />
       </div>
       
       {/* Line Total */}
       <div className="ml-auto text-right flex items-center gap-2">
-        <span className="text-sm font-semibold tabular-nums text-foreground min-w-[90px]">
+        <span className={`text-sm font-semibold tabular-nums min-w-[90px] ${total > 0 ? 'text-foreground' : 'text-muted-foreground/50'}`}>
           {formatCurrencyStatic(total)}
         </span>
         {showRemove && onRemove && (
@@ -143,10 +145,10 @@ const CostLineItemRow = ({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-destructive transition-all"
             onClick={onRemove}
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
@@ -173,22 +175,23 @@ const CategoryGroup = ({
   const categoryTotal = category.items.reduce((sum, item) => sum + (item.qty * item.price), 0);
   
   return (
-    <div className={`${!isLast ? 'border-b border-muted/20 pb-4 mb-4' : ''}`}>
+    <div className={`${!isLast ? 'border-b border-border/30 pb-4 mb-4' : ''}`}>
       {/* Category Header */}
       <div className="flex items-center justify-between mb-2 px-3">
-        <div className="flex items-center gap-3">
-          <h4 className="text-xs font-semibold uppercase tracking-widest text-foreground/70">{category.label}</h4>
+        <div className="flex items-center gap-2.5">
+          <div className="w-1.5 h-5 rounded-full bg-primary/60" />
+          <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/80">{category.label}</h4>
           {categoryTotal > 0 && (
-            <span className="text-xs font-medium tabular-nums text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">
+            <Badge variant="secondary" className="text-[10px] px-2 py-0 h-5 tabular-nums font-semibold">
               {formatCurrencyStatic(categoryTotal)}
-            </span>
+            </Badge>
           )}
         </div>
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 px-2 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+          className="h-7 px-2 text-xs gap-1.5 text-muted-foreground hover:text-primary transition-colors"
           onClick={onAddItem}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -197,7 +200,7 @@ const CategoryGroup = ({
       </div>
       
       {/* Category Items */}
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         {category.items.map((item, index) => (
           <CostLineItemRow
             key={item.id}
@@ -743,14 +746,23 @@ const PriceCalculationForm = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/price-calculation')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/price-calculation')} className="hover:bg-muted/60">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{isEditing ? 'Edit Calculation' : 'New Price Calculation'}</h1>
-            <p className="text-muted-foreground">Printing job costing calculation</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-bold">{isEditing ? 'Edit Calculation' : 'New Price Calculation'}</h1>
+              {isEditing && (
+                <Badge variant="outline" className="text-xs">
+                  <Calculator className="w-3 h-3 mr-1" />
+                  Editing
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-0.5">Printing job costing & pricing</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -771,42 +783,53 @@ const PriceCalculationForm = () => {
       <form onSubmit={handleSubmit} autoComplete="off">
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            {/* Basic Info */}
+            {/* Job Information */}
             <Card>
-              <CardHeader>
-                <CardTitle>Job Information</CardTitle>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Briefcase className="h-4 w-4 text-primary" />
+                  Job Information
+                </CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-6 sm:grid-cols-4">
+              <CardContent className="grid gap-5 sm:grid-cols-4">
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>Job Description *</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">Job Description *</Label>
                   <Textarea
                     value={formData.job_description}
                     onChange={(e) => handleChange('job_description', e.target.value)}
                     placeholder="e.g. Business Card 1000 pcs"
                     rows={2}
-                    className="min-h-[80px] resize-y"
+                    className="min-h-[80px] resize-y bg-background"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Quantity</Label>
+                  <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Hash className="h-3 w-3" />
+                    Quantity
+                  </Label>
                   <CurrencyInput
                     value={formData.quantity}
                     onChange={(val) => handleChange('quantity', val)}
                     decimals={0}
                     formatOnBlur={false}
                     placeholder="1"
+                    className="bg-background"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Unit</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">Unit</Label>
                   <Input
                     value={formData.quantity_unit}
                     onChange={(e) => handleChange('quantity_unit', e.target.value)}
                     placeholder="Pcs"
+                    className="bg-background"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-4">
-                  <Label>Customer</Label>
+                  <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <User className="h-3 w-3" />
+                    Customer
+                  </Label>
                   <CustomerSelect
                     value={formData.customer_id}
                     onValueChange={(value) => handleChange('customer_id', value)}
@@ -817,14 +840,24 @@ const PriceCalculationForm = () => {
               </CardContent>
             </Card>
 
-            {/* Costing Items */}
+            {/* Cost Breakdown */}
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle>Cost Breakdown</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Layers className="h-4 w-4 text-primary" />
+                    Cost Breakdown
+                  </CardTitle>
+                  {costingTotal > 0 && (
+                    <Badge variant="secondary" className="text-xs tabular-nums font-semibold">
+                      Total: {formatCurrency(costingTotal)}
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {/* Header Row - Desktop Only */}
-                <div className="hidden sm:flex items-center gap-4 py-3 px-3 mb-4 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold bg-muted/30 rounded-md">
+                <div className="hidden sm:flex items-center gap-4 py-2.5 px-3 mb-4 text-[10px] uppercase tracking-widest text-muted-foreground font-bold bg-muted/40 rounded-lg border border-border/30">
                   <div className="w-28 shrink-0">Item</div>
                   <div className="w-20 text-center">Qty</div>
                   <div className="w-20 text-center">Unit</div>
@@ -850,47 +883,65 @@ const PriceCalculationForm = () => {
             </Card>
           </div>
 
-          {/* Summary */}
+          {/* Summary Sidebar */}
           <div className="space-y-6">
-            <Card className="sticky top-20">
-              <CardHeader>
-                <CardTitle>Summary</CardTitle>
+            <Card className="sticky top-20 shadow-md border-primary/10">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Summary
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-5">
+                {/* Costing Total */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Total Costing</span>
-                  <span className="text-lg font-bold tabular-nums">{formatCurrency(costingTotal)}</span>
+                  <span className="text-base font-bold tabular-nums">{formatCurrency(costingTotal)}</span>
                 </div>
 
+                <Separator className="bg-border/40" />
+
+                {/* Margin Input */}
                 <div className="space-y-2">
-                  <Label>Margin/Profit (%)</Label>
+                  <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Percent className="h-3 w-3" />
+                    Margin / Profit
+                  </Label>
                   <CurrencyInput
                     value={formData.margin_percent}
                     onChange={(val) => handleChange('margin_percent', val)}
                     decimals={2}
                     formatOnBlur={false}
                     placeholder="25"
+                    className="bg-background"
                   />
                 </div>
 
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Margin Amount</span>
-                  <span className="font-medium tabular-nums text-success">+{formatCurrency(marginAmount)}</span>
+                  <span className="font-semibold tabular-nums text-success">+{formatCurrency(marginAmount)}</span>
                 </div>
 
-                <div className="pt-4 border-t border-muted/30 space-y-3">
+                <Separator className="bg-border/40" />
+
+                {/* Final Price - Highlighted */}
+                <div className="rounded-xl bg-primary/5 border border-primary/15 p-4 space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-base font-medium">Quoted Price</span>
-                    <span className="text-xl font-bold tabular-nums text-primary">{formatCurrency(quotedPrice)}</span>
+                    <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <BadgeDollarSign className="h-4 w-4 text-primary" />
+                      Quoted Price
+                    </span>
+                    <span className="text-xl font-extrabold tabular-nums text-primary">{formatCurrency(quotedPrice)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Per Piece</span>
-                    <span className="text-sm font-medium tabular-nums">{formatCurrency(pricePerPcs)}</span>
+                    <span className="text-xs text-muted-foreground">Per Piece</span>
+                    <span className="text-sm font-semibold tabular-nums text-foreground/80">{formatCurrency(pricePerPcs)}</span>
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-4 border-t border-muted/30">
-                  <Button type="submit" className="w-full gap-2" disabled={saving}>
+                {/* Action Buttons */}
+                <div className="space-y-2.5 pt-2">
+                  <Button type="submit" className="w-full gap-2 h-10" disabled={saving}>
                     <Save className="h-4 w-4" />
                     {saving ? 'Saving...' : 'Save Calculation'}
                   </Button>
@@ -900,7 +951,7 @@ const PriceCalculationForm = () => {
                       <Button
                         type="button"
                         variant="outline"
-                        className="w-full gap-2"
+                        className="w-full gap-2 h-10"
                         onClick={() => {
                           setConvertType('quotation');
                           setConvertDialogOpen(true);
@@ -912,7 +963,7 @@ const PriceCalculationForm = () => {
                       <Button
                         type="button"
                         variant="outline"
-                        className="w-full gap-2"
+                        className="w-full gap-2 h-10"
                         onClick={() => {
                           setConvertType('invoice');
                           setConvertDialogOpen(true);
