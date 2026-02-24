@@ -578,7 +578,7 @@ export function InvoicePDFTemplate({ data }: { data: InvoicePDFData }) {
         )}
         
         {data.footer && (
-          <p style={styles.footerText} className="pdf-paragraph">{data.footer}</p>
+          <div style={styles.footerText} className="pdf-paragraph" dangerouslySetInnerHTML={{ __html: data.footer }} />
         )}
       </footer>
     </div>

@@ -639,14 +639,14 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
             
             {/* Thank You Message */}
             <div style={{ ...styles.footerSection, textAlign: 'center' }}>
-              <p style={{ 
+              <div style={{ 
                 margin: 0, 
                 fontWeight: '500', 
                 color: '#374151',
                 fontSize: '10pt',
-              }}>
-                {data.footer || 'Thank you for your interest!'}
-              </p>
+              }}
+                dangerouslySetInnerHTML={{ __html: data.footer || 'Thank you for your interest!' }}
+              />
             </div>
             
             {/* Generated Info */}
