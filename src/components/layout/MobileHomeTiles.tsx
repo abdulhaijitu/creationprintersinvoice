@@ -44,7 +44,7 @@ export function MobileHomeTiles() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         <Input
-          placeholder="মডিউল খুঁজুন..."
+          placeholder="Search modules..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9 h-10 bg-muted/50 border-border/50 rounded-xl text-sm"
@@ -54,7 +54,7 @@ export function MobileHomeTiles() {
       {/* Tile Groups */}
       {filteredNavGroups.length === 0 && search && (
         <p className="text-center text-sm text-muted-foreground py-8">
-          কোনো মডিউল পাওয়া যায়নি
+          No modules found
         </p>
       )}
       {filteredNavGroups.map((group) => (
