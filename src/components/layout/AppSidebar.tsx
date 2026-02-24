@@ -1,5 +1,5 @@
-import { useCallback, useRef, useMemo, useEffect } from 'react';
-import { LogOut, Building2 } from 'lucide-react';
+import { useCallback, useRef, useMemo, useEffect, useState } from 'react';
+import { LogOut, Building2, ChevronsUpDown } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -10,33 +10,53 @@ import {
   SidebarNavItem,
   SidebarNavGroup,
 } from '@/lib/permissions/sidebarConfig';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FavoritePages } from './FavoritePages';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useSidebar } from '@/components/ui/sidebar';
+
+const sidebarVariants = {
+  open: { width: '15rem' },
+  closed: { width: '3.05rem' },
+};
+
+const transitionProps = {
+  type: 'tween' as const,
+  ease: 'easeOut' as const,
+  duration: 0.2,
+};
+
+const textVariants = {
+  open: { x: 0, opacity: 1, transition: { x: { stiffness: 1000, velocity: -100 } } },
+  closed: { x: -20, opacity: 0, transition: { x: { stiffness: 100 } } },
+};
+
+const staggerVariants = {
+  open: { transition: { staggerChildren: 0.03, delayChildren: 0.02 } },
+};
 
 export function AppSidebar() {
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const location = useLocation();
   const { user, signOut, isSuperAdmin } = useAuth();
   const { organization, isOrgOwner, orgRole } = useOrganization();
   const { settings: companySettings, loading: companyLoading } = useCompanySettings();
+  const isMobile = useIsMobile();
   
-  // Use the Permission Context - SINGLE SOURCE OF TRUTH with realtime updates
   const { 
     hasModuleAccess, 
     hasAnyPermission, 
@@ -46,28 +66,20 @@ export function AppSidebar() {
     permissionsReady,
     lastUpdated,
   } = usePermissionContext();
-  
-  const { state } = useSidebar();
-  const collapsed = state === 'collapsed';
-  
-  // Ref to track menu items for keyboard navigation
-  const menuItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
-  const navContainerRef = useRef<HTMLElement>(null);
 
-  // Debug permissions on load and when they change
+  // For mobile drawer integration with shadcn sidebar
+  const { openMobile, setOpenMobile } = useSidebar();
+
   useEffect(() => {
     if (permissionsReady) {
       console.log('[AppSidebar] Permissions ready. Enabled modules:', getEnabledModules());
-      console.log('[AppSidebar] Last updated:', new Date(lastUpdated).toISOString());
     }
   }, [permissionsReady, getEnabledModules, lastUpdated]);
 
-  // Refresh permissions on route change to pick up any updates
   const lastPathRef = useRef(location.pathname);
   useEffect(() => {
     if (lastPathRef.current !== location.pathname) {
       lastPathRef.current = location.pathname;
-      // Silently refresh permissions to pick up changes
       refreshPermissions?.();
     }
   }, [location.pathname, refreshPermissions]);
@@ -76,382 +88,221 @@ export function AppSidebar() {
     await signOut();
   };
 
-  // Handle logo click - navigate to dashboard without re-render if already there
   const handleLogoClick = useCallback((e: React.MouseEvent) => {
     if (location.pathname === '/') {
       e.preventDefault();
     }
   }, [location.pathname]);
 
-  // Filter navigation items based on PERMISSION CONTEXT
-  // CRITICAL: Uses hasModuleAccess which checks the normalized permission map with realtime updates
-  // ANY-ON rule: show module if user has AT LEAST ONE permission (view/create/edit/delete) enabled
   const filteredNavGroups = useMemo(() => {
-    console.log('[AppSidebar] Computing filtered nav groups (update:', lastUpdated, ')');
-    
     const result = sidebarNavGroups.map((group): SidebarNavGroup => ({
       ...group,
       items: group.items.filter((item) => {
-        // If no permission key required, always show
-        if (!item.permissionKey) {
-          return true;
-        }
-        
-        // Super Admin bypass - always show all items
-        if (isSuperAdmin) {
-          return true;
-        }
-        
-        // Owner bypass - always show all items
-        if (isOrgOwner) {
-          return true;
-        }
-        
-        // DASHBOARD SPECIAL RULE: Show if user has at least ONE permission anywhere
-        if (item.requiresAnyPermission) {
-          return hasAnyPermission;
-        }
-        
-        // ANY-ON RULE: Check if user has ANY permission for this module
+        if (!item.permissionKey) return true;
+        if (isSuperAdmin) return true;
+        if (isOrgOwner) return true;
+        if (item.requiresAnyPermission) return hasAnyPermission;
         return hasModuleAccess(item.permissionKey);
       }),
-    })).filter((group) => group.items.length > 0); // Remove empty groups
-    
-    console.log('[AppSidebar] Filtered groups:', result.map(g => ({ label: g.label, items: g.items.map(i => i.title) })));
+    })).filter((group) => group.items.length > 0);
     return result;
   }, [hasModuleAccess, hasAnyPermission, isSuperAdmin, isOrgOwner, lastUpdated]);
 
-  // Get current focused index
-  const getFocusedIndex = useCallback(() => {
-    const activeElement = document.activeElement;
-    return menuItemsRef.current.findIndex(item => item === activeElement);
-  }, []);
+  const userInitials = user?.email?.charAt(0).toUpperCase() || 'U';
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+  const userEmail = user?.email || '';
+  const companyName = companySettings?.company_name || 'Your Company';
 
-  // Handle keyboard navigation
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    const currentIndex = getFocusedIndex();
-    const items = menuItemsRef.current.filter(Boolean);
-    const itemCount = items.length;
-
-    switch (e.key) {
-      case 'ArrowDown': {
-        e.preventDefault();
-        const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % itemCount;
-        items[nextIndex]?.focus();
-        break;
-      }
-      case 'ArrowUp': {
-        e.preventDefault();
-        const prevIndex = currentIndex < 0 ? itemCount - 1 : (currentIndex - 1 + itemCount) % itemCount;
-        items[prevIndex]?.focus();
-        break;
-      }
-      case 'Home': {
-        e.preventDefault();
-        items[0]?.focus();
-        break;
-      }
-      case 'End': {
-        e.preventDefault();
-        items[itemCount - 1]?.focus();
-        break;
-      }
-      case 'Escape': {
-        e.preventDefault();
-        const mainContent = document.querySelector('main') || document.querySelector('[role="main"]');
-        if (mainContent instanceof HTMLElement) {
-          mainContent.focus();
-        } else {
-          (document.activeElement as HTMLElement)?.blur();
-        }
-        break;
-      }
-      case 'Enter':
-      case ' ': {
-        const target = e.currentTarget as HTMLAnchorElement;
-        const href = target.getAttribute('href');
-        if (href && location.pathname === href) {
-          e.preventDefault();
-        }
-        break;
-      }
-    }
-  }, [getFocusedIndex, location.pathname]);
-
-  const renderNavItems = (items: SidebarNavItem[], startIndex: number) => (
-    <SidebarMenu role="menu" className={cn(collapsed && "flex flex-col items-center")}>
-      {items.map((item, idx) => {
-        const globalIndex = startIndex + idx;
-        const isActive = location.pathname === item.url || 
-          (item.url !== '/' && location.pathname.startsWith(item.url));
-        
-        const navLinkContent = (
-          <NavLink 
-            ref={(el) => { menuItemsRef.current[globalIndex] = el; }}
-            to={item.url}
-            role="menuitem"
-            aria-current={isActive ? 'page' : undefined}
-            aria-label={item.title}
-            tabIndex={0}
-            onClick={(e) => {
-              if (isActive) {
-                e.preventDefault();
-              }
-            }}
-            onKeyDown={handleKeyDown}
-            className={cn(
-              "flex items-center rounded-md transition-all duration-200 ease-out outline-none",
-              // Focus ring styles
-              "focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar-background",
-              // Collapsed vs expanded layout
-              collapsed 
-                ? "h-9 w-9 justify-center p-0" 
-                : "gap-3 px-3 py-2 w-full",
-              // Active and hover states
-              isActive 
-                ? cn(
-                    "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
-                    collapsed && "ring-1 ring-sidebar-primary/30"
-                  )
-                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-            )}
-          >
-            <item.icon className={cn(
-              "h-4 w-4 shrink-0 transition-colors duration-150",
-              isActive ? "text-sidebar-primary" : "text-sidebar-foreground/60"
-            )} />
-            {!collapsed && (
-              <>
-                <span className="truncate text-sm">{item.title}</span>
-                {isActive && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-sidebar-primary" aria-hidden="true" />
-                )}
-              </>
-            )}
-          </NavLink>
-        );
-        
-        return (
-          <SidebarMenuItem key={item.title} role="none" className={cn(collapsed && "w-auto")}>
-            <SidebarMenuButton asChild isActive={isActive} className={cn(collapsed && "w-auto p-0")}>
-              {collapsed ? (
-                <Tooltip delayDuration={150}>
-                  <TooltipTrigger asChild>
-                    {navLinkContent}
-                  </TooltipTrigger>
-                  <TooltipContent 
-                    side="right" 
-                    sideOffset={12}
-                    className="font-medium px-3 py-1.5 text-sm"
-                  >
-                    {item.title}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                navLinkContent
-              )}
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        );
-      })}
-    </SidebarMenu>
-  );
-
-  const renderGroupLabel = (label: string) => {
-    if (collapsed) {
-      // Subtle separator line for collapsed mode
-      return (
-        <div 
-          className="w-6 h-px bg-sidebar-border/50 mx-auto my-2" 
-          aria-hidden="true"
-        />
-      );
-    }
-    return (
-      <SidebarGroupLabel 
-        className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-3 mb-1.5 mt-1"
-        id={`sidebar-group-${label.toLowerCase().replace(/\s+/g, '-')}`}
-      >
-        {label}
-      </SidebarGroupLabel>
-    );
-  };
-
-  // Calculate starting indices for each group dynamically
-  let currentIndex = 0;
+  // On mobile, don't render this sidebar (MobileSidebarTiles handles it)
+  if (isMobile) {
+    return null;
+  }
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border/50">
-      {/* Header with Dynamic Company Name */}
-      <SidebarHeader className={cn(
-        "h-16 flex items-center border-b border-sidebar-border/30 shrink-0 transition-all duration-200",
-        collapsed ? "justify-center px-2" : "px-4"
-      )}>
-        <Tooltip delayDuration={150}>
-          <TooltipTrigger asChild>
-            <Link 
-              to="/"
-              onClick={handleLogoClick}
-              className={cn(
-                "flex items-center rounded-lg transition-all duration-200 ease-out group",
-                "hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1",
-                collapsed ? "justify-center p-2" : "gap-3 p-2 w-full"
-              )}
-              aria-label="Go to Dashboard"
-            >
-              {/* Icon Container */}
-              <div className={cn(
-                "flex items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm transition-transform duration-200",
-                "group-hover:scale-105 group-hover:shadow-md",
-                collapsed ? "h-8 w-8" : "h-9 w-9"
-              )}>
-                <Building2 className={cn(collapsed ? "h-4 w-4" : "h-5 w-5")} />
-              </div>
-              
-              {/* Company Name - Only show when expanded */}
-              {!collapsed && (
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  {companyLoading ? (
-                    <div className="space-y-1.5">
-                      <Skeleton className="h-4 w-28" />
-                      <Skeleton className="h-3 w-20" />
-                    </div>
-                  ) : (
-                    <>
-                      <h1 className="text-sm font-semibold text-sidebar-foreground truncate leading-tight">
-                        {companySettings?.company_name || 'Your Company'}
-                      </h1>
-                      <p className="text-[10px] text-sidebar-foreground/50 truncate">
-                        Business Management
-                      </p>
-                    </>
-                  )}
-                </div>
-              )}
-            </Link>
-          </TooltipTrigger>
-          {collapsed && (
-            <TooltipContent side="right" sideOffset={12} className="font-medium">
-              <div className="flex flex-col">
-                <span>{companySettings?.company_name || 'Your Company'}</span>
-                <span className="text-xs text-muted-foreground">Go to Dashboard</span>
-              </div>
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </SidebarHeader>
-
-      <SidebarContent className={cn(
-        "py-4 transition-all duration-200",
-        collapsed ? "px-1.5" : "px-3"
-      )}>
-        {/* Favorites - hide in collapsed mode for cleaner look */}
-        {!collapsed && <FavoritePages />}
-        
-        {/* Navigation Container with ARIA */}
-        <nav 
-          ref={navContainerRef}
-          aria-label="Main navigation"
-          className={cn("space-y-4", collapsed && "space-y-2")}
-        >
-          {filteredNavGroups.map((group) => {
-            const startIndex = currentIndex;
-            currentIndex += group.items.length;
-            
-            return (
-              <SidebarGroup 
-                key={group.label} 
-                role="group" 
-                aria-labelledby={`sidebar-group-${group.label.toLowerCase().replace(/\s+/g, '-')}`}
-              >
-                {renderGroupLabel(group.label)}
-                <SidebarGroupContent className={cn(collapsed ? "space-y-1" : "space-y-0.5")}>
-                  {renderNavItems(group.items, startIndex)}
-                </SidebarGroupContent>
-              </SidebarGroup>
-            );
-          })}
-        </nav>
-      </SidebarContent>
-
-      {/* Footer with User */}
-      <SidebarFooter className={cn(
-        "border-t border-sidebar-border/30 transition-all duration-200",
-        collapsed ? "p-2 flex justify-center" : "p-3"
-      )}>
+    <motion.div
+      className="fixed left-0 top-0 z-40 h-screen border-r border-sidebar-border/50 bg-sidebar"
+      initial="closed"
+      animate={isCollapsed ? 'closed' : 'open'}
+      variants={sidebarVariants}
+      transition={transitionProps}
+      onMouseEnter={() => setIsCollapsed(false)}
+      onMouseLeave={() => setIsCollapsed(true)}
+    >
+      <motion.div className="flex h-full flex-col" variants={staggerVariants}>
+        {/* Header - Organization */}
         <div className={cn(
-          "flex items-center",
-          collapsed ? "flex-col gap-2" : "gap-3"
+          "flex h-14 items-center border-b border-sidebar-border/30 shrink-0",
+          isCollapsed ? "justify-center px-1.5" : "px-3"
         )}>
-          {collapsed ? (
-            /* Collapsed: Show avatar with tooltip, then sign out button */
-            <>
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
-                  <Avatar className="h-8 w-8 border border-sidebar-border/50 cursor-default">
-                    <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-medium">
-                      {user?.email?.charAt(0).toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={12} className="font-medium">
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{user?.email}</span>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={handleSignOut}
-                    aria-label="Sign out"
-                    className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={12}>Sign out</TooltipContent>
-              </Tooltip>
-            </>
-          ) : (
-            /* Expanded: Full user info layout */
-            <>
-              <Avatar className="h-8 w-8 border border-sidebar-border/50">
-                <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-medium">
-                  {user?.email?.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate text-sidebar-foreground">
-                  {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
-                </p>
-                <p className="text-xs text-sidebar-foreground/50 truncate">
-                  {user?.email}
-                </p>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={cn(
+                "flex items-center gap-2 rounded-lg transition-colors w-full",
+                "hover:bg-sidebar-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                isCollapsed ? "justify-center p-1.5" : "px-2 py-1.5"
+              )}>
+                <Avatar className={cn("shrink-0 border border-sidebar-border/50", isCollapsed ? "h-7 w-7" : "h-8 w-8")}>
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-xs font-bold">
+                    {companyName.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                {!isCollapsed && (
+                  <motion.div variants={textVariants} className="flex-1 min-w-0 text-left">
+                    {companyLoading ? (
+                      <Skeleton className="h-4 w-24" />
+                    ) : (
+                      <span className="text-sm font-semibold text-sidebar-foreground truncate block">
+                        {companyName}
+                      </span>
+                    )}
+                  </motion.div>
+                )}
+                {!isCollapsed && <ChevronsUpDown className="h-3.5 w-3.5 text-sidebar-foreground/40 shrink-0" />}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="right" sideOffset={8} className="w-56">
+              <div className="px-2 py-1.5">
+                <p className="text-sm font-semibold">{companyName}</p>
+                <p className="text-xs text-muted-foreground">Business Management</p>
               </div>
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={handleSignOut}
-                    aria-label="Sign out"
-                    className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0 focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">Sign out</TooltipContent>
-              </Tooltip>
-            </>
-          )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/settings" className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" /> Settings
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </SidebarFooter>
-    </Sidebar>
+
+        {/* Separator */}
+        <Separator className="bg-sidebar-border/30" />
+
+        {/* Navigation */}
+        <ScrollArea className="flex-1">
+          <div className={cn("py-3", isCollapsed ? "px-1.5" : "px-2")}>
+            {/* Favorites - only when expanded */}
+            {!isCollapsed && <FavoritePages />}
+
+            <nav aria-label="Main navigation" className={cn("space-y-4", isCollapsed && "space-y-2")}>
+              {filteredNavGroups.map((group) => (
+                <div key={group.label}>
+                  {/* Group Label */}
+                  {isCollapsed ? (
+                    <div className="w-5 h-px bg-sidebar-border/50 mx-auto my-2" aria-hidden="true" />
+                  ) : (
+                    <motion.p
+                      variants={textVariants}
+                      className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-2 mb-1.5 mt-1"
+                    >
+                      {group.label}
+                    </motion.p>
+                  )}
+
+                  {/* Nav Items */}
+                  <div className={cn("space-y-0.5", isCollapsed && "flex flex-col items-center space-y-1")}>
+                    {group.items.map((item) => {
+                      const isActive = location.pathname === item.url || 
+                        (item.url !== '/' && location.pathname.startsWith(item.url));
+                      
+                      const linkContent = (
+                        <NavLink
+                          to={item.url}
+                          onClick={(e) => { if (isActive) e.preventDefault(); }}
+                          className={cn(
+                            "flex items-center rounded-md transition-all duration-150 outline-none",
+                            "focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1",
+                            isCollapsed
+                              ? "h-8 w-8 justify-center p-0"
+                              : "gap-2.5 px-2.5 py-1.5 w-full",
+                            isActive
+                              ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                          )}
+                        >
+                          <item.icon className={cn(
+                            "h-4 w-4 shrink-0 transition-colors",
+                            isActive ? "text-sidebar-primary" : "text-sidebar-foreground/60"
+                          )} />
+                          {!isCollapsed && (
+                            <motion.span
+                              variants={textVariants}
+                              className="truncate text-sm"
+                            >
+                              {item.title}
+                            </motion.span>
+                          )}
+                        </NavLink>
+                      );
+
+                      return isCollapsed ? (
+                        <Tooltip key={item.title} delayDuration={100}>
+                          <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+                          <TooltipContent side="right" sideOffset={12} className="font-medium text-sm">
+                            {item.title}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <div key={item.title}>{linkContent}</div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </div>
+        </ScrollArea>
+
+        <Separator className="bg-sidebar-border/30" />
+
+        {/* Footer - User Account */}
+        <div className={cn(
+          "shrink-0",
+          isCollapsed ? "p-1.5 flex justify-center" : "p-2"
+        )}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={cn(
+                "flex items-center gap-2 rounded-lg transition-colors w-full",
+                "hover:bg-sidebar-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                isCollapsed ? "justify-center p-1.5" : "px-2 py-1.5"
+              )}>
+                <Avatar className={cn("shrink-0 border border-sidebar-border/50", isCollapsed ? "h-7 w-7" : "h-8 w-8")}>
+                  <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-medium">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+                {!isCollapsed && (
+                  <motion.div variants={textVariants} className="flex-1 min-w-0 text-left">
+                    <p className="text-sm font-medium truncate text-sidebar-foreground">{userName}</p>
+                    <p className="text-[10px] text-sidebar-foreground/50 truncate">{userEmail}</p>
+                  </motion.div>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="right" sideOffset={8} className="w-56">
+              <div className="flex items-center gap-2 px-2 py-1.5">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-medium">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{userName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+                </div>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild className="flex items-center gap-2">
+                <Link to="/settings"><Building2 className="h-4 w-4" /> Settings</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2 text-destructive focus:text-destructive">
+                <LogOut className="h-4 w-4" /> Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
