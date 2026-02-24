@@ -622,12 +622,8 @@ const InvoiceForm = () => {
 
             {/* Items */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardHeader className="pb-3">
                 <CardTitle className="text-base">Items</CardTitle>
-                <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                  <Plus className="h-4 w-4 mr-1.5" />
-                  Add Item
-                </Button>
               </CardHeader>
               <CardContent>
                 {isMobile ? (
@@ -726,6 +722,16 @@ const InvoiceForm = () => {
                     </Table>
                   </div>
                 )}
+
+                {/* Inline Add Item button */}
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-muted-foreground/25 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary hover:bg-accent/50"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Item
+                </button>
               </CardContent>
             </Card>
 
