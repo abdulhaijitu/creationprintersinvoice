@@ -61,6 +61,8 @@ import {
 import { format, subMonths, startOfMonth, endOfMonth, isToday, parseISO } from 'date-fns';
 import { formatCurrency, formatChartCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileHomeTiles } from '@/components/layout/MobileHomeTiles';
 
 interface DashboardStats {
   todaySales: number;
@@ -139,6 +141,7 @@ const Dashboard = () => {
   const { user, isAdmin } = useAuth();
   const { organization } = useOrganization();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [stats, setStats] = useState<DashboardStats>({
     todaySales: 0,
     monthlyRevenue: 0,
@@ -491,6 +494,11 @@ const Dashboard = () => {
   const monthlyCollection = stats.monthlyRevenue;
   // Calculate monthly due (total - paid_amount from all invoices)
   const monthlyDue = stats.customerDue;
+
+  // Mobile: show tile navigation instead of dashboard
+  if (isMobile) {
+    return <MobileHomeTiles />;
+  }
 
   if (loading) {
     return (
