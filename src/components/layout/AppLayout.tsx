@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
+import { MobileSidebarTiles } from './MobileSidebarTiles';
 import { Breadcrumb } from './Breadcrumb';
 import { GlobalSearch } from './GlobalSearch';
 import { UserDropdown } from './UserDropdown';
@@ -104,6 +105,7 @@ const AppLayout = () => {
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-muted/30">
           <AppSidebar />
+          <MobileSidebarTiles />
           <MobileSidebarHandler />
           <NotificationManager />
           <SidebarInset className="flex-1 min-w-0 max-w-full flex flex-col overflow-hidden">
