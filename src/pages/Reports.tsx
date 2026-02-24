@@ -653,8 +653,8 @@ const Reports = () => {
               </div>
 
               {/* Table */}
-              <div className="border border-border/50 rounded-xl overflow-hidden overflow-x-auto">
-                <div className="min-w-[700px]">
+              <div className="border border-border/50 rounded-xl overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+                <div className="min-w-[650px]">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
