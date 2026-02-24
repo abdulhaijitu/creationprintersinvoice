@@ -1,4 +1,4 @@
-import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import { Outlet, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, Suspense } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -22,6 +22,8 @@ import { FavoriteButton } from './FavoriteButton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import AppFooter from './AppFooter';
 
 // Component to handle closing sidebar on route change
@@ -88,6 +90,10 @@ const PageLoadingFallback = () => (
 const AppLayout = () => {
   const { user, loading: authLoading } = useAuth();
   const { loading: orgLoading } = useOrganization();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const isHomePage = location.pathname === '/' || location.pathname === '/dashboard';
 
   // Only block on auth loading - show shell immediately
   // Organization loading can happen in background
@@ -113,7 +119,23 @@ const AppLayout = () => {
             <header className="sticky top-0 z-20 flex h-12 sm:h-14 items-center border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 shadow-sm w-full min-w-0">
               {/* Left section - Sidebar trigger + Breadcrumb */}
               <div className="flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 md:pl-4 min-w-0 shrink-0">
-                <SidebarTrigger className="h-9 w-9 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200 touch-target" />
+                {/* Mobile: Back button or Menu trigger */}
+                {isMobile ? (
+                  isHomePage ? (
+                    <SidebarTrigger className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200 touch-target" />
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => navigate(-1)}
+                      className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200 touch-target"
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                  )
+                ) : (
+                  <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200" />
+                )}
                 <div className="hidden md:flex items-center gap-2 min-w-0">
                   <Breadcrumb />
                   <FavoriteButton />
