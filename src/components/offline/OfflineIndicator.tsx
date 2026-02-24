@@ -50,7 +50,7 @@ export const OfflineIndicator = () => {
           <WifiOff className="h-4 w-4" />
           <span>You're offline</span>
           {queueLength > 0 && (
-            <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+            <span className="bg-destructive-foreground/20 px-2 py-0.5 rounded-full text-xs">
               {queueLength} pending
             </span>
           )}

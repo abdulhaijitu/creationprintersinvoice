@@ -23,6 +23,7 @@ import {
   Wallet,
   Users,
   CalendarCheck,
+  CalendarDays,
   Receipt,
   ClipboardList,
   Award,
@@ -168,6 +169,12 @@ export const hrNavItems: SidebarNavItem[] = [
     title: 'Tasks', 
     url: '/tasks', 
     icon: ListTodo,
+    permissionKey: 'hr.tasks',
+  },
+  { 
+    title: 'Calendar', 
+    url: '/calendar', 
+    icon: CalendarDays,
     permissionKey: 'hr.tasks',
   },
 ];

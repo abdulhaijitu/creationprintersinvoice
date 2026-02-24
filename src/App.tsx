@@ -42,6 +42,7 @@ import ChallanPrintTemplate from "./components/delivery-challan/ChallanPrintTemp
 import ResetPassword from "./pages/ResetPassword";
 import CostingItemTemplates from "./pages/CostingItemTemplates";
 import Admin from "./pages/Admin";
+import CalendarView from "./pages/CalendarView";
 
 // Create a single QueryClient instance with optimized settings
 const queryClient = createQueryClient();
@@ -106,6 +107,7 @@ const App = () => (
                     <Route path="/team-members" element={<TeamMembers />} />
                     <Route path="/delivery-challans" element={<DeliveryChallans />} />
                     <Route path="/costing-templates" element={<CostingItemTemplates />} />
+                    <Route path="/calendar" element={<CalendarView />} />
                   </Route>
 
                   {/* Admin panel (self-contained layout) */}

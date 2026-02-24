@@ -38,7 +38,7 @@ const ImpersonationBanner = () => {
             size="sm"
             onClick={endImpersonation}
             disabled={isEnding}
-            className="bg-white hover:bg-amber-50 text-amber-900 shrink-0 font-medium shadow-sm"
+            className="bg-card hover:bg-accent text-foreground shrink-0 font-medium shadow-sm"
           >
             {isEnding ? (
               <>
