@@ -19,9 +19,9 @@ const statusConfig: Record<string, {
   variant: 'success' | 'warning' | 'destructive' | 'info' | 'muted' | 'primary';
 }> = {
   // Invoice statuses
-  paid: { label: 'Paid', icon: CheckCircle, variant: 'success' },
-  partial: { label: 'Partial', icon: Clock, variant: 'warning' },
-  unpaid: { label: 'Due', icon: XCircle, variant: 'destructive' },
+  paid: { label: 'PAID', icon: CheckCircle, variant: 'success' },
+  partial: { label: 'PARTIAL', icon: Clock, variant: 'warning' },
+  unpaid: { label: 'DUE', icon: XCircle, variant: 'destructive' },
   
   // Quotation statuses
   draft: { label: 'Draft', icon: FileEdit, variant: 'muted' },

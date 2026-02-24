@@ -38,19 +38,19 @@ const StatusBadge = ({ status }: { status: string }) => {
     paid: (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
         <CheckCircle className="w-3 h-3" />
-        Paid
+        PAID
       </span>
     ),
     partial: (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
         <Clock className="w-3 h-3" />
-        Partial
+        PARTIAL
       </span>
     ),
     due: (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
         <AlertCircle className="w-3 h-3" />
-        Due
+        DUE
       </span>
     ),
   };

@@ -260,19 +260,19 @@ const Invoices = () => {
       paid: (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
           <CheckCircle className="w-3.5 h-3.5" />
-          {isFullyPaid ? 'Fully Paid' : 'Paid'}
+          PAID
         </span>
       ),
       partial: (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
           <Clock className="w-3.5 h-3.5" />
-          Partial
+          PARTIAL
         </span>
       ),
       due: (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
           <AlertCircle className="w-3.5 h-3.5" />
-          Due
+          DUE
         </span>
       ),
     };
