@@ -9,7 +9,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
-import { bn } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 const getNotificationIcon = (type: string) => {
@@ -81,7 +81,7 @@ const NotificationItem = ({
           <span className="text-xs text-muted-foreground mt-1 block">
             {formatDistanceToNow(new Date(notification.created_at), {
               addSuffix: true,
-              locale: bn,
+              locale: enUS,
             })}
           </span>
         </div>
@@ -115,7 +115,7 @@ export const NotificationBell = () => {
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
         <div className="flex items-center justify-between p-3 border-b">
-          <h3 className="font-semibold">নোটিফিকেশন</h3>
+          <h3 className="font-semibold">Notifications</h3>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
@@ -124,19 +124,19 @@ export const NotificationBell = () => {
               onClick={markAllAsRead}
             >
               <CheckCheck className="h-3 w-3 mr-1" />
-              সব পঠিত
+              Mark all read
             </Button>
           )}
         </div>
         <ScrollArea className="h-[300px]">
           {loading ? (
             <div className="flex items-center justify-center h-20">
-              <span className="text-sm text-muted-foreground">লোড হচ্ছে...</span>
+              <span className="text-sm text-muted-foreground">Loading...</span>
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-20 text-muted-foreground">
               <Bell className="h-8 w-8 mb-2 opacity-50" />
-              <span className="text-sm">কোনো নোটিফিকেশন নেই</span>
+              <span className="text-sm">No notifications</span>
             </div>
           ) : (
             notifications.map((notification) => (
