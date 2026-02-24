@@ -83,13 +83,20 @@ const Admin = () => {
   const { role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [activeSection, setActiveSection] = useState<string | null>(isMobile ? null : 'dashboard');
+  const [activeSection, setActiveSection] = useState<string | null>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY_EXPORT);
       return stored ? JSON.parse(stored) : false;
     } catch { return false; }
   });
+
+  // On mobile, reset to tiles home when first entering
+  useEffect(() => {
+    if (isMobile) {
+      setActiveSection(null);
+    }
+  }, [isMobile]);
 
   // Redirect non-admin users
   useEffect(() => {
