@@ -60,7 +60,7 @@ export function MobileHomeTiles() {
               return (
                 <button
                   key={item.url}
-                  onClick={() => navigate(item.url)}
+                  onClick={() => navigate(item.url === '/' ? '/dashboard' : item.url)}
                   className={cn(
                     'flex flex-col items-center justify-center gap-2 rounded-xl p-3 aspect-square text-center transition-all duration-200 active:scale-95',
                     isActive
