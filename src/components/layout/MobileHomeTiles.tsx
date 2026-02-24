@@ -33,19 +33,6 @@ export function MobileHomeTiles() {
 
   return (
     <div className="space-y-5">
-      {/* Company Header */}
-      <div className="flex items-center gap-2.5 mb-2">
-        <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
-          <Building2 className="h-4.5 w-4.5" />
-        </div>
-        <div>
-          <h1 className="text-base font-semibold text-foreground">
-            {companySettings?.company_name || 'Your Company'}
-          </h1>
-          <p className="text-xs text-muted-foreground">Quick Navigation</p>
-        </div>
-      </div>
-
       {/* Tile Groups */}
       {filteredNavGroups.map((group) => (
         <div key={group.label}>
