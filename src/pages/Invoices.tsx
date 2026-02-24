@@ -669,7 +669,7 @@ const Invoices = () => {
                 <div className="hidden md:block">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
                         <TableHead className="w-[40px]">
                           <Checkbox
                             checked={isAllSelected}
@@ -679,13 +679,13 @@ const Invoices = () => {
                           />
                         </TableHead>
                         <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
-                          Invoice No
+                          Date
+                        </TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
+                          Invoice#
                         </TableHead>
                         <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
                           Customer
-                        </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground hidden lg:table-cell">
-                          Date
                         </TableHead>
                         <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right">
                           Total
@@ -699,7 +699,7 @@ const Invoices = () => {
                         <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground hidden lg:table-cell">
                           Status
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right w-[80px]">
+                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-center w-[120px]">
                           Action
                         </TableHead>
                       </TableRow>
@@ -727,14 +727,14 @@ const Invoices = () => {
                                   aria-label={`Select ${invoice.invoice_number}`}
                                 />
                               </TableCell>
+                              <TableCell className="text-muted-foreground whitespace-nowrap">
+                                {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
+                              </TableCell>
                               <TableCell className="font-semibold text-foreground">
                                 {invoice.invoice_number}
                               </TableCell>
                               <TableCell className="text-foreground truncate max-w-[120px] lg:max-w-[180px]">
                                 {invoice.customers?.name || '—'}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground hidden lg:table-cell">
-                                {format(new Date(invoice.invoice_date), 'dd MMM')}
                               </TableCell>
                               <TableCell className="text-right font-medium text-foreground tabular-nums">
                                 {formatCurrency(Number(invoice.total))}
