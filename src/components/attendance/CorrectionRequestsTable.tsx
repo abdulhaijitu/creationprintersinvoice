@@ -129,7 +129,7 @@ export const CorrectionRequestsTable: React.FC<CorrectionRequestsTableProps> = (
                   {request.employee?.full_name || 'Unknown'}
                 </TableCell>
                 <TableCell>
-                  {format(new Date(request.attendance_date), 'MMM d, yyyy')}
+                  {format(new Date(request.attendance_date), 'dd/MM/yyyy')}
                 </TableCell>
                 <TableCell>
                   <div className="text-sm">

@@ -62,7 +62,7 @@ export function QuotationCard({
 
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
-            {format(new Date(quotation.quotation_date), 'dd MMM yyyy')}
+            {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}
           </span>
           <span className="font-medium text-primary">
             {formatCurrency(Number(quotation.total))}
@@ -71,7 +71,7 @@ export function QuotationCard({
 
         {quotation.valid_until && (
           <p className="text-xs text-muted-foreground">
-            Valid until: {format(new Date(quotation.valid_until), 'dd MMM yyyy')}
+            Valid until: {format(new Date(quotation.valid_until), 'dd/MM/yyyy')}
           </p>
         )}
 

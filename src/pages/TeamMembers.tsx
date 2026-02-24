@@ -1073,7 +1073,7 @@ const TeamMembers = () => {
                             )}
                           </TableCell>
                           <TableCell className="py-4 text-muted-foreground">
-                            {format(new Date(item.created_at), 'MMM d, yyyy')}
+                            {format(new Date(item.created_at), 'dd/MM/yyyy')}
                           </TableCell>
                           {canManageTeam && (
                             <TableCell className="py-4 text-right">

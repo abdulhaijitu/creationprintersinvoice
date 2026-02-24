@@ -238,7 +238,7 @@ export function ReferenceSelect({
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{item.number}</span>
                           <span className="text-xs text-muted-foreground">
-                            {format(new Date(item.date), 'dd MMM')}
+                            {format(new Date(item.date), 'dd/MM/yyyy')}
                           </span>
                         </div>
                         {item.customer_name && (

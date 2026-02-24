@@ -2,6 +2,34 @@
  * Shared formatting utilities for consistent data display across the app
  */
 
+import { format, parseISO } from 'date-fns';
+
+/**
+ * Format a date string or Date object as dd/MM/yyyy (e.g., 24/02/2026)
+ */
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return '';
+  try {
+    const d = typeof date === 'string' ? parseISO(date) : date;
+    return format(d, 'dd/MM/yyyy');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Format a date with time as dd/MM/yyyy HH:mm
+ */
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (!date) return '';
+  try {
+    const d = typeof date === 'string' ? parseISO(date) : date;
+    return format(d, 'dd/MM/yyyy HH:mm');
+  } catch {
+    return '';
+  }
+}
+
 /**
  * Format a number as BDT currency
  */

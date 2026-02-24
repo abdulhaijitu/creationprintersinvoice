@@ -76,7 +76,7 @@ export const OwnershipHistory = () => {
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant={actionInfo.variant}>{actionInfo.label}</Badge>
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(entry.created_at), 'MMM d, yyyy HH:mm')}
+                          {format(new Date(entry.created_at), 'dd/MM/yyyy HH:mm')}
                         </span>
                       </div>
                       

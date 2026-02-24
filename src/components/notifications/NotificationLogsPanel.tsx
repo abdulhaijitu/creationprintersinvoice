@@ -106,7 +106,7 @@ export const NotificationLogsPanel = () => {
                         {status.label}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(log.created_at), 'MMM d, yyyy h:mm a')}
+                        {format(new Date(log.created_at), 'dd/MM/yyyy HH:mm')}
                       </span>
                       {log.retry_count > 0 && (
                         <span className="text-xs text-muted-foreground">

@@ -470,7 +470,7 @@ const QuotationDetail = () => {
             <div>
               <h1 className="text-3xl font-bold">Quotation #{quotation.quotation_number}</h1>
               <p className="text-muted-foreground">
-                {format(new Date(quotation.quotation_date), 'dd MMMM yyyy')}
+                {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}
               </p>
             </div>
           </div>
@@ -633,12 +633,12 @@ const QuotationDetail = () => {
                       </p>
                       <p className="text-sm">
                         <span className="text-muted-foreground">Date:</span>{' '}
-                        {format(new Date(quotation.quotation_date), 'dd MMM yyyy')}
+                        {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}
                       </p>
                       {quotation.valid_until && (
                         <p className="text-sm">
                           <span className="text-muted-foreground">Valid Until:</span>{' '}
-                          {format(new Date(quotation.valid_until), 'dd MMM yyyy')}
+                          {format(new Date(quotation.valid_until), 'dd/MM/yyyy')}
                         </p>
                       )}
                     </div>
@@ -779,7 +779,7 @@ const QuotationDetail = () => {
                 </div>
                 {quotation.status_changed_at && (
                   <p className="text-xs text-muted-foreground">
-                    Last updated on {format(new Date(quotation.status_changed_at), 'dd MMM yyyy, HH:mm')}
+                    Last updated on {format(new Date(quotation.status_changed_at), 'dd/MM/yyyy HH:mm')}
                   </p>
                 )}
                 <div className="pt-3 border-t space-y-2">
@@ -830,7 +830,7 @@ const QuotationDetail = () => {
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Converted on:</span>
                       <span className="font-medium">
-                        {format(new Date(quotation.converted_at), 'dd MMM yyyy, HH:mm')}
+                        {format(new Date(quotation.converted_at), 'dd/MM/yyyy HH:mm')}
                       </span>
                     </div>
                   )}
@@ -865,7 +865,7 @@ const QuotationDetail = () => {
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Rejected on:</span>
                       <span className="font-medium">
-                        {format(new Date(quotation.rejected_at), 'dd MMM yyyy, HH:mm')}
+                        {format(new Date(quotation.rejected_at), 'dd/MM/yyyy HH:mm')}
                       </span>
                     </div>
                   )}
@@ -896,7 +896,7 @@ const QuotationDetail = () => {
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Expired on:</span>
                       <span className="font-medium">
-                        {format(new Date(quotation.valid_until), 'dd MMM yyyy')}
+                        {format(new Date(quotation.valid_until), 'dd/MM/yyyy')}
                       </span>
                     </div>
                   )}

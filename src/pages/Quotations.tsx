@@ -513,11 +513,11 @@ const Quotations = () => {
                           {quotation.customers?.name || '-'}
                         </TableCell>
                         <TableCell className="whitespace-nowrap hidden lg:table-cell">
-                          {format(new Date(quotation.quotation_date), 'dd MMM yyyy')}
+                          {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}
                         </TableCell>
                         <TableCell className="whitespace-nowrap hidden xl:table-cell">
                           {quotation.valid_until
-                            ? format(new Date(quotation.valid_until), 'dd MMM yyyy')
+                            ? format(new Date(quotation.valid_until), 'dd/MM/yyyy')
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right font-medium whitespace-nowrap">

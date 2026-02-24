@@ -795,7 +795,7 @@ const Employees = () => {
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {employee.joining_date
-                      ? format(new Date(employee.joining_date), "dd MMM yyyy")
+                      ? format(new Date(employee.joining_date), "dd/MM/yyyy")
                       : "-"}
                   </TableCell>
                   <TableCell className="text-right font-medium whitespace-nowrap">

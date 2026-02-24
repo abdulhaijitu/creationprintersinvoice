@@ -128,7 +128,7 @@ export const UpgradeRequestsManager = () => {
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {format(new Date(request.requested_at), 'MMM dd, yyyy HH:mm')}
+                  {format(new Date(request.requested_at), 'dd/MM/yyyy HH:mm')}
                 </TableCell>
                 <TableCell>{getStatusBadge(request.status)}</TableCell>
                 <TableCell className="text-right">
@@ -155,7 +155,7 @@ export const UpgradeRequestsManager = () => {
                     </div>
                   ) : (
                     <span className="text-sm text-muted-foreground">
-                      {request.reviewed_at && format(new Date(request.reviewed_at), 'MMM dd, yyyy')}
+                      {request.reviewed_at && format(new Date(request.reviewed_at), 'dd/MM/yyyy')}
                     </span>
                   )}
                 </TableCell>

@@ -1725,7 +1725,7 @@ const Expenses = () => {
                   sortedExpenses.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell>
-                        {format(new Date(expense.date), "dd MMM")}
+                        {format(new Date(expense.date), "dd/MM/yyyy")}
                       </TableCell>
                       <TableCell className="max-w-[150px] lg:max-w-[200px] truncate">
                         {expense.description}
@@ -1808,7 +1808,7 @@ const Expenses = () => {
                         {formatCurrency(expense.amount)}
                       </p>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
-                        <span>{format(new Date(expense.date), 'dd MMM yyyy')}</span>
+                        <span>{format(new Date(expense.date), 'dd/MM/yyyy')}</span>
                         {expense.payment_method && (
                           <span className="capitalize">• {expense.payment_method}</span>
                         )}

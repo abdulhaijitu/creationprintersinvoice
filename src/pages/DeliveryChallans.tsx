@@ -291,7 +291,7 @@ export default function DeliveryChallans() {
                       <div className="min-w-0">
                         <p className="font-medium truncate">{challan.challan_number}</p>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(challan.challan_date), 'dd MMM yyyy')}
+                          {format(new Date(challan.challan_date), 'dd/MM/yyyy')}
                         </p>
                       </div>
                       <StatusBadge status={challan.status} />
@@ -392,7 +392,7 @@ export default function DeliveryChallans() {
                           {challan.challan_number}
                         </TableCell>
                         <TableCell>
-                          {format(new Date(challan.challan_date), 'dd MMM yyyy')}
+                          {format(new Date(challan.challan_date), 'dd/MM/yyyy')}
                         </TableCell>
                         <TableCell>
                           {challan.invoice?.invoice_number || 'N/A'}

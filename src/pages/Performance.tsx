@@ -356,7 +356,7 @@ const Performance = () => {
               notes.map((note) => (
                 <TableRow key={note.id}>
                   <TableCell>
-                    {format(new Date(note.created_at), "dd MMM yyyy")}
+                    {format(new Date(note.created_at), "dd/MM/yyyy")}
                   </TableCell>
                   {isAdmin && (
                     <TableCell className="font-medium">

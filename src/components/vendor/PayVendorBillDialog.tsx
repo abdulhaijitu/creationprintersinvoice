@@ -205,7 +205,7 @@ export const PayVendorBillDialog = ({
               </div>
               <div>
                 <span className="text-muted-foreground">Date:</span>
-                <span className="ml-2">{format(new Date(bill.bill_date), "dd MMM yyyy")}</span>
+                <span className="ml-2">{format(new Date(bill.bill_date), "dd/MM/yyyy")}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Bill Amount:</span>

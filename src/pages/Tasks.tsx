@@ -680,7 +680,7 @@ const Tasks = () => {
                         <TableCell>{task.assignee?.full_name || "-"}</TableCell>
                         <TableCell>
                           {task.archived_at 
-                            ? format(new Date(task.archived_at), 'dd MMM yyyy')
+                            ? format(new Date(task.archived_at), 'dd/MM/yyyy')
                             : '-'
                           }
                         </TableCell>

@@ -97,7 +97,7 @@ export const PaymentCard = ({
 
             {/* Payment date + method */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span>{format(parseISO(payment.payment_date), 'dd MMM yyyy')}</span>
+              <span>{format(parseISO(payment.payment_date), 'dd/MM/yyyy')}</span>
               {payment.payment_method && (
                 <span className="capitalize">• {payment.payment_method}</span>
               )}

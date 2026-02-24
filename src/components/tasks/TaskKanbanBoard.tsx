@@ -206,7 +206,7 @@ function KanbanCard({ task, isDragging, canDrag, onClick, onDragStart, onDragEnd
           {task.deadline && (
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              <span>{format(new Date(task.deadline), "dd MMM")}</span>
+              <span>{format(new Date(task.deadline), "dd/MM/yyyy")}</span>
             </div>
           )}
         </div>

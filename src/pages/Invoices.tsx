@@ -896,7 +896,7 @@ const Invoices = () => {
                               {invoice.customers?.name || 'No Customer'}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {format(new Date(invoice.invoice_date), 'dd MMM yyyy')}
+                              {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
                             </p>
                           </div>
                           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>

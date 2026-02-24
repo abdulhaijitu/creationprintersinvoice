@@ -472,14 +472,14 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
                 <tr>
                   <td style={{ color: '#6b7280', padding: '2px 0' }}>Date:</td>
                   <td style={{ fontWeight: '500', textAlign: 'right' }}>
-                    {format(new Date(data.quotation.date), 'dd MMM yyyy')}
+                    {format(new Date(data.quotation.date), 'dd/MM/yyyy')}
                   </td>
                 </tr>
                 {data.quotation.validUntil && (
                   <tr>
                     <td style={{ color: '#6b7280', padding: '2px 0' }}>Valid Until:</td>
                     <td style={{ fontWeight: '500', textAlign: 'right' }}>
-                      {format(new Date(data.quotation.validUntil), 'dd MMM yyyy')}
+                      {format(new Date(data.quotation.validUntil), 'dd/MM/yyyy')}
                     </td>
                   </tr>
                 )}
@@ -652,7 +652,7 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
             {/* Generated Info */}
             <div style={{ ...styles.footerSection, textAlign: 'right' }}>
               <p style={{ margin: 0, color: '#9ca3af', fontSize: '8pt' }}>
-                Generated on {format(new Date(), 'dd MMM yyyy')}
+                Generated on {format(new Date(), 'dd/MM/yyyy')}
               </p>
               <p style={{ margin: '4px 0 0', color: '#9ca3af', fontSize: '8pt' }}>
                 © {new Date().getFullYear()} {data.company.name}

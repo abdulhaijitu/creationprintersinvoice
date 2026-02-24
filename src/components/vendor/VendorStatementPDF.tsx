@@ -343,7 +343,7 @@ export const VendorStatementPDF = ({
               VENDOR STATEMENT
             </h2>
             <p style={{ fontSize: "9pt", color: "#6b7280", margin: "4px 0 0" }}>
-              Generated: {format(new Date(), "dd MMM yyyy")}
+              Generated: {format(new Date(), "dd/MM/yyyy")}
             </p>
           </div>
         </div>
@@ -621,7 +621,7 @@ export const VendorStatementPDF = ({
         >
           <p style={{ fontSize: "7pt", color: "#9ca3af", margin: 0 }}>
             This is a system-generated statement. • No signature required. • Printed on{" "}
-            {format(new Date(), "dd MMM yyyy 'at' hh:mm a")}
+            {format(new Date(), "dd/MM/yyyy 'at' HH:mm")}
           </p>
         </div>
       </div>

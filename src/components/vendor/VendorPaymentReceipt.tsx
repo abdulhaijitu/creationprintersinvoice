@@ -318,7 +318,7 @@ export const VendorPaymentReceipt = ({
                 <tr>
                   <td style={{ color: "#6b7280", padding: "3px 0" }}>Date</td>
                   <td style={{ fontWeight: "500", textAlign: "right", color: "#111827" }}>
-                    {format(new Date(payment.payment_date), "dd MMM yyyy")}
+                    {format(new Date(payment.payment_date), "dd/MM/yyyy")}
                   </td>
                 </tr>
                 <tr>
@@ -354,7 +354,7 @@ export const VendorPaymentReceipt = ({
           </p>
           <p style={{ fontSize: "10pt", fontWeight: "500", color: "#111827", margin: 0 }}>
             {bill.reference_no || `BILL-${bill.id.slice(0, 8)}`} dated{" "}
-            {format(new Date(bill.bill_date), "dd MMM yyyy")}
+            {format(new Date(bill.bill_date), "dd/MM/yyyy")}
           </p>
         </div>
 

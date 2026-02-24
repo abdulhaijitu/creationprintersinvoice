@@ -541,9 +541,9 @@ const Leave = () => {
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3 text-muted-foreground" />
-                      {format(new Date(request.start_date), "dd MMM")}
+                      {format(new Date(request.start_date), "dd/MM/yyyy")}
                       {request.start_date !== request.end_date && (
-                        <> - {format(new Date(request.end_date), "dd MMM")}</>
+                        <> - {format(new Date(request.end_date), "dd/MM/yyyy")}</>
                       )}
                     </div>
                   </TableCell>
