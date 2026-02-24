@@ -1230,6 +1230,7 @@ export type Database = {
           nid: string | null
           organization_id: string | null
           phone: string | null
+          photo_url: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1246,6 +1247,7 @@ export type Database = {
           nid?: string | null
           organization_id?: string | null
           phone?: string | null
+          photo_url?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1262,6 +1264,7 @@ export type Database = {
           nid?: string | null
           organization_id?: string | null
           phone?: string | null
+          photo_url?: string | null
           updated_at?: string | null
         }
         Relationships: [

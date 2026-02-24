@@ -23,7 +23,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, Users, Phone, Briefcase, Edit2, UserPlus, Trash2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -43,6 +43,7 @@ import { UnsavedChangesDialog } from "@/components/employees/UnsavedChangesDialo
 import { SalaryHistoryPanel } from "@/components/employees/SalaryHistoryPanel";
 import { SalaryChangeConfirmDialog } from "@/components/employees/SalaryChangeConfirmDialog";
 import { FormFieldWithError } from "@/components/employees/FormFieldWithError";
+import { EmployeePhotoUpload } from "@/components/employees/EmployeePhotoUpload";
 
 interface Employee {
   id: string;
@@ -56,6 +57,7 @@ interface Employee {
   address: string | null;
   nid: string | null;
   is_active: boolean;
+  photo_url: string | null;
 }
 
 const initialFormData = {
@@ -68,6 +70,7 @@ const initialFormData = {
   basic_salary: "",
   address: "",
   nid: "",
+  photo_url: "",
 };
 
 const Employees = () => {
@@ -309,7 +312,7 @@ const Employees = () => {
       return;
     }
 
-    const updateData = {
+    const updateData: Record<string, any> = {
       full_name: formData.full_name.trim(),
       phone: formData.phone.trim() || null,
       email: formData.email.trim() || null,
@@ -319,6 +322,7 @@ const Employees = () => {
       basic_salary: validatedSalary,
       address: formData.address.trim() || null,
       nid: formData.nid.trim() || null,
+      photo_url: formData.photo_url || null,
     };
 
     // Check if salary changed
@@ -426,6 +430,7 @@ const Employees = () => {
           basic_salary: validatedSalary,
           address: newEmployeeData.address.trim() || null,
           nid: newEmployeeData.nid.trim() || null,
+          photo_url: newEmployeeData.photo_url || null,
           organization_id: organization.id,
         })
         .select()
@@ -480,6 +485,7 @@ const Employees = () => {
       basic_salary: employee.basic_salary?.toString() || "",
       address: employee.address || "",
       nid: employee.nid || "",
+      photo_url: employee.photo_url || "",
     };
     setEditingEmployee(employee);
     setFormData(data);
@@ -563,6 +569,16 @@ const Employees = () => {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddEmployee} className="space-y-4">
+                {/* Photo Upload */}
+                {organization?.id && (
+                  <EmployeePhotoUpload
+                    employeeName={newEmployeeData.full_name}
+                    currentPhotoUrl={newEmployeeData.photo_url || null}
+                    organizationId={organization.id}
+                    onPhotoChange={(url) => handleFieldChange("photo_url", url || "", true)}
+                  />
+                )}
+                
                 <FormFieldWithError
                   id="new_full_name"
                   label="Name"
@@ -760,6 +776,7 @@ const Employees = () => {
                   <TableCell className="whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <Avatar>
+                        <AvatarImage src={employee.photo_url || undefined} alt={employee.full_name} className="object-cover" />
                         <AvatarFallback className="bg-primary/10 text-primary">
                           {getInitials(employee.full_name)}
                         </AvatarFallback>
@@ -832,6 +849,17 @@ const Employees = () => {
             <DialogTitle>Edit Employee Information</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Photo Upload */}
+            {organization?.id && (
+              <EmployeePhotoUpload
+                employeeId={editingEmployee?.id}
+                employeeName={formData.full_name}
+                currentPhotoUrl={formData.photo_url || null}
+                organizationId={organization.id}
+                onPhotoChange={(url) => handleFieldChange("photo_url", url || "")}
+              />
+            )}
+            
             <div className="grid grid-cols-2 gap-4">
               <FormFieldWithError
                 id="full_name"
