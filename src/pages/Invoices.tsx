@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -61,6 +61,7 @@ import { ImportResult } from '@/lib/importUtils';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { BulkActionsBar } from '@/components/shared/BulkActionsBar';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { SortableTableHeader, type SortDirection } from '@/components/shared/SortableTableHeader';
 
 interface Invoice {
   id: string;
@@ -92,6 +93,8 @@ const Invoices = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'delete' | 'markPaid' | null>(null);
   const [deleteProgress, setDeleteProgress] = useState<{ current: number; total: number } | null>(null);
+  const [sortKey, setSortKey] = useState<string | null>('invoice_date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const {
     selectedIds,
@@ -299,10 +302,74 @@ const Invoices = () => {
     if (statusFilter === 'all') return true;
     
     const displayStatus = getDisplayStatus(invoice);
-    // Map 'due' to 'unpaid' for filtering purposes
     const normalizedStatus = displayStatus === 'due' ? 'unpaid' : displayStatus;
     return normalizedStatus === statusFilter;
   });
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') { setSortDirection(null); setSortKey(null); }
+      else setSortDirection('asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedInvoices = useMemo(() => {
+    if (!sortKey || !sortDirection) return filteredInvoices;
+
+    return [...filteredInvoices].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (sortKey) {
+        case 'invoice_date':
+          aVal = new Date(a.invoice_date).getTime();
+          bVal = new Date(b.invoice_date).getTime();
+          break;
+        case 'invoice_number':
+          aVal = a.invoice_number;
+          bVal = b.invoice_number;
+          break;
+        case 'customer':
+          aVal = a.customers?.name?.toLowerCase() || '';
+          bVal = b.customers?.name?.toLowerCase() || '';
+          break;
+        case 'total':
+          aVal = Number(a.total);
+          bVal = Number(b.total);
+          break;
+        case 'paid_amount':
+          aVal = Number(a.paid_amount);
+          bVal = Number(b.paid_amount);
+          break;
+        case 'due':
+          aVal = getInvoiceStatusInfo(a).dueAmount;
+          bVal = getInvoiceStatusInfo(b).dueAmount;
+          break;
+        case 'status':
+          aVal = getDisplayStatus(a);
+          bVal = getDisplayStatus(b);
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
+      if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
+
+      let comparison: number;
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        comparison = aVal.localeCompare(bVal);
+      } else {
+        comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredInvoices, sortKey, sortDirection]);
 
   const invoiceHeaders = {
     invoice_number: 'Invoice No',
@@ -678,26 +745,26 @@ const Invoices = () => {
                             className={isSomeSelected ? 'data-[state=checked]:bg-primary' : ''}
                           />
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
-                          Date
+                        <TableHead>
+                          <SortableTableHeader label="Date" sortKey="invoice_date" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
-                          Invoice#
+                        <TableHead>
+                          <SortableTableHeader label="Invoice#" sortKey="invoice_number" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
-                          Customer
+                        <TableHead>
+                          <SortableTableHeader label="Customer" sortKey="customer" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right">
-                          Total
+                        <TableHead>
+                          <SortableTableHeader label="Total" sortKey="total" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right hidden xl:table-cell">
-                          Paid
+                        <TableHead className="hidden xl:table-cell">
+                          <SortableTableHeader label="Paid" sortKey="paid_amount" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right">
-                          Due
+                        <TableHead>
+                          <SortableTableHeader label="Due" sortKey="due" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
                         </TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground hidden lg:table-cell">
-                          Status
+                        <TableHead className="hidden lg:table-cell">
+                          <SortableTableHeader label="Status" sortKey="status" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
                         </TableHead>
                         <TableHead className="font-semibold text-xs uppercase tracking-wide text-muted-foreground text-center w-[120px]">
                           Action
@@ -705,7 +772,7 @@ const Invoices = () => {
                       </TableRow>
                     </TableHeader>
                       <TableBody>
-                        {filteredInvoices.map((invoice, index) => {
+                        {sortedInvoices.map((invoice, index) => {
                           const statusInfo = getInvoiceStatusInfo(invoice);
                           const displayStatus = statusInfo.displayStatus;
                           const dueAmount = statusInfo.dueAmount;
@@ -829,7 +896,7 @@ const Invoices = () => {
 
                 {/* Mobile: Card layout */}
                 <div className="block md:hidden p-3 space-y-3">
-                  {filteredInvoices.map((invoice) => {
+                  {sortedInvoices.map((invoice) => {
                     const statusInfo = getInvoiceStatusInfo(invoice);
                     return (
                       <div
