@@ -378,7 +378,7 @@ export function ChallanDetailDrawer({
                   {challan.status === 'dispatched' && (
                     <Button
                       size="sm"
-                      className="h-10 w-full bg-emerald-600 hover:bg-emerald-700"
+                      className="h-10 w-full bg-success hover:bg-success/90 text-success-foreground"
                       onClick={() => onStatusChange(challan.id, 'delivered')}
                     >
                       ✓ Mark as Delivered

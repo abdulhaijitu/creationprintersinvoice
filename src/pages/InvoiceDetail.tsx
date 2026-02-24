@@ -201,7 +201,7 @@ const InvoiceDetail = () => {
         </Badge>
       ),
       due: (
-        <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-0 text-base py-1 px-3">
+        <Badge className="bg-warning/10 text-warning border-0 text-base py-1 px-3">
           <Clock className="w-4 h-4 mr-1" />
           Due
         </Badge>

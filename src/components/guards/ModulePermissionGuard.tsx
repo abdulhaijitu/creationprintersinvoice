@@ -48,8 +48,8 @@ const AccessDeniedFallback: React.FC<{ moduleName?: string; action?: string }> =
   <div className="flex items-center justify-center min-h-[400px] p-6 animate-fade-in">
     <div className="max-w-md w-full space-y-6 text-center">
       {/* Icon */}
-      <div className="mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-red-100 to-rose-100 dark:from-red-950/50 dark:to-rose-950/50 flex items-center justify-center shadow-lg">
-        <Lock className="h-10 w-10 text-red-600 dark:text-red-400" />
+      <div className="mx-auto w-20 h-20 rounded-2xl bg-destructive/10 flex items-center justify-center shadow-lg">
+        <Lock className="h-10 w-10 text-destructive" />
       </div>
       
       {/* Title */}
@@ -61,7 +61,7 @@ const AccessDeniedFallback: React.FC<{ moduleName?: string; action?: string }> =
       </div>
       
       {/* Alert */}
-      <Alert variant="destructive" className="text-left bg-red-50/50 dark:bg-red-950/30 border-red-200 dark:border-red-900">
+      <Alert variant="destructive" className="text-left bg-destructive/5 border-destructive/20">
         <ShieldAlert className="h-4 w-4" />
         <AlertTitle className="text-sm font-medium">Permission Required</AlertTitle>
         <AlertDescription className="text-xs mt-1">

@@ -123,9 +123,9 @@ export const EditOrganizationDialog = ({
           )}
 
           {success && (
-            <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-600">
+            <Alert className="border-success/30 bg-success/5">
+              <CheckCircle className="h-4 w-4 text-success" />
+              <AlertDescription className="text-success">
                 Organization updated successfully!
               </AlertDescription>
             </Alert>
