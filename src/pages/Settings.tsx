@@ -15,7 +15,7 @@ import { useCompanySettings, CompanySettings } from '@/contexts/CompanySettingsC
 import { useSettingsTabPermissions, SettingsTabKey } from '@/hooks/useSettingsTabPermissions';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { UnsavedChangesWarning } from '@/components/settings/UnsavedChangesWarning';
-import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert, Eye, Lock, Calendar } from 'lucide-react';
+import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert, Eye, Lock, Calendar, Wrench } from 'lucide-react';
 import { WeeklyHolidaySettings } from '@/components/settings/WeeklyHolidaySettings';
 import { DataExportSection } from '@/components/settings/DataExportSection';
 import { SmsNotificationSettings } from '@/components/settings/SmsNotificationSettings';
@@ -364,6 +364,13 @@ export default function Settings() {
                   {tabPermissions.attendance.isReadOnly && <Lock className="h-3 w-3 opacity-50" />}
                 </TabsTrigger>
               )}
+              {tabPermissions.visibleTabs.includes('tools') && (
+                <TabsTrigger value="tools" className="flex items-center gap-2">
+                  <Wrench className="h-4 w-4" />
+                  Tools
+                  {tabPermissions.tools.isReadOnly && <Lock className="h-3 w-3 opacity-50" />}
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {tabPermissions.visibleTabs.includes('company') && (
@@ -513,7 +520,6 @@ export default function Settings() {
                     </div>
                   </CardContent>
                 </Card>
-                <DataExportSection />
               </TabsContent>
             )}
 
@@ -793,13 +799,21 @@ export default function Settings() {
                     />
                   </CardContent>
                 </Card>
-                <SmsNotificationSettings isReadOnly={tabPermissions.invoice.isReadOnly} />
               </TabsContent>
             )}
             
             {tabPermissions.visibleTabs.includes('attendance') && (
               <TabsContent value="attendance">
                 <WeeklyHolidaySettings isReadOnly={tabPermissions.attendance.isReadOnly} />
+              </TabsContent>
+            )}
+
+            {tabPermissions.visibleTabs.includes('tools') && (
+              <TabsContent value="tools">
+                <div className="space-y-6">
+                  <SmsNotificationSettings isReadOnly={tabPermissions.tools.isReadOnly} />
+                  <DataExportSection />
+                </div>
               </TabsContent>
             )}
           </Tabs>
