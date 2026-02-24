@@ -1,7 +1,8 @@
 import { Outlet, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useCompanySettings } from '@/contexts/CompanySettingsContext';
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { MobileSidebarTiles } from './MobileSidebarTiles';
@@ -22,9 +23,31 @@ import { FavoriteButton } from './FavoriteButton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AppFooter from './AppFooter';
+
+const mobilePageTitles: Record<string, string> = {
+  '/dashboard': 'ড্যাশবোর্ড',
+  '/customers': 'কাস্টমার',
+  '/invoices': 'ইনভয়েস',
+  '/quotations': 'কোটেশন',
+  '/price-calculation': 'মূল্য হিসাব',
+  '/delivery-challans': 'ডেলিভারি চালান',
+  '/vendors': 'ভেন্ডর',
+  '/expenses': 'খরচ',
+  '/employees': 'কর্মচারী',
+  '/attendance': 'উপস্থিতি',
+  '/leave': 'ছুটি',
+  '/salary': 'বেতন',
+  '/performance': 'পারফরম্যান্স',
+  '/tasks': 'টাস্ক',
+  '/reports': 'রিপোর্ট',
+  '/settings': 'সেটিংস',
+  '/team-members': 'টিম মেম্বার',
+  '/payments': 'পেমেন্ট',
+  '/costing-templates': 'কস্টিং টেমপ্লেট',
+};
 
 // Component to handle closing sidebar on route change
 const MobileSidebarHandler = () => {
@@ -90,10 +113,16 @@ const PageLoadingFallback = () => (
 const AppLayout = () => {
   const { user, loading: authLoading } = useAuth();
   const { loading: orgLoading } = useOrganization();
+  const { settings: companySettings } = useCompanySettings();
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const isHomePage = location.pathname === '/';
+
+  const mobilePageTitle = useMemo(() => {
+    const basePath = '/' + location.pathname.split('/').filter(Boolean)[0];
+    return mobilePageTitles[basePath] || basePath.replace('/', '').replace(/-/g, ' ');
+  }, [location.pathname]);
 
   // Only block on auth loading - show shell immediately
   // Organization loading can happen in background
@@ -115,55 +144,65 @@ const AppLayout = () => {
           <MobileSidebarHandler />
           <NotificationManager />
           <SidebarInset className="flex-1 min-w-0 max-w-full flex flex-col overflow-hidden">
-            {/* Top Header Bar - Responsive height */}
-            <header className="sticky top-0 z-20 flex h-12 sm:h-14 items-center border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 shadow-sm w-full min-w-0">
+            {/* Top Header Bar */}
+            <header className="sticky top-0 z-20 flex h-14 items-center border-b bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 shadow-sm w-full min-w-0">
               {/* Left section */}
-              <div className="flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 md:pl-4 min-w-0 shrink-0">
+              <div className="flex items-center gap-2 pl-3 md:pl-4 min-w-0 shrink-0">
                 {isMobile ? (
-                  isHomePage ? null : (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => navigate(-1)}
-                      className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200 touch-target"
-                    >
-                      <ArrowLeft className="h-5 w-5" />
-                    </Button>
+                  isHomePage ? (
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground shadow-sm">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm font-semibold text-foreground truncate max-w-[160px]">
+                        {companySettings?.company_name || 'My Business'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate(-1)}
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      >
+                        <ArrowLeft className="h-4.5 w-4.5" />
+                      </Button>
+                      <h1 className="text-sm font-medium text-foreground truncate max-w-[180px] capitalize">
+                        {mobilePageTitle}
+                      </h1>
+                    </div>
                   )
                 ) : (
-                  <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200" />
+                  <>
+                    <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200" />
+                    <div className="hidden md:flex items-center gap-2 min-w-0">
+                      <Breadcrumb />
+                      <FavoriteButton />
+                    </div>
+                  </>
                 )}
-                <div className="hidden md:flex items-center gap-2 min-w-0">
-                  <Breadcrumb />
-                  <FavoriteButton />
+              </div>
+              
+              {/* Center section - Search */}
+              <div className="flex-1 flex items-center justify-center px-2 md:px-4 min-w-0">
+                <div className="hidden sm:block w-full max-w-xs lg:max-w-sm min-w-0">
+                  <GlobalSearch />
                 </div>
               </div>
               
-              {/* Center section - Search (hidden on mobile home, visible on tablet+) */}
-              <div className="flex-1 flex items-center justify-center px-2 md:px-4 min-w-0">
-                {isMobile && isHomePage ? (
-                  <span className="text-sm font-semibold text-foreground tracking-tight truncate">
-                    {/* Empty center on mobile home - company name is in tiles */}
-                  </span>
-                ) : (
-                  <div className="hidden sm:block w-full max-w-xs lg:max-w-sm min-w-0">
-                    <GlobalSearch />
-                  </div>
-                )}
-              </div>
-              
-              {/* Right section - Actions */}
-              <div className="flex items-center gap-0.5 sm:gap-1 pr-2 sm:pr-3 md:pr-4 shrink-0">
-                {!(isMobile && isHomePage) && <QuickActions />}
+              {/* Right section */}
+              <div className="flex items-center gap-1 pr-3 md:pr-4 shrink-0">
+                {!isMobile && <QuickActions />}
+                <ThemeToggle />
                 <div className="hidden lg:flex items-center gap-1">
-                  <ThemeToggle />
                   <RecentActivity />
                 </div>
                 <div className="hidden sm:block">
                   <PushNotificationToggle />
                 </div>
                 <NotificationBell />
-                <div className="w-px h-5 bg-border/60 mx-0.5 sm:mx-1 hidden sm:block" />
+                <div className="w-px h-5 bg-border/60 mx-0.5 hidden sm:block" />
                 <UserDropdown />
               </div>
             </header>
