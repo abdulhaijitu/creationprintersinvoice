@@ -1,87 +1,67 @@
 
 
-## Attendance পেইজ — ৪টি ফিচার যোগ করার পরিকল্পনা
+## Expenses পেইজ — Vendors, Expenses, Categories ট্যাব উন্নতকরণ
 
-নির্বাচিত ফিচার: **1. Monthly Calendar View**, **3. Bulk Attendance Entry**, **6. Mobile Card View**, **8. Design Enhancement**
+তিনটি ট্যাবের UI/UX উন্নত করা হবে — আরও professional, visually rich এবং informative করে।
 
 ---
 
-### ফাইল পরিবর্তন
+### পরিবর্তনসমূহ (শুধু `src/pages/Expenses.tsx`)
 
-#### 1. নতুন কম্পোনেন্ট: `src/components/attendance/MonthlyCalendarView.tsx`
-- মাসভিত্তিক গ্রিড ক্যালেন্ডার (7 কলাম × 4-6 রো)
-- প্রতিটি দিনে রঙ-কোডেড ব্যাজ: Present (সবুজ), Absent (লাল), Late (হলুদ), Holiday (নীল), Leave (বেগুনি), Half Day (কমলা)
-- মাসের সামারি: Total Working Days, Present, Absent, Late, Total Hours
-- Employee ফিল্টার — নির্দিষ্ট কর্মচারীর মাসিক ভিউ অথবা সবার সামারি
-- মাস পরিবর্তনের জন্য আগের/পরের মাস বাটন
-- ক্যালেন্ডারের প্রতিটি দিনে ক্লিক করলে সেই দিনের attendance details টুলটিপে দেখাবে
+#### 1. Vendors ট্যাব
+- **Vendor কার্ড (মোবাইল):** Avatar/initials circle যোগ, due amount badge আরও prominent, gradient border-left দিয়ে due status indicate (সবুজ=Paid, লাল=Due)
+- **Vendor টেবিল (ডেস্কটপ):** রো-তে সূক্ষ্ম কালার কোডিং — due থাকলে `bg-destructive/5`, paid হলে সাধারণ
+- **ভেন্ডর কাউন্ট ব্যাজ:** হেডারে `(12 vendors)` ব্যাজ যোগ
+- **Quick action buttons:** মোবাইল কার্ডে "Add Bill" ও "Pay" বাটন যোগ
 
-#### 2. নতুন কম্পোনেন্ট: `src/components/attendance/BulkAttendanceEntry.tsx`
-- Spreadsheet-style টেবিল: বাম কলামে Employee নাম, ডানে Check In ও Check Out ইনপুট
-- সব কর্মচারীর জন্য একসাথে সময় এন্ট্রি দেওয়ার সুবিধা
-- "Apply to All" বাটন — একটি সময় সবার জন্য কপি করার অপশন
-- সেভ বাটনে ক্লিক করলে batch insert/update করবে
-- ইতিমধ্যে মার্ক করা কর্মচারীদের আলাদা রঙে দেখাবে (edit mode)
-- Validation: প্রতিটি রো-তে সময় ভ্যালিডেশন চেক
+#### 2. Expenses ট্যাব
+- **Expense কার্ড (মোবাইল):** Payment method আইকন (Cash=Wallet, Bank=CreditCard, bKash=Smartphone) যোগ, কার্ডে left-border color (destructive) দিয়ে খরচ highlight
+- **টেবিল রো Enhancement:** Amount কলামে destructive color, total row footer যোগ (সব এক্সপেন্সের মোট)
+- **ফিল্টার বার উন্নতকরণ:** ফিল্টার কাউন্ট ব্যাজ, "Clear Filters" বাটন
+- **এক্সপেন্স কাউন্ট ব্যাজ:** হেডারে `(45 expenses)` ব্যাজ
+- **Total Amount ব্যাজ:** হেডারে মোট এক্সপেন্সের পরিমাণ দেখানো
 
-#### 3. নতুন কম্পোনেন্ট: `src/components/attendance/AttendanceMobileCard.tsx`
-- মোবাইলে টেবিলের বদলে কার্ড লেআউট
-- প্রতিটি কার্ডে: Employee নাম, Check In/Out সময়, Duration, Status ব্যাজ
-- Admin হলে: inline status change ও overnight toggle
-- Swipe-friendly ডিজাইন
-
-#### 4. প্রধান ফাইল পরিবর্তন: `src/pages/Attendance.tsx`
-
-**View Tabs যোগ:**
-- তিনটি ট্যাব: "Daily" (বর্তমান ভিউ), "Calendar" (Monthly), "Bulk Entry"
-- `Tabs` কম্পোনেন্ট ব্যবহার করে ভিউ সুইচিং
-
-**Design Enhancement:**
-- **Header:** আইকনসহ টাইটেল, তারিখ ব্যাজ, এবং attendance rate percentage
-- **Summary Cards:** Collapsible করা হবে (Expenses পেইজের মতো), হোভার ইফেক্ট, গ্র্যাডিয়েন্ট আইকন ব্যাকগ্রাউন্ড
-- **টেবিল রো কালার কোডিং:** Present রো-তে সূক্ষ্ম সবুজ ব্যাকগ্রাউন্ড, Late-এ হলুদ, Absent-এ লাল
-- **Mobile Responsive:** `md:` breakpoint-এ টেবিলের বদলে `AttendanceMobileCard` দেখাবে
+#### 3. Categories ট্যাব
+- **কার্ড ডিজাইন উন্নতকরণ:** প্রতিটি কার্ডে category-wise মোট খরচ দেখানো (শুধু কাউন্ট নয়, টাকার পরিমাণও)
+- **Progress bar:** Category-wise খরচের শতাংশ progress bar
+- **কার্ড আইকন ব্যাকগ্রাউন্ড:** Tag আইকনে gradient/muted background circle
+- **কাউন্ট ব্যাজ হেডারে:** `(8 categories)` ব্যাজ
+- **Empty description styling:** "No description" placeholder স্টাইল উন্নত
 
 ---
 
 ### টেকনিক্যাল ডিটেইল
 
-```text
-Attendance Page Layout (After):
-┌─────────────────────────────────────┐
-│ Header: Icon + Title + Date Badge   │
-│ [Show/Hide Stats] button            │
-├─────────────────────────────────────┤
-│ Collapsible Summary Cards (4 cards) │
-├─────────────────────────────────────┤
-│ Tabs: [Daily] [Calendar] [Bulk]     │
-├─────────────────────────────────────┤
-│ Filters: Date + Employee            │
-├─────────────────────────────────────┤
-│ Daily Tab:                          │
-│   Desktop → Color-coded Table       │
-│   Mobile  → AttendanceMobileCard    │
-│                                     │
-│ Calendar Tab:                       │
-│   MonthlyCalendarView (grid)        │
-│                                     │
-│ Bulk Tab:                           │
-│   BulkAttendanceEntry (spreadsheet) │
-└─────────────────────────────────────┘
+**নতুন computed data:**
+- `categoryExpenseTotals` — প্রতিটি category-র মোট খরচ calculate করে `useMemo` দিয়ে
+- `maxCategoryTotal` — progress bar-এর জন্য সর্বোচ্চ খরচের category
+
+**Vendor row color coding:**
+```
+vendor.due_amount > 0 → className="bg-destructive/5"
+vendor.due_amount <= 0 → default
 ```
 
-**Monthly Calendar Data Fetch:**
-- `employee_attendance` টেবিল থেকে পুরো মাসের ডাটা একবারে ফেচ (date range query)
-- Weekly holidays `useWeeklyHolidays` থেকে ম্যাপ করা হবে
+**Expense table footer row:**
+```
+<TableFooter> → Total: formatCurrency(totalExpenses)
+```
 
-**Bulk Entry Save Logic:**
-- নতুন রেকর্ড → `insert`
-- বিদ্যমান রেকর্ড → `update`
-- `upsert` ব্যবহার করে একটি কলে সব সেভ হবে
+**Mobile card left-border:**
+```
+className="border-l-4 border-l-destructive" (expenses)
+className="border-l-4 border-l-primary" (vendors with no due)
+className="border-l-4 border-l-destructive" (vendors with due)
+```
 
-**Mobile Card Breakpoint:**
-- `md:hidden` → কার্ড ভিউ দেখাবে
-- `hidden md:block` → টেবিল ভিউ দেখাবে
+**Category progress bar:**
+```
+<Progress value={(categoryTotal / maxCategoryTotal) * 100} />
+```
 
-**কোনো ডাটাবেস পরিবর্তন লাগবে না** — বিদ্যমান `employee_attendance` টেবিলই ব্যবহার হবে।
+**Import যোগ:**
+- `Progress` from `@/components/ui/progress`
+- `Smartphone` from `lucide-react`
+
+কোনো ডাটাবেস পরিবর্তন লাগবে না।
 
