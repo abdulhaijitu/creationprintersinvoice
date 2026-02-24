@@ -41,8 +41,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Plus, Search, Wallet, Calendar, Filter, Download, 
   Building2, Eye, Edit2, Phone, Mail, AlertCircle,
-  FileText, CreditCard, Receipt, Tag, Trash2, Users, Pencil
+  FileText, CreditCard, Receipt, Tag, Trash2, Users, Pencil,
+  BarChart3, ChevronDown,
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 import { VendorSelect } from "@/components/shared/VendorSelect";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -136,6 +139,7 @@ const Expenses = () => {
   });
   const [expSortKey, setExpSortKey] = useState<string | null>('date');
   const [expSortDirection, setExpSortDirection] = useState<SortDirection>('desc');
+  const [showStats, setShowStats] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({
     name: "",
     description: "",
@@ -817,60 +821,73 @@ const Expenses = () => {
           <h1 className="text-2xl font-bold tracking-tight">Expense Management</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage vendors and daily expenses</p>
         </div>
+        <Collapsible open={showStats} onOpenChange={setShowStats}>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              {showStats ? 'Hide Stats' : 'Show Stats'}
+              <ChevronDown className={cn("w-4 h-4 transition-transform", showStats && "rotate-180")} />
+            </Button>
+          </CollapsibleTrigger>
+        </Collapsible>
       </div>
 
-      {/* Summary Cards - 2-col tablet, 4-col desktop */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2 pt-4 px-5">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Total Vendors
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 pb-4">
-            <p className="text-lg sm:text-2xl font-bold tabular-nums">{vendors.length}</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2 pt-4 px-5">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Receipt className="h-4 w-4" />
-              Total Vendor Bills
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 pb-4">
-            <p className="text-lg sm:text-2xl font-bold tabular-nums truncate">
-              {formatCurrency(vendors.reduce((sum, v) => sum + (v.total_bills || 0), 0))}
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-destructive/20 bg-destructive/5 shadow-sm">
-          <CardHeader className="pb-2 pt-4 px-5">
-            <CardTitle className="text-xs font-medium text-destructive uppercase tracking-wider flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              Vendor Due
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 pb-4">
-            <p className="text-lg sm:text-2xl font-bold text-destructive tabular-nums truncate">{formatCurrency(totalVendorDue)}</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2 pt-4 px-5">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              Total Daily Expenses
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 pb-4">
-            <p className="text-lg sm:text-2xl font-bold tabular-nums truncate">{formatCurrency(totalExpenses)}</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Summary Cards - Collapsible */}
+      <Collapsible open={showStats} onOpenChange={setShowStats}>
+        <CollapsibleContent>
+          <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
+            <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <CardHeader className="pb-2 pt-4 px-5">
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Total Vendors
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-5 pb-4">
+                <p className="text-lg sm:text-2xl font-bold tabular-nums">{vendors.length}</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <CardHeader className="pb-2 pt-4 px-5">
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Receipt className="h-4 w-4" />
+                  Total Vendor Bills
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-5 pb-4">
+                <p className="text-lg sm:text-2xl font-bold tabular-nums truncate">
+                  {formatCurrency(vendors.reduce((sum, v) => sum + (v.total_bills || 0), 0))}
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-destructive/20 bg-destructive/5 shadow-sm">
+              <CardHeader className="pb-2 pt-4 px-5">
+                <CardTitle className="text-xs font-medium text-destructive uppercase tracking-wider flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Vendor Due
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-5 pb-4">
+                <p className="text-lg sm:text-2xl font-bold text-destructive tabular-nums truncate">{formatCurrency(totalVendorDue)}</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <CardHeader className="pb-2 pt-4 px-5">
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Wallet className="h-4 w-4" />
+                  Total Daily Expenses
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-5 pb-4">
+                <p className="text-lg sm:text-2xl font-bold tabular-nums truncate">{formatCurrency(totalExpenses)}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Tabs - Polished */}
       <Tabs defaultValue="vendors" className="space-y-6">
