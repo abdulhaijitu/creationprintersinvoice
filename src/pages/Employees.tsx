@@ -704,18 +704,6 @@ const Employees = () => {
         )}
       </div>
 
-      {/* Summary Card */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Total Employees
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold">{employees.length}</p>
-        </CardContent>
-      </Card>
 
       {/* Search */}
       <div className="relative max-w-md">
