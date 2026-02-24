@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type InvoiceDisplayStatus = 'paid' | 'partial' | 'overdue' | 'unpaid' | 'due';
+export type InvoiceDisplayStatus = 'paid' | 'partial' | 'due';
 
 export interface InvoiceStatusInfo {
   total: number;
@@ -45,17 +45,11 @@ export function calculateInvoiceStatus(
   let displayStatus: InvoiceDisplayStatus;
   
   if (isFullyPaid || dueAmount <= 0) {
-    // Fully paid when paid >= total
     displayStatus = 'paid';
   } else if (paidNum > 0) {
-    // Partial when some payment made but not full
     displayStatus = 'partial';
-  } else if (isOverdue) {
-    // Overdue when past due date and no payment
-    displayStatus = 'overdue';
   } else {
-    // Unpaid/Due when no payment made
-    displayStatus = 'unpaid';
+    displayStatus = 'due';
   }
   
   return {
@@ -161,10 +155,8 @@ export function getStatusBadgeVariant(status: InvoiceDisplayStatus): 'success' |
       return 'success';
     case 'partial':
       return 'warning';
-    case 'overdue':
-      return 'destructive';
     case 'due':
-      return 'default';
+      return 'destructive';
     default:
       return 'default';
   }

@@ -26,7 +26,7 @@ interface PaymentCardProps {
       customers?: { name: string } | null;
     };
   };
-  status: 'paid' | 'partial' | 'overdue' | 'unpaid' | 'unknown';
+  status: 'paid' | 'partial' | 'due' | 'unknown';
   balanceDue: number;
   onViewInvoice: (invoiceId: string) => void;
   onRefund?: (paymentId: string) => void;
@@ -51,16 +51,10 @@ const StatusBadge = ({ status }: { status: string }) => {
         Partial
       </span>
     ),
-    overdue: (
+    due: (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
         <AlertCircle className="w-3 h-3" />
-        Overdue
-      </span>
-    ),
-    unpaid: (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-        <Clock className="w-3 h-3" />
-        Unpaid
+        Due
       </span>
     ),
     unknown: (

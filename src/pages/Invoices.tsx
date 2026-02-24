@@ -75,7 +75,7 @@ interface Invoice {
   customers: { name: string } | null;
 }
 
-type StatusFilter = 'all' | 'paid' | 'unpaid' | 'partial' | 'overdue';
+type StatusFilter = 'all' | 'paid' | 'due' | 'partial';
 
 const Invoices = () => {
   const navigate = useNavigate();
@@ -269,21 +269,9 @@ const Invoices = () => {
           Partial
         </span>
       ),
-      overdue: (
+      due: (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
           <AlertCircle className="w-3.5 h-3.5" />
-          Overdue
-        </span>
-      ),
-      unpaid: (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-          <Clock className="w-3.5 h-3.5" />
-          Unpaid
-        </span>
-      ),
-      due: (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
-          <Clock className="w-3.5 h-3.5" />
           Due
         </span>
       ),
@@ -302,8 +290,7 @@ const Invoices = () => {
     if (statusFilter === 'all') return true;
     
     const displayStatus = getDisplayStatus(invoice);
-    const normalizedStatus = displayStatus === 'due' ? 'unpaid' : displayStatus;
-    return normalizedStatus === statusFilter;
+    return displayStatus === statusFilter;
   });
 
   const handleSort = (key: string) => {
@@ -538,11 +525,7 @@ const Invoices = () => {
   // Stats - use centralized status calculation
   const totalInvoices = invoices.length;
   const paidCount = invoices.filter(i => getDisplayStatus(i) === 'paid').length;
-  const unpaidCount = invoices.filter(i => {
-    const status = getDisplayStatus(i);
-    return status === 'unpaid' || status === 'due';
-  }).length;
-  const overdueCount = invoices.filter(i => getDisplayStatus(i) === 'overdue').length;
+  const dueCount = invoices.filter(i => getDisplayStatus(i) === 'due').length;
   const partialCount = invoices.filter(i => getDisplayStatus(i) === 'partial').length;
   const totalDueAmount = invoices.reduce((sum, inv) => sum + getInvoiceStatusInfo(inv).dueAmount, 0);
 
@@ -597,12 +580,12 @@ const Invoices = () => {
             <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{paidCount}</p>
           </div>
           <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
-            <p className="text-[10px] sm:text-xs font-medium text-warning uppercase tracking-wide">Unpaid</p>
-            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{unpaidCount}</p>
+            <p className="text-[10px] sm:text-xs font-medium text-destructive uppercase tracking-wide">Due</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{dueCount}</p>
           </div>
           <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
-            <p className="text-[10px] sm:text-xs font-medium text-destructive uppercase tracking-wide">Overdue</p>
-            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{overdueCount}</p>
+            <p className="text-[10px] sm:text-xs font-medium text-warning uppercase tracking-wide">Partial</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{partialCount}</p>
           </div>
           <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50 col-span-2 sm:col-span-1">
             <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Due</p>
@@ -635,7 +618,6 @@ const Invoices = () => {
                 <SelectItem value="paid">Paid</SelectItem>
                 <SelectItem value="due">Due</SelectItem>
                 <SelectItem value="partial">Partial</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
               </SelectContent>
             </Select>
 
@@ -782,7 +764,7 @@ const Invoices = () => {
                               className={`
                                 transition-colors duration-150 cursor-pointer
                                 ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
-                                ${displayStatus === 'overdue' ? 'bg-destructive/5' : ''}
+                                ${displayStatus === 'due' ? 'bg-destructive/5' : ''}
                                 hover:bg-primary/5
                               `}
                               onClick={() => navigate(`/invoices/${invoice.id}`)}
