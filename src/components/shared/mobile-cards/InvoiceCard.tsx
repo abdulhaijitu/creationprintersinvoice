@@ -20,7 +20,7 @@ interface InvoiceCardProps {
     paid_amount: number;
     customers?: { name: string } | null;
   };
-  status: 'paid' | 'partial' | 'overdue' | 'unpaid' | 'due';
+  status: 'paid' | 'partial' | 'due';
   dueAmount: number;
   onView: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -47,27 +47,15 @@ const StatusBadge = ({ status }: { status: string }) => {
         Partial
       </span>
     ),
-    overdue: (
+    due: (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
         <AlertCircle className="w-3 h-3" />
-        Overdue
-      </span>
-    ),
-    unpaid: (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-        <Clock className="w-3 h-3" />
-        Unpaid
-      </span>
-    ),
-    due: (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600">
-        <Clock className="w-3 h-3" />
         Due
       </span>
     ),
   };
 
-  return badges[status] || badges.unpaid;
+  return badges[status] || badges.due;
 };
 
 export const InvoiceCard = ({

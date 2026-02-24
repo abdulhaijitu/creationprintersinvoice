@@ -57,7 +57,7 @@ import { cn } from '@/lib/utils';
 import { AddPaymentFromListDialog } from '@/components/payments/AddPaymentFromListDialog';
 import { EditPaymentDialog } from '@/components/payments/EditPaymentDialog';
 
-type StatusFilter = 'all' | 'paid' | 'partial' | 'overdue';
+type StatusFilter = 'all' | 'paid' | 'partial' | 'due';
 
 const Payments = () => {
   const navigate = useNavigate();
@@ -85,17 +85,8 @@ const Payments = () => {
     const due = total - paid;
 
     if (due <= 0) return 'paid';
-    if (paid > 0) {
-      // Check overdue
-      if (invoice.due_date && isPast(parseISO(invoice.due_date)) && !isToday(parseISO(invoice.due_date))) {
-        return 'overdue';
-      }
-      return 'partial';
-    }
-    if (invoice.due_date && isPast(parseISO(invoice.due_date)) && !isToday(parseISO(invoice.due_date))) {
-      return 'overdue';
-    }
-    return 'unpaid';
+    if (paid > 0) return 'partial';
+    return 'due';
   };
 
   const getStatusBadge = (status: string) => {
@@ -112,16 +103,10 @@ const Payments = () => {
           Partial
         </span>
       ),
-      overdue: (
+      due: (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
           <AlertCircle className="w-3.5 h-3.5" />
-          Overdue
-        </span>
-      ),
-      unpaid: (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-          <Clock className="w-3.5 h-3.5" />
-          Unpaid
+          Due
         </span>
       ),
       unknown: (
@@ -250,7 +235,7 @@ const Payments = () => {
           variant="warning"
         />
         <StatCard
-          title="Overdue Amount"
+          title="Due Amount"
           value={formatCurrency(stats.overdueAmount)}
           icon={AlertCircle}
           variant="destructive"
@@ -296,7 +281,7 @@ const Payments = () => {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="paid">Paid</SelectItem>
                 <SelectItem value="partial">Partial</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
+                <SelectItem value="due">Due</SelectItem>
               </SelectContent>
             </Select>
           </div>

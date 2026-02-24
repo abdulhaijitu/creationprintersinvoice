@@ -188,27 +188,15 @@ const InvoiceDetail = () => {
           Partial
         </Badge>
       ),
-      overdue: (
+      due: (
         <Badge className="bg-destructive/10 text-destructive border-0 text-base py-1 px-3">
           <AlertCircle className="w-4 h-4 mr-1" />
-          Overdue
-        </Badge>
-      ),
-      unpaid: (
-        <Badge className="bg-muted text-muted-foreground border-0 text-base py-1 px-3">
-          <XCircle className="w-4 h-4 mr-1" />
-          Unpaid
-        </Badge>
-      ),
-      due: (
-        <Badge className="bg-warning/10 text-warning border-0 text-base py-1 px-3">
-          <Clock className="w-4 h-4 mr-1" />
           Due
         </Badge>
       ),
     };
 
-    return badges[displayStatus] || badges.unpaid;
+    return badges[displayStatus] || badges.due;
   };
 
   const handlePrint = () => {

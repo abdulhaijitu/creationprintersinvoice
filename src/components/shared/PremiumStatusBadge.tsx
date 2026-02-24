@@ -96,16 +96,14 @@ export function PremiumStatusBadge({
 }
 
 // Pre-configured invoice status badges
-export function InvoiceStatusBadge({ status }: { status: 'paid' | 'partial' | 'unpaid' | 'overdue' | 'due' }) {
+export function InvoiceStatusBadge({ status }: { status: 'paid' | 'partial' | 'due' }) {
   const statusMap: Record<string, { variant: BadgeVariant; label: string }> = {
     paid: { variant: 'success', label: 'Paid' },
     partial: { variant: 'warning', label: 'Partial' },
-    unpaid: { variant: 'info', label: 'Unpaid' },
-    overdue: { variant: 'destructive', label: 'Overdue' },
-    due: { variant: 'warning', label: 'Due' },
+    due: { variant: 'destructive', label: 'Due' },
   };
 
-  const config = statusMap[status] || statusMap.unpaid;
+  const config = statusMap[status] || statusMap.due;
   return <PremiumStatusBadge variant={config.variant} label={config.label} />;
 }
 
