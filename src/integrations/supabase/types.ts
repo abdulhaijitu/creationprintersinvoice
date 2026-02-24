@@ -47,6 +47,65 @@ export type Database = {
         }
         Relationships: []
       }
+      approval_requests: {
+        Row: {
+          amount: number | null
+          approved_by: string | null
+          created_at: string
+          entity_id: string
+          entity_name: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          rejection_reason: string | null
+          request_type: string
+          requested_by: string
+          requested_by_name: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          approved_by?: string | null
+          created_at?: string
+          entity_id: string
+          entity_name?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          rejection_reason?: string | null
+          request_type: string
+          requested_by: string
+          requested_by_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          approved_by?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_name?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          rejection_reason?: string | null
+          request_type?: string
+          requested_by?: string
+          requested_by_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance: {
         Row: {
           check_in: string | null

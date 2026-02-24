@@ -17,6 +17,7 @@ import { UnsavedChangesWarning } from '@/components/settings/UnsavedChangesWarni
 import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert, Eye, Lock, Calendar } from 'lucide-react';
 import { WeeklyHolidaySettings } from '@/components/settings/WeeklyHolidaySettings';
 import { DataExportSection } from '@/components/settings/DataExportSection';
+import { SmsNotificationSettings } from '@/components/settings/SmsNotificationSettings';
 
 export default function Settings() {
   const { toast } = useToast();
@@ -814,7 +815,10 @@ export default function Settings() {
         </form>
       </Form>
 
-      {/* Data Export Section - outside the form */}
+      {/* SMS Notification Settings */}
+      <SmsNotificationSettings />
+
+      {/* Data Export Section */}
       <DataExportSection />
     </div>
   );
