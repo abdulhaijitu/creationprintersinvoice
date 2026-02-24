@@ -3,7 +3,7 @@ import { useEffect, Suspense, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useCompanySettings } from '@/contexts/CompanySettingsContext';
-import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
+import { SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { MobileSidebarTiles } from './MobileSidebarTiles';
 import { Breadcrumb } from './Breadcrumb';
@@ -143,7 +143,11 @@ const AppLayout = () => {
           <MobileSidebarTiles />
           <MobileSidebarHandler />
           <NotificationManager />
-          <SidebarInset className="flex-1 min-w-0 max-w-full flex flex-col overflow-hidden">
+          {/* Add left margin for the fixed sidebar on desktop/tablet */}
+          <div className={cn(
+            "flex-1 min-w-0 max-w-full flex flex-col overflow-hidden",
+            !isMobile && "ml-[3.05rem]"
+          )}>
             {/* Top Header Bar */}
             <header className="sticky top-0 z-20 flex h-14 items-center border-b bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 shadow-sm w-full min-w-0">
               {/* Left section */}
@@ -174,13 +178,10 @@ const AppLayout = () => {
                     </div>
                   )
                 ) : (
-                  <>
-                    <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-all duration-200" />
-                    <div className="hidden md:flex items-center gap-2 min-w-0">
-                      <Breadcrumb />
-                      <FavoriteButton />
-                    </div>
-                  </>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Breadcrumb />
+                    <FavoriteButton />
+                  </div>
                 )}
               </div>
               
@@ -221,13 +222,12 @@ const AppLayout = () => {
               <AppFooter />
             </div>
 
-            {/* Mobile Bottom Navigation - Removed */}
             {/* PWA Install Prompt */}
             <InstallPrompt />
 
             {/* Offline Indicator */}
             <OfflineIndicator />
-          </SidebarInset>
+          </div>
         </div>
       </SidebarProvider>
     </TooltipProvider>
