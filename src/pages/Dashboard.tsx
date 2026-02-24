@@ -594,17 +594,17 @@ const Dashboard = () => {
       </div>
 
       {/* 5 Summary Cards - Mobile: 1-col, Tablet: 2-col, Desktop: 5-col */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
         {/* 1. Monthly Invoices */}
         <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-          <CardContent className="p-4 sm:p-5">
+          <CardContent className="p-4 sm:p-4 xl:p-5">
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Monthly Invoices</p>
-              <div className="p-1.5 sm:p-2 rounded-full bg-primary/10">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Monthly Invoices</p>
+              <div className="p-1.5 sm:p-2 rounded-full bg-primary/10 shrink-0">
                 <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
               </div>
             </div>
-            <p className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-primary">
+            <p className="text-lg xl:text-2xl font-bold tabular-nums tracking-tight text-primary truncate">
               {formatCurrency(stats.monthlyRevenue + stats.customerDue)}
             </p>
           </CardContent>
@@ -612,14 +612,14 @@ const Dashboard = () => {
 
         {/* 2. Monthly Expenses */}
         <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-          <CardContent className="p-4 sm:p-5">
+          <CardContent className="p-4 sm:p-4 xl:p-5">
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Monthly Expenses</p>
-              <div className="p-1.5 sm:p-2 rounded-full bg-destructive/10">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Monthly Expenses</p>
+              <div className="p-1.5 sm:p-2 rounded-full bg-destructive/10 shrink-0">
                 <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
               </div>
             </div>
-            <p className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-destructive">
+            <p className="text-lg xl:text-2xl font-bold tabular-nums tracking-tight text-destructive truncate">
               {formatCurrency(stats.monthlyExpense)}
             </p>
           </CardContent>
@@ -627,7 +627,7 @@ const Dashboard = () => {
 
         {/* 3. Profit (Invoices - Expenses) */}
         <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-          <CardContent className="p-4 sm:p-5">
+          <CardContent className="p-4 sm:p-4 xl:p-5">
             <div className="flex items-center justify-between mb-2 sm:mb-3">
               <p className="text-xs sm:text-sm font-medium text-muted-foreground">Profit</p>
               <div className={cn(
@@ -642,7 +642,7 @@ const Dashboard = () => {
               </div>
             </div>
             <p className={cn(
-              "text-xl sm:text-2xl font-bold tabular-nums tracking-tight",
+              "text-lg xl:text-2xl font-bold tabular-nums tracking-tight truncate",
               stats.netProfit >= 0 ? "text-success" : "text-destructive"
             )}>
               {formatCurrency(stats.netProfit)}
@@ -652,29 +652,29 @@ const Dashboard = () => {
 
         {/* 4. Monthly Collection */}
         <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-          <CardContent className="p-4 sm:p-5">
+          <CardContent className="p-4 sm:p-4 xl:p-5">
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Monthly Collection</p>
-              <div className="p-1.5 sm:p-2 rounded-full bg-success/10">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Monthly Collection</p>
+              <div className="p-1.5 sm:p-2 rounded-full bg-success/10 shrink-0">
                 <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success" />
               </div>
             </div>
-            <p className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-success">
+            <p className="text-lg xl:text-2xl font-bold tabular-nums tracking-tight text-success truncate">
               {formatCurrency(monthlyCollection)}
             </p>
           </CardContent>
         </Card>
 
         {/* 5. Monthly Due */}
-        <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 sm:col-span-2 lg:col-span-1">
-          <CardContent className="p-4 sm:p-5">
+        <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 sm:col-span-2 xl:col-span-1">
+          <CardContent className="p-4 sm:p-4 xl:p-5">
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Monthly Due</p>
-              <div className="p-1.5 sm:p-2 rounded-full bg-warning/10">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Monthly Due</p>
+              <div className="p-1.5 sm:p-2 rounded-full bg-warning/10 shrink-0">
                 <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-warning" />
               </div>
             </div>
-            <p className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-warning">
+            <p className="text-lg xl:text-2xl font-bold tabular-nums tracking-tight text-warning truncate">
               {formatCurrency(monthlyDue)}
             </p>
           </CardContent>
@@ -684,7 +684,7 @@ const Dashboard = () => {
       {/* Invoice Dashboard Cards - Mobile: 2-col, Tablet: 3-col, Desktop: 6-col */}
       <div className="space-y-2 sm:space-y-3">
         <h2 className="text-sm sm:text-base md:text-lg font-semibold">Invoices</h2>
-        <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2 xl:grid-cols-6">
           {/* 1. Paid Invoices (count) */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
             <CardContent className="p-3 sm:p-4 md:p-5">
@@ -754,7 +754,7 @@ const Dashboard = () => {
                   <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                 </div>
               </div>
-              <p className="text-base sm:text-lg md:text-xl font-bold tabular-nums tracking-tight text-primary truncate">
+              <p className="text-sm sm:text-base md:text-xl font-bold tabular-nums tracking-tight text-primary truncate">
                 {formatCurrency(stats.totalInvoiceAmount)}
               </p>
             </CardContent>
@@ -769,7 +769,7 @@ const Dashboard = () => {
                   <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-warning" />
                 </div>
               </div>
-              <p className="text-base sm:text-lg md:text-xl font-bold tabular-nums tracking-tight text-warning truncate">
+              <p className="text-sm sm:text-base md:text-xl font-bold tabular-nums tracking-tight text-warning truncate">
                 {formatCurrency(stats.totalDueAmount)}
               </p>
             </CardContent>
