@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useCompanySettings } from '@/contexts/CompanySettingsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -45,6 +46,7 @@ const QuotationForm = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { organization } = useOrganization();
+  const { settings: companySettings } = useCompanySettings();
   const isEditing = Boolean(id);
   
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -69,6 +71,7 @@ const QuotationForm = () => {
   // Track if notes/terms were loaded from customer defaults
   const [notesFromDefault, setNotesFromDefault] = useState(false);
   const [termsFromDefault, setTermsFromDefault] = useState(false);
+  const [termsFromCompany, setTermsFromCompany] = useState(false);
 
   const [items, setItems] = useState<QuotationItem[]>([
     { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
@@ -79,8 +82,25 @@ const QuotationForm = () => {
     if (isEditing) {
       fetchQuotation();
     }
-    // Note: For new quotations, number is generated server-side on save
   }, [id]);
+
+  // Auto-populate terms from company settings for new quotations
+  useEffect(() => {
+    if (!isEditing && companySettings) {
+      setFormData(prev => {
+        const updates = { ...prev };
+        if (companySettings.invoice_terms && !prev.terms) {
+          updates.terms = companySettings.invoice_terms;
+          setTermsFromCompany(true);
+        }
+        if (companySettings.invoice_footer && !prev.notes) {
+          updates.notes = companySettings.invoice_footer;
+          setNotesFromDefault(true);
+        }
+        return updates;
+      });
+    }
+  }, [isEditing, companySettings]);
 
   const fetchCustomers = async () => {
     try {
@@ -110,9 +130,10 @@ const QuotationForm = () => {
       }
       
       // Only auto-fill terms if empty or was from previous default
-      if (customer?.default_terms && (!prev.terms || termsFromDefault)) {
+      if (customer?.default_terms && (!prev.terms || termsFromDefault || termsFromCompany)) {
         updates.terms = customer.default_terms;
         setTermsFromDefault(true);
+        setTermsFromCompany(false);
       }
       
       return updates;
@@ -133,6 +154,15 @@ const QuotationForm = () => {
     if (customer?.default_terms) {
       setFormData(prev => ({ ...prev, terms: customer.default_terms || '' }));
       setTermsFromDefault(true);
+      setTermsFromCompany(false);
+    }
+  };
+
+  const resetTermsToCompanyDefault = () => {
+    if (companySettings?.invoice_terms) {
+      setFormData(prev => ({ ...prev, terms: companySettings.invoice_terms || '' }));
+      setTermsFromCompany(true);
+      setTermsFromDefault(false);
     }
   };
 
@@ -612,7 +642,12 @@ const QuotationForm = () => {
                     <Label>Terms & Conditions</Label>
                     {termsFromDefault && formData.customer_id && (
                       <span className="text-xs text-muted-foreground">
-                        Loaded from customer default
+                        From customer default
+                      </span>
+                    )}
+                    {termsFromCompany && !termsFromDefault && (
+                      <span className="text-xs text-muted-foreground">
+                        From company settings
                       </span>
                     )}
                   </div>
@@ -621,21 +656,35 @@ const QuotationForm = () => {
                     onChange={(val) => {
                       setFormData({ ...formData, terms: val });
                       setTermsFromDefault(false);
+                      setTermsFromCompany(false);
                     }}
                     placeholder="Terms & conditions..."
                     minHeight="80px"
                   />
-                  {formData.customer_id && customers.find(c => c.id === formData.customer_id)?.default_terms && !termsFromDefault && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs h-auto py-1 px-2"
-                      onClick={resetTermsToDefault}
-                    >
-                      Reset to customer default
-                    </Button>
-                  )}
+                  <div className="flex gap-1 flex-wrap">
+                    {formData.customer_id && customers.find(c => c.id === formData.customer_id)?.default_terms && !termsFromDefault && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs h-auto py-1 px-2"
+                        onClick={resetTermsToDefault}
+                      >
+                        Reset to customer default
+                      </Button>
+                    )}
+                    {companySettings?.invoice_terms && !termsFromCompany && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs h-auto py-1 px-2"
+                        onClick={resetTermsToCompanyDefault}
+                      >
+                        Reset to company default
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
