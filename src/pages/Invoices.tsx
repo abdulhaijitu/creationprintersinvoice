@@ -279,7 +279,7 @@ const Invoices = () => {
         </span>
       ),
       due: (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
           <Clock className="w-3.5 h-3.5" />
           Due
         </span>
@@ -530,7 +530,7 @@ const Invoices = () => {
             <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{paidCount}</p>
           </div>
           <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">
-            <p className="text-[10px] sm:text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Unpaid</p>
+            <p className="text-[10px] sm:text-xs font-medium text-warning uppercase tracking-wide">Unpaid</p>
             <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mt-0.5 sm:mt-1">{unpaidCount}</p>
           </div>
           <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm border border-border/50">

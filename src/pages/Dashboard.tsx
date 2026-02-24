@@ -605,7 +605,7 @@ const Dashboard = () => {
                 <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
               </div>
             </div>
-            <p className="text-lg xl:text-2xl font-bold tabular-nums tracking-tight text-primary truncate">
+            <p className="text-base sm:text-lg xl:text-xl font-bold tabular-nums tracking-tight text-primary truncate">
               {formatCurrency(stats.monthlyRevenue + stats.customerDue)}
             </p>
           </CardContent>
@@ -620,7 +620,7 @@ const Dashboard = () => {
                 <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
               </div>
             </div>
-            <p className="text-lg xl:text-2xl font-bold tabular-nums tracking-tight text-destructive truncate">
+            <p className="text-base sm:text-lg xl:text-xl font-bold tabular-nums tracking-tight text-destructive truncate">
               {formatCurrency(stats.monthlyExpense)}
             </p>
           </CardContent>
@@ -643,7 +643,7 @@ const Dashboard = () => {
               </div>
             </div>
             <p className={cn(
-              "text-lg xl:text-2xl font-bold tabular-nums tracking-tight truncate",
+              "text-base sm:text-lg xl:text-xl font-bold tabular-nums tracking-tight truncate",
               stats.netProfit >= 0 ? "text-success" : "text-destructive"
             )}>
               {formatCurrency(stats.netProfit)}
@@ -660,7 +660,7 @@ const Dashboard = () => {
                 <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success" />
               </div>
             </div>
-            <p className="text-lg xl:text-2xl font-bold tabular-nums tracking-tight text-success truncate">
+            <p className="text-base sm:text-lg xl:text-xl font-bold tabular-nums tracking-tight text-success truncate">
               {formatCurrency(monthlyCollection)}
             </p>
           </CardContent>
@@ -675,7 +675,7 @@ const Dashboard = () => {
                 <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-warning" />
               </div>
             </div>
-            <p className="text-lg xl:text-2xl font-bold tabular-nums tracking-tight text-warning truncate">
+            <p className="text-base sm:text-lg xl:text-xl font-bold tabular-nums tracking-tight text-warning truncate">
               {formatCurrency(monthlyDue)}
             </p>
           </CardContent>

@@ -262,7 +262,7 @@ const Quotations = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-4 md:space-y-6 w-full min-w-0 animate-fade-in">
       <PageHeader
         title="Quotations"
         description="Manage all quotations"
@@ -452,11 +452,11 @@ const Quotations = () => {
                           {quotation.customers?.name || '-'}
                         </TableCell>
                         <TableCell className="whitespace-nowrap hidden lg:table-cell">
-                          {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}
+                          {format(new Date(quotation.quotation_date), 'dd MMM yyyy')}
                         </TableCell>
                         <TableCell className="whitespace-nowrap hidden xl:table-cell">
                           {quotation.valid_until
-                            ? format(new Date(quotation.valid_until), 'dd/MM/yyyy')
+                            ? format(new Date(quotation.valid_until), 'dd MMM yyyy')
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right font-medium whitespace-nowrap">
