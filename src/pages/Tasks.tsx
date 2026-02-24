@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, AlertTriangle, Lock, Globe, Building2, Archive, ArchiveRestore, RotateCcw, List, GitBranch } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, ArrowRight, Palette, Printer, Package, Truck, AlertTriangle, Lock, Globe, Building2, Archive, ArchiveRestore, RotateCcw, List, GitBranch, Columns3 } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { useTasks, Task, TaskPriority, TaskVisibility } from "@/hooks/useTasks";
@@ -41,6 +41,7 @@ import { PageHeader, TableSkeleton, EmptyState, ConfirmDialog } from "@/componen
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateTaskDialog, TaskFormData } from "@/components/tasks/CreateTaskDialog";
 import { TaskHierarchyView } from "@/components/tasks/TaskHierarchyView";
+import { TaskKanbanBoard } from "@/components/tasks/TaskKanbanBoard";
 
 const priorityLabels: Record<TaskPriority, string> = {
   low: "Low",
@@ -75,7 +76,7 @@ const Tasks = () => {
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
   const [archiveConfirmTask, setArchiveConfirmTask] = useState<Task | null>(null);
   const [restoreConfirmTask, setRestoreConfirmTask] = useState<Task | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "hierarchy">("list");
+  const [viewMode, setViewMode] = useState<"list" | "hierarchy" | "kanban">("list");
 
   // Get unique departments from employees
   const departments = useMemo(() => {
@@ -162,8 +163,9 @@ const Tasks = () => {
     await advanceStatus(taskId, currentStatus as WorkflowStatus);
   };
 
-  const handleTransitionToStatus = async (taskId: string, currentStatus: WorkflowStatus, targetStatus: WorkflowStatus) => {
-    await transitionToStatus(taskId, currentStatus, targetStatus);
+  const handleTransitionToStatus = async (taskId: string, currentStatus: WorkflowStatus, targetStatus: WorkflowStatus): Promise<boolean> => {
+    const result = await transitionToStatus(taskId, currentStatus, targetStatus);
+    return !!result;
   };
 
   const getPriorityBadge = (priority: TaskPriority) => {
@@ -384,6 +386,15 @@ const Tasks = () => {
                   <span className="hidden sm:inline">List</span>
                 </Button>
                 <Button
+                  variant={viewMode === "kanban" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 gap-1.5"
+                  onClick={() => setViewMode("kanban")}
+                >
+                  <Columns3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Kanban</span>
+                </Button>
+                <Button
                   variant={viewMode === "hierarchy" ? "secondary" : "ghost"}
                   size="sm"
                   className="h-7 gap-1.5"
@@ -409,6 +420,14 @@ const Tasks = () => {
                 ? "Try adjusting your search or filter" 
                 : "Create your first production task to get started"}
               action={canCreateTasks ? { label: "New Task", onClick: (e?: React.MouseEvent) => { e?.preventDefault(); e?.stopPropagation(); setIsDialogOpen(true); } } : undefined}
+            />
+          ) : viewMode === "kanban" ? (
+            // Kanban Board View
+            <TaskKanbanBoard
+              tasks={filteredTasks}
+              onTaskClick={setSelectedTask}
+              onTransitionToStatus={handleTransitionToStatus}
+              canAdvanceStatus={canAdvanceStatus}
             />
           ) : viewMode === "hierarchy" ? (
             // Hierarchy View
