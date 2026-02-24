@@ -47,22 +47,23 @@ export function MobileHomeTiles() {
           placeholder="Search modules..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 h-10 bg-muted/50 border-border/50 rounded-xl text-sm"
+          className="pl-9 h-10 bg-muted/40 border-border/40 rounded-xl text-sm focus-visible:ring-primary/30"
         />
       </div>
 
       {/* Tile Groups */}
       {filteredNavGroups.length === 0 && search && (
-        <p className="text-center text-sm text-muted-foreground py-8">
-          No modules found
-        </p>
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <Search className="h-8 w-8 mb-2 opacity-40" />
+          <p className="text-sm">No modules found</p>
+        </div>
       )}
       {filteredNavGroups.map((group) => (
         <div key={group.label}>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2.5 px-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2 px-0.5">
             {group.label}
           </p>
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-4 gap-2">
             {group.items.map((item) => {
               const isActive =
                 location.pathname === item.url ||
@@ -72,19 +73,19 @@ export function MobileHomeTiles() {
                   key={item.url}
                   onClick={() => navigate(item.url === '/' ? '/dashboard' : item.url)}
                   className={cn(
-                    'flex flex-col items-center justify-center gap-2 rounded-xl p-3 aspect-square text-center transition-all duration-200 active:scale-95',
+                    'flex flex-col items-center justify-center gap-1.5 rounded-xl py-3 px-1 text-center transition-all duration-200 active:scale-95',
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-md'
-                      : 'bg-muted/50 text-foreground/70 hover:bg-muted hover:text-foreground'
+                      : 'bg-muted/40 text-foreground/70 hover:bg-muted hover:text-foreground'
                   )}
                 >
                   <item.icon
                     className={cn(
-                      'h-6 w-6 shrink-0',
+                      'h-5 w-5 shrink-0',
                       isActive ? 'text-primary-foreground' : 'text-muted-foreground'
                     )}
                   />
-                  <span className="text-[10px] font-medium leading-tight line-clamp-2">
+                  <span className="text-[10px] font-medium leading-tight line-clamp-1">
                     {item.title}
                   </span>
                 </button>
