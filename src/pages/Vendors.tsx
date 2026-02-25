@@ -372,7 +372,7 @@ const Vendors = () => {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6 w-full min-w-0">
+    <div className="space-y-4 md:space-y-6 w-full min-w-0 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
         <div className="min-w-0">
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Vendors</h1>
@@ -563,10 +563,85 @@ const Vendors = () => {
         />
       </div>
 
-      {/* Vendors Table - Responsive with horizontal scroll */}
-      <div className="border rounded-lg overflow-x-auto -mx-3 md:mx-0">
-        <div className="min-w-[600px]">
-          <Table>
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-card border rounded-lg p-4 space-y-3" style={{ opacity: 1 - i * 0.15 }}>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-4 w-28 bg-muted rounded animate-pulse" />
+                    <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredVendors.length === 0 ? (
+          <EmptyState
+            icon={Building2}
+            title="No vendors found"
+            description={searchTerm ? "Try adjusting your search criteria" : "Add your first vendor to start tracking purchases and payments"}
+            action={canCreate && !searchTerm ? { label: "Add Vendor", onClick: () => setIsDialogOpen(true), icon: Plus } : undefined}
+          />
+        ) : (
+          filteredVendors.map((vendor) => (
+            <div
+              key={vendor.id}
+              className="bg-card border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => navigate(`/vendors/${vendor.id}`)}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 rounded-full bg-muted shrink-0">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm truncate">{vendor.name}</p>
+                    {vendor.phone && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Phone className="h-3 w-3" />{vendor.phone}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  {(vendor.due_amount || 0) > 0 ? (
+                    <Badge variant="destructive" className="text-xs">{formatCurrency(vendor.due_amount || 0)}</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-success border-success text-xs">Paid</Badge>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground pt-2 border-t">
+                <span>Bills: {formatCurrency(vendor.total_bills || 0)}</span>
+                <span className="text-success">Paid: {formatCurrency(vendor.total_paid || 0)}</span>
+              </div>
+              <div className="flex items-center gap-2 pt-1" onClick={e => e.stopPropagation()}>
+                <Button variant="outline" size="sm" className="flex-1 h-9" onClick={() => navigate(`/vendors/${vendor.id}`)}>
+                  <Eye className="h-3.5 w-3.5 mr-1.5" />View
+                </Button>
+                {canEdit && (
+                  <Button variant="outline" size="sm" className="h-9" onClick={() => openEditDialog(vendor)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button variant="outline" size="sm" className="h-9 text-destructive hover:text-destructive" onClick={() => handleDelete(vendor.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block border rounded-lg overflow-x-auto">
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
@@ -581,7 +656,18 @@ const Vendors = () => {
             {loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8">
-                  Loading...
+                  <div className="space-y-3">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className="flex items-center gap-4 px-2" style={{ opacity: 1 - i * 0.1 }}>
+                        <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+                        <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+                        <div className="h-4 w-20 bg-muted rounded animate-pulse ml-auto" />
+                        <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                        <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                        <div className="h-8 w-24 bg-muted rounded animate-pulse" />
+                      </div>
+                    ))}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : filteredVendors.length === 0 ? (
@@ -603,7 +689,7 @@ const Vendors = () => {
               </TableRow>
             ) : (
               filteredVendors.map((vendor) => (
-                <TableRow key={vendor.id}>
+                <TableRow key={vendor.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -621,22 +707,20 @@ const Vendors = () => {
                     <div className="space-y-1">
                       {vendor.phone && (
                         <div className="flex items-center gap-1 text-sm">
-                          <Phone className="h-3 w-3" />
-                          {vendor.phone}
+                          <Phone className="h-3 w-3" />{vendor.phone}
                         </div>
                       )}
                       {vendor.email && (
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Mail className="h-3 w-3" />
-                          {vendor.email}
+                          <Mail className="h-3 w-3" />{vendor.email}
                         </div>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right tabular-nums">
                     {formatCurrency(vendor.total_bills || 0)}
                   </TableCell>
-                  <TableCell className="text-right text-success">
+                  <TableCell className="text-right text-success tabular-nums">
                     {formatCurrency(vendor.total_paid || 0)}
                   </TableCell>
                   <TableCell className="text-right">
@@ -650,12 +734,7 @@ const Vendors = () => {
                     <div className="flex items-center justify-center gap-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => navigate(`/vendors/${vendor.id}`)}
-                          >
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/vendors/${vendor.id}`)}>
                             <Eye className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
@@ -664,12 +743,7 @@ const Vendors = () => {
                       {canEdit && (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => openEditDialog(vendor)}
-                            >
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(vendor)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
@@ -679,12 +753,7 @@ const Vendors = () => {
                       {canDelete && (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => handleDelete(vendor.id)}
-                            >
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(vendor.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
@@ -698,7 +767,6 @@ const Vendors = () => {
             )}
           </TableBody>
         </Table>
-        </div>
       </div>
       <CSVImportDialog
         open={importDialogOpen}

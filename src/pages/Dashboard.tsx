@@ -574,7 +574,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0">
+    <div className="space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
@@ -988,11 +988,11 @@ const Dashboard = () => {
           {/* 2. In Design */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
             <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
-              <div className="p-2 rounded-full bg-indigo-500/10">
-                <Palette className="h-4 w-4 text-indigo-500" />
+              <div className="p-2 rounded-full bg-info/10">
+                <Palette className="h-4 w-4 text-info" />
               </div>
               <p className="text-xs md:text-sm font-medium">In Design</p>
-              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-indigo-500">
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-info">
                 {stats.tasksInDesign}
               </p>
             </CardContent>
@@ -1001,11 +1001,11 @@ const Dashboard = () => {
           {/* 3. Printing */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
             <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
-              <div className="p-2 rounded-full bg-orange-500/10">
-                <Printer className="h-4 w-4 text-orange-500" />
+              <div className="p-2 rounded-full bg-warning/10">
+                <Printer className="h-4 w-4 text-warning" />
               </div>
               <p className="text-xs md:text-sm font-medium">Printing</p>
-              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-orange-500">
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-warning">
                 {stats.tasksPrinting}
               </p>
             </CardContent>
@@ -1014,11 +1014,11 @@ const Dashboard = () => {
           {/* 4. Packaging */}
           <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
             <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-2">
-              <div className="p-2 rounded-full bg-purple-500/10">
-                <Package className="h-4 w-4 text-purple-500" />
+              <div className="p-2 rounded-full bg-secondary/10">
+                <Package className="h-4 w-4 text-secondary" />
               </div>
               <p className="text-xs md:text-sm font-medium">Packaging</p>
-              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-purple-500">
+              <p className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-secondary">
                 {stats.tasksPackaging}
               </p>
             </CardContent>
