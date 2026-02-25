@@ -15,7 +15,8 @@ import { useCompanySettings, CompanySettings } from '@/contexts/CompanySettingsC
 import { useSettingsTabPermissions, SettingsTabKey } from '@/hooks/useSettingsTabPermissions';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { UnsavedChangesWarning } from '@/components/settings/UnsavedChangesWarning';
-import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert, Eye, Lock, Calendar, Wrench } from 'lucide-react';
+import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert, Eye, Lock, Calendar, Wrench, Settings as SettingsIcon, Save } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { WeeklyHolidaySettings } from '@/components/settings/WeeklyHolidaySettings';
 import { DataExportSection } from '@/components/settings/DataExportSection';
 import { SmsNotificationSettings } from '@/components/settings/SmsNotificationSettings';
@@ -305,30 +306,37 @@ export default function Settings() {
         context="tab-switch"
       />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Company Settings</h1>
-          <p className="text-muted-foreground mt-1">
-            Customize company info, bank details, and invoice templates
-          </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <SettingsIcon className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Company Settings</h1>
+            <p className="text-sm text-muted-foreground">
+              Customize company info, bank details, and invoice templates
+            </p>
+          </div>
         </div>
-        {isCurrentTabReadOnly && (
-          <div className="flex items-center gap-2 text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 rounded-md">
-            <Eye className="h-4 w-4" />
-            <span className="text-sm font-medium">Read-only access</span>
-          </div>
-        )}
-        {isDirty && currentTabCanManage && (
-          <div className="flex items-center gap-2 text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 rounded-md">
-            <span className="text-sm font-medium">Unsaved changes</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {isCurrentTabReadOnly && (
+            <Badge variant="warning" className="gap-1">
+              <Eye className="h-3 w-3" />
+              Read-only
+            </Badge>
+          )}
+          {isDirty && currentTabCanManage && (
+            <Badge variant="info" className="gap-1">
+              Unsaved changes
+            </Badge>
+          )}
+        </div>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className={`grid w-full mb-6`} style={{ gridTemplateColumns: `repeat(${tabPermissions.visibleTabs.length}, minmax(0, 1fr))` }}>
+            <TabsList className="flex flex-wrap h-auto gap-1 mb-6 p-1">
               {tabPermissions.visibleTabs.includes('company') && (
                 <TabsTrigger value="company" className="flex items-center gap-2">
                   <Building2 className="h-4 w-4" />
@@ -818,23 +826,32 @@ export default function Settings() {
             )}
           </Tabs>
 
-          <div className="flex justify-end gap-3 items-center">
-            {isCurrentTabReadOnly && (
-              <p className="text-sm text-muted-foreground">
-                You have read-only access to this tab
-              </p>
-            )}
-            <Button 
-              type="submit" 
-              disabled={!currentTabCanManage || updateMutation.isPending || uploading}
-              className="min-w-32"
-            >
-              {(updateMutation.isPending || uploading) && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <Card className="sticky bottom-4">
+            <CardContent className="p-4 flex items-center justify-between">
+              {isCurrentTabReadOnly ? (
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5" />
+                  You have read-only access to this tab
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {isDirty ? 'You have unsaved changes' : 'All changes saved'}
+                </p>
               )}
-              {currentTabCanManage ? 'Save' : 'View Only'}
-            </Button>
-          </div>
+              <Button 
+                type="submit" 
+                disabled={!currentTabCanManage || updateMutation.isPending || uploading}
+                className="min-w-32"
+              >
+                {(updateMutation.isPending || uploading) ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                {currentTabCanManage ? 'Save Settings' : 'View Only'}
+              </Button>
+            </CardContent>
+          </Card>
         </form>
       </Form>
 
