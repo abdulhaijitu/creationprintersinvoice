@@ -29,6 +29,8 @@ import { ModulePermissionsMatrix } from '@/components/team/ModulePermissionsMatr
 import { AddTeamMemberDialog } from '@/components/team/AddTeamMemberDialog';
 import { EditTeamMemberDialog } from '@/components/team/EditTeamMemberDialog';
 import { DeleteMemberDialog } from '@/components/team/DeleteMemberDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 interface Profile {
   id: string;
@@ -67,12 +69,12 @@ const roleIcons: Record<OrgRole, React.ReactNode> = {
 };
 
 const roleColors: Record<OrgRole, string> = {
-  owner: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200',
-  manager: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200',
-  accounts: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200',
-  sales_staff: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
-  designer: 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-200',
-  employee: 'bg-muted text-muted-foreground',
+  owner: 'border-warning/30 bg-warning/10 text-warning',
+  manager: 'border-primary/30 bg-primary/10 text-primary',
+  accounts: 'border-info/30 bg-info/10 text-info',
+  sales_staff: 'border-success/30 bg-success/10 text-success',
+  designer: 'border-accent-foreground/30 bg-accent/50 text-accent-foreground',
+  employee: 'border-border bg-muted text-muted-foreground',
 };
 
 const ASSIGNABLE_ROLES: OrgRole[] = ['manager', 'accounts', 'sales_staff', 'designer', 'employee'];
@@ -154,14 +156,14 @@ const ErrorState = ({ onRetry, isRetrying }: { onRetry: () => void; isRetrying: 
 const StatusBadge = ({ status }: { status: 'active' | 'pending' }) => {
   if (status === 'active') {
     return (
-      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 gap-1">
+      <Badge variant="success" className="gap-1">
         <Check className="h-3 w-3" />
         Active
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 gap-1">
+    <Badge variant="warning" className="gap-1">
       <Clock className="h-3 w-3" />
       Invited
     </Badge>
@@ -293,6 +295,7 @@ const CACHE_TTL = 30000; // 30 seconds
 const TeamMembers = () => {
   const { organization, isOrgOwner, isOrgAdmin } = useOrganization();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   
   // Initialize from cache if available
   const cachedData = organization ? teamDataCache.get(organization.id) : null;
@@ -812,14 +815,22 @@ const TeamMembers = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="h-6 w-6 text-primary" /> Team Members
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Manage your team and permissions
-          </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <Users className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl md:text-3xl font-bold">Team Members</h1>
+              {!isLoading && totalCount > 0 && (
+                <Badge variant="muted" size="sm">{totalCount}</Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Manage your team and permissions
+            </p>
+          </div>
         </div>
       </div>
 
@@ -984,161 +995,194 @@ const TeamMembers = () => {
               )}
               
               {isLoading && (
-                <div className="overflow-x-auto">
-                  <div className="min-w-[700px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/30 hover:bg-muted/30">
-                        <TableHead className="font-medium">Member</TableHead>
-                        <TableHead className="font-medium">Status</TableHead>
-                        <TableHead className="font-medium">Role</TableHead>
-                        <TableHead className="font-medium">Joined</TableHead>
-                        {canManageTeam && <TableHead className="font-medium text-right">Actions</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TeamMemberSkeleton canManageTeam={canManageTeam} />
-                    </TableBody>
-                  </Table>
-                  </div>
+                <div className="p-6 space-y-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-center gap-3 animate-pulse">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="space-y-1.5 flex-1">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                      <Skeleton className="h-6 w-16 rounded-full" />
+                    </div>
+                  ))}
                 </div>
               )}
               
               {hasData && (
-                <div className="overflow-x-auto">
-                  <div className="min-w-[700px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/30 hover:bg-muted/30">
-                        <TableHead className="font-medium">Member</TableHead>
-                        <TableHead className="font-medium">Status</TableHead>
-                        <TableHead className="font-medium">Role</TableHead>
-                        <TableHead className="font-medium">Joined</TableHead>
-                        {canManageTeam && <TableHead className="font-medium text-right">Actions</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {allItems.map(item => (
-                        <TableRow 
-                          key={item.id} 
-                          className="transition-colors duration-150 hover:bg-muted/50 group"
-                        >
-                          <TableCell className="py-4">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-9 w-9 border border-border/50 transition-transform group-hover:scale-105">
-                                <AvatarFallback className={`text-xs font-medium ${
-                                  isPendingInvite(item) 
-                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                    : 'bg-primary/10 text-primary'
-                                }`}>
-                                  {isActiveMember(item) 
-                                    ? getInitials(item.profile?.full_name || 'U')
-                                    : <Mail className="h-4 w-4" />
-                                  }
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <span className="font-medium block">
-                                  {isActiveMember(item) 
-                                    ? item.profile?.full_name || 'Unknown User'
-                                    : item.email
-                                  }
-                                </span>
-                                {isActiveMember(item) && item.profile?.phone && (
-                                  <span className="text-xs text-muted-foreground">{item.profile.phone}</span>
-                                )}
-                                {isPendingInvite(item) && item.note && (
-                                  <span className="text-xs text-muted-foreground italic">Note: {item.note}</span>
-                                )}
-                              </div>
+                <>
+                  {/* Mobile Card View */}
+                  <div className="md:hidden divide-y divide-border">
+                    {allItems.map(item => (
+                      <div key={item.id} className="p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10 border border-border/50">
+                              <AvatarFallback className={cn(
+                                "text-xs font-medium",
+                                isPendingInvite(item) ? 'bg-warning/10 text-warning' : 'bg-primary/10 text-primary'
+                              )}>
+                                {isActiveMember(item) 
+                                  ? getInitials(item.profile?.full_name || 'U')
+                                  : <Mail className="h-4 w-4" />
+                                }
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <span className="font-medium text-sm block">
+                                {isActiveMember(item) ? item.profile?.full_name || 'Unknown User' : item.email}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(item.created_at), 'dd MMM yyyy')}
+                              </span>
                             </div>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <StatusBadge status={item.status} />
-                          </TableCell>
-                          <TableCell className="py-4">
-                            {isActiveMember(item) && canManageTeam ? (
-                              <InlineRoleSelect
-                                currentRole={item.role}
-                                memberId={item.id}
-                                isOwner={item.role === 'owner'}
-                                isSelf={item.user_id === user?.id}
-                                onRoleChange={updateMemberRole}
-                              />
-                            ) : (
-                              <Badge className={`${roleColors[item.role]} gap-1.5 px-2.5 py-1 font-medium`} variant="secondary">
-                                {roleIcons[item.role]}
-                                {ORG_ROLE_DISPLAY[item.role]}
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="py-4 text-muted-foreground">
-                            {format(new Date(item.created_at), 'dd/MM/yyyy')}
-                          </TableCell>
-                          {canManageTeam && (
-                            <TableCell className="py-4 text-right">
-                              {isActiveMember(item) ? (
-                                item.role !== 'owner' && item.user_id !== user?.id ? (
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => handleEditClick(item)}>
-                                        <Pencil className="h-4 w-4 mr-2" />
-                                        Edit Member
-                                      </DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem 
-                                        onClick={() => handleDeleteClick(item)}
-                                        className="text-destructive focus:text-destructive"
-                                      >
-                                        <Trash2 className="h-4 w-4 mr-2" />
-                                        Remove Member
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                ) : item.role === 'owner' ? (
-                                  <span className="text-xs text-muted-foreground">Owner</span>
-                                ) : null
-                              ) : (
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleResendInvite(item.id)}
-                                    disabled={loadingInviteId === item.id}
-                                    className="gap-1"
-                                  >
-                                    {loadingInviteId === item.id ? (
-                                      <Loader2 className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <RotateCw className="h-3 w-3" />
-                                    )}
-                                    Resend
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleCancelInvite(item.id)}
-                                    disabled={loadingInviteId === item.id}
-                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  >
-                                    <X className="h-3 w-3 mr-1" />
-                                    Cancel
-                                  </Button>
+                          </div>
+                          {canManageTeam && isActiveMember(item) && item.role !== 'owner' && item.user_id !== user?.id && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditClick(item)}>
+                                  <Pencil className="h-4 w-4 mr-2" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleDeleteClick(item)} className="text-destructive focus:text-destructive">
+                                  <Trash2 className="h-4 w-4 mr-2" /> Remove
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <StatusBadge status={item.status} />
+                          <Badge className={cn(roleColors[item.role], 'gap-1.5 px-2.5 py-1 font-medium border')} variant="secondary">
+                            {roleIcons[item.role]}
+                            {ORG_ROLE_DISPLAY[item.role]}
+                          </Badge>
+                        </div>
+                        {isPendingInvite(item) && canManageTeam && (
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleResendInvite(item.id)} disabled={loadingInviteId === item.id} className="gap-1 flex-1">
+                              {loadingInviteId === item.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCw className="h-3 w-3" />}
+                              Resend
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleCancelInvite(item.id)} disabled={loadingInviteId === item.id} className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1 flex-1">
+                              <X className="h-3 w-3" /> Cancel
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <TableHead className="font-medium">Member</TableHead>
+                          <TableHead className="font-medium">Status</TableHead>
+                          <TableHead className="font-medium">Role</TableHead>
+                          <TableHead className="font-medium">Joined</TableHead>
+                          {canManageTeam && <TableHead className="font-medium text-right">Actions</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allItems.map(item => (
+                          <TableRow key={item.id} className="transition-colors duration-150 hover:bg-muted/50 group">
+                            <TableCell className="py-4">
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9 border border-border/50">
+                                  <AvatarFallback className={cn(
+                                    "text-xs font-medium",
+                                    isPendingInvite(item) ? 'bg-warning/10 text-warning' : 'bg-primary/10 text-primary'
+                                  )}>
+                                    {isActiveMember(item) 
+                                      ? getInitials(item.profile?.full_name || 'U')
+                                      : <Mail className="h-4 w-4" />
+                                    }
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <span className="font-medium block">
+                                    {isActiveMember(item) ? item.profile?.full_name || 'Unknown User' : item.email}
+                                  </span>
+                                  {isActiveMember(item) && item.profile?.phone && (
+                                    <span className="text-xs text-muted-foreground">{item.profile.phone}</span>
+                                  )}
+                                  {isPendingInvite(item) && item.note && (
+                                    <span className="text-xs text-muted-foreground italic">Note: {item.note}</span>
+                                  )}
                                 </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-4">
+                              <StatusBadge status={item.status} />
+                            </TableCell>
+                            <TableCell className="py-4">
+                              {isActiveMember(item) && canManageTeam ? (
+                                <InlineRoleSelect
+                                  currentRole={item.role}
+                                  memberId={item.id}
+                                  isOwner={item.role === 'owner'}
+                                  isSelf={item.user_id === user?.id}
+                                  onRoleChange={updateMemberRole}
+                                />
+                              ) : (
+                                <Badge className={cn(roleColors[item.role], 'gap-1.5 px-2.5 py-1 font-medium border')} variant="secondary">
+                                  {roleIcons[item.role]}
+                                  {ORG_ROLE_DISPLAY[item.role]}
+                                </Badge>
                               )}
                             </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                            <TableCell className="py-4 text-muted-foreground">
+                              {format(new Date(item.created_at), 'dd MMM yyyy')}
+                            </TableCell>
+                            {canManageTeam && (
+                              <TableCell className="py-4 text-right">
+                                {isActiveMember(item) ? (
+                                  item.role !== 'owner' && item.user_id !== user?.id ? (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                          <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleEditClick(item)}>
+                                          <Pencil className="h-4 w-4 mr-2" /> Edit Member
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => handleDeleteClick(item)} className="text-destructive focus:text-destructive">
+                                          <Trash2 className="h-4 w-4 mr-2" /> Remove Member
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  ) : item.role === 'owner' ? (
+                                    <span className="text-xs text-muted-foreground">Owner</span>
+                                  ) : null
+                                ) : (
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button variant="ghost" size="sm" onClick={() => handleResendInvite(item.id)} disabled={loadingInviteId === item.id} className="gap-1">
+                                      {loadingInviteId === item.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCw className="h-3 w-3" />}
+                                      Resend
+                                    </Button>
+                                    <Button variant="ghost" size="sm" onClick={() => handleCancelInvite(item.id)} disabled={loadingInviteId === item.id} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                      <X className="h-3 w-3 mr-1" /> Cancel
+                                    </Button>
+                                  </div>
+                                )}
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
-                </div>
+                </>
               )}
             </CardContent>
           </Card>
