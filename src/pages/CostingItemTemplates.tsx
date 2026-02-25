@@ -242,7 +242,7 @@ export default function CostingItemTemplates() {
     <div className="container mx-auto py-6 space-y-6">
       <PageHeader
         title="Costing Item Templates"
-        description="আইটেম অনুযায়ী প্রিডিফাইন্ড কস্টিং স্ট্রাকচার তৈরি করুন"
+        description="Create predefined costing structures for each item type"
       />
 
       {/* Actions Bar */}
@@ -250,7 +250,7 @@ export default function CostingItemTemplates() {
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="টেমপ্লেট সার্চ করুন..."
+            placeholder="Search templates..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -281,9 +281,9 @@ export default function CostingItemTemplates() {
         <Card>
           <CardContent className="py-12 text-center">
             <LayoutTemplate className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-            <h3 className="text-lg font-medium mb-2">কোনো টেমপ্লেট নেই</h3>
+            <h3 className="text-lg font-medium mb-2">No Templates Found</h3>
             <p className="text-muted-foreground mb-4">
-              নতুন টেমপ্লেট তৈরি করতে "New Template" বাটনে ক্লিক করুন
+              Click "New Template" to create your first template
             </p>
             {permissions.canEdit && (
               <Button onClick={handleOpenCreate} variant="outline" className="gap-2">
@@ -407,10 +407,10 @@ export default function CostingItemTemplates() {
             <DialogTitle>
               {editingTemplate ? 'Edit Template' : 'Create New Template'}
             </DialogTitle>
-            <DialogDescription>
+             <DialogDescription>
               {editingTemplate 
-                ? 'টেমপ্লেটের তথ্য আপডেট করুন'
-                : 'নতুন আইটেম টেমপ্লেট তৈরি করুন'
+                ? 'Update the template details'
+                : 'Create a new item costing template'
               }
             </DialogDescription>
           </DialogHeader>
@@ -458,7 +458,7 @@ export default function CostingItemTemplates() {
                 id="description"
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
-                placeholder="এই টেমপ্লেট সম্পর্কে সংক্ষেপে লিখুন..."
+                placeholder="Write a brief description about this template..."
                 rows={2}
               />
             </div>
@@ -576,9 +576,9 @@ export default function CostingItemTemplates() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Template?</AlertDialogTitle>
             <AlertDialogDescription>
-              এই টেমপ্লেট মুছে ফেলা হবে। এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।
+              This template will be permanently deleted. This action cannot be undone.
               <br /><br />
-              <strong>Note:</strong> আগের ইনভয়েসে এই টেমপ্লেট থেকে প্রয়োগ করা costing data প্রভাবিত হবে না।
+              <strong>Note:</strong> Costing data applied from this template in previous invoices will not be affected.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

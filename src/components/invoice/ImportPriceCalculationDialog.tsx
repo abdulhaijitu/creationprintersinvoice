@@ -206,10 +206,10 @@ export function ImportPriceCalculationDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calculator className="h-5 w-5 text-primary" />
-            Price Calculation থেকে Import করুন
+            Import from Price Calculation
           </DialogTitle>
           <DialogDescription>
-            একটি Price Calculation সিলেক্ট করুন, এর costing items Invoice-এ import হবে
+            Select a Price Calculation to import its costing items into the Invoice
           </DialogDescription>
         </DialogHeader>
 
@@ -217,7 +217,7 @@ export function ImportPriceCalculationDialog({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Job description বা customer name দিয়ে সার্চ করুন..."
+            placeholder="Search by job description or customer name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -243,10 +243,10 @@ export function ImportPriceCalculationDialog({
             ) : filteredCalculations.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Calculator className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>কোনো Price Calculation পাওয়া যায়নি</p>
+                <p>No Price Calculations found</p>
                 {customerId && (
                   <p className="text-sm mt-1">
-                    এই customer-এর জন্য কোনো calculation নেই
+                    No calculations found for this customer
                   </p>
                 )}
               </div>
@@ -297,7 +297,7 @@ export function ImportPriceCalculationDialog({
                     </span>
                     <span className="text-xs text-primary font-medium flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Download className="h-3.5 w-3.5" />
-                      Import করুন
+                      Import
                     </span>
                   </div>
                 </button>
@@ -308,7 +308,7 @@ export function ImportPriceCalculationDialog({
 
         <div className="flex justify-end pt-2 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            বাতিল করুন
+            Cancel
           </Button>
         </div>
       </DialogContent>
