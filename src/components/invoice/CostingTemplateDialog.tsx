@@ -114,7 +114,7 @@ export function CostingTemplateDialog({
       setTemplates(parsed);
     } catch (error) {
       console.error('Error fetching templates:', error);
-      toast.error('টেমপ্লেট লোড করতে সমস্যা হয়েছে');
+      toast.error('Failed to load templates');
     } finally {
       setLoading(false);
     }
@@ -132,11 +132,11 @@ export function CostingTemplateDialog({
   const handleSaveTemplate = async () => {
     if (!organization?.id || !user?.id) return;
     if (!newTemplateName.trim()) {
-      toast.error('টেমপ্লেটের নাম দিন');
+      toast.error('Please enter a template name');
       return;
     }
     if (currentItems.length === 0 || (currentItems.length === 1 && currentItems[0].line_total === 0)) {
-      toast.error('সেভ করার জন্য অন্তত একটি costing item থাকতে হবে');
+      toast.error('At least one costing item is required to save');
       return;
     }
 
@@ -154,14 +154,14 @@ export function CostingTemplateDialog({
 
       if (error) throw error;
 
-      toast.success('টেমপ্লেট সেভ হয়েছে');
+      toast.success('Template saved successfully');
       setNewTemplateName('');
       setNewTemplateDescription('');
       fetchTemplates();
       setActiveTab('load');
     } catch (error) {
       console.error('Error saving template:', error);
-      toast.error('টেমপ্লেট সেভ করতে সমস্যা হয়েছে');
+      toast.error('Failed to save template');
     } finally {
       setSaving(false);
     }
@@ -192,11 +192,11 @@ export function CostingTemplateDialog({
     setShowLoadModeDialog(false);
     setSelectedTemplate(null);
     onOpenChange(false);
-    toast.success(`"${template.name}" টেমপ্লেট ${mode === 'replace' ? 'লোড' : 'যোগ'} হয়েছে`);
+    toast.success(`Template "${template.name}" ${mode === 'replace' ? 'loaded' : 'appended'} successfully`);
   };
 
   const handleDeleteTemplate = async (templateId: string, templateName: string) => {
-    if (!confirm(`"${templateName}" টেমপ্লেট মুছে ফেলতে চান?`)) return;
+    if (!confirm(`Are you sure you want to delete "${templateName}"?`)) return;
 
     try {
       const { error } = await supabase
@@ -206,11 +206,11 @@ export function CostingTemplateDialog({
 
       if (error) throw error;
 
-      toast.success('টেমপ্লেট মুছে ফেলা হয়েছে');
+      toast.success('Template deleted successfully');
       fetchTemplates();
     } catch (error) {
       console.error('Error deleting template:', error);
-      toast.error('টেমপ্লেট মুছতে সমস্যা হয়েছে');
+      toast.error('Failed to delete template');
     }
   };
 
@@ -237,7 +237,7 @@ export function CostingTemplateDialog({
             Costing Templates
           </DialogTitle>
           <DialogDescription>
-            বারবার ব্যবহৃত costing items সেভ করে রিইউজ করুন
+            Save and reuse frequently used costing items
           </DialogDescription>
         </DialogHeader>
 
@@ -259,7 +259,7 @@ export function CostingTemplateDialog({
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="টেমপ্লেট সার্চ করুন..."
+                placeholder="Search templates..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -285,9 +285,9 @@ export function CostingTemplateDialog({
                 ) : filteredTemplates.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <FileStack className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>কোনো টেমপ্লেট পাওয়া যায়নি</p>
+                    <p>No templates found</p>
                     <p className="text-sm mt-1">
-                      নতুন টেমপ্লেট তৈরি করতে "Save as Template" ট্যাবে যান
+                      Go to the "Save as Template" tab to create a new template
                     </p>
                   </div>
                 ) : (
@@ -352,20 +352,20 @@ export function CostingTemplateDialog({
           <TabsContent value="save" className="flex-1 flex flex-col min-h-0 mt-4">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="template-name">টেমপ্লেটের নাম *</Label>
+                <Label htmlFor="template-name">Template Name *</Label>
                 <Input
                   id="template-name"
-                  placeholder="যেমন: Business Card Costing"
+                  placeholder="e.g. Business Card Costing"
                   value={newTemplateName}
                   onChange={(e) => setNewTemplateName(e.target.value)}
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="template-desc">বিবরণ (ঐচ্ছিক)</Label>
+                <Label htmlFor="template-desc">Description (Optional)</Label>
                 <Textarea
                   id="template-desc"
-                  placeholder="এই টেমপ্লেট সম্পর্কে কিছু লিখুন..."
+                  placeholder="Write something about this template..."
                   value={newTemplateDescription}
                   onChange={(e) => setNewTemplateDescription(e.target.value)}
                   rows={3}
@@ -376,7 +376,7 @@ export function CostingTemplateDialog({
               <div className="border rounded-lg p-4 bg-muted/30">
                 <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                   <FileStack className="h-4 w-4" />
-                  সংরক্ষিত হবে ({currentItems.filter(i => i.item_type || i.line_total > 0).length} items)
+                  Items to save ({currentItems.filter(i => i.item_type || i.line_total > 0).length} items)
                 </h4>
                 <div className="space-y-1.5 max-h-40 overflow-y-auto">
                   {currentItems.filter(i => i.item_type || i.line_total > 0).map((item, idx) => (
@@ -391,7 +391,7 @@ export function CostingTemplateDialog({
                   ))}
                 </div>
                 <div className="flex justify-between items-center mt-3 pt-3 border-t">
-                  <span className="text-sm font-medium">মোট:</span>
+                  <span className="text-sm font-medium">Total:</span>
                   <span className="font-semibold text-primary tabular-nums">
                     {formatCurrency(calculateTemplateTotal(currentItems))}
                   </span>
@@ -403,7 +403,7 @@ export function CostingTemplateDialog({
 
         <DialogFooter className="pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            বাতিল করুন
+            Cancel
           </Button>
           {activeTab === 'save' && (
             <Button 
@@ -416,7 +416,7 @@ export function CostingTemplateDialog({
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  টেমপ্লেট সেভ করুন
+                  Save Template
                 </>
               )}
             </Button>
@@ -429,9 +429,9 @@ export function CostingTemplateDialog({
     <AlertDialog open={showLoadModeDialog} onOpenChange={setShowLoadModeDialog}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>টেমপ্লেট কিভাবে লোড করবেন?</AlertDialogTitle>
+          <AlertDialogTitle>How to load template?</AlertDialogTitle>
           <AlertDialogDescription>
-            আপনার বর্তমান costing items আছে। টেমপ্লেট দিয়ে Replace করতে চান নাকি শেষে Append করতে চান?
+            You have existing costing items. Replace with template or append at the end?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="grid grid-cols-2 gap-3 py-4">
@@ -443,7 +443,7 @@ export function CostingTemplateDialog({
             <Replace className="h-6 w-6 text-primary" />
             <div className="text-center">
               <p className="font-medium">Replace</p>
-              <p className="text-xs text-muted-foreground">বর্তমান items মুছে যাবে</p>
+              <p className="text-xs text-muted-foreground">Current items will be removed</p>
             </div>
           </Button>
           <Button
@@ -454,13 +454,13 @@ export function CostingTemplateDialog({
             <ListPlus className="h-6 w-6 text-primary" />
             <div className="text-center">
               <p className="font-medium">Append</p>
-              <p className="text-xs text-muted-foreground">বর্তমান items এর পরে যোগ হবে</p>
+              <p className="text-xs text-muted-foreground">Will be added after current items</p>
             </div>
           </Button>
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => setSelectedTemplate(null)}>
-            বাতিল করুন
+            Cancel
           </AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>

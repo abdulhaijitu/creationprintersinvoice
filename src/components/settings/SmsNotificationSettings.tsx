@@ -88,7 +88,7 @@ export function SmsNotificationSettings({ isReadOnly = false }: SmsSettingsProps
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            API Key ও Sender ID সিক্রেট হিসেবে কনফিগার করতে হবে
+            API Key and Sender ID must be configured as secrets
           </p>
         </div>
 
@@ -97,10 +97,10 @@ export function SmsNotificationSettings({ isReadOnly = false }: SmsSettingsProps
           <Label>Notification Events</Label>
           <div className="space-y-2">
             {[
-              { key: 'invoiceReminder' as const, label: 'Invoice Due Reminder', desc: 'ইনভয়েস ডিউ ডেটের আগে SMS' },
-              { key: 'paymentConfirmation' as const, label: 'Payment Confirmation', desc: 'পেমেন্ট পাওয়ার পর কাস্টমারকে SMS' },
-              { key: 'taskUpdate' as const, label: 'Task Status Updates', desc: 'টাস্ক স্ট্যাটাস পরিবর্তনে SMS' },
-              { key: 'quotationSent' as const, label: 'Quotation Sent', desc: 'কোটেশন পাঠানোর পর কাস্টমারকে SMS' },
+              { key: 'invoiceReminder' as const, label: 'Invoice Due Reminder', desc: 'Send SMS before invoice due date' },
+              { key: 'paymentConfirmation' as const, label: 'Payment Confirmation', desc: 'Send SMS to customer after payment received' },
+              { key: 'taskUpdate' as const, label: 'Task Status Updates', desc: 'Send SMS on task status changes' },
+              { key: 'quotationSent' as const, label: 'Quotation Sent', desc: 'Send SMS to customer after quotation sent' },
             ].map(({ key, label, desc }) => (
               <div key={key} className="flex items-center justify-between p-3 rounded-md border">
                 <div>

@@ -74,8 +74,8 @@ export function ApplyItemTemplateDialog({
           <AlertDialogDescription asChild>
             <div className="space-y-4">
               <p>
-                <strong>"{template.item_name}"</strong> এর জন্য একটি টেমপ্লেট আছে। 
-                এটি প্রয়োগ করতে চান?
+                A template exists for <strong>"{template.item_name}"</strong>. 
+                Would you like to apply it?
               </p>
               
               {/* Template Preview */}
@@ -107,7 +107,7 @@ export function ApplyItemTemplateDialog({
                 </div>
                 
                 <div className="flex justify-between items-center pt-2 border-t">
-                  <span className="text-sm font-medium text-foreground">মোট:</span>
+                  <span className="text-sm font-medium text-foreground">Total:</span>
                   <span className="font-semibold text-primary tabular-nums">
                     {formatCurrency(templateTotal)}
                   </span>
@@ -116,7 +116,7 @@ export function ApplyItemTemplateDialog({
               
               {hasExistingItems && (
                 <p className="text-sm text-warning">
-                  ⚠️ বর্তমান costing items প্রতিস্থাপন হবে।
+                  ⚠️ Existing costing items will be replaced.
                 </p>
               )}
             </div>
