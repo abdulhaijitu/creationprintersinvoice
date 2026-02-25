@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/appConfig';
 import appLogo from '@/assets/app-logo.jpg';
 import PWAInstallButton from '@/components/pwa/PWAInstallButton';
+import { motion } from 'framer-motion';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -206,61 +207,147 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
-      {/* PWA Install Button - Top Right */}
-      <div className="absolute top-4 right-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4 relative overflow-hidden">
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{
+        backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--foreground)) 1px, transparent 0)',
+        backgroundSize: '32px 32px',
+      }} />
+      
+      {/* Decorative gradient orbs */}
+      <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-primary/5 blur-3xl" />
+      <div className="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] rounded-full bg-primary/3 blur-3xl" />
+
+      {/* PWA Install Button */}
+      <div className="absolute top-4 right-4 z-10">
         <PWAInstallButton variant="outline" size="sm" alwaysShow />
       </div>
       
-      <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <img 
-            src={logoUrl} 
-            alt={appName}
-            className="h-16 w-auto mx-auto mb-4"
-          />
-          <h1 className="text-2xl font-bold text-foreground">{appName}</h1>
-          <p className="text-muted-foreground mt-2">{appTagline}</p>
-        </div>
+      <motion.div 
+        className="w-full max-w-md relative z-10"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      >
+        {/* Logo & branding */}
+        <motion.div 
+          className="text-center mb-8"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-card shadow-lg border border-border/50 mb-5 overflow-hidden">
+            <img 
+              src={logoUrl} 
+              alt={appName}
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">{appName}</h1>
+          <p className="text-muted-foreground mt-1.5 text-sm">{appTagline}</p>
+        </motion.div>
 
-        <Card className="shadow-soft">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Login</CardTitle>
-            <CardDescription className="text-center">
-              Enter your credentials to access your account
-            </CardDescription>
-          </CardHeader>
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="email" type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} className="pl-10" required />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="pl-10" required />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Logging in...' : 'Login'}
-              </Button>
-              <p className="text-sm text-muted-foreground text-center">
-                Don't have an account?{' '}
-                <Link to="/register" className="text-primary hover:underline">
-                  Register
-                </Link>
-              </p>
-            </CardFooter>
-          </form>
-        </Card>
-      </div>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <Card className="shadow-xl border-border/50 backdrop-blur-sm bg-card/95">
+            <CardHeader className="space-y-1 pb-4">
+              <CardTitle className="text-xl text-center font-semibold">Welcome back</CardTitle>
+              <CardDescription className="text-center text-sm">
+                Enter your credentials to access your account
+              </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleSubmit}>
+              <CardContent className="space-y-4">
+                <motion.div 
+                  className="space-y-2"
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                >
+                  <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                  <div className="relative group">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      placeholder="you@example.com" 
+                      value={email} 
+                      onChange={e => setEmail(e.target.value)} 
+                      className="pl-10 h-11 transition-shadow focus:shadow-md focus:shadow-primary/5" 
+                      required 
+                    />
+                  </div>
+                </motion.div>
+                <motion.div 
+                  className="space-y-2"
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.4 }}
+                >
+                  <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                  <div className="relative group">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                    <Input 
+                      id="password" 
+                      type="password" 
+                      placeholder="••••••••" 
+                      value={password} 
+                      onChange={e => setPassword(e.target.value)} 
+                      className="pl-10 h-11 transition-shadow focus:shadow-md focus:shadow-primary/5" 
+                      required 
+                    />
+                  </div>
+                </motion.div>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-4 pt-2">
+                <motion.div
+                  className="w-full"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.5 }}
+                >
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 gap-2 text-sm font-medium transition-all" 
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Logging in...
+                      </>
+                    ) : (
+                      <>
+                        Login
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </motion.div>
+                <p className="text-sm text-muted-foreground text-center">
+                  Don't have an account?{' '}
+                  <Link to="/register" className="text-primary font-medium hover:underline underline-offset-4 transition-colors">
+                    Register
+                  </Link>
+                </p>
+              </CardFooter>
+            </form>
+          </Card>
+        </motion.div>
+
+        {/* Footer */}
+        <motion.p 
+          className="text-center text-xs text-muted-foreground/60 mt-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.7 }}
+        >
+          &copy; {new Date().getFullYear()} {appName}. All rights reserved.
+        </motion.p>
+      </motion.div>
     </div>
   );
 };
