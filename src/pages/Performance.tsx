@@ -87,7 +87,7 @@ const Performance = () => {
 
       let query = supabase
         .from("performance_notes")
-        .select("*")
+        .select("id, user_id, note, rating, created_at, created_by")
         .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
 

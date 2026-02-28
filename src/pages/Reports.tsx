@@ -341,14 +341,14 @@ const Reports = () => {
       ] = await Promise.all([
         supabase
           .from('invoices')
-          .select('*, customers(name)')
+          .select('id, invoice_number, invoice_date, due_date, total, paid_amount, status, customer_id, customers(name)')
           .eq('organization_id', organization.id)
           .gte('invoice_date', startDateStr)
           .lte('invoice_date', endDateStr)
           .order('invoice_date', { ascending: false }),
         supabase
           .from('expenses')
-          .select('*, expense_categories(name)')
+          .select('id, date, amount, description, vendor_bill_id, category_id, expense_categories(name)')
           .eq('organization_id', organization.id)
           .gte('date', startDateStr)
           .lte('date', endDateStr),

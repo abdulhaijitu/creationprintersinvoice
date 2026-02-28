@@ -182,7 +182,7 @@ const Salary = () => {
       // Fetch salary records
       const { data: salaryData } = await supabase
         .from("employee_salary_records")
-        .select("*")
+        .select("id, employee_id, month, year, basic_salary, bonus, deductions, advance, net_payable, status, paid_date, notes, advance_deducted_ids, advance_deduction_details, overtime_hours, overtime_amount, created_at")
         .eq("organization_id", organizationId)
         .eq("year", selectedYear)
         .eq("month", selectedMonth)
@@ -199,7 +199,7 @@ const Salary = () => {
       // Fetch advances with remaining_balance
       const { data: advancesData } = await supabase
         .from("employee_advances")
-        .select("*")
+        .select("id, employee_id, amount, remaining_balance, date, reason, status, deduct_month, deducted_from_month, deducted_from_year, created_at, payment_method")
         .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
 

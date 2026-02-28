@@ -186,7 +186,7 @@ const Attendance = () => {
 
       let query = supabase
         .from("employee_attendance")
-        .select("*")
+        .select("id, employee_id, date, check_in, check_out, status, notes, is_overnight_shift")
         .eq("organization_id", organizationId)
         .eq("date", selectedDate)
         .order("created_at", { ascending: false });

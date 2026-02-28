@@ -198,7 +198,7 @@ const Expenses = () => {
       // Fetch categories - scoped to organization
       const { data: categoriesData } = await supabase
         .from("expense_categories")
-        .select("*")
+        .select("id, name, description")
         .eq("organization_id", organization.id)
         .order("name");
       setCategories(categoriesData || []);
@@ -206,7 +206,7 @@ const Expenses = () => {
       // Fetch vendors with dues - scoped to organization
       const { data: vendorsData } = await supabase
         .from("vendors")
-        .select("*")
+        .select("id, name, phone, email, address, bank_info, notes")
         .eq("organization_id", organization.id)
         .order("name");
 
