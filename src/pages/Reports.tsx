@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { usePermissions } from '@/lib/permissions/hooks';
@@ -34,6 +34,8 @@ import {
   Cell,
   ResponsiveContainer,
   Legend,
+  AreaChart,
+  Area,
 } from 'recharts';
 import {
   FileText,
@@ -48,8 +50,12 @@ import {
   Filter,
   Calendar,
   BarChart3,
+  ArrowUpRight,
+  ArrowDownRight,
+  Percent,
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, eachDayOfInterval, eachMonthOfInterval, parseISO, differenceInDays } from 'date-fns';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -62,10 +68,15 @@ interface ReportData {
   unpaidInvoices: number;
   customerCount: number;
   vendorDue: number;
-  monthlyData: { month: string; income: number; expense: number }[];
+  monthlyData: { month: string; income: number; expense: number; profit: number }[];
+  dailyData: { date: string; income: number; expense: number; profit: number }[];
   categoryExpenses: { name: string; value: number; color: string }[];
   topCustomers: { name: string; total: number }[];
   invoices: any[];
+  // Previous period comparison
+  prevTotalIncome: number;
+  prevTotalExpense: number;
+  prevNetProfit: number;
 }
 
 const COLORS = [
@@ -86,9 +97,10 @@ interface StatCardProps {
   icon: React.ReactNode;
   iconBgClass: string;
   valueClass?: string;
+  subtitle?: React.ReactNode;
 }
 
-const StatCard = ({ title, value, icon, iconBgClass, valueClass = 'text-foreground' }: StatCardProps) => (
+const StatCard = ({ title, value, icon, iconBgClass, valueClass = 'text-foreground', subtitle }: StatCardProps) => (
   <Card className="group relative overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
     <CardContent className="p-3 sm:p-5">
       <div className="flex items-center gap-2.5 sm:gap-4">
@@ -105,6 +117,7 @@ const StatCard = ({ title, value, icon, iconBgClass, valueClass = 'text-foregrou
           <p className={cn("text-sm sm:text-xl font-bold tracking-tight", valueClass)}>
             {value}
           </p>
+          {subtitle && <div className="mt-0.5">{subtitle}</div>}
         </div>
       </div>
     </CardContent>
@@ -135,15 +148,35 @@ const ReportsSkeleton = () => (
   </div>
 );
 
+// Percentage change badge
+const ChangeIndicator = ({ current, previous, label }: { current: number; previous: number; label?: string }) => {
+  if (previous === 0 && current === 0) return null;
+  const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / Math.abs(previous)) * 100;
+  const isPositive = change >= 0;
+
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-0.5 text-[10px] sm:text-xs font-medium",
+      isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+    )}>
+      {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+      {Math.abs(change).toFixed(1)}%
+      {label && <span className="text-muted-foreground ml-0.5">{label}</span>}
+    </span>
+  );
+};
+
 const Reports = () => {
   const { isAdmin, loading: authLoading } = useAuth();
   const { organization } = useOrganization();
   const { canPerform } = usePermissions();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [reportType, setReportType] = useState<'monthly' | 'yearly'>('monthly');
+  const [reportType, setReportType] = useState<'monthly' | 'yearly' | 'custom'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [selectedYear, setSelectedYear] = useState(format(new Date(), 'yyyy'));
+  const [customFromDate, setCustomFromDate] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [customToDate, setCustomToDate] = useState<Date | undefined>(new Date());
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all');
   const [reportData, setReportData] = useState<ReportData>({
@@ -156,9 +189,13 @@ const Reports = () => {
     customerCount: 0,
     vendorDue: 0,
     monthlyData: [],
+    dailyData: [],
     categoryExpenses: [],
     topCustomers: [],
     invoices: [],
+    prevTotalIncome: 0,
+    prevTotalExpense: 0,
+    prevNetProfit: 0,
   });
 
   const months = [];
@@ -185,7 +222,7 @@ const Reports = () => {
     if (hasReportAccess && organization?.id) {
       fetchReportData();
     }
-  }, [reportType, selectedMonth, selectedYear, hasReportAccess, organization?.id]);
+  }, [reportType, selectedMonth, selectedYear, customFromDate, customToDate, hasReportAccess, organization?.id]);
 
   // Access control check
   if (authLoading) {
@@ -220,19 +257,35 @@ const Reports = () => {
         const [year, month] = selectedMonth.split('-').map(Number);
         startDate = startOfMonth(new Date(year, month - 1));
         endDate = endOfMonth(new Date(year, month - 1));
-      } else {
+      } else if (reportType === 'yearly') {
         startDate = startOfYear(new Date(Number(selectedYear), 0));
         endDate = endOfYear(new Date(Number(selectedYear), 0));
+      } else {
+        // Custom date range
+        if (!customFromDate || !customToDate) return;
+        startDate = customFromDate;
+        endDate = customToDate;
       }
 
       const startDateStr = format(startDate, 'yyyy-MM-dd');
       const endDateStr = format(endDate, 'yyyy-MM-dd');
+
+      // Calculate previous period for comparison
+      const periodDays = differenceInDays(endDate, startDate) + 1;
+      const prevEndDate = new Date(startDate);
+      prevEndDate.setDate(prevEndDate.getDate() - 1);
+      const prevStartDate = new Date(prevEndDate);
+      prevStartDate.setDate(prevStartDate.getDate() - periodDays + 1);
+      const prevStartDateStr = format(prevStartDate, 'yyyy-MM-dd');
+      const prevEndDateStr = format(prevEndDate, 'yyyy-MM-dd');
 
       const [
         invoicesRes,
         expensesRes,
         customersRes,
         vendorBillsRes,
+        prevInvoicesRes,
+        prevExpensesRes,
       ] = await Promise.all([
         supabase
           .from('invoices')
@@ -249,6 +302,19 @@ const Reports = () => {
           .lte('date', endDateStr),
         supabase.from('customers').select('id', { count: 'exact', head: true }).eq('organization_id', organization.id),
         supabase.from('vendor_bills').select('amount, status').eq('organization_id', organization.id).neq('status', 'paid'),
+        // Previous period data for comparison
+        supabase
+          .from('invoices')
+          .select('paid_amount')
+          .eq('organization_id', organization.id)
+          .gte('invoice_date', prevStartDateStr)
+          .lte('invoice_date', prevEndDateStr),
+        supabase
+          .from('expenses')
+          .select('amount')
+          .eq('organization_id', organization.id)
+          .gte('date', prevStartDateStr)
+          .lte('date', prevEndDateStr),
       ]);
 
       const invoices = invoicesRes.data || [];
@@ -257,6 +323,11 @@ const Reports = () => {
       const totalIncome = invoices.reduce((sum, inv) => sum + Number(inv.paid_amount || 0), 0);
       const totalExpense = expenses.reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
       const netProfit = totalIncome - totalExpense;
+
+      // Previous period
+      const prevTotalIncome = (prevInvoicesRes.data || []).reduce((sum, inv) => sum + Number(inv.paid_amount || 0), 0);
+      const prevTotalExpense = (prevExpensesRes.data || []).reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
+      const prevNetProfit = prevTotalIncome - prevTotalExpense;
 
       const paidInvoices = invoices.filter((inv) => inv.status === 'paid').length;
       const unpaidInvoices = invoices.filter((inv) => inv.status === 'unpaid' || inv.status === 'partial').length;
@@ -267,7 +338,7 @@ const Reports = () => {
       );
 
       // Calculate monthly data for yearly report
-      const monthlyData: { month: string; income: number; expense: number }[] = [];
+      const monthlyData: { month: string; income: number; expense: number; profit: number }[] = [];
       if (reportType === 'yearly') {
         for (let i = 0; i < 12; i++) {
           const monthDate = new Date(Number(selectedYear), i, 1);
@@ -286,6 +357,52 @@ const Reports = () => {
             month: format(monthDate, 'MMM'),
             income: monthIncome,
             expense: monthExpense,
+            profit: monthIncome - monthExpense,
+          });
+        }
+      }
+
+      // Calculate daily data for monthly/custom reports
+      const dailyData: { date: string; income: number; expense: number; profit: number }[] = [];
+      if (reportType === 'monthly' || reportType === 'custom') {
+        const days = eachDayOfInterval({ start: startDate, end: endDate });
+        // If too many days (>60), group by week or show subset
+        const shouldGroupByWeek = days.length > 60;
+        
+        if (shouldGroupByWeek) {
+          // Group by month intervals for long custom ranges
+          const monthIntervals = eachMonthOfInterval({ start: startDate, end: endDate });
+          monthIntervals.forEach((monthStart) => {
+            const mStart = format(monthStart, 'yyyy-MM-dd');
+            const mEnd = format(endOfMonth(monthStart), 'yyyy-MM-dd');
+            const dayIncome = invoices
+              .filter((inv) => inv.invoice_date >= mStart && inv.invoice_date <= mEnd)
+              .reduce((sum, inv) => sum + Number(inv.paid_amount || 0), 0);
+            const dayExpense = expenses
+              .filter((exp) => exp.date >= mStart && exp.date <= mEnd)
+              .reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
+            dailyData.push({
+              date: format(monthStart, 'MMM yyyy'),
+              income: dayIncome,
+              expense: dayExpense,
+              profit: dayIncome - dayExpense,
+            });
+          });
+        } else {
+          days.forEach((day) => {
+            const dayStr = format(day, 'yyyy-MM-dd');
+            const dayIncome = invoices
+              .filter((inv) => inv.invoice_date === dayStr)
+              .reduce((sum, inv) => sum + Number(inv.paid_amount || 0), 0);
+            const dayExpense = expenses
+              .filter((exp) => exp.date === dayStr)
+              .reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
+            dailyData.push({
+              date: format(day, 'd MMM'),
+              income: dayIncome,
+              expense: dayExpense,
+              profit: dayIncome - dayExpense,
+            });
           });
         }
       }
@@ -327,9 +444,13 @@ const Reports = () => {
         customerCount: customersRes.count || 0,
         vendorDue,
         monthlyData,
+        dailyData,
         categoryExpenses,
         topCustomers,
         invoices,
+        prevTotalIncome,
+        prevTotalExpense,
+        prevNetProfit,
       });
     } catch (error) {
       console.error('Error fetching report data:', error);
@@ -356,6 +477,10 @@ const Reports = () => {
     return `৳${value}`;
   };
 
+  const profitMargin = reportData.totalIncome > 0
+    ? ((reportData.netProfit / reportData.totalIncome) * 100).toFixed(1)
+    : '0.0';
+
   const handlePrint = () => {
     window.print();
   };
@@ -363,7 +488,9 @@ const Reports = () => {
   const handleExportPDF = () => {
     const title = reportType === 'monthly' 
       ? `Monthly Report - ${format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}`
-      : `Annual Report - ${selectedYear}`;
+      : reportType === 'yearly'
+      ? `Annual Report - ${selectedYear}`
+      : `Custom Report - ${customFromDate ? format(customFromDate, 'd MMM yyyy') : ''} to ${customToDate ? format(customToDate, 'd MMM yyyy') : ''}`;
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -418,8 +545,8 @@ const Reports = () => {
             <div class="value ${reportData.netProfit >= 0 ? 'profit' : 'loss'}">${formatCurrency(reportData.netProfit)}</div>
           </div>
           <div class="summary-card">
-            <div class="label">Total Invoices</div>
-            <div class="value primary">${reportData.invoiceCount}</div>
+            <div class="label">Profit Margin</div>
+            <div class="value ${Number(profitMargin) >= 0 ? 'profit' : 'loss'}">${profitMargin}%</div>
           </div>
         </div>
         <script>window.onload = function() { window.print(); window.onafterprint = function() { window.close(); } }</script>
@@ -432,6 +559,7 @@ const Reports = () => {
   const chartConfig = {
     income: { label: 'Income', color: 'hsl(var(--chart-2))' },
     expense: { label: 'Expense', color: 'hsl(var(--destructive))' },
+    profit: { label: 'Profit', color: 'hsl(var(--primary))' },
   };
 
   // Filter invoices
@@ -453,6 +581,14 @@ const Reports = () => {
         return <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-0 font-medium">Unpaid</Badge>;
     }
   };
+
+  // Category expense as % of income
+  const categoryWithRatio = useMemo(() => {
+    return reportData.categoryExpenses.map(cat => ({
+      ...cat,
+      ratio: reportData.totalIncome > 0 ? ((cat.value / reportData.totalIncome) * 100).toFixed(1) : '0.0',
+    }));
+  }, [reportData.categoryExpenses, reportData.totalIncome]);
 
   // Show access denied message for non-admin users
   if (!isAdmin) {
@@ -484,6 +620,9 @@ const Reports = () => {
   if (loading) {
     return <ReportsSkeleton />;
   }
+
+  // Trend data for charts - use daily for monthly/custom, monthly for yearly
+  const trendData = reportType === 'yearly' ? reportData.monthlyData : reportData.dailyData;
 
   return (
     <div className="space-y-6 animate-fade-in" id="report-content">
@@ -518,13 +657,14 @@ const Reports = () => {
           <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:flex lg:flex-wrap lg:items-center lg:gap-4">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Report Type:</span>
-              <Select value={reportType} onValueChange={(v: 'monthly' | 'yearly') => setReportType(v)}>
-                <SelectTrigger className="w-[130px] h-9 bg-background border-border/60">
+              <Select value={reportType} onValueChange={(v: 'monthly' | 'yearly' | 'custom') => setReportType(v)}>
+                <SelectTrigger className="w-[140px] h-9 bg-background border-border/60">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="monthly">Monthly</SelectItem>
                   <SelectItem value="yearly">Yearly</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -548,7 +688,7 @@ const Reports = () => {
                   </SelectContent>
                 </Select>
               </div>
-            ) : (
+            ) : reportType === 'yearly' ? (
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Year:</span>
                 <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -565,12 +705,33 @@ const Reports = () => {
                   </SelectContent>
                 </Select>
               </div>
+            ) : (
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">From:</span>
+                <DatePicker
+                  value={customFromDate}
+                  onChange={setCustomFromDate}
+                  placeholder="Start date"
+                  toDate={customToDate}
+                  className="w-[160px] h-9"
+                  dateFormat="d MMM yyyy"
+                />
+                <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">To:</span>
+                <DatePicker
+                  value={customToDate}
+                  onChange={setCustomToDate}
+                  placeholder="End date"
+                  fromDate={customFromDate}
+                  className="w-[160px] h-9"
+                  dateFormat="d MMM yyyy"
+                />
+              </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Summary Stats - 2-col tablet, 4-col desktop */}
+      {/* Summary Stats */}
       <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Income"
@@ -578,6 +739,7 @@ const Reports = () => {
           icon={<TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
           iconBgClass="bg-emerald-100 dark:bg-emerald-900/40"
           valueClass="text-emerald-600 dark:text-emerald-400"
+          subtitle={<ChangeIndicator current={reportData.totalIncome} previous={reportData.prevTotalIncome} label="vs prev" />}
         />
         <StatCard
           title="Total Expense"
@@ -585,6 +747,7 @@ const Reports = () => {
           icon={<TrendingDown className="h-5 w-5 text-rose-600 dark:text-rose-400" />}
           iconBgClass="bg-rose-100 dark:bg-rose-900/40"
           valueClass="text-rose-600 dark:text-rose-400"
+          subtitle={<ChangeIndicator current={reportData.totalExpense} previous={reportData.prevTotalExpense} label="vs prev" />}
         />
         <StatCard
           title="Net Profit/Loss"
@@ -592,19 +755,23 @@ const Reports = () => {
           icon={<Wallet className={cn("h-5 w-5", reportData.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")} />}
           iconBgClass={reportData.netProfit >= 0 ? "bg-emerald-100 dark:bg-emerald-900/40" : "bg-rose-100 dark:bg-rose-900/40"}
           valueClass={reportData.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}
+          subtitle={<ChangeIndicator current={reportData.netProfit} previous={reportData.prevNetProfit} label="vs prev" />}
         />
         <StatCard
-          title="Total Invoices"
-          value={reportData.invoiceCount.toString()}
-          icon={<FileText className="h-5 w-5 text-primary" />}
-          iconBgClass="bg-primary/10"
-          valueClass="text-primary"
+          title="Profit Margin"
+          value={`${profitMargin}%`}
+          icon={<Percent className={cn("h-5 w-5", Number(profitMargin) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")} />}
+          iconBgClass={Number(profitMargin) >= 0 ? "bg-emerald-100 dark:bg-emerald-900/40" : "bg-rose-100 dark:bg-rose-900/40"}
+          valueClass={Number(profitMargin) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}
         />
       </div>
 
       {/* Tabs & Content */}
-      <Tabs defaultValue="invoices" className="space-y-4">
+      <Tabs defaultValue="profit-loss" className="space-y-4">
         <TabsList className="print:hidden bg-muted/50 p-1 h-auto flex-wrap">
+          <TabsTrigger value="profit-loss" className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 py-2 text-sm font-medium">
+            Profit & Loss
+          </TabsTrigger>
           <TabsTrigger value="invoices" className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 py-2 text-sm font-medium">
             Invoices
           </TabsTrigger>
@@ -619,7 +786,195 @@ const Reports = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* Invoices Tab */}
+        {/* ========== Profit & Loss Tab ========== */}
+        <TabsContent value="profit-loss" className="space-y-4 mt-4">
+          {/* P&L Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className={cn(
+              "border-border/50 relative overflow-hidden",
+              reportData.netProfit >= 0
+                ? "bg-gradient-to-br from-emerald-50/80 to-emerald-100/40 dark:from-emerald-950/30 dark:to-emerald-900/20"
+                : "bg-gradient-to-br from-rose-50/80 to-rose-100/40 dark:from-rose-950/30 dark:to-rose-900/20"
+            )}>
+              <CardContent className="p-5 sm:p-6">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Net Profit / Loss</p>
+                <p className={cn(
+                  "text-2xl sm:text-3xl font-bold",
+                  reportData.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                )}>
+                  {formatCurrency(reportData.netProfit)}
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <ChangeIndicator current={reportData.netProfit} previous={reportData.prevNetProfit} label="আগের পিরিয়ড" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/50">
+              <CardContent className="p-5 sm:p-6">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Income</p>
+                <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(reportData.totalIncome)}
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <ChangeIndicator current={reportData.totalIncome} previous={reportData.prevTotalIncome} label="আগের পিরিয়ড" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/50">
+              <CardContent className="p-5 sm:p-6">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Expense</p>
+                <p className="text-2xl sm:text-3xl font-bold text-rose-600 dark:text-rose-400">
+                  {formatCurrency(reportData.totalExpense)}
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <ChangeIndicator current={reportData.totalExpense} previous={reportData.prevTotalExpense} label="আগের পিরিয়ড" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Profit Margin Bar */}
+          <Card className="border-border/50">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold">Profit Margin</span>
+                <span className={cn(
+                  "text-lg font-bold",
+                  Number(profitMargin) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                )}>
+                  {profitMargin}%
+                </span>
+              </div>
+              <div className="h-4 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all duration-700",
+                    Number(profitMargin) >= 0
+                      ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                      : "bg-gradient-to-r from-rose-500 to-rose-400"
+                  )}
+                  style={{ width: `${Math.min(Math.abs(Number(profitMargin)), 100)}%` }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* P&L Trend Chart */}
+          {trendData.length > 0 && (
+            <Card className="border-border/50">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle className="text-lg font-semibold">Income vs Expense Trend</CardTitle>
+                    <CardDescription>
+                      {reportType === 'yearly' ? `Monthly breakdown for ${selectedYear}` : 
+                       reportType === 'monthly' ? `Daily breakdown for ${format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}` :
+                       'Period breakdown'}
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                  <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey={reportType === 'yearly' ? 'month' : 'date'} className="text-xs" tick={{ fontSize: 10 }} />
+                    <YAxis tickFormatter={formatChartCurrency} className="text-xs" />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value: number) => formatCurrency(value)}
+                        />
+                      }
+                    />
+                    <Area type="monotone" dataKey="income" stroke="hsl(var(--chart-2))" fill="url(#incomeGrad)" strokeWidth={2} name="Income" />
+                    <Area type="monotone" dataKey="expense" stroke="hsl(var(--destructive))" fill="url(#expenseGrad)" strokeWidth={2} name="Expense" />
+                  </AreaChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Income vs Expense Bar Comparison */}
+          {trendData.length > 0 && (
+            <Card className="border-border/50">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold">Income vs Expense Comparison</CardTitle>
+                <CardDescription>Side-by-side bar comparison</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig} className="h-[280px] w-full">
+                  <BarChart data={trendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey={reportType === 'yearly' ? 'month' : 'date'} className="text-xs" tick={{ fontSize: 10 }} />
+                    <YAxis tickFormatter={formatChartCurrency} className="text-xs" />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value: number) => formatCurrency(value)}
+                        />
+                      }
+                    />
+                    <Bar dataKey="income" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} name="Income" />
+                    <Bar dataKey="expense" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Expense" />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Category-wise Expense vs Income Ratio */}
+          {categoryWithRatio.length > 0 && (
+            <Card className="border-border/50">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold">Category-wise Expense (% of Income)</CardTitle>
+                <CardDescription>কোন ক্যাটেগরিতে আয়ের কত % খরচ হচ্ছে</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {categoryWithRatio.map((cat, index) => (
+                    <div key={index} className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
+                          <span className="text-sm font-medium">{cat.name}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground">{formatCurrency(cat.value)}</span>
+                          <Badge variant="outline" className="text-xs font-bold">{cat.ratio}%</Badge>
+                        </div>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${Math.min(Number(cat.ratio), 100)}%`,
+                            backgroundColor: cat.color,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ========== Invoices Tab ========== */}
         <TabsContent value="invoices" className="space-y-4 mt-4">
           <Card className="border-border/50">
             <CardHeader className="pb-4">
@@ -699,7 +1054,7 @@ const Reports = () => {
           </Card>
         </TabsContent>
 
-        {/* Overview Tab */}
+        {/* ========== Overview Tab ========== */}
         <TabsContent value="overview" className="space-y-4 mt-4">
           <div className="grid gap-4 md:grid-cols-2">
             {/* Invoice Status */}
@@ -779,41 +1134,74 @@ const Reports = () => {
             </Card>
           </div>
 
-          {/* Monthly Trend for Yearly Report */}
-          {reportType === 'yearly' && reportData.monthlyData.length > 0 && (
+          {/* Income/Expense Trend Chart — shown for ALL report types */}
+          {trendData.length > 0 && (
             <Card className="border-border/50">
               <CardHeader className="pb-4">
                 <div className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-primary" />
                   <div>
-                    <CardTitle className="text-lg font-semibold">Monthly Income-Expense Trend</CardTitle>
-                    <CardDescription>Monthly analysis for {selectedYear}</CardDescription>
+                    <CardTitle className="text-lg font-semibold">
+                      {reportType === 'yearly' ? 'Monthly Income-Expense Trend' : 'Daily Income-Expense Trend'}
+                    </CardTitle>
+                    <CardDescription>
+                      {reportType === 'yearly' ? `Monthly analysis for ${selectedYear}` :
+                       reportType === 'monthly' ? `Daily analysis for ${format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}` :
+                       'Period analysis'}
+                    </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                  <BarChart data={reportData.monthlyData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="month" className="text-xs" />
-                    <YAxis tickFormatter={formatChartCurrency} className="text-xs" />
-                    <ChartTooltip
-                      content={
-                        <ChartTooltipContent
-                          formatter={(value: number) => formatCurrency(value)}
-                        />
-                      }
-                    />
-                    <Bar dataKey="income" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} name="Income" />
-                    <Bar dataKey="expense" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Expense" />
-                  </BarChart>
+                  {reportType === 'yearly' ? (
+                    <BarChart data={trendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="month" className="text-xs" />
+                      <YAxis tickFormatter={formatChartCurrency} className="text-xs" />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            formatter={(value: number) => formatCurrency(value)}
+                          />
+                        }
+                      />
+                      <Bar dataKey="income" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} name="Income" />
+                      <Bar dataKey="expense" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Expense" />
+                    </BarChart>
+                  ) : (
+                    <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="incomeGrad2" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="expenseGrad2" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 10 }} />
+                      <YAxis tickFormatter={formatChartCurrency} className="text-xs" />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            formatter={(value: number) => formatCurrency(value)}
+                          />
+                        }
+                      />
+                      <Area type="monotone" dataKey="income" stroke="hsl(var(--chart-2))" fill="url(#incomeGrad2)" strokeWidth={2} name="Income" />
+                      <Area type="monotone" dataKey="expense" stroke="hsl(var(--destructive))" fill="url(#expenseGrad2)" strokeWidth={2} name="Expense" />
+                    </AreaChart>
+                  )}
                 </ChartContainer>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        {/* Expenses Tab */}
+        {/* ========== Expenses Tab ========== */}
         <TabsContent value="expenses" className="space-y-4 mt-4">
           <div className="grid gap-4 md:grid-cols-2">
             {/* Category Pie Chart */}
@@ -892,7 +1280,7 @@ const Reports = () => {
           </div>
         </TabsContent>
 
-        {/* Customers Tab */}
+        {/* ========== Customers Tab ========== */}
         <TabsContent value="customers" className="space-y-4 mt-4">
           <Card className="border-border/50">
             <CardHeader className="pb-4">
