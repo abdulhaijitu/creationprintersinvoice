@@ -2,17 +2,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   FileText, 
-  Users, 
+  UserRound, 
   Wallet, 
-  Menu,
   Plus,
   X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { hasPermission } from '@/lib/permissions';
-import { useAuth } from '@/contexts/AuthContext';
+import { usePermissionContext } from '@/contexts/PermissionContext';
 
 interface NavItem {
   icon: React.ElementType;
@@ -24,7 +22,7 @@ interface NavItem {
 export const MobileBottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { hasModuleAccess } = usePermissionContext();
   const [showQuickActions, setShowQuickActions] = useState(false);
 
   const navItems: NavItem[] = [
@@ -41,7 +39,7 @@ export const MobileBottomNav = () => {
       matchPaths: ['/invoices', '/quotations', '/delivery-challans']
     },
     { 
-      icon: Users, 
+      icon: UserRound, 
       label: 'Customers', 
       path: '/customers',
       matchPaths: ['/customers']
@@ -55,10 +53,10 @@ export const MobileBottomNav = () => {
   ];
 
   const quickActions = [
-    { label: 'New Invoice', path: '/invoices/new', permission: ['invoices', 'create'] as const },
-    { label: 'New Customer', path: '/customers', permission: ['customers', 'create'] as const },
-    { label: 'New Quotation', path: '/quotations/new', permission: ['quotations', 'create'] as const },
-    { label: 'Add Expense', path: '/expenses', permission: ['expenses', 'create'] as const },
+    { label: 'New Invoice', path: '/invoices/new', permissionKey: 'main.invoices' },
+    { label: 'New Customer', path: '/customers', permissionKey: 'business.customers' },
+    { label: 'New Quotation', path: '/quotations/new', permissionKey: 'main.quotations' },
+    { label: 'Add Expense', path: '/expenses', permissionKey: 'business.expenses' },
   ];
 
   const isActive = (item: NavItem) => {
@@ -94,7 +92,7 @@ export const MobileBottomNav = () => {
       )}>
         <div className="bg-card border rounded-2xl shadow-xl p-2 flex flex-col gap-1 min-w-[200px]">
           {quickActions
-            .filter(action => hasPermission(role, action.permission[0], action.permission[1]))
+            .filter(action => hasModuleAccess(action.permissionKey))
             .map((action) => (
               <Button
                 key={action.path}
