@@ -1,48 +1,44 @@
 
 
-## Dashboard সিম্প্লিফিকেশন ও ডিজাইন এনহান্সমেন্ট
+## Invoices পেইজ — সমস্যা ও উন্নতির সুযোগ
 
-### বর্তমান অবস্থা
-Dashboard-এ এখন অনেক কিছু আছে: ৫টি সামারি কার্ড, Invoices (৬ কার্ড), Quotations (৬ কার্ড), Delivery Challans (৫ কার্ড), Production Tasks (৫ কার্ড), Alerts, Charts (AreaChart, PieChart), HR Snapshot, Recent Invoices, Expense Breakdown, ApprovalsPanel — মোট ~১৩২৮ লাইন।
+### সমস্যাসমূহ (Bugs/Issues)
 
-### পরিবর্তন
-সব সরিয়ে **শুধু ৩টি সেকশন** রাখা হবে, প্রিমিয়াম shadcn ডিজাইনে:
+1. **`confirm()` ব্রাউজার ডায়ালগ ব্যবহৃত হচ্ছে** (লাইন 143) — Single invoice delete-এ native `confirm()` ব্যবহার হচ্ছে, কিন্তু bulk delete-এ সুন্দর `ConfirmDialog` আছে। Inconsistent UX।
 
-#### 1. Monthly Invoices কার্ড
-- একটি প্রিমিয়াম কার্ডে ৩টি মেট্রিক পাশাপাশি:
-  - **Total** = `SUM(invoices.total)` এই মাসের
-  - **Payments** = `SUM(invoices.paid_amount)` এই মাসের
-  - **Due** = Total - Payments
-- কার্ডে ক্লিক করলে `/invoices`-এ যাবে
-- Due amount লাল/সবুজ হাইলাইট
+2. **Pagination নেই** — সব ইনভয়েস একসাথে লোড হয়, ১০০০+ ইনভয়েস থাকলে পারফরম্যান্স সমস্যা হবে (Supabase 1000 row limit-ও hit করবে)।
 
-#### 2. Monthly Expenses কার্ড
-- একটি প্রিমিয়াম কার্ডে ৩টি সাব-মেট্রিক + Total:
-  - **Vendor Bills** = `SUM(vendor_bills.net_amount)` এই মাসের
-  - **Office Expenses** = `SUM(expenses.amount)` এই মাসের (vendor_bill_id ছাড়া)
-  - **Salary** = `SUM(employee_salary_records.net_payable)` এই মাসের
-  - **Total** = Vendor + Expense + Salary
-- কার্ডে ক্লিক করলে `/expenses`-এ যাবে
+3. **Mobile কার্ডে Edit অপশন নেই** — ডেস্কটপ ড্রপডাউনে Export আছে কিন্তু Edit নেই। মোবাইলে শুধু View ও Delete।
 
-#### 3. Production Tasks কার্ড
-- একটি প্রিমিয়াম কার্ডে ৩টি মেট্রিক:
-  - **Active** = tasks যেগুলো `todo`, `in_progress`, `design`, `printing`, `packaging` স্ট্যাটাসে
-  - **Delivered** = `delivered` স্ট্যাটাস
-  - **Archived** = `archived` স্ট্যাটাস
-- কার্ডে ক্লিক করলে `/tasks`-এ যাবে
+4. **Dropdown-এ "Export" single invoice export করে না** — ড্রপডাউনে Export ক্লিক করলে পুরো লিস্ট CSV export হয়, specific invoice export হয় না। Misleading।
 
-### ডিজাইন
-- প্রতিটি সেকশন একটি `Card` — ভিতরে ৩-৪টি মেট্রিক কলাম, `Separator` দিয়ে আলাদা
-- বড় সংখ্যা, সিমেন্টিক কালার, আইকন, সাবটাইটেল
-- গ্রিড: মোবাইলে ১ কলাম, ডেস্কটপে ৩ কলাম
-- Header + "View Reports" বাটন রাখা হবে
-- Loading skeleton আপডেট — ৩টি কার্ড
-- Mobile home tiles (`/` route) আগের মতো থাকবে
+5. **`InvoiceTableActions` কম্পোনেন্ট অব্যবহৃত** — আলাদা `InvoiceTableActions.tsx` তৈরি আছে কিন্তু Invoices পেইজে ব্যবহৃত হচ্ছে না, inline actions লেখা।
 
-### টেকনিক্যাল বিবরণ
-- **ফাইল:** শুধু `src/pages/Dashboard.tsx`
-- **নতুন DB Query:** `vendor_bills` (bill_date range), `employee_salary_records` (year/month)
-- `DashboardStats` interface সিম্প্লিফাই — শুধু প্রয়োজনীয় ফিল্ড
-- Quotations, Delivery Challans, Alerts, Charts, HR Snapshot, Recent Invoices, Expense Breakdown, ApprovalsPanel — সব রিমুভ
-- অব্যবহৃত imports ক্লিনআপ
+6. **`useIsMobile` hook import করা হয়নি** — মোবাইল ভিউ CSS দিয়ে `hidden md:block` / `block md:hidden` করা হয়েছে, তবে mobile-specific behavior নেই।
+
+### উন্নতির সুযোগ
+
+1. **Pagination যোগ করা** — প্রতি পেইজে ২০/৫০টি ইনভয়েস দেখানো, Next/Previous বাটন।
+
+2. **Single delete-এ `ConfirmDialog` ব্যবহার** — native `confirm()` সরিয়ে প্রিমিয়াম ConfirmDialog।
+
+3. **Date Range ফিল্টার** — তারিখ অনুযায়ী ইনভয়েস ফিল্টার করার অপশন।
+
+4. **Row-level Edit বাটন** — প্রতি ইনভয়েসের পাশে Edit আইকন যোগ।
+
+5. **Per-row dropdown ঠিক করা** — Export অপশন সরিয়ে Edit, Mark Paid, Send Reminder যোগ।
+
+6. **Customer-wise ফিল্টার** — নির্দিষ্ট কাস্টমারের ইনভয়েস দেখার অপশন।
+
+7. **Table footer-এ Total summary** — ফিল্টার করা ইনভয়েসের মোট Total, Paid, Due দেখানো।
+
+### প্রস্তাবিত পরিবর্তন (Implementation Plan)
+
+#### ফাইল: `src/pages/Invoices.tsx`
+
+1. **Single delete → ConfirmDialog**: নতুন state `singleDeleteId` যোগ, `handleDelete`-এ `confirm()` সরিয়ে dialog open করা
+2. **Row dropdown উন্নত করা**: Export সরিয়ে Edit (`/invoices/{id}/edit`), Mark Paid (due থাকলে) যোগ
+3. **Mobile কার্ডে Edit বাটন যোগ**
+4. **Table footer-এ summary row**: filtered invoices-এর Total, Paid, Due দেখানো
+5. **Pagination**: `currentPage` state, page size 25, paginated slice দেখানো, Next/Prev controls
 
