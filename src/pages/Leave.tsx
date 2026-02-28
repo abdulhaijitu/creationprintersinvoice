@@ -124,7 +124,7 @@ const Leave = () => {
     try {
       let query = supabase
         .from("leave_requests")
-        .select("*")
+        .select("id, user_id, leave_type, start_date, end_date, reason, status, rejection_reason, created_at")
         .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
 
@@ -135,17 +135,19 @@ const Leave = () => {
       const { data: requestsData } = await query;
 
       if (requestsData) {
-        const requestsWithProfiles = await Promise.all(
-          requestsData.map(async (request) => {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("full_name")
-              .eq("id", request.user_id)
-              .single();
+        // Batch fetch all profiles in one query instead of N+1
+        const userIds = [...new Set(requestsData.map(r => r.user_id))];
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", userIds);
 
-            return { ...request, profile };
-          })
-        );
+        const profileMap = new Map(profiles?.map(p => [p.id, { full_name: p.full_name }]) || []);
+
+        const requestsWithProfiles = requestsData.map((request) => ({
+          ...request,
+          profile: profileMap.get(request.user_id) || null,
+        }));
         setLeaveRequests(requestsWithProfiles);
       }
 

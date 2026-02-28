@@ -54,7 +54,16 @@ export function usePayments() {
       const { data, error } = await supabase
         .from('invoice_payments')
         .select(`
-          *,
+          id,
+          invoice_id,
+          payment_date,
+          amount,
+          payment_method,
+          reference,
+          notes,
+          created_at,
+          created_by,
+          organization_id,
           invoice:invoices(
             id,
             invoice_number,
@@ -89,7 +98,7 @@ export function usePayments() {
     }
   }, [organization?.id]);
 
-  const calculateStats = async (paymentData: Payment[]) => {
+  const calculateStats = (paymentData: Payment[]) => {
     if (!organization?.id) return;
 
     const now = new Date();
@@ -110,24 +119,25 @@ export function usePayments() {
       .filter(p => p.payment_date === todayStr)
       .reduce((sum, p) => sum + Number(p.amount), 0);
 
-    // Fetch invoices for pending due and overdue calculations
-    const { data: invoices } = await supabase
-      .from('invoices')
-      .select('total, paid_amount, due_date, status')
-      .eq('organization_id', organization.id);
+    // Calculate pending due and overdue from already-fetched invoice data (no extra query)
+    const seenInvoices = new Map<string, { total: number; paid_amount: number; due_date: string | null }>();
+    for (const p of paymentData) {
+      if (p.invoice && !seenInvoices.has(p.invoice.id)) {
+        seenInvoices.set(p.invoice.id, {
+          total: Number(p.invoice.total),
+          paid_amount: Number(p.invoice.paid_amount || 0),
+          due_date: p.invoice.due_date,
+        });
+      }
+    }
 
     let pendingDue = 0;
     let overdueAmount = 0;
 
-    (invoices || []).forEach((inv: any) => {
-      const total = Number(inv.total);
-      const paidAmount = Number(inv.paid_amount || 0);
-      const due = total - paidAmount;
-
+    seenInvoices.forEach((inv) => {
+      const due = inv.total - inv.paid_amount;
       if (due > 0) {
         pendingDue += due;
-
-        // Check if overdue
         if (inv.due_date && isPast(parseISO(inv.due_date)) && !isToday(parseISO(inv.due_date))) {
           overdueAmount += due;
         }

@@ -112,11 +112,12 @@ const Quotations = () => {
     }
     
     try {
-      await supabase.rpc('auto_expire_quotations');
+      // Fire-and-forget: don't block page load
+      supabase.rpc('auto_expire_quotations').then(() => {});
       
       const { data, error } = await supabase
         .from('quotations')
-        .select('*, customers(name)')
+        .select('id, quotation_number, customer_id, quotation_date, valid_until, total, status, created_at, customers(name)')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
 

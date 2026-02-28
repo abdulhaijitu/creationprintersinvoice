@@ -129,7 +129,7 @@ const Employees = () => {
     try {
       const { data, error } = await supabase
         .from("employees")
-        .select("*")
+        .select("id, full_name, phone, email, designation, department, joining_date, basic_salary, is_active, photo_url, address, nid")
         .eq("organization_id", organization.id)
         .eq("is_active", true)
         .order("full_name");
