@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Calendar, Check, X, Trash2, FileText, AlertTriangle } from "lucide-react";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO, eachDayOfInterval } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +80,8 @@ const Leave = () => {
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [holidayWarning, setHolidayWarning] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     leave_type: "casual" as LeaveType,
@@ -328,14 +331,15 @@ const Leave = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this leave request?')) return;
+  const handleDelete = async () => {
+    if (!deleteId) return;
     
     try {
-      const { error } = await supabase.from('leave_requests').delete().eq('id', id);
+      const { error } = await supabase.from('leave_requests').delete().eq('id', deleteId);
       if (error) throw error;
       
       toast.success('Leave request deleted');
+      setDeleteId(null);
       fetchData();
     } catch (error) {
       console.error('Error deleting leave request:', error);
@@ -493,8 +497,79 @@ const Leave = () => {
         </div>
       )}
 
-      <div className="border rounded-lg overflow-x-auto">
-        <div className="min-w-[700px]">
+      {/* Mobile Card View */}
+      <div className="block md:hidden space-y-3">
+        {loading ? (
+          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+        ) : leaveRequests.length === 0 ? (
+          <EmptyState
+            icon={Calendar}
+            title="No leave requests"
+            description="No leave requests have been submitted yet"
+            action={{ label: "Request Leave", onClick: () => setIsDialogOpen(true), icon: Plus }}
+          />
+        ) : (
+          (() => {
+            const PAGE_SIZE = 25;
+            const totalPages = Math.ceil(leaveRequests.length / PAGE_SIZE);
+            const paginated = leaveRequests.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+            return (
+              <>
+                {paginated.map((request) => (
+                  <Card key={request.id}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          {isAdmin && <p className="font-medium text-sm">{request.profile?.full_name || "-"}</p>}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline">{leaveTypeLabels[request.leave_type]}</Badge>
+                            {getStatusBadge(request.status)}
+                          </div>
+                        </div>
+                        {isAdmin && (
+                          <div className="flex gap-1">
+                            {request.status === "pending" && (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => handleApprove(request.id, request.user_id, request.leave_type, request.start_date, request.end_date)}>
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleReject(request.id, request.user_id, request.leave_type)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(request.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        <span>{format(new Date(request.start_date), "dd/MM/yyyy")}</span>
+                        {request.start_date !== request.end_date && <span> - {format(new Date(request.end_date), "dd/MM/yyyy")}</span>}
+                        <span className="ml-2">({getDays(request.start_date, request.end_date)} days)</span>
+                      </div>
+                      {request.reason && <p className="text-xs text-muted-foreground truncate">{request.reason}</p>}
+                    </CardContent>
+                  </Card>
+                ))}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>Previous</Button>
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages}>Next</Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()
+        )}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
@@ -530,7 +605,11 @@ const Leave = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              leaveRequests.map((request) => (
+              (() => {
+                const PAGE_SIZE = 25;
+                const totalPages = Math.ceil(leaveRequests.length / PAGE_SIZE);
+                const paginated = leaveRequests.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+                return paginated.map((request) => (
                 <TableRow key={request.id}>
                   {isAdmin && (
                     <TableCell className="font-medium">{request.profile?.full_name || "-"}</TableCell>
@@ -587,7 +666,7 @@ const Leave = () => {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => handleDelete(request.id)}
+                          onClick={() => setDeleteId(request.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -595,12 +674,36 @@ const Leave = () => {
                     </TableCell>
                   )}
                 </TableRow>
-              ))
+                ));
+              })()
             )}
           </TableBody>
         </Table>
-        </div>
       </div>
+
+      {/* Pagination for desktop */}
+      {leaveRequests.length > 25 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {(currentPage - 1) * 25 + 1}-{Math.min(currentPage * 25, leaveRequests.length)} of {leaveRequests.length}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>Previous</Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === Math.ceil(leaveRequests.length / 25)}>Next</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={() => setDeleteId(null)}
+        title="Delete Leave Request"
+        description="Are you sure you want to delete this leave request? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 };

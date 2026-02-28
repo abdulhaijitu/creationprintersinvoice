@@ -504,6 +504,19 @@ const Employees = () => {
       emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Pagination
+  const PAGE_SIZE = 25;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(filteredEmployees.length / PAGE_SIZE);
+  const paginatedEmployees = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Reset page when search changes
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+
+  // Stats
+  const totalSalaryCost = employees.reduce((sum, e) => sum + (e.basic_salary || 0), 0);
+  const avgSalary = employees.length > 0 ? totalSalaryCost / employees.length : 0;
+
   // Check if form is valid for save button
   const isEditFormValid = formData.full_name.trim().length >= 2 && !Object.values(errors).some(Boolean);
   const isAddFormValid = newEmployeeData.full_name.trim().length >= 2 && !Object.values(newErrors).some(Boolean);
@@ -688,7 +701,7 @@ const Employees = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => handleAddDialogClose(true)}
+      onClick={() => closeAddDialog()}
                     disabled={addLoading}
                   >
                     Cancel
@@ -705,6 +718,37 @@ const Employees = () => {
       </div>
 
 
+      {/* Stats Cards */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Total Employees
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{employees.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Avg Salary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{formatCurrency(avgSalary)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Salary Cost</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{formatCurrency(totalSalaryCost)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -716,8 +760,53 @@ const Employees = () => {
         />
       </div>
 
-      {/* Employees Table */}
-      <div className="border rounded-lg overflow-x-auto">
+      {/* Mobile Card View */}
+      <div className="block md:hidden space-y-3">
+        {loading ? (
+          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+        ) : paginatedEmployees.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="No employees found"
+            description={searchTerm ? "Try adjusting your search criteria" : "Add your first employee"}
+          />
+        ) : (
+          paginatedEmployees.map((employee) => (
+            <Card key={employee.id}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar>
+                    <AvatarImage src={employee.photo_url || undefined} alt={employee.full_name} className="object-cover" />
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      {getInitials(employee.full_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{employee.full_name}</p>
+                    <p className="text-sm text-muted-foreground">{employee.designation || "No designation"}</p>
+                    <p className="text-sm font-medium text-primary">{formatCurrency(employee.basic_salary || 0)}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    {canEdit && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(employee)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(employee.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Employees Table */}
+      <div className="hidden md:block border rounded-lg overflow-x-auto">
         <div className="min-w-[800px]">
         <Table>
           <TableHeader>
@@ -759,7 +848,7 @@ const Employees = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredEmployees.map((employee) => (
+              paginatedEmployees.map((employee) => (
                 <TableRow key={employee.id}>
                   <TableCell className="whitespace-nowrap">
                     <div className="flex items-center gap-3">
@@ -829,6 +918,19 @@ const Employees = () => {
         </Table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, filteredEmployees.length)} of {filteredEmployees.length}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>Previous</Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages}>Next</Button>
+          </div>
+        </div>
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={handleEditDialogClose}>
@@ -958,7 +1060,7 @@ const Employees = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => handleEditDialogClose(true)}
+              onClick={() => closeEditDialog()}
                 disabled={editLoading}
               >
                 Cancel

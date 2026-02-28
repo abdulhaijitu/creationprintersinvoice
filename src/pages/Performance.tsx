@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Star, TrendingUp, User, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface PerformanceNote {
   id: string;
@@ -56,6 +57,8 @@ const Performance = () => {
   const [loading, setLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState({
     user_id: "",
     note: "",
@@ -152,14 +155,15 @@ const Performance = () => {
     });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this performance note?')) return;
+  const handleDelete = async () => {
+    if (!deleteId) return;
     
     try {
-      const { error } = await supabase.from('performance_notes').delete().eq('id', id);
+      const { error } = await supabase.from('performance_notes').delete().eq('id', deleteId);
       if (error) throw error;
       
       toast.success('Performance note deleted');
+      setDeleteId(null);
       fetchData();
     } catch (error) {
       console.error('Error deleting performance note:', error);
@@ -189,6 +193,14 @@ const Performance = () => {
     notes.length > 0
       ? notes.reduce((sum, n) => sum + (n.rating || 0), 0) / notes.filter(n => n.rating).length
       : 0;
+
+  // Pagination
+  const PAGE_SIZE = 25;
+  const totalPages = Math.ceil(notes.length / PAGE_SIZE);
+  const paginatedNotes = notes.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Reset page when filter changes
+  useEffect(() => { setCurrentPage(1); }, [selectedEmployee]);
 
   return (
     <div className="space-y-6">
@@ -327,7 +339,39 @@ const Performance = () => {
         </Select>
       )}
 
-      <div className="border rounded-lg">
+      {/* Mobile Card View */}
+      <div className="block md:hidden space-y-3">
+        {loading ? (
+          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+        ) : paginatedNotes.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">No notes</div>
+        ) : (
+          paginatedNotes.map((note) => (
+            <Card key={note.id}>
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    {isAdmin && <p className="font-medium text-sm">{note.employee?.full_name || "-"}</p>}
+                    <p className="text-xs text-muted-foreground">{format(new Date(note.created_at), "dd/MM/yyyy")}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {getRatingStars(note.rating)}
+                    {isAdmin && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(note.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm line-clamp-3">{note.note}</p>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
@@ -346,14 +390,14 @@ const Performance = () => {
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : notes.length === 0 ? (
+            ) : paginatedNotes.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 6 : 3} className="text-center py-8 text-muted-foreground">
                   No notes
                 </TableCell>
               </TableRow>
             ) : (
-              notes.map((note) => (
+              paginatedNotes.map((note) => (
                 <TableRow key={note.id}>
                   <TableCell>
                     {format(new Date(note.created_at), "dd/MM/yyyy")}
@@ -378,7 +422,7 @@ const Performance = () => {
                         variant="ghost"
                         size="sm"
                         className="text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(note.id)}
+                        onClick={() => setDeleteId(note.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -390,6 +434,30 @@ const Performance = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, notes.length)} of {notes.length}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>Previous</Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages}>Next</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={() => setDeleteId(null)}
+        title="Delete Performance Note"
+        description="Are you sure you want to delete this performance note? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 };

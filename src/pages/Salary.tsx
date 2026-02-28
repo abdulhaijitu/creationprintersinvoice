@@ -48,6 +48,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { safeParseFloat, parseValidatedFloat } from "@/lib/validation";
+import { formatCurrency } from "@/lib/formatters";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface AdvanceDeductionDetail {
@@ -1011,14 +1012,7 @@ const Salary = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-BD", {
-      style: "currency",
-      currency: "BDT",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
+  // Use shared formatCurrency from @/lib/formatters (imported at top)
 
   // Calculate summary metrics
   // Gross salary = Basic + Bonus (before deductions and advance)
@@ -1108,7 +1102,7 @@ const Salary = () => {
           <h1 className="text-3xl font-bold">Salary</h1>
           <p className="text-muted-foreground">Employee salary management</p>
         </div>
-        {(isAdmin || canCreateSalary) && (
+        {canCreateSalary && (
           <div className="flex gap-2">
             <Dialog open={isAdvanceDialogOpen} onOpenChange={setIsAdvanceDialogOpen}>
               <DialogTrigger asChild>
@@ -1507,7 +1501,7 @@ const Salary = () => {
               <TableHead className="text-right hidden lg:table-cell">Adv.</TableHead>
               <TableHead className="text-right">Net</TableHead>
               <TableHead>Status</TableHead>
-              {isAdmin && <TableHead className="w-[130px]">Action</TableHead>}
+              {canEditSalary && <TableHead className="w-[130px]">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1522,7 +1516,7 @@ const Salary = () => {
                     icon={Banknote}
                     title="No salary records"
                     description={`No salary records found for ${months[selectedMonth - 1]} ${selectedYear}`}
-                    action={isAdmin ? { label: "Generate Salaries", onClick: () => setIsDialogOpen(true), icon: Plus } : undefined}
+                    action={canCreateSalary ? { label: "Generate Salaries", onClick: () => setIsDialogOpen(true), icon: Plus } : undefined}
                   />
                 </TableCell>
               </TableRow>
@@ -1540,7 +1534,7 @@ const Salary = () => {
                   <TableCell>
                     <Badge variant={record.status === "paid" ? "default" : "secondary"}>{record.status === "paid" ? "Paid" : "Pending"}</Badge>
                   </TableCell>
-                  {isAdmin && (
+                  {canEditSalary && (
                     <TableCell>
                       <div className="flex items-center gap-1">
                         {record.status !== "paid" && (
@@ -1570,7 +1564,7 @@ const Salary = () => {
             icon={Banknote}
             title="No salary records"
             description={`No salary records found for ${months[selectedMonth - 1]} ${selectedYear}`}
-            action={isAdmin ? { label: "Generate Salaries", onClick: () => setIsDialogOpen(true), icon: Plus } : undefined}
+            action={canCreateSalary ? { label: "Generate Salaries", onClick: () => setIsDialogOpen(true), icon: Plus } : undefined}
           />
         ) : (
           salaryRecords.map((record) => (
@@ -1593,7 +1587,7 @@ const Salary = () => {
                 {record.deductions > 0 && <span className="text-destructive">-{formatCurrency(record.deductions)}</span>}
                 {record.advance > 0 && <span className="text-warning">Adv: {formatCurrency(record.advance)}</span>}
               </div>
-              {isAdmin && record.status !== "paid" && (
+              {canEditSalary && record.status !== "paid" && (
                 <div className="flex items-center gap-2 pt-2">
                   <Button size="sm" className="flex-1" onClick={() => markAsPaid(record.id)}>Mark Paid</Button>
                   <Button size="sm" variant="outline" onClick={() => openEditSalary(record)}><Pencil className="h-4 w-4" /></Button>
@@ -1620,7 +1614,7 @@ const Salary = () => {
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden xl:table-cell">Deducted</TableHead>
                   <TableHead className="hidden lg:table-cell max-w-[100px]">Reason</TableHead>
-                  {isAdmin && <TableHead className="w-[80px]">Action</TableHead>}
+                  {canEditSalary && <TableHead className="w-[80px]">Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1637,7 +1631,7 @@ const Salary = () => {
                         icon={Banknote}
                         title="No advances recorded"
                         description="No salary advances have been recorded yet"
-                        action={isAdmin ? {
+                        action={canCreateSalary ? {
                           label: "Add Advance",
                           onClick: () => setIsAdvanceDialogOpen(true),
                           icon: Plus,
@@ -1684,7 +1678,7 @@ const Salary = () => {
                       <TableCell className="hidden lg:table-cell max-w-[100px]">
                         <p className="line-clamp-1 text-xs text-muted-foreground">{advance.reason || "-"}</p>
                       </TableCell>
-                      {isAdmin && (
+                      {canEditSalary && (
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Button

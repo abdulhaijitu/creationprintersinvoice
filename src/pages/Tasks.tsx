@@ -77,6 +77,7 @@ const Tasks = () => {
   const [archiveConfirmTask, setArchiveConfirmTask] = useState<Task | null>(null);
   const [restoreConfirmTask, setRestoreConfirmTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "hierarchy" | "kanban">("list");
+  const [listPage, setListPage] = useState(1);
 
   // Get unique departments from employees
   const departments = useMemo(() => {
@@ -536,6 +537,7 @@ const Tasks = () => {
             </div>
           ) : (
         // Desktop Table View
+        <>
         <div className="border rounded-lg overflow-x-auto">
           <div className="min-w-[900px]">
           <Table>
@@ -551,7 +553,11 @@ const Tasks = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTasks.map((task) => {
+              {(() => {
+                const LIST_PAGE_SIZE = 25;
+                const paginatedTasks = filteredTasks.slice((listPage - 1) * LIST_PAGE_SIZE, listPage * LIST_PAGE_SIZE);
+                return paginatedTasks;
+              })().map((task) => {
                 const taskIsDelivered = isDelivered(task.status);
                 const nextStatus = getNextStatus(task.status);
                 const canEdit = canEditTask(task);
@@ -596,7 +602,6 @@ const Tasks = () => {
                             {WORKFLOW_LABELS[nextStatus]}
                           </Button>
                         )}
-                        {/* Archive button for delivered tasks */}
                         {canArchiveTasks && taskIsDelivered && (
                           <Button
                             variant="outline"
@@ -636,6 +641,18 @@ const Tasks = () => {
           </Table>
           </div>
         </div>
+        {filteredTasks.length > 25 && (
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-sm text-muted-foreground">
+              Showing {(listPage - 1) * 25 + 1}-{Math.min(listPage * 25, filteredTasks.length)} of {filteredTasks.length}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setListPage(p => p - 1)} disabled={listPage === 1}>Previous</Button>
+              <Button variant="outline" size="sm" onClick={() => setListPage(p => p + 1)} disabled={listPage === Math.ceil(filteredTasks.length / 25)}>Next</Button>
+            </div>
+          </div>
+        )}
+        </>
           )}
         </TabsContent>
 
