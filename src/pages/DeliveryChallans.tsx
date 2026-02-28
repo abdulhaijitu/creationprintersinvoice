@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { Plus, Eye, Printer, MoreVertical, Trash2, FileText, Filter, X, Calendar, ShieldAlert } from 'lucide-react';
+import { Plus, Eye, Printer, MoreVertical, Trash2, FileText, Filter, X, Search, ShieldAlert, ChevronLeft, ChevronRight, PackageCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -39,12 +39,14 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ChallanDetailDrawer } from '@/components/delivery-challan/ChallanDetailDrawer';
 import { CreateChallanDialog } from '@/components/delivery-challan/CreateChallanDialog';
+import { SortableTableHeader, type SortDirection } from '@/components/shared/SortableTableHeader';
 import { useDeliveryChallans } from '@/hooks/useDeliveryChallans';
 import { usePermissions } from '@/lib/permissions/hooks';
 
 type ChallanStatus = 'draft' | 'dispatched' | 'delivered' | 'cancelled';
 
-// Status options for filter
+const PAGE_SIZE = 25;
+
 const STATUS_OPTIONS: { value: ChallanStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All Status' },
   { value: 'draft', label: 'Draft' },
@@ -65,7 +67,6 @@ export default function DeliveryChallans() {
 
   const { canPerform, showCreate, showEdit, showDelete } = usePermissions();
 
-  // Permission checks
   const hasViewAccess = canPerform('delivery_challans', 'view');
   const hasCreateAccess = showCreate('delivery_challans');
   const hasEditAccess = showEdit('delivery_challans');
@@ -77,17 +78,17 @@ export default function DeliveryChallans() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ChallanStatus | 'all'>('all');
+  const [sortKey, setSortKey] = useState<string | null>('challan_date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Filter challans
   const filteredChallans = useMemo(() => {
     let filtered = challans;
 
-    // Apply status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(c => c.status === statusFilter);
     }
 
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -102,19 +103,65 @@ export default function DeliveryChallans() {
     return filtered;
   }, [challans, statusFilter, searchQuery]);
 
-  // Status counts
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') { setSortDirection(null); setSortKey(null); }
+      else setSortDirection('asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedChallans = useMemo(() => {
+    if (!sortKey || !sortDirection) return filteredChallans;
+
+    return [...filteredChallans].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (sortKey) {
+        case 'challan_number':
+          aVal = a.challan_number; bVal = b.challan_number; break;
+        case 'challan_date':
+          aVal = new Date(a.challan_date).getTime(); bVal = new Date(b.challan_date).getTime();
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        case 'invoice_number':
+          aVal = a.invoice?.invoice_number || ''; bVal = b.invoice?.invoice_number || ''; break;
+        case 'customer':
+          aVal = (a.customers?.name || a.invoice?.customers?.name || '').toLowerCase();
+          bVal = (b.customers?.name || b.invoice?.customers?.name || '').toLowerCase(); break;
+        case 'status':
+          aVal = a.status; bVal = b.status; break;
+        default: return 0;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const cmp = aVal.localeCompare(bVal);
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }
+      return 0;
+    });
+  }, [filteredChallans, sortKey, sortDirection]);
+
+  // Pagination
+  const totalPages = Math.ceil(sortedChallans.length / PAGE_SIZE);
+  const paginatedChallans = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return sortedChallans.slice(start, start + PAGE_SIZE);
+  }, [sortedChallans, currentPage]);
+
+  // Reset page on filter change
+  useMemo(() => { setCurrentPage(1); }, [searchQuery, statusFilter, sortKey, sortDirection]);
+
   const statusCounts = useMemo(() => {
     const counts: Record<ChallanStatus | 'all', number> = {
       all: challans.length,
-      draft: 0,
-      dispatched: 0,
-      delivered: 0,
-      cancelled: 0,
+      draft: 0, dispatched: 0, delivered: 0, cancelled: 0,
     };
     challans.forEach(c => {
-      if (counts[c.status as ChallanStatus] !== undefined) {
-        counts[c.status as ChallanStatus]++;
-      }
+      if (counts[c.status as ChallanStatus] !== undefined) counts[c.status as ChallanStatus]++;
     });
     return counts;
   }, [challans]);
@@ -132,7 +179,6 @@ export default function DeliveryChallans() {
   };
 
   const handlePrint = (id: string, status: string) => {
-    // Don't allow printing cancelled challans
     if (status === 'cancelled') return;
     window.open(`/delivery-challans/${id}/print`, '_blank');
   };
@@ -144,10 +190,13 @@ export default function DeliveryChallans() {
     }
   };
 
+  const handleStatusChange = async (id: string, newStatus: ChallanStatus) => {
+    await updateChallanStatus(id, newStatus);
+  };
+
   const canModify = (status: string) => status === 'draft';
   const canPrint = (status: string) => status !== 'cancelled';
 
-  // Access denied view
   if (!hasViewAccess) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
@@ -195,17 +244,17 @@ export default function DeliveryChallans() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            {/* Search */}
+            {/* Search with icon */}
             <div className="relative flex-1 w-full sm:max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search challan, invoice, customer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-3"
+                className="pl-10"
               />
             </div>
 
-            {/* Filters */}
             <div className="flex items-center gap-2">
               <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as ChallanStatus | 'all')}>
                 <SelectTrigger className="w-[140px]">
@@ -235,7 +284,6 @@ export default function DeliveryChallans() {
             </div>
           </div>
 
-          {/* Active Filter Tags */}
           {hasActiveFilters && (
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               <span className="text-sm text-muted-foreground">Filters:</span>
@@ -281,7 +329,7 @@ export default function DeliveryChallans() {
             <>
               {/* Mobile Card View */}
               <div className="md:hidden space-y-3 px-4">
-                {filteredChallans.map((challan) => (
+                {paginatedChallans.map((challan) => (
                   <div
                     key={challan.id}
                     className="border rounded-lg p-3 space-y-2 active:bg-muted/50 transition-colors"
@@ -373,16 +421,26 @@ export default function DeliveryChallans() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Challan No</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Invoice No</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>
+                        <SortableTableHeader label="Challan No" sortKey="challan_number" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
+                      <TableHead>
+                        <SortableTableHeader label="Date" sortKey="challan_date" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
+                      <TableHead>
+                        <SortableTableHeader label="Invoice No" sortKey="invoice_number" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
+                      <TableHead>
+                        <SortableTableHeader label="Customer" sortKey="customer" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
+                      <TableHead>
+                        <SortableTableHeader label="Status" sortKey="status" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredChallans.map((challan) => (
+                    {paginatedChallans.map((challan) => (
                       <TableRow
                         key={challan.id}
                         className="cursor-pointer transition-colors duration-200 hover:bg-muted/50"
@@ -436,6 +494,37 @@ export default function DeliveryChallans() {
                                   Print
                                 </DropdownMenuItem>
                               )}
+
+                              {/* Status change options */}
+                              {hasEditAccess && challan.status === 'draft' && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStatusChange(challan.id, 'dispatched');
+                                    }}
+                                  >
+                                    <Truck className="h-4 w-4 mr-2" />
+                                    Mark Dispatched
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {hasEditAccess && challan.status === 'dispatched' && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStatusChange(challan.id, 'delivered');
+                                    }}
+                                  >
+                                    <PackageCheck className="h-4 w-4 mr-2" />
+                                    Mark Delivered
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+
                               {hasDeleteAccess && canModify(challan.status) && (
                                 <>
                                   <DropdownMenuSeparator />
@@ -472,6 +561,35 @@ export default function DeliveryChallans() {
                 </Table>
                 </div>
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 px-4 md:px-0">
+                  <p className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages} ({sortedChallans.length} records)
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => p - 1)}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => p + 1)}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </CardContent>

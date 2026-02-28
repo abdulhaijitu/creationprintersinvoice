@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrgScopedQuery } from '@/hooks/useOrgScopedQuery';
 import { usePermissions } from '@/lib/permissions/hooks';
@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, Calculator, ShieldAlert, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, Calculator, ShieldAlert, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -22,7 +22,10 @@ import { TableSkeleton } from '@/components/shared/TableSkeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { PriceCalculationCard } from '@/components/shared/mobile-cards/PriceCalculationCard';
+import { SortableTableHeader, useSortableTable } from '@/components/shared/SortableTableHeader';
 import { formatCurrency } from '@/lib/formatters';
+
+const PAGE_SIZE = 25;
 
 interface PriceCalculation {
   id: string;
@@ -38,18 +41,18 @@ interface PriceCalculation {
 
 const PriceCalculations = () => {
   const navigate = useNavigate();
-  const { canPerform, showCreate, showEdit, showDelete } = usePermissions();
+  const { canPerform, showCreate, showDelete } = usePermissions();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
   const [calculations, setCalculations] = useState<PriceCalculation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [calculationToDelete, setCalculationToDelete] = useState<PriceCalculation | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const { sortKey, sortDirection, handleSort, sortData } = useSortableTable<PriceCalculation>('created_at', 'desc');
 
-  // Permission checks
   const hasViewAccess = canPerform('price_calculations', 'view');
   const hasCreateAccess = showCreate('price_calculations');
-  const hasEditAccess = showEdit('price_calculations');
   const hasDeleteAccess = showDelete('price_calculations');
 
   useEffect(() => {
@@ -84,7 +87,6 @@ const PriceCalculations = () => {
     }
   };
 
-  // Check if calculation can be deleted (not linked to quotation or invoice)
   const canBeDeleted = (calc: PriceCalculation) => {
     return !calc.quotation_id && !calc.invoice_id;
   };
@@ -101,7 +103,6 @@ const PriceCalculations = () => {
   const handleDelete = async () => {
     if (!deleteId || !calculationToDelete) return;
 
-    // Double-check it can be deleted
     if (!canBeDeleted(calculationToDelete)) {
       toast.error('Cannot delete - linked to quotation or invoice');
       setDeleteId(null);
@@ -127,13 +128,60 @@ const PriceCalculations = () => {
     }
   };
 
-  const filteredCalculations = calculations.filter(
-    (calc) =>
-      calc.job_description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      calc.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCalculations = useMemo(() => {
+    return calculations.filter(
+      (calc) =>
+        calc.job_description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        calc.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [calculations, searchQuery]);
 
-  // Access denied view
+  // Custom sort for nested fields
+  const sortedCalculations = useMemo(() => {
+    if (!sortKey || !sortDirection) return filteredCalculations;
+
+    return [...filteredCalculations].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (sortKey) {
+        case 'job_description':
+          aVal = a.job_description; bVal = b.job_description; break;
+        case 'customer':
+          aVal = a.customers?.name || ''; bVal = b.customers?.name || ''; break;
+        case 'costing_total':
+          aVal = Number(a.costing_total); bVal = Number(b.costing_total);
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        case 'margin_percent':
+          aVal = Number(a.margin_percent); bVal = Number(b.margin_percent);
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        case 'final_price':
+          aVal = Number(a.final_price); bVal = Number(b.final_price);
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        case 'created_at':
+          aVal = new Date(a.created_at).getTime(); bVal = new Date(b.created_at).getTime();
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        default: return 0;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const cmp = aVal.localeCompare(bVal);
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }
+      return 0;
+    });
+  }, [filteredCalculations, sortKey, sortDirection]);
+
+  // Pagination
+  const totalPages = Math.ceil(sortedCalculations.length / PAGE_SIZE);
+  const paginatedCalculations = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return sortedCalculations.slice(start, start + PAGE_SIZE);
+  }, [sortedCalculations, currentPage]);
+
+  // Reset page on filter change
+  useMemo(() => { setCurrentPage(1); }, [searchQuery, sortKey, sortDirection]);
+
   if (!hasViewAccess) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
@@ -194,7 +242,7 @@ const PriceCalculations = () => {
             <>
               {/* Mobile Card View */}
               <div className="md:hidden space-y-3 px-4">
-                {filteredCalculations.map((calc) => (
+                {paginatedCalculations.map((calc) => (
                   <PriceCalculationCard
                     key={calc.id}
                     calculation={calc}
@@ -204,7 +252,7 @@ const PriceCalculations = () => {
                       const c = calculations.find(c => c.id === id);
                       if (c) handleDeleteClick(c);
                     }}
-                    canEdit={hasEditAccess}
+                    canEdit={false}
                     canDelete={hasDeleteAccess && canBeDeleted(calc)}
                   />
                 ))}
@@ -215,17 +263,29 @@ const PriceCalculations = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="whitespace-nowrap">Job Description</TableHead>
-                      <TableHead className="whitespace-nowrap hidden lg:table-cell">Customer</TableHead>
-                      <TableHead className="text-right whitespace-nowrap">Costing</TableHead>
-                      <TableHead className="text-right whitespace-nowrap hidden lg:table-cell">Margin %</TableHead>
-                      <TableHead className="text-right whitespace-nowrap">Final Price</TableHead>
-                      <TableHead className="whitespace-nowrap hidden xl:table-cell">Date</TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <SortableTableHeader label="Job Description" sortKey="job_description" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap hidden lg:table-cell">
+                        <SortableTableHeader label="Customer" sortKey="customer" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
+                      <TableHead className="text-right whitespace-nowrap">
+                        <SortableTableHeader label="Costing" sortKey="costing_total" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+                      </TableHead>
+                      <TableHead className="text-right whitespace-nowrap hidden lg:table-cell">
+                        <SortableTableHeader label="Margin %" sortKey="margin_percent" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+                      </TableHead>
+                      <TableHead className="text-right whitespace-nowrap">
+                        <SortableTableHeader label="Final Price" sortKey="final_price" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap hidden xl:table-cell">
+                        <SortableTableHeader label="Date" sortKey="created_at" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+                      </TableHead>
                       <TableHead className="text-right whitespace-nowrap">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCalculations.map((calc) => (
+                    {paginatedCalculations.map((calc) => (
                       <TableRow 
                         key={calc.id}
                         className="cursor-pointer hover:bg-muted/50"
@@ -255,20 +315,10 @@ const PriceCalculations = () => {
                               variant="ghost"
                               size="icon"
                               onClick={() => navigate(`/price-calculation/${calc.id}`)}
-                              title="View"
+                              title="View / Edit"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {hasEditAccess && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => navigate(`/price-calculation/${calc.id}`)}
-                                title="Edit"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            )}
                             {hasDeleteAccess && (
                               <Button
                                 variant="ghost"
@@ -288,6 +338,35 @@ const PriceCalculations = () => {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 px-4 md:px-0">
+                  <p className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages} ({sortedCalculations.length} records)
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => p - 1)}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => p + 1)}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </CardContent>
