@@ -209,7 +209,7 @@ const AppLayout = () => {
             </header>
             
             {/* Main Content - Responsive padding, proper overflow */}
-            <main className="flex-1 p-2 sm:p-3 md:p-4 lg:p-6 pb-6 overflow-x-hidden overflow-y-auto w-full min-w-0">
+            <main className={cn("flex-1 p-2 sm:p-3 md:p-4 lg:p-6 overflow-x-hidden overflow-y-auto w-full min-w-0", isMobile ? "pb-20" : "pb-6")}>
               <div className="mx-auto max-w-7xl w-full min-w-0 space-y-3 sm:space-y-4 md:space-y-6">
                 <Suspense fallback={<PageLoadingFallback />}>
                   <Outlet />
