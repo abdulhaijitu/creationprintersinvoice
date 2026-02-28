@@ -155,7 +155,7 @@ const VendorDetail = () => {
       // Fetch vendor
       const { data: vendorData } = await supabase
         .from("vendors")
-        .select("*")
+        .select("id, name, phone, email, address, bank_info, notes")
         .eq("id", id)
         .single();
 
@@ -166,7 +166,7 @@ const VendorDetail = () => {
       // Fetch bills
       const { data: billsData } = await supabase
         .from("vendor_bills")
-        .select("*")
+        .select("id, bill_date, description, amount, discount, net_amount, paid_amount, due_date, status, reference_no")
         .eq("vendor_id", id)
         .order("bill_date", { ascending: false });
 
@@ -175,7 +175,7 @@ const VendorDetail = () => {
       // Fetch payments
       const { data: paymentsData } = await supabase
         .from("vendor_payments")
-        .select("*")
+        .select("id, payment_date, amount, payment_method, notes, bill_id, reference_no")
         .eq("vendor_id", id)
         .order("payment_date", { ascending: false });
 
