@@ -1,71 +1,40 @@
 
 
-## Responsive, Mobile Optimization & Speed — বিশ্লেষণ ও পরিকল্পনা
+## লোডিং ইস্যু বিশ্লেষণ ও ফিক্স
+
+Session replay দেখায় পেইজ লোড হতে ~5 সেকেন্ড লাগছে। Console-এ Skeleton ref warning আসছে। মূল কারণগুলো:
 
 ---
 
-### চিহ্নিত সমস্যাসমূহ
+### সমস্যা ১: AuthContext — দুইবার role fetch (Race Condition)
+`useEffect`-এ `onAuthStateChange` এবং `getSession` দুটোই একসাথে চলে। দুটোই `fetchUserRole()` কল করে — মানে login/session restore-এ **দুইটি API call** হয়, এবং `setLoading(false)` দুইবার হয়। এতে race condition হতে পারে যেখানে প্রথম call `loading=false` সেট করে কিন্তু role এখনো null।
 
-#### ১. Speed: অতিরিক্ত Font Loading (Critical)
-`index.css`-এ **4টি Google Fonts @import** আছে (লাইন 1-5):
-- Inter, Hind Siliguri, Roboto, Libre Caslon Text, Roboto Mono
-- এগুলো **render-blocking** — পেইজ লোড হওয়ার আগে সব font download হতে হবে
-- `Libre Caslon Text` ও `Roboto Mono` কোথাও ব্যবহার হচ্ছে না (শুধু CSS variable define আছে, কোনো component-এ সরাসরি ব্যবহার নেই)
+**Fix:** `getSession` কে primary করা, `onAuthStateChange` তে শুধু পরবর্তী event (sign-in/sign-out) handle করা — initial session-এ duplicate fetch বন্ধ।
 
-**Fix:** অব্যবহৃত font import সরানো, বাকি font-গুলো `<link rel="preconnect">` + `<link rel="stylesheet">` দিয়ে `index.html`-এ move করা (non-blocking), এবং `font-display: swap` ensure করা
+### সমস্যা ২: Skeleton component — forwardRef নেই
+Console-এ repeated warning: "Function components cannot be given refs." `AuthLoadingShell`-এ Skeleton ব্যবহার হচ্ছে কিন্তু Skeleton `forwardRef` ব্যবহার করে না।
 
-#### ২. Speed: `App.css` Dead Code
-`src/App.css` ফাইলটি Vite scaffold-এর default CSS — কোথাও import হচ্ছে না কিন্তু build-এ include হচ্ছে। `#root` selector-এ `max-width: 1280px`, `padding: 2rem`, `text-align: center` — এগুলো app layout-কে conflict করতে পারে।
+**Fix:** `Skeleton` component-এ `React.forwardRef` যোগ।
 
-**Fix:** `src/App.css` ফাইল delete করা
+### সমস্যা ৩: CompanySettingsContext — Auth/Org wait করে না
+`CompanySettingsContext` মাউন্ট হলেই `company_settings` fetch করে — user logged in কিনা বা org আছে কিনা check করে না। Unauthenticated state-এ unnecessary API call হয়।
 
-#### ৩. Speed: Dashboard পেইজে `useEffect` দিয়ে 6টি parallel query
-Dashboard `useEffect` + `Promise.all` ব্যবহার করে data fetch করে — React Query ব্যবহার করে না। ফলে:
-- Window focus-এ re-fetch হয় না (inconsistent)
-- Cache হয় না, প্রতিটি visit-এ নতুন করে fetch
-- Loading state flicker হয়
-
-**Fix:** `useQuery` দিয়ে migrate করা `queryKeys.dashboardStats` ব্যবহার করে, যা already define করা আছে `useQueryConfig.ts`-এ
-
-#### ৪. Mobile: Bottom Nav bar content overlap
-MobileBottomNav `fixed bottom-0` কিন্তু main content area-তে `pb-6` — bottom nav height ~64px, তাই content bottom nav-এর নিচে চলে যায়। মোবাইলে শেষের content bottom nav-এর পেছনে লুকিয়ে যায়।
-
-**Fix:** AppLayout-এ মোবাইলে `pb-20` (bottom nav height + safe area) যোগ করা
-
-#### ৫. Mobile: Login/Register পেইজ viewport issue
-`user-scalable=no` আছে `index.html`-এ — accessibility violation। Pinch-to-zoom disable করা WCAG 2.1 violation।
-
-**Fix:** `user-scalable=no` সরানো, `maximum-scale=5` রাখা
-
-#### ৬. Speed: AuthContext `setTimeout(100ms)` delay
-`AuthContext.tsx` লাইন 62: role fetch-এ `setTimeout(..., 100)` ব্যবহার করে — প্রতিটি login/session restore-এ 100ms artificial delay। এটি unnecessary কারণ `onAuthStateChange` already session ready হওয়ার পরে fire করে।
-
-**Fix:** `setTimeout` সরিয়ে সরাসরি `await fetchUserRole()` করা
+**Fix:** Auth ready এবং user exist হলেই fetch করা।
 
 ---
 
 ### Implementation Plan
 
-#### ফাইল ১: `src/index.css`
-- লাইন 3-5: অব্যবহৃত font imports সরানো (`Libre Caslon Text`, `Roboto Mono`)
-- লাইন 1-2: `@import url(...)` সরিয়ে `index.html`-এ `<link>` tag-এ move
+#### ফাইল ১: `src/contexts/AuthContext.tsx`
+- `getSession`-কে primary session source হিসেবে রাখা
+- `onAuthStateChange`-এ `INITIAL_SESSION` event ignore করা (duplicate fetch বন্ধ)
+- একটি `initialLoadDone` ref ব্যবহার করা
 
-#### ফাইল ২: `index.html`
-- `<head>`-এ `<link rel="preconnect" href="https://fonts.googleapis.com">` এবং `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>` যোগ
-- Font stylesheet `<link>` tag যোগ (Inter, Hind Siliguri, Roboto — display=swap)
-- `user-scalable=no` → `user-scalable=yes` এবং `maximum-scale=5`
+#### ফাইল ২: `src/components/ui/skeleton.tsx`
+- `Skeleton` function component-এ `React.forwardRef` যোগ করা (ref warning fix)
 
-#### ফাইল ৩: `src/App.css`
-- ফাইল delete (কোথাও import হচ্ছে না, dead code)
+#### ফাইল ৩: `src/contexts/CompanySettingsContext.tsx`
+- Initial fetch-এ auth state check যোগ (unnecessary unauthenticated fetch বন্ধ)
 
-#### ফাইল ৪: `src/components/layout/AppLayout.tsx`
-- Main content-এ মোবাইলে `pb-20` যোগ (bottom nav overlap fix)
-
-#### ফাইল ৫: `src/contexts/AuthContext.tsx`
-- লাইন 62: `setTimeout` সরিয়ে direct `await fetchUserRole()` করা
-
-#### ফাইল ৬: `src/pages/Dashboard.tsx`
-- `useEffect` + `Promise.all` → `useQuery` migrate করা (cache + stale-while-revalidate)
-
-**মোট: ৬টি ফাইল পরিবর্তন হবে।**
+**মোট: ৩টি ফাইল পরিবর্তন হবে।**
 
