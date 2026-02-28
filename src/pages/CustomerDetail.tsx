@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -89,26 +90,27 @@ const CustomerDetail = () => {
       if (invoicesError) throw invoicesError;
       setInvoices(invoicesData || []);
 
-      // Fetch payments with invoice info
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from("invoice_payments")
-        .select(`
-          id,
-          invoice_id,
-          payment_date,
-          amount,
-          payment_method,
-          notes,
-          invoices!inner(invoice_number, customer_id)
-        `)
-        .order("payment_date", { ascending: false });
+      // Fetch payments scoped to this customer's invoices
+      const invoiceIds = (invoicesData || []).map((inv) => inv.id);
+      
+      if (invoiceIds.length > 0) {
+        const { data: paymentsData, error: paymentsError } = await supabase
+          .from("invoice_payments")
+          .select(`
+            id,
+            invoice_id,
+            payment_date,
+            amount,
+            payment_method,
+            notes,
+            invoices!inner(invoice_number)
+          `)
+          .in("invoice_id", invoiceIds)
+          .order("payment_date", { ascending: false });
 
-      if (paymentsError) throw paymentsError;
+        if (paymentsError) throw paymentsError;
 
-      // Filter payments for this customer
-      const customerPayments = (paymentsData || [])
-        .filter((p: any) => p.invoices?.customer_id === id)
-        .map((p: any) => ({
+        const customerPayments = (paymentsData || []).map((p: any) => ({
           id: p.id,
           invoice_id: p.invoice_id,
           invoice_number: p.invoices?.invoice_number || "",
@@ -118,7 +120,10 @@ const CustomerDetail = () => {
           notes: p.notes,
         }));
 
-      setPayments(customerPayments);
+        setPayments(customerPayments);
+      } else {
+        setPayments([]);
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -128,15 +133,6 @@ const CustomerDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-BD", {
-      style: "currency",
-      currency: "BDT",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
   };
 
   const getStatusBadge = (status: string) => {
@@ -318,40 +314,69 @@ const CustomerDetail = () => {
                     No invoices found
                   </div>
                 ) : (
-                  <div className="max-h-[400px] overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Invoice #</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Due Date</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                          <TableHead className="text-right">Paid</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {invoices.map((invoice) => (
-                          <TableRow
-                            key={invoice.id}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => navigate(`/invoices/${invoice.id}`)}
-                          >
-                            <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                            <TableCell>{format(new Date(invoice.invoice_date), "dd/MM/yyyy")}</TableCell>
-                            <TableCell>
-                              {invoice.due_date
-                                ? format(new Date(invoice.due_date), "dd/MM/yyyy")
-                                : "-"}
-                            </TableCell>
-                            <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(invoice.paid_amount)}</TableCell>
-                            <TableCell>{getStatusBadge(invoice.status || "unpaid")}</TableCell>
+                  <>
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-3">
+                      {invoices.map((invoice) => (
+                        <Card
+                          key={invoice.id}
+                          className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => navigate(`/invoices/${invoice.id}`)}
+                        >
+                          <CardContent className="p-4 space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium">{invoice.invoice_number}</span>
+                              {getStatusBadge(invoice.status || "unpaid")}
+                            </div>
+                            <div className="flex justify-between text-sm text-muted-foreground">
+                              <span>{format(new Date(invoice.invoice_date), "dd/MM/yyyy")}</span>
+                              <span>Due: {invoice.due_date ? format(new Date(invoice.due_date), "dd/MM/yyyy") : "-"}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>Total: <span className="font-medium">{formatCurrency(invoice.total)}</span></span>
+                              <span>Paid: <span className="font-medium text-green-500">{formatCurrency(invoice.paid_amount)}</span></span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block max-h-[400px] overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Invoice #</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Due Date</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                            <TableHead className="text-right">Paid</TableHead>
+                            <TableHead>Status</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {invoices.map((invoice) => (
+                            <TableRow
+                              key={invoice.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => navigate(`/invoices/${invoice.id}`)}
+                            >
+                              <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                              <TableCell>{format(new Date(invoice.invoice_date), "dd/MM/yyyy")}</TableCell>
+                              <TableCell>
+                                {invoice.due_date
+                                  ? format(new Date(invoice.due_date), "dd/MM/yyyy")
+                                  : "-"}
+                              </TableCell>
+                              <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(invoice.paid_amount)}</TableCell>
+                              <TableCell>{getStatusBadge(invoice.status || "unpaid")}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 )}
               </TabsContent>
 
@@ -361,39 +386,70 @@ const CustomerDetail = () => {
                     No payments recorded
                   </div>
                 ) : (
-                  <div className="max-h-[400px] overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Invoice #</TableHead>
-                          <TableHead>Method</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                          <TableHead>Notes</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {payments.map((payment) => (
-                          <TableRow key={payment.id}>
-                            <TableCell>{format(new Date(payment.payment_date), "dd/MM/yyyy")}</TableCell>
-                            <TableCell
-                              className="font-medium cursor-pointer hover:underline"
-                              onClick={() => navigate(`/invoices/${payment.invoice_id}`)}
-                            >
-                              {payment.invoice_number}
-                            </TableCell>
-                            <TableCell className="capitalize">{payment.payment_method || "Cash"}</TableCell>
-                            <TableCell className="text-right text-green-500">
-                              {formatCurrency(payment.amount)}
-                            </TableCell>
-                            <TableCell className="max-w-[150px] truncate">
-                              {payment.notes || "-"}
-                            </TableCell>
+                  <>
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-3">
+                      {payments.map((payment) => (
+                        <Card key={payment.id}>
+                          <CardContent className="p-4 space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span
+                                className="font-medium cursor-pointer hover:underline"
+                                onClick={() => navigate(`/invoices/${payment.invoice_id}`)}
+                              >
+                                {payment.invoice_number}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                {format(new Date(payment.payment_date), "dd/MM/yyyy")}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <Badge variant="outline" className="capitalize">{payment.payment_method || "Cash"}</Badge>
+                              <span className="font-medium text-green-500">{formatCurrency(payment.amount)}</span>
+                            </div>
+                            {payment.notes && (
+                              <p className="text-xs text-muted-foreground truncate">{payment.notes}</p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block max-h-[400px] overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Invoice #</TableHead>
+                            <TableHead>Method</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            <TableHead>Notes</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {payments.map((payment) => (
+                            <TableRow key={payment.id}>
+                              <TableCell>{format(new Date(payment.payment_date), "dd/MM/yyyy")}</TableCell>
+                              <TableCell
+                                className="font-medium cursor-pointer hover:underline"
+                                onClick={() => navigate(`/invoices/${payment.invoice_id}`)}
+                              >
+                                {payment.invoice_number}
+                              </TableCell>
+                              <TableCell className="capitalize">{payment.payment_method || "Cash"}</TableCell>
+                              <TableCell className="text-right text-green-500">
+                                {formatCurrency(payment.amount)}
+                              </TableCell>
+                              <TableCell className="max-w-[150px] truncate">
+                                {payment.notes || "-"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 )}
               </TabsContent>
             </CardContent>

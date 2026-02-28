@@ -267,7 +267,7 @@ const Quotations = () => {
   }, [sortedQuotations, currentPage]);
 
   // Reset page on filter change
-  useMemo(() => { setCurrentPage(1); }, [searchQuery, statusFilter, dateRangeFilter, sortKey, sortDirection]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter, dateRangeFilter, sortKey, sortDirection]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<QuotationStatus | 'all', number> = {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatCurrency } from '@/lib/formatters';
 import { EntityAttachmentsSection } from '@/components/shared/EntityAttachmentsSection';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -356,14 +357,6 @@ const QuotationDetail = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-BD', {
-      style: 'currency',
-      currency: 'BDT',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
 
   // UPDATED BUSINESS RULES:
   // - Edit: Allowed for ALL statuses (permission-based only)

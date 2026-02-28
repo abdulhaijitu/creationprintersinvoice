@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { formatCurrency } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -274,9 +275,6 @@ const Invoices = () => {
     clearSelection();
   };
 
-  const formatCurrency = (amount: number) => {
-    return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
 
   const getInvoiceStatusInfo = (invoice: Invoice) => {
     return calculateInvoiceStatus(invoice.total, invoice.paid_amount, invoice.due_date);
