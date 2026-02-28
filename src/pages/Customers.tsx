@@ -140,7 +140,7 @@ const Customers = () => {
     try {
       const { data: customersData, error } = await supabase
         .from('customers')
-        .select('*')
+        .select('id, name, phone, email, address, company_name, notes, default_notes, default_terms, created_at')
         .eq('organization_id', organization.id)
         .eq('is_deleted', false)
         .order('created_at', { ascending: false });
