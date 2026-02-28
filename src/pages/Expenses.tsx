@@ -139,6 +139,9 @@ const Expenses = () => {
     open: false,
     category: null,
   });
+  const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
+  const [deleteVendorId, setDeleteVendorId] = useState<string | null>(null);
+  const [expCurrentPage, setExpCurrentPage] = useState(1);
   const [expSortKey, setExpSortKey] = useState<string | null>('date');
   const [expSortDirection, setExpSortDirection] = useState<SortDirection>('desc');
   const [showStats, setShowStats] = useState(false);
@@ -212,7 +215,7 @@ const Expenses = () => {
           vendorsData.map(async (vendor) => {
             const { data: bills } = await supabase
               .from("vendor_bills")
-              .select("amount")
+              .select("amount, discount, net_amount")
               .eq("vendor_id", vendor.id)
               .eq("organization_id", organization.id);
 
@@ -222,7 +225,10 @@ const Expenses = () => {
               .eq("vendor_id", vendor.id)
               .eq("organization_id", organization.id);
 
-            const totalBills = bills?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
+            const totalBills = bills?.reduce((sum, b) => {
+              const netAmount = (b as any).net_amount ?? (Number(b.amount) - Number((b as any).discount || 0));
+              return sum + netAmount;
+            }, 0) || 0;
             const totalPaid = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
 
             return {
@@ -343,17 +349,18 @@ const Expenses = () => {
     }
   };
 
-  const handleDeleteExpense = async (expenseId: string) => {
-    if (!confirm("Are you sure you want to delete this expense?")) return;
+  const handleDeleteExpenseConfirmed = async () => {
+    if (!deleteExpenseId) return;
 
     try {
       const { error } = await supabase
         .from("expenses")
         .delete()
-        .eq("id", expenseId);
+        .eq("id", deleteExpenseId);
 
       if (error) throw error;
       toast.success("Expense deleted successfully");
+      setDeleteExpenseId(null);
       fetchData();
     } catch (error) {
       console.error("Error deleting expense:", error);
@@ -655,21 +662,21 @@ const Expenses = () => {
     setIsVendorDialogOpen(true);
   };
 
-  const handleDeleteVendor = async (vendorId: string) => {
-    if (!confirm("Are you sure you want to delete this vendor? Related bills and payments will also be deleted.")) return;
+  const handleDeleteVendorConfirmed = async () => {
+    if (!deleteVendorId) return;
 
     try {
-      // Delete related bills and payments first
-      await supabase.from("vendor_payments").delete().eq("vendor_id", vendorId);
-      await supabase.from("vendor_bills").delete().eq("vendor_id", vendorId);
+      await supabase.from("vendor_payments").delete().eq("vendor_id", deleteVendorId);
+      await supabase.from("vendor_bills").delete().eq("vendor_id", deleteVendorId);
       
       const { error } = await supabase
         .from("vendors")
         .delete()
-        .eq("id", vendorId);
+        .eq("id", deleteVendorId);
 
       if (error) throw error;
       toast.success("Vendor deleted successfully");
+      setDeleteVendorId(null);
       fetchData();
     } catch (error) {
       console.error("Error deleting vendor:", error);
@@ -750,6 +757,10 @@ const Expenses = () => {
       return expSortDirection === 'asc' ? comparison : -comparison;
     });
   }, [filteredExpenses, expSortKey, expSortDirection]);
+
+  const PAGE_SIZE = 25;
+  const expTotalPages = Math.ceil(sortedExpenses.length / PAGE_SIZE);
+  const paginatedExpenses = sortedExpenses.slice((expCurrentPage - 1) * PAGE_SIZE, expCurrentPage * PAGE_SIZE);
 
   const filteredVendors = vendors.filter(
     (vendor) =>
@@ -1401,7 +1412,7 @@ const Expenses = () => {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteVendor(vendor.id)}
+                              onClick={() => setDeleteVendorId(vendor.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -1525,7 +1536,7 @@ const Expenses = () => {
                         variant="outline"
                         size="sm"
                         className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteVendor(vendor.id)}
+                        onClick={() => setDeleteVendorId(vendor.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -1821,7 +1832,7 @@ const Expenses = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sortedExpenses.map((expense) => (
+                  paginatedExpenses.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell>
                         {format(new Date(expense.date), "dd/MM/yyyy")}
@@ -1860,7 +1871,7 @@ const Expenses = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDeleteExpense(expense.id)}
+                              onClick={() => setDeleteExpenseId(expense.id)}
                               className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1873,7 +1884,7 @@ const Expenses = () => {
                 )}
               </TableBody>
               {/* Table Footer with Total */}
-              {sortedExpenses.length > 0 && (
+              {paginatedExpenses.length > 0 && (
                 <TableFooter>
                   <TableRow>
                     <TableCell colSpan={5} className="text-right font-semibold text-sm">
@@ -1907,7 +1918,7 @@ const Expenses = () => {
                 } : undefined}
               />
             ) : (
-              sortedExpenses.map((expense) => (
+              paginatedExpenses.map((expense) => (
                 <div
                   key={expense.id}
                   className="bg-card border rounded-lg p-4 space-y-3 border-l-4 border-l-destructive"
@@ -1951,7 +1962,7 @@ const Expenses = () => {
                             variant="ghost"
                             size="icon"
                             className="text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteExpense(expense.id)}
+                            onClick={() => setDeleteExpenseId(expense.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -1977,6 +1988,23 @@ const Expenses = () => {
               ))
             )}
           </div>
+          {/* Pagination */}
+          {expTotalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Showing {(expCurrentPage - 1) * PAGE_SIZE + 1}–{Math.min(expCurrentPage * PAGE_SIZE, sortedExpenses.length)} of {sortedExpenses.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="h-8 w-8" disabled={expCurrentPage === 1} onClick={() => setExpCurrentPage(p => p - 1)}>
+                  <ChevronDown className="h-4 w-4 rotate-90" />
+                </Button>
+                <span className="text-sm px-2">{expCurrentPage} / {expTotalPages}</span>
+                <Button variant="outline" size="icon" className="h-8 w-8" disabled={expCurrentPage === expTotalPages} onClick={() => setExpCurrentPage(p => p + 1)}>
+                  <ChevronDown className="h-4 w-4 -rotate-90" />
+                </Button>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* Categories Tab */}
@@ -2168,6 +2196,28 @@ const Expenses = () => {
         cancelLabel="Cancel"
         variant="destructive"
         onConfirm={handleDeleteCategory}
+      />
+
+      {/* Expense Delete Confirmation */}
+      <ConfirmDialog
+        open={!!deleteExpenseId}
+        onOpenChange={() => setDeleteExpenseId(null)}
+        title="Delete Expense"
+        description="Are you sure you want to delete this expense? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDeleteExpenseConfirmed}
+      />
+
+      {/* Vendor Delete Confirmation */}
+      <ConfirmDialog
+        open={!!deleteVendorId}
+        onOpenChange={() => setDeleteVendorId(null)}
+        title="Delete Vendor"
+        description="Are you sure you want to delete this vendor? All associated bills and payments will also be deleted."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDeleteVendorConfirmed}
       />
     </div>
   );
