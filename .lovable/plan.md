@@ -1,44 +1,47 @@
 
 
-## Invoices পেইজ — সমস্যা ও উন্নতির সুযোগ
+## সাইডবার আইটেম — ত্রুটি ও উন্নতি
 
-### সমস্যাসমূহ (Bugs/Issues)
+### ত্রুটিসমূহ (Bugs)
 
-1. **`confirm()` ব্রাউজার ডায়ালগ ব্যবহৃত হচ্ছে** (লাইন 143) — Single invoice delete-এ native `confirm()` ব্যবহার হচ্ছে, কিন্তু bulk delete-এ সুন্দর `ConfirmDialog` আছে। Inconsistent UX।
+**1. Calendar ও Tasks একই permissionKey ব্যবহার করছে**
+`sidebarConfig.ts` এ Calendar (`/calendar`) এবং Tasks (`/tasks`) দুটোই `hr.tasks` permissionKey ব্যবহার করছে। Calendar-এর নিজস্ব permission key থাকা উচিত, অথবা যেহেতু Calendar আসলে Tasks-এরই একটি ভিউ, তাই এটি ঠিক আছে — তবে Calendar-কে আলাদা আইটেম না রেখে Tasks পেইজের ভিতরে ট্যাব/ভিউ হিসেবে রাখা বেটার।
 
-2. **Pagination নেই** — সব ইনভয়েস একসাথে লোড হয়, ১০০০+ ইনভয়েস থাকলে পারফরম্যান্স সমস্যা হবে (Supabase 1000 row limit-ও hit করবে)।
+**2. `price_calculation` route mismatch**
+`PermissionContext.tsx` এ `MODULE_ROUTES`-এ `price_calculation: '/price-calculations'` (plural, with 's') আছে, কিন্তু আসল route হলো `/price-calculation` (singular, without 's')। এটি redirect logic-এ ভুল path-এ পাঠাবে।
 
-3. **Mobile কার্ডে Edit অপশন নেই** — ডেস্কটপ ড্রপডাউনে Export আছে কিন্তু Edit নেই। মোবাইলে শুধু View ও Delete।
+**3. `team` route mismatch**
+`MODULE_ROUTES`-এ `team: '/team'` আছে, কিন্তু আসল route হলো `/team-members`।
 
-4. **Dropdown-এ "Export" single invoice export করে না** — ড্রপডাউনে Export ক্লিক করলে পুরো লিস্ট CSV export হয়, specific invoice export হয় না। Misleading।
+**4. HR & Ops group category mismatch**
+`sidebarNavGroups`-এ HR & Ops group-এর category `'hr_ops'` দেওয়া আছে, কিন্তু সব HR item-এর permissionKey prefix `'hr.'` — category ও prefix অসামঞ্জস্যপূর্ণ (minor, কিন্তু confusion তৈরি করতে পারে)।
 
-5. **`InvoiceTableActions` কম্পোনেন্ট অব্যবহৃত** — আলাদা `InvoiceTableActions.tsx` তৈরি আছে কিন্তু Invoices পেইজে ব্যবহৃত হচ্ছে না, inline actions লেখা।
+**5. MobileBottomNav legacy permission system ব্যবহার করছে**
+`MobileBottomNav.tsx` এ `hasPermission(role, ...)` (legacy role-based) ব্যবহার হচ্ছে, কিন্তু বাকি সব জায়গায় `usePermissionContext()` (module-based) ব্যবহার হচ্ছে। Quick actions-এ wrong permissions check হবে।
 
-6. **`useIsMobile` hook import করা হয়নি** — মোবাইল ভিউ CSS দিয়ে `hidden md:block` / `block md:hidden` করা হয়েছে, তবে mobile-specific behavior নেই।
+**6. `AttendanceCorrectionRequests` পেইজের route সাইডবারে নেই**
+`App.tsx`-এ এই route নেই, এবং সাইডবারেও নেই — তবে পেইজ ফাইল আছে। Orphan পেইজ।
 
 ### উন্নতির সুযোগ
 
-1. **Pagination যোগ করা** — প্রতি পেইজে ২০/৫০টি ইনভয়েস দেখানো, Next/Previous বাটন।
+**7. Customers ও Employees একই আইকন (Users)**
+`businessNavItems`-এ Customers এবং `hrNavItems`-এ Employees দুটোই `Users` আইকন ব্যবহার করছে। Collapsed সাইডবারে বিভ্রান্তিকর। Customers-এ `Contact` বা `UserRound` ব্যবহার করা উচিত।
 
-2. **Single delete-এ `ConfirmDialog` ব্যবহার** — native `confirm()` সরিয়ে প্রিমিয়াম ConfirmDialog।
+**8. Calendar আইটেম রিমুভ করা**
+Calendar আলাদা সাইডবার আইটেম না রেখে Tasks পেইজের ভিতরে Calendar view ট্যাব হিসেবে রাখা উচিত — কারণ একই ডেটা, একই permission।
 
-3. **Date Range ফিল্টার** — তারিখ অনুযায়ী ইনভয়েস ফিল্টার করার অপশন।
+### পরিবর্তনসমূহ
 
-4. **Row-level Edit বাটন** — প্রতি ইনভয়েসের পাশে Edit আইকন যোগ।
+#### ফাইল ১: `src/lib/permissions/sidebarConfig.ts`
+- Customers আইকন `Users` → `UserRound` (বা `Contact`) পরিবর্তন
+- Calendar আইটেম রিমুভ (Tasks পেইজে ট্যাব হিসেবে থাকবে)
+- Import আপডেট
 
-5. **Per-row dropdown ঠিক করা** — Export অপশন সরিয়ে Edit, Mark Paid, Send Reminder যোগ।
+#### ফাইল ২: `src/contexts/PermissionContext.tsx`
+- `price_calculation: '/price-calculations'` → `'/price-calculation'` ফিক্স
+- `team: '/team'` → `'/team-members'` ফিক্স
 
-6. **Customer-wise ফিল্টার** — নির্দিষ্ট কাস্টমারের ইনভয়েস দেখার অপশন।
-
-7. **Table footer-এ Total summary** — ফিল্টার করা ইনভয়েসের মোট Total, Paid, Due দেখানো।
-
-### প্রস্তাবিত পরিবর্তন (Implementation Plan)
-
-#### ফাইল: `src/pages/Invoices.tsx`
-
-1. **Single delete → ConfirmDialog**: নতুন state `singleDeleteId` যোগ, `handleDelete`-এ `confirm()` সরিয়ে dialog open করা
-2. **Row dropdown উন্নত করা**: Export সরিয়ে Edit (`/invoices/{id}/edit`), Mark Paid (due থাকলে) যোগ
-3. **Mobile কার্ডে Edit বাটন যোগ**
-4. **Table footer-এ summary row**: filtered invoices-এর Total, Paid, Due দেখানো
-5. **Pagination**: `currentPage` state, page size 25, paginated slice দেখানো, Next/Prev controls
+#### ফাইল ৩: `src/components/layout/MobileBottomNav.tsx`
+- `hasPermission(role, ...)` legacy system → `usePermissionContext()` module-based system-এ আপডেট
+- `import { hasPermission } from '@/lib/permissions'` রিমুভ
 
