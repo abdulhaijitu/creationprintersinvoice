@@ -174,6 +174,17 @@ export default function Settings() {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file size (max 2MB)
+      const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+      if (file.size > MAX_SIZE) {
+        toast({
+          variant: 'destructive',
+          title: 'File too large',
+          description: `Logo must be under 2MB. Selected file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`,
+        });
+        e.target.value = '';
+        return;
+      }
       setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
