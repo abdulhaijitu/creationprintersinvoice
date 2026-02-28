@@ -14,6 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import {
   DropdownMenu,
@@ -52,7 +53,9 @@ import {
   Send,
   Edit,
   BarChart3,
-  ChevronDown
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -81,12 +84,13 @@ interface Invoice {
 
 type StatusFilter = 'all' | 'paid' | 'due' | 'partial';
 
+const PAGE_SIZE = 25;
+
 const Invoices = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { organization } = useOrganization();
   
-  // Use action permissions for this module
   const invoicePerms = useActionPermission('invoices');
   
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -95,11 +99,14 @@ const Invoices = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [importOpen, setImportOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [singleDeleteId, setSingleDeleteId] = useState<string | null>(null);
+  const [singleDeleteLoading, setSingleDeleteLoading] = useState(false);
   const [bulkAction, setBulkAction] = useState<'delete' | 'markPaid' | null>(null);
   const [deleteProgress, setDeleteProgress] = useState<{ current: number; total: number } | null>(null);
   const [sortKey, setSortKey] = useState<string | null>('invoice_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showStats, setShowStats] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const {
     selectedIds,
@@ -118,6 +125,11 @@ const Invoices = () => {
       fetchInvoices();
     }
   }, [organization?.id]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
 
   const fetchInvoices = async () => {
     if (!organization?.id) return;
@@ -139,13 +151,13 @@ const Invoices = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this invoice?')) return;
-    
+  const handleDeleteConfirm = async () => {
+    if (!singleDeleteId) return;
+    setSingleDeleteLoading(true);
     try {
-      await supabase.from('invoice_items').delete().eq('invoice_id', id);
-      await supabase.from('invoice_payments').delete().eq('invoice_id', id);
-      const { error } = await supabase.from('invoices').delete().eq('id', id);
+      await supabase.from('invoice_items').delete().eq('invoice_id', singleDeleteId);
+      await supabase.from('invoice_payments').delete().eq('invoice_id', singleDeleteId);
+      const { error } = await supabase.from('invoices').delete().eq('id', singleDeleteId);
       if (error) throw error;
       
       toast.success('Invoice deleted');
@@ -153,6 +165,31 @@ const Invoices = () => {
     } catch (error) {
       console.error('Error deleting invoice:', error);
       toast.error('Failed to delete invoice');
+    } finally {
+      setSingleDeleteLoading(false);
+      setSingleDeleteId(null);
+    }
+  };
+
+  const handleMarkSinglePaid = async (invoice: Invoice) => {
+    const dueAmount = Number(invoice.total) - Number(invoice.paid_amount);
+    if (dueAmount <= 0) return;
+    try {
+      await supabase.from('invoice_payments').insert({
+        invoice_id: invoice.id,
+        amount: dueAmount,
+        payment_date: new Date().toISOString().split('T')[0],
+        organization_id: organization?.id,
+      });
+      await supabase.from('invoices').update({
+        paid_amount: invoice.total,
+        status: 'paid',
+      }).eq('id', invoice.id);
+      toast.success('Invoice marked as paid');
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error marking invoice as paid:', error);
+      toast.error('Failed to mark as paid');
     }
   };
 
@@ -168,11 +205,8 @@ const Invoices = () => {
         const item = selectedItems[i];
         
         try {
-          // Delete related records first
           await supabase.from('invoice_items').delete().eq('invoice_id', item.id);
           await supabase.from('invoice_payments').delete().eq('invoice_id', item.id);
-          
-          // Delete the invoice
           const { error } = await supabase.from('invoices').delete().eq('id', item.id);
           
           if (error) {
@@ -186,11 +220,9 @@ const Invoices = () => {
           console.error(`Error deleting invoice ${item.invoice_number}:`, err);
         }
         
-        // Update progress after each item
         setDeleteProgress({ current: i + 1, total });
       }
       
-      // Show appropriate toast based on results
       if (failedCount === 0) {
         toast.success(`${successCount} invoice${successCount !== 1 ? 's' : ''} deleted successfully`);
       } else if (successCount > 0) {
@@ -216,14 +248,12 @@ const Invoices = () => {
       for (const item of selectedItems) {
         const dueAmount = Number(item.total) - Number(item.paid_amount);
         if (dueAmount > 0) {
-          // Add payment
           await supabase.from('invoice_payments').insert({
             invoice_id: item.id,
             amount: dueAmount,
             payment_date: new Date().toISOString().split('T')[0],
             organization_id: organization?.id,
           });
-          // Update invoice
           await supabase.from('invoices').update({
             paid_amount: item.total,
             status: 'paid',
@@ -248,7 +278,6 @@ const Invoices = () => {
     return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Use centralized status calculation
   const getInvoiceStatusInfo = (invoice: Invoice) => {
     return calculateInvoiceStatus(invoice.total, invoice.paid_amount, invoice.due_date);
   };
@@ -259,7 +288,7 @@ const Invoices = () => {
 
   const getStatusBadge = (invoice: Invoice) => {
     const statusInfo = getInvoiceStatusInfo(invoice);
-    const { displayStatus, isFullyPaid } = statusInfo;
+    const { displayStatus } = statusInfo;
     
     const badges: Record<InvoiceDisplayStatus, JSX.Element> = {
       paid: (
@@ -363,6 +392,21 @@ const Invoices = () => {
     });
   }, [filteredInvoices, sortKey, sortDirection]);
 
+  // Pagination
+  const totalPages = Math.ceil(sortedInvoices.length / PAGE_SIZE);
+  const paginatedInvoices = sortedInvoices.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  // Footer summary for filtered invoices
+  const footerSummary = useMemo(() => {
+    const total = filteredInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
+    const paid = filteredInvoices.reduce((sum, inv) => sum + Number(inv.paid_amount), 0);
+    const due = total - paid;
+    return { total, paid, due };
+  }, [filteredInvoices]);
+
   const invoiceHeaders = {
     invoice_number: 'Invoice No',
     customer_name: 'Customer',
@@ -419,7 +463,6 @@ const Invoices = () => {
     let duplicates = 0;
     const errors: string[] = [];
 
-    // Pre-fetch existing customers for matching
     const { data: existingCustomers } = await supabase
       .from('customers')
       .select('id, name')
@@ -439,7 +482,6 @@ const Invoices = () => {
         const totalStr = (row.total || row['Total Amount'] || row['amount'] || '0').trim();
         const statusStr = (row.status || row['Status'] || 'unpaid').toLowerCase().trim();
 
-        // Validate total amount
         const total = parseFloat(totalStr.replace(/[৳$€£¥,\s]/g, '')) || 0;
         if (total <= 0) {
           failed++;
@@ -447,7 +489,6 @@ const Invoices = () => {
           continue;
         }
 
-        // Generate invoice number using org-based function
         const { data: invoiceNumber, error: numError } = await supabase.rpc(
           'generate_org_invoice_number',
           { p_org_id: organization?.id }
@@ -458,10 +499,8 @@ const Invoices = () => {
           continue;
         }
 
-        // Parse invoice date
         let invoiceDate = new Date().toISOString().split('T')[0];
         if (invoiceDateStr) {
-          // Try DD/MM/YYYY format
           const parts = invoiceDateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
           if (parts) {
             invoiceDate = `${parts[3]}-${parts[2].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
@@ -470,7 +509,6 @@ const Invoices = () => {
           }
         }
 
-        // Find or create customer
         let customerId: string | null = null;
         if (customerName) {
           const existingId = customerMap.get(customerName.toLowerCase());
@@ -490,7 +528,6 @@ const Invoices = () => {
           }
         }
 
-        // Validate and normalize status
         const validStatuses = ['unpaid', 'partial', 'paid'];
         const status = validStatuses.includes(statusStr) 
           ? statusStr as 'unpaid' | 'partial' | 'paid' 
@@ -527,30 +564,26 @@ const Invoices = () => {
     return { success, failed, errors, duplicates };
   };
 
-  // Stats - use centralized status calculation
+  // Stats
   const totalInvoices = invoices.length;
   const paidCount = invoices.filter(i => getDisplayStatus(i) === 'paid').length;
   const dueCount = invoices.filter(i => getDisplayStatus(i) === 'due').length;
   const partialCount = invoices.filter(i => getDisplayStatus(i) === 'partial').length;
   const totalDueAmount = invoices.reduce((sum, inv) => sum + getInvoiceStatusInfo(inv).dueAmount, 0);
 
-  // Bulk actions - only include actions user has permission for
   const bulkActions = [
-    // Edit permission needed for mark paid
     ...(invoicePerms.canEdit ? [{
       id: 'mark-paid',
       label: 'Mark Paid',
       icon: CheckCircle,
       onClick: handleBulkMarkPaid,
     }] : []),
-    // View permission for send reminder (just viewing contacts)
     {
       id: 'send-reminder',
       label: 'Send Reminder',
       icon: Send,
       onClick: handleBulkSendReminder,
     },
-    // Delete permission needed for bulk delete
     ...(invoicePerms.canDelete ? [{
       id: 'delete',
       label: 'Delete',
@@ -609,7 +642,7 @@ const Invoices = () => {
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Controls - Mobile: stacked, Tablet: 2-col, Desktop: inline */}
+        {/* Controls */}
         <div className="bg-card rounded-xl shadow-sm border border-border/50">
           <div className="p-3 sm:p-4 grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto]">
             {/* Search */}
@@ -638,7 +671,6 @@ const Invoices = () => {
             </Select>
 
             <div className="flex items-center gap-2 sm:justify-end col-span-1 sm:col-span-2 lg:col-span-1">
-              {/* Import - requires create permission */}
               {invoicePerms.canCreate && (
                 <Button 
                   variant="outline" 
@@ -668,7 +700,6 @@ const Invoices = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* New Invoice - requires create permission */}
               {invoicePerms.canCreate && (
                 <Button 
                   size="sm"
@@ -687,7 +718,6 @@ const Invoices = () => {
           <div className="border-t border-border/50">
             {loading ? (
               <div className="p-4 space-y-3">
-                {/* Enhanced skeleton matching invoice table layout */}
                 {[...Array(5)].map((_, i) => (
                   <div 
                     key={i} 
@@ -730,7 +760,7 @@ const Invoices = () => {
               </div>
             ) : (
               <>
-                {/* Desktop/Tablet: Responsive Table - NO scroll */}
+                {/* Desktop/Tablet Table */}
                 <div className="hidden md:block">
                   <Table>
                     <TableHeader>
@@ -770,7 +800,7 @@ const Invoices = () => {
                       </TableRow>
                     </TableHeader>
                       <TableBody>
-                        {sortedInvoices.map((invoice, index) => {
+                        {paginatedInvoices.map((invoice, index) => {
                           const statusInfo = getInvoiceStatusInfo(invoice);
                           const displayStatus = statusInfo.displayStatus;
                           const dueAmount = statusInfo.dueAmount;
@@ -815,37 +845,6 @@ const Invoices = () => {
                               </TableCell>
                               <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-end gap-1">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                        onClick={() => navigate(`/invoices/${invoice.id}`)}
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>View Invoice</TooltipContent>
-                                  </Tooltip>
-
-                                  {/* Delete button - only if user has delete permission */}
-                                  {invoicePerms.canDelete && (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                          onClick={() => handleDelete(invoice.id)}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Delete Invoice</TooltipContent>
-                                    </Tooltip>
-                                  )}
-
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button
@@ -861,19 +860,26 @@ const Invoices = () => {
                                         <Eye className="h-4 w-4 mr-2" />
                                         View Details
                                       </DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem 
-                                        onClick={() => handleExport('csv')}
-                                        className="text-muted-foreground"
-                                      >
-                                        <Download className="h-4 w-4 mr-2" />
-                                        Export
-                                      </DropdownMenuItem>
+                                      {invoicePerms.canEdit && (
+                                        <DropdownMenuItem onClick={() => navigate(`/invoices/${invoice.id}/edit`)}>
+                                          <Edit className="h-4 w-4 mr-2" />
+                                          Edit Invoice
+                                        </DropdownMenuItem>
+                                      )}
+                                      {invoicePerms.canEdit && dueAmount > 0 && (
+                                        <>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem onClick={() => handleMarkSinglePaid(invoice)}>
+                                            <CheckCircle className="h-4 w-4 mr-2" />
+                                            Mark as Paid
+                                          </DropdownMenuItem>
+                                        </>
+                                      )}
                                       {invoicePerms.canDelete && (
                                         <>
                                           <DropdownMenuSeparator />
                                           <DropdownMenuItem 
-                                            onClick={() => handleDelete(invoice.id)}
+                                            onClick={() => setSingleDeleteId(invoice.id)}
                                             className="text-destructive focus:text-destructive"
                                           >
                                             <Trash2 className="h-4 w-4 mr-2" />
@@ -889,12 +895,31 @@ const Invoices = () => {
                           );
                         })}
                       </TableBody>
-                    </Table>
-                  </div>
+                      {/* Table Footer Summary */}
+                      <TableFooter>
+                        <TableRow className="bg-muted/30 font-semibold">
+                          <TableCell colSpan={4} className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Summary ({filteredInvoices.length} invoices)
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-foreground">
+                            {formatCurrency(footerSummary.total)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground hidden xl:table-cell">
+                            {formatCurrency(footerSummary.paid)}
+                          </TableCell>
+                          <TableCell className={`text-right tabular-nums ${footerSummary.due > 0 ? 'text-destructive' : 'text-success'}`}>
+                            {formatCurrency(footerSummary.due)}
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell" />
+                          <TableCell />
+                        </TableRow>
+                      </TableFooter>
+                  </Table>
+                </div>
 
                 {/* Mobile: Card layout */}
                 <div className="block md:hidden p-3 space-y-3">
-                  {sortedInvoices.map((invoice) => {
+                  {paginatedInvoices.map((invoice) => {
                     const statusInfo = getInvoiceStatusInfo(invoice);
                     return (
                       <div
@@ -945,12 +970,23 @@ const Invoices = () => {
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
+                          {invoicePerms.canEdit && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </Button>
+                          )}
                           {invoicePerms.canDelete && (
                             <Button
                               variant="outline"
                               size="sm"
                               className="text-destructive hover:text-destructive"
-                              onClick={() => handleDelete(invoice.id)}
+                              onClick={() => setSingleDeleteId(invoice.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -959,17 +995,65 @@ const Invoices = () => {
                       </div>
                     );
                   })}
+
+                  {/* Mobile footer summary */}
+                  <div className="bg-muted/30 rounded-lg p-3 space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Summary ({filteredInvoices.length} invoices)
+                    </p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Total: </span>
+                        <span className="font-semibold">{formatCurrency(footerSummary.total)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Paid: </span>
+                        <span className="font-semibold">{formatCurrency(footerSummary.paid)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Due: </span>
+                        <span className={`font-semibold ${footerSummary.due > 0 ? 'text-destructive' : 'text-success'}`}>
+                          {formatCurrency(footerSummary.due)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </>
             )}
           </div>
 
-          {/* Footer */}
+          {/* Pagination + Footer */}
           {!loading && filteredInvoices.length > 0 && (
-            <div className="px-4 py-3 border-t border-border/50 bg-muted/20">
+            <div className="px-4 py-3 border-t border-border/50 bg-muted/20 flex items-center justify-between gap-4">
               <p className="text-xs text-muted-foreground">
-                Showing {filteredInvoices.length} of {invoices.length} invoices
+                Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, sortedInvoices.length)} of {sortedInvoices.length} invoices
               </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => p - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground px-2">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1003,6 +1087,18 @@ const Invoices = () => {
           onConfirm={handleBulkDelete}
           loading={deleteProgress !== null}
           progress={deleteProgress ?? undefined}
+        />
+
+        {/* Single Delete Confirmation */}
+        <ConfirmDialog
+          open={singleDeleteId !== null}
+          onOpenChange={(open) => { if (!open) setSingleDeleteId(null); }}
+          title="Delete Invoice"
+          description="Are you sure you want to delete this invoice? All related items and payments will also be deleted. This action cannot be undone."
+          confirmLabel="Delete"
+          variant="destructive"
+          onConfirm={handleDeleteConfirm}
+          loading={singleDeleteLoading}
         />
       </div>
     </TooltipProvider>
