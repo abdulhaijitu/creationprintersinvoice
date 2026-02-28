@@ -1,47 +1,92 @@
 
 
-## সাইডবার আইটেম — ত্রুটি ও উন্নতি
+## চারটি পেইজের সমস্যা ও উন্নতির বিশ্লেষণ
 
-### ত্রুটিসমূহ (Bugs)
+---
 
-**1. Calendar ও Tasks একই permissionKey ব্যবহার করছে**
-`sidebarConfig.ts` এ Calendar (`/calendar`) এবং Tasks (`/tasks`) দুটোই `hr.tasks` permissionKey ব্যবহার করছে। Calendar-এর নিজস্ব permission key থাকা উচিত, অথবা যেহেতু Calendar আসলে Tasks-এরই একটি ভিউ, তাই এটি ঠিক আছে — তবে Calendar-কে আলাদা আইটেম না রেখে Tasks পেইজের ভিতরে ট্যাব/ভিউ হিসেবে রাখা বেটার।
+### ১. Payments পেইজ (`src/pages/Payments.tsx`)
 
-**2. `price_calculation` route mismatch**
-`PermissionContext.tsx` এ `MODULE_ROUTES`-এ `price_calculation: '/price-calculations'` (plural, with 's') আছে, কিন্তু আসল route হলো `/price-calculation` (singular, without 's')। এটি redirect logic-এ ভুল path-এ পাঠাবে।
+**ত্রুটি:**
+- **Refund আসলে Delete করে** (লাইন 200-204) — "Refund" বলে payment রেকর্ড পুরোপুরি মুছে দেয়, কোনো audit trail থাকে না
+- **Unused imports** — `isPast`, `isToday` import করা হয়েছে (লাইন 3) কিন্তু ব্যবহৃত হয়নি
+- **Stats label বিভ্রান্তিকর** — "Pending Due" ও "Due Amount" দুটো আলাদা কার্ড কিন্তু পার্থক্য স্পষ্ট না; "Due Amount" আসলে "Overdue Amount" হওয়া উচিত
+- **Pagination নেই** — সব পেমেন্ট একসাথে লোড হয়, 1000+ রেকর্ডে সমস্যা হবে
+- **Table footer summary নেই** — ফিল্টার করা পেমেন্টের মোট পরিমাণ দেখা যায় না
 
-**3. `team` route mismatch**
-`MODULE_ROUTES`-এ `team: '/team'` আছে, কিন্তু আসল route হলো `/team-members`।
+**উন্নতি:**
+- Pagination যোগ (PAGE_SIZE = 25)
+- Stats label পরিষ্কার করা: "Due Amount" → "Overdue Amount"
+- Unused imports সরানো
+- Table footer-এ filtered payments-এর Total Paid ও Total Due summary
+- "Refund" dialog-এর description-এ সতর্কবার্তা যোগ করা যে এটি রেকর্ড মুছে ফেলবে
 
-**4. HR & Ops group category mismatch**
-`sidebarNavGroups`-এ HR & Ops group-এর category `'hr_ops'` দেওয়া আছে, কিন্তু সব HR item-এর permissionKey prefix `'hr.'` — category ও prefix অসামঞ্জস্যপূর্ণ (minor, কিন্তু confusion তৈরি করতে পারে)।
+---
 
-**5. MobileBottomNav legacy permission system ব্যবহার করছে**
-`MobileBottomNav.tsx` এ `hasPermission(role, ...)` (legacy role-based) ব্যবহার হচ্ছে, কিন্তু বাকি সব জায়গায় `usePermissionContext()` (module-based) ব্যবহার হচ্ছে। Quick actions-এ wrong permissions check হবে।
+### ২. Quotations পেইজ (`src/pages/Quotations.tsx`)
 
-**6. `AttendanceCorrectionRequests` পেইজের route সাইডবারে নেই**
-`App.tsx`-এ এই route নেই, এবং সাইডবারেও নেই — তবে পেইজ ফাইল আছে। Orphan পেইজ।
+**ত্রুটি:**
+- **Pagination নেই** — সব quotation একসাথে লোড, 1000 row limit hit করবে
+- **`isEditable` সবসময় `true` রিটার্ন করে** (লাইন 299) কিন্তু Tooltip বলছে "Only draft quotations can be edited" (লাইন 563) — contradictory code vs tooltip
+- **Unused variable** — `deleteId` ও `quotationToDelete` দুটোই একই কাজ করে, redundant
 
-### উন্নতির সুযোগ
+**উন্নতি:**
+- Pagination যোগ (PAGE_SIZE = 25)
+- Dead tooltip কোড সরানো (যেহেতু `isEditable` সবসময় true, disabled edit বাটন কখনোই দেখা যায় না — লাইন 548-566 dead code)
 
-**7. Customers ও Employees একই আইকন (Users)**
-`businessNavItems`-এ Customers এবং `hrNavItems`-এ Employees দুটোই `Users` আইকন ব্যবহার করছে। Collapsed সাইডবারে বিভ্রান্তিকর। Customers-এ `Contact` বা `UserRound` ব্যবহার করা উচিত।
+---
 
-**8. Calendar আইটেম রিমুভ করা**
-Calendar আলাদা সাইডবার আইটেম না রেখে Tasks পেইজের ভিতরে Calendar view ট্যাব হিসেবে রাখা উচিত — কারণ একই ডেটা, একই permission।
+### ৩. Price Calculations পেইজ (`src/pages/PriceCalculations.tsx`)
 
-### পরিবর্তনসমূহ
+**ত্রুটি:**
+- **Pagination নেই** — একই 1000 row limit সমস্যা
+- **Sorting নেই** — টেবিল হেডারে sort করা যায় না
+- **Date/Status ফিল্টার নেই** — শুধু search আছে
+- **View ও Edit বাটন একই রাউটে যায়** (লাইন 257, 266 দুটোই `/price-calculation/${id}`) — Edit-এর আলাদা route নেই, তাই Edit বাটন misleading
 
-#### ফাইল ১: `src/lib/permissions/sidebarConfig.ts`
-- Customers আইকন `Users` → `UserRound` (বা `Contact`) পরিবর্তন
-- Calendar আইটেম রিমুভ (Tasks পেইজে ট্যাব হিসেবে থাকবে)
-- Import আপডেট
+**উন্নতি:**
+- Pagination যোগ (PAGE_SIZE = 25)
+- SortableTableHeader যোগ
+- View ও Edit বাটন যেহেতু একই route, Edit বাটন রিমুভ করে শুধু View রাখা (অথবা View-এর label "View / Edit" করা)
 
-#### ফাইল ২: `src/contexts/PermissionContext.tsx`
-- `price_calculation: '/price-calculations'` → `'/price-calculation'` ফিক্স
-- `team: '/team'` → `'/team-members'` ফিক্স
+---
 
-#### ফাইল ৩: `src/components/layout/MobileBottomNav.tsx`
-- `hasPermission(role, ...)` legacy system → `usePermissionContext()` module-based system-এ আপডেট
-- `import { hasPermission } from '@/lib/permissions'` রিমুভ
+### ৪. Delivery Challans পেইজ (`src/pages/DeliveryChallans.tsx`)
+
+**ত্রুটি:**
+- **Pagination নেই** — সব challan একসাথে লোড
+- **Sorting নেই** — টেবিল হেডারে sort করা যায় না
+- **Search input-এ Search আইকন নেই** (লাইন 200-205) — অন্য সব পেইজে আছে, এখানে নেই; inconsistent
+- **Status change dropdown নেই** — ডেস্কটপ টেবিলে শুধু View, Print, Delete আছে; status change করতে detail drawer খুলতে হয়
+
+**উন্নতি:**
+- Pagination যোগ (PAGE_SIZE = 25)
+- SortableTableHeader যোগ
+- Search input-এ Search আইকন যোগ (consistency)
+- Desktop dropdown-এ status change options (Mark Dispatched, Mark Delivered) যোগ
+
+---
+
+### Implementation Plan
+
+#### ফাইল ১: `src/pages/Payments.tsx`
+- Unused imports (`isPast`, `isToday`) সরানো
+- Stats label "Due Amount" → "Overdue Amount" পরিবর্তন
+- `currentPage` state + PAGE_SIZE = 25 + pagination controls যোগ
+- Table footer summary (Total Paid, Total Due) যোগ
+- Refund dialog-এ warning text আপডেট ("This will permanently delete the payment record")
+
+#### ফাইল ২: `src/pages/Quotations.tsx`
+- `currentPage` state + PAGE_SIZE = 25 + pagination controls যোগ
+- Dead code (disabled Edit tooltip block, লাইন 548-566) সরানো
+
+#### ফাইল ৩: `src/pages/PriceCalculations.tsx`
+- `currentPage` state + PAGE_SIZE = 25 + pagination controls যোগ
+- SortableTableHeader import ও যোগ
+- Duplicate Edit বাটন সরানো (View-এই যথেষ্ট)
+
+#### ফাইল ৪: `src/pages/DeliveryChallans.tsx`
+- `currentPage` state + PAGE_SIZE = 25 + pagination controls যোগ
+- SortableTableHeader import ও যোগ
+- Search input-এ `Search` আইকন যোগ
+- Desktop dropdown-এ status change options যোগ (Draft→Dispatched, Dispatched→Delivered)
 
