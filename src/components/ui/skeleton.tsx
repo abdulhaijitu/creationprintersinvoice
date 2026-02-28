@@ -1,26 +1,31 @@
+import React from "react";
 import { cn } from "@/lib/utils";
 
 interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: "default" | "text" | "heading" | "avatar" | "button" | "card";
 }
 
-function Skeleton({ className, variant = "default", ...props }: SkeletonProps) {
-  const variantClasses = {
-    default: "rounded-md bg-muted",
-    text: "h-4 rounded bg-muted",
-    heading: "h-6 rounded bg-muted",
-    avatar: "h-10 w-10 rounded-full bg-muted",
-    button: "h-10 w-24 rounded-md bg-muted",
-    card: "rounded-lg border bg-card p-4 md:p-6",
-  };
+const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
+  ({ className, variant = "default", ...props }, ref) => {
+    const variantClasses = {
+      default: "rounded-md bg-muted",
+      text: "h-4 rounded bg-muted",
+      heading: "h-6 rounded bg-muted",
+      avatar: "h-10 w-10 rounded-full bg-muted",
+      button: "h-10 w-24 rounded-md bg-muted",
+      card: "rounded-lg border bg-card p-4 md:p-6",
+    };
 
-  return (
-    <div
-      className={cn("animate-pulse", variantClasses[variant], className)}
-      {...props}
-    />
-  );
-}
+    return (
+      <div
+        ref={ref}
+        className={cn("animate-pulse", variantClasses[variant], className)}
+        {...props}
+      />
+    );
+  }
+);
+Skeleton.displayName = "Skeleton";
 
 // Compound components for common patterns
 function SkeletonText({ lines = 3, className }: { lines?: number; className?: string }) {

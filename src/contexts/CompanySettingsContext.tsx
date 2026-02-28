@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface CompanySettings {
   id: string;
@@ -38,6 +39,7 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -76,7 +78,6 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
       console.log('[CompanySettingsContext] Settings updated locally:', updated.company_name);
       return updated;
     });
-    // Also invalidate react-query cache to keep things in sync
     queryClient.invalidateQueries({ queryKey: ['company-settings'] });
   }, [queryClient]);
 
@@ -84,14 +85,19 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
   const refetchSettings = useCallback(async () => {
     console.log('[CompanySettingsContext] Refetching settings...');
     await fetchSettings();
-    // Invalidate react-query cache for other components
     queryClient.invalidateQueries({ queryKey: ['company-settings'] });
   }, [fetchSettings, queryClient]);
 
-  // Initial fetch
+  // Only fetch when auth is ready and user exists
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setSettings(null);
+      setLoading(false);
+      return;
+    }
     fetchSettings();
-  }, [fetchSettings]);
+  }, [user, authLoading, fetchSettings]);
 
   // Set up Supabase Realtime subscription for live sync
   useEffect(() => {
