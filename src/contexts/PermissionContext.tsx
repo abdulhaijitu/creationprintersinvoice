@@ -90,7 +90,7 @@ const MODULE_ROUTES: Record<string, string> = {
   dashboard: '/dashboard',
   invoices: '/invoices',
   quotations: '/quotations',
-  price_calculation: '/price-calculations',
+  price_calculation: '/price-calculation',
   challan: '/delivery-challans',
   customers: '/customers',
   vendors: '/vendors',
@@ -102,7 +102,7 @@ const MODULE_ROUTES: Record<string, string> = {
   performance: '/performance',
   tasks: '/tasks',
   reports: '/reports',
-  team: '/team',
+  team: '/team-members',
   settings: '/settings',
 };
 
