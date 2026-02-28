@@ -1,83 +1,119 @@
 
 
-## Customers, Vendors, Expenses — সমস্যা ও উন্নতি বিশ্লেষণ
+## Employees, Attendance, Salary, Leave, Performance, Tasks — সমস্যা ও উন্নতি বিশ্লেষণ
 
 ---
 
-### ১. Customers পেইজ (`src/pages/Customers.tsx`)
+### ১. Employees পেইজ (`src/pages/Employees.tsx` — 1008 লাইন)
 
 **ত্রুটি:**
-- **Pagination নেই** — 1108 লাইনের পেইজে সব customer একসাথে লোড হয়, 1000 row limit hit করবে
-- **`handleDelete` আসল hard delete করে** (লাইন 228) — `supabase.from('customers').delete()` ব্যবহার করে, কিন্তু `fetchCustomers`-এ `is_deleted: false` ফিল্টার আছে (লাইন 144)। তাহলে soft-delete সাপোর্ট আছে কিন্তু single delete-এ ব্যবহার হচ্ছে না। Bulk delete edge function-এ soft-delete (archive) করে, কিন্তু single delete hard delete করে — inconsistent
-- **Desktop Action column-এ redundant বাটন** — View, Edit, Delete আলাদা আলাদা icon button + MoreHorizontal dropdown-এ আবার একই View, Edit, Delete (লাইন 944-1021)। দুবার একই action দেখাচ্ছে
-- **Delete permission check inconsistent** — Desktop-এ `isAdmin` চেক করে (লাইন 973), কিন্তু `canBulkDelete` তে `canRolePerform(orgRole, 'customers', 'delete')` ব্যবহার করে (লাইন 114)। একটায় isAdmin, অন্যটায় role-based — inconsistent
-- **`formatCurrency` local function** — `src/lib/formatters.ts`-এ shared `formatCurrency` আছে, কিন্তু এখানে নিজস্ব function (লাইন 370)। Inconsistent formatting
+- **Pagination নেই** — সব employee একসাথে লোড, 1000 row limit
+- **Mobile card view নেই** — ডেস্কটপ টেবিল `min-w-[800px]` দিয়ে মোবাইলে horizontal scroll — অন্য পেইজে mobile card view আছে
+- **Stats card নেই** — Total employees, average salary ইত্যাদি কোনো summary নেই; অন্য সব পেইজে আছে
+- **Cancel বাটন ভুল দিকে call করে** — লাইন 691: `handleAddDialogClose(true)` — `true` মানে dialog open হবে, close না; cancel ক্লিক করলে dialog আবার open হয়ে যাবে
 
 **উন্নতি:**
 - Pagination যোগ (PAGE_SIZE = 25)
-- Single delete-কে soft-delete করা (`is_deleted: true` update) — bulk delete-এর সাথে consistent
-- Redundant action buttons সরানো — শুধু DropdownMenu রাখা
-- Delete permission `isAdmin` → role-based `canRolePerform` দিয়ে consistent করা
-- Local `formatCurrency` → shared `formatCurrency` from `@/lib/formatters` ব্যবহার
+- Mobile card view যোগ (Avatar, name, designation, salary সহ)
+- Stats cards যোগ (Total Employees, Average Salary, Total Salary Cost)
+- Cancel button fix: `handleAddDialogClose(true)` → `closeAddDialog()`
 
 ---
 
-### ২. Vendors পেইজ (`src/pages/Vendors.tsx`)
+### ২. Attendance পেইজ (`src/pages/Attendance.tsx` — 809 লাইন)
 
 **ত্রুটি:**
-- **Pagination নেই** — সব vendor একসাথে লোড, 1000 row limit
-- **Sorting নেই** — টেবিল হেডারে SortableTableHeader ব্যবহার হয়নি
-- **`handleDelete` browser `confirm()` ব্যবহার করে** (লাইন 206) — বাকি সব পেইজে `ConfirmDialog` component ব্যবহার হয়; এখানে native `confirm()` — inconsistent UX
-- **Cascade delete unsafe** — Vendor delete করলে সব bills ও payments চুপচাপ মুছে যায় (লাইন 209-213), কোনো warning summary নেই
-- **N+1 query সমস্যা** — `fetchVendors`-এ প্রতিটি vendor-এর জন্য আলাদা bills ও payments query (লাইন 105-134) — 50 vendor = 100 extra queries
-- **`formatCurrency` local function** — shared function ব্যবহার হচ্ছে না
-- **Stats card "Total Paid" নেই** — Total Vendors, Total Bills, Total Due আছে কিন্তু Total Paid নেই
-- **Import duplicate check org-scoped নয়** — `handleImport`-এ existing vendors fetch করে (লাইন 288-290) কিন্তু `organization_id` filter নেই — cross-org duplicate false positive হবে
+- **বড় কোনো ত্রুটি নেই** — এই পেইজ ইতিমধ্যে ভালো optimized: tabs (Daily/Monthly/Bulk Entry), mobile cards, stats, badge counters সব আছে
+
+**ছোট উন্নতি:**
+- Unused import `Dialog, DialogTrigger` ব্যবহার হচ্ছে কিনা verify (DialogTrigger used at line ~470)
+- No issues found that warrant changes in this scope
+
+---
+
+### ৩. Salary পেইজ (`src/pages/Salary.tsx` — 1969 লাইন)
+
+**ত্রুটি:**
+- **Local `formatCurrency` function** (লাইন 1014-1021) — `@/lib/formatters`-এ shared function আছে, কিন্তু এখানে নিজস্ব function। Inconsistent
+- **Pagination নেই** — Salary ও Advances উভয় ট্যাবে সব রেকর্ড একসাথে লোড
+- **`isAdmin` permission check inconsistent** — কিছু জায়গায় `isAdmin` (লাইন 1111, 1543), কিছু জায়গায় `canCreateSalary`/`canEditSalary` — mixed usage
+- **ShieldAlert import আছে কিন্তু unused** — লাইন 33-এ import, শুধু access denied section-এ ব্যবহার হয় (used actually)
 
 **উন্নতি:**
+- Local `formatCurrency` সরিয়ে shared import ব্যবহার
+- Salary ট্যাবে pagination যোগ (PAGE_SIZE = 25)
+- `isAdmin` → `canCreateSalary` / `canEditSalary` consistent করা
+
+---
+
+### ৪. Leave পেইজ (`src/pages/Leave.tsx` — 608 লাইন)
+
+**ত্রুটি:**
+- **`handleDelete` browser `confirm()` ব্যবহার করে** (লাইন 332) — inconsistent with ConfirmDialog pattern
+- **Pagination নেই** — সব leave request একসাথে লোড
+- **N+1 query** — প্রতিটি leave request-এর জন্য আলাদা profile query (লাইন 135-144) — 50 requests = 50 extra queries
+- **Mobile responsive নয়** — `min-w-[700px]` ব্যবহার, মোবাইলে horizontal scroll
+- **Permission check `isAdmin` ব্যবহার করে** — database-driven permission (`hasPermission`) ব্যবহার হচ্ছে না; অন্য পেইজে হচ্ছে
+
+**উন্নতি:**
+- `confirm()` → `ConfirmDialog` component
 - Pagination যোগ (PAGE_SIZE = 25)
-- SortableTableHeader যোগ (Name, Bills, Paid, Due)
-- Native `confirm()` → `ConfirmDialog` component
-- Import query-তে `organization_id` filter যোগ
-- Stats-এ "Total Paid" কার্ড যোগ
+- Mobile card view যোগ
+- `isAdmin` → `hasPermission('leave.view')` / `hasPermission('leave.manage')` consistent করা
 
 ---
 
-### ৩. Expenses পেইজ (`src/pages/Expenses.tsx`)
+### ৫. Performance পেইজ (`src/pages/Performance.tsx` — 397 লাইন)
 
 **ত্রুটি:**
-- **Pagination নেই** — Expenses ট্যাবে সব expense একসাথে লোড
-- **Vendors ট্যাবেও pagination নেই** — Expenses পেইজের vendors section-এও pagination নেই
-- **`handleDeleteExpense` ও `handleDeleteVendor` browser `confirm()` ব্যবহার করে** (লাইন 348, 659) — inconsistent with ConfirmDialog pattern
-- **N+1 query সমস্যা** — `fetchData`-এ Vendors tab-এর জন্য প্রতিটি vendor-এর bills ও payments আলাদা query (লাইন 211-235)
-- **Expenses পেইজ থেকে vendor due হিসাবে discount ধরা হচ্ছে না** — Expenses পেইজে vendor due calculate করতে শুধু `amount` নেয় (লাইন 225), কিন্তু Vendors পেইজে `net_amount` (amount - discount) ব্যবহার করে (লাইন 121-123) — inconsistent due calculation
-- **`formatCurrency` local function** — shared function ব্যবহার হচ্ছে না
-- **2176 লাইন — পেইজ অনেক বড়** — Vendors, Expenses, Categories তিনটি ট্যাবের সব লজিক একটি ফাইলে; কিন্তু refactor এই scope-এ নেই
+- **`handleDelete` browser `confirm()` ব্যবহার করে** (লাইন 156) — inconsistent
+- **Pagination নেই** — সব notes একসাথে লোড
+- **Mobile responsive নয়** — শুধু টেবিল, mobile card view নেই
+- **Permission check `isAdmin` ব্যবহার করে** — database-driven permission নেই
+- **Edit functionality নেই** — শুধু Add ও Delete আছে, Edit নেই
 
 **উন্নতি:**
-- Expenses ট্যাবে pagination যোগ (PAGE_SIZE = 25)
-- Native `confirm()` → `ConfirmDialog` component ব্যবহার
-- Vendor due calculation-এ `net_amount` ব্যবহার — Vendors পেইজের সাথে consistent করা
+- `confirm()` → `ConfirmDialog` component
+- Pagination যোগ (PAGE_SIZE = 25)
+- `isAdmin` → `hasPermission('performance.view')` / `hasPermission('performance.manage')` consistent করা
+
+---
+
+### ৬. Tasks পেইজ (`src/pages/Tasks.tsx` — 758 লাইন)
+
+**ত্রুটি:**
+- **বড় কোনো ত্রুটি নেই** — Permission system, Kanban, Hierarchy, mobile responsive, ConfirmDialog সব আছে
+- **Pagination নেই** — List view-তে সব task একসাথে দেখায়
+
+**উন্নতি:**
+- List view-তে pagination যোগ (PAGE_SIZE = 25) — Kanban ও Hierarchy view-তে pagination লাগবে না
 
 ---
 
 ### Implementation Plan
 
-#### ফাইল ১: `src/pages/Customers.tsx`
-- `currentPage` state + PAGE_SIZE = 25 + pagination controls যোগ
-- Redundant individual icon buttons (View, Edit, Delete) সরানো — শুধু DropdownMenu রাখা
-- Delete permission `isAdmin` → role-based consistent করা (`canRolePerform` ব্যবহার)
-- Single delete-কে soft-delete করা (`is_deleted: true`)
+#### ফাইল ১: `src/pages/Employees.tsx`
+- Stats cards যোগ (Total Employees, Avg Salary, Total Salary)
+- `currentPage` state + PAGE_SIZE = 25 + pagination controls
+- Mobile card view যোগ (`md:hidden` block — avatar, name, designation, salary, edit/delete buttons)
+- Cancel button fix: লাইন 691 `handleAddDialogClose(true)` → `closeAddDialog()`
 
-#### ফাইল ২: `src/pages/Vendors.tsx`
-- `currentPage` state + PAGE_SIZE = 25 + pagination controls যোগ
-- SortableTableHeader import ও যোগ (Name, Bills, Paid, Due columns)
-- Native `confirm()` → `ConfirmDialog` component + `deleteId` state
-- Import query-তে `.eq('organization_id', organization?.id)` filter যোগ
-- Stats grid-এ "Total Paid" কার্ড যোগ (2-col → grid-cols-2 lg:grid-cols-4)
+#### ফাইল ২: `src/pages/Salary.tsx`
+- Local `formatCurrency` সরিয়ে `import { formatCurrency } from '@/lib/formatters'` ব্যবহার
+- Salary tab-এ pagination যোগ (PAGE_SIZE = 25)
+- Permission consistency: `isAdmin` → `canEditSalary` / `canCreateSalary`
 
-#### ফাইল ৩: `src/pages/Expenses.tsx`
-- Expenses ট্যাবে `currentPage` state + PAGE_SIZE = 25 + pagination controls যোগ
-- `handleDeleteExpense` ও `handleDeleteVendor`-এ native `confirm()` → `ConfirmDialog` component
-- Vendor due calculation fix: `b.amount` → `b.net_amount ?? (Number(b.amount) - Number(b.discount || 0))` — Vendors পেইজের সাথে consistent
+#### ফাইল ৩: `src/pages/Leave.tsx`
+- `confirm()` → `ConfirmDialog` component + `deleteId` state
+- Pagination যোগ (PAGE_SIZE = 25)
+- Mobile card view যোগ
+
+#### ফাইল ৪: `src/pages/Performance.tsx`
+- `confirm()` → `ConfirmDialog` component + `deleteId` state
+- Pagination যোগ (PAGE_SIZE = 25)
+
+#### ফাইল ৫: `src/pages/Tasks.tsx`
+- List view-তে pagination যোগ (PAGE_SIZE = 25)
+
+**Attendance পেইজে কোনো পরিবর্তন লাগবে না** — ইতিমধ্যে optimized
 
