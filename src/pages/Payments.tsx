@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format, parseISO, isPast, isToday } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { SortableTableHeader, useSortableTable } from '@/components/shared/SortableTableHeader';
 import { usePayments, Payment } from '@/hooks/usePayments';
 import { useActionPermission } from '@/components/guards/ActionGuard';
@@ -17,6 +17,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import {
   Select,
@@ -55,6 +56,8 @@ import {
   Filter,
   BarChart3,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -62,6 +65,7 @@ import { AddPaymentFromListDialog } from '@/components/payments/AddPaymentFromLi
 import { EditPaymentDialog } from '@/components/payments/EditPaymentDialog';
 
 type StatusFilter = 'all' | 'paid' | 'partial' | 'due';
+const PAGE_SIZE = 25;
 
 const Payments = () => {
   const navigate = useNavigate();
@@ -76,6 +80,7 @@ const Payments = () => {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const { sortKey, sortDirection, handleSort } = useSortableTable<Payment>('payment_date', 'desc');
 
   const formatCurrency = (amount: number) => {
@@ -192,12 +197,34 @@ const Payments = () => {
     });
   }, [filteredPayments, sortKey, sortDirection]);
 
+  // Pagination
+  const totalPages = Math.ceil(sortedPayments.length / PAGE_SIZE);
+  const paginatedPayments = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return sortedPayments.slice(start, start + PAGE_SIZE);
+  }, [sortedPayments, currentPage]);
+
+  // Reset page on filter change
+  useMemo(() => { setCurrentPage(1); }, [searchQuery, statusFilter, sortKey, sortDirection]);
+
+  // Summary totals for filtered data
+  const summaryTotals = useMemo(() => {
+    let totalPaid = 0;
+    let totalDue = 0;
+    filteredPayments.forEach((p) => {
+      totalPaid += Number(p.amount);
+      const invoiceTotal = Number(p.invoice?.total || 0);
+      const paidAmount = Number(p.invoice?.paid_amount || 0);
+      totalDue += Math.max(0, invoiceTotal - paidAmount);
+    });
+    return { totalPaid, totalDue };
+  }, [filteredPayments]);
+
   const handleRefund = async () => {
     if (!selectedPayment) return;
     setIsProcessing(true);
 
     try {
-      // Delete the payment
       const { error } = await supabase
         .from('invoice_payments')
         .delete()
@@ -302,7 +329,7 @@ const Payments = () => {
               variant="warning"
             />
             <StatCard
-              title="Due Amount"
+              title="Overdue Amount"
               value={formatCurrency(stats.overdueAmount)}
               icon={AlertCircle}
               variant="destructive"
@@ -330,7 +357,7 @@ const Payments = () => {
           </div>
         </CardHeader>
         <CardContent className="p-3 md:p-6">
-          {/* Filters - 2-col tablet grid */}
+          {/* Filters */}
           <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_auto] mb-4">
             <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -355,7 +382,7 @@ const Payments = () => {
             </Select>
           </div>
 
-          {/* Desktop/Tablet: Responsive Table - NO scroll */}
+          {/* Desktop/Tablet: Responsive Table */}
           <div className="hidden md:block rounded-md border">
             <Table>
               <TableHeader>
@@ -371,111 +398,161 @@ const Payments = () => {
                   <TableHead className="text-right w-[60px]">Action</TableHead>
                 </TableRow>
               </TableHeader>
-                <TableBody>
-                  {sortedPayments.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="h-24 text-center">
-                        <div className="flex flex-col items-center justify-center text-muted-foreground">
-                          <Clock className="w-8 h-8 mb-2" />
-                          <p>No payments found</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    sortedPayments.map((payment) => {
-                      const invoice = payment.invoice;
-                      const invoiceTotal = Number(invoice?.total || 0);
-                      const paidAmount = Number(invoice?.paid_amount || 0);
-                      const balanceDue = invoiceTotal - paidAmount;
-                      const status = getInvoiceStatus(payment);
+              <TableBody>
+                {paginatedPayments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="h-24 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <Clock className="w-8 h-8 mb-2" />
+                        <p>No payments found</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedPayments.map((payment) => {
+                    const invoice = payment.invoice;
+                    const invoiceTotal = Number(invoice?.total || 0);
+                    const paidAmount = Number(invoice?.paid_amount || 0);
+                    const balanceDue = invoiceTotal - paidAmount;
+                    const status = getInvoiceStatus(payment);
 
-                      return (
-                        <TableRow key={payment.id}>
-                          <TableCell>
-                            {format(parseISO(payment.payment_date), 'dd/MM/yyyy')}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="link"
-                              className="p-0 h-auto font-medium text-xs md:text-sm"
-                              onClick={() => navigate(`/invoices/${invoice?.id}`)}
-                            >
-                              {invoice?.invoice_number || 'N/A'}
-                            </Button>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell truncate max-w-[120px]">{invoice?.customers?.name || 'N/A'}</TableCell>
-                          <TableCell className="capitalize hidden xl:table-cell">
-                            {payment.payment_method || 'N/A'}
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-success">
-                            {formatCurrency(Number(payment.amount))}
-                          </TableCell>
-                          <TableCell className="text-right hidden xl:table-cell">
-                            {formatCurrency(invoiceTotal)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className={cn(balanceDue > 0 && 'text-destructive')}>
-                              {formatCurrency(balanceDue)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell">{getStatusBadge(status)}</TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                    return (
+                      <TableRow key={payment.id}>
+                        <TableCell>
+                          {format(parseISO(payment.payment_date), 'dd/MM/yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto font-medium text-xs md:text-sm"
+                            onClick={() => navigate(`/invoices/${invoice?.id}`)}
+                          >
+                            {invoice?.invoice_number || 'N/A'}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell truncate max-w-[120px]">{invoice?.customers?.name || 'N/A'}</TableCell>
+                        <TableCell className="capitalize hidden xl:table-cell">
+                          {payment.payment_method || 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-success">
+                          {formatCurrency(Number(payment.amount))}
+                        </TableCell>
+                        <TableCell className="text-right hidden xl:table-cell">
+                          {formatCurrency(invoiceTotal)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className={cn(balanceDue > 0 && 'text-destructive')}>
+                            {formatCurrency(balanceDue)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">{getStatusBadge(status)}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => navigate(`/invoices/${invoice?.id}`)}
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Invoice
+                              </DropdownMenuItem>
+                              <EditGuard module="payments">
                                 <DropdownMenuItem
-                                  onClick={() => navigate(`/invoices/${invoice?.id}`)}
+                                  onClick={() => {
+                                    setSelectedPayment(payment);
+                                    setEditDialogOpen(true);
+                                  }}
                                 >
-                                  <Eye className="w-4 h-4 mr-2" />
-                                  View Invoice
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit
                                 </DropdownMenuItem>
-                                <EditGuard module="payments">
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setSelectedPayment(payment);
-                                      setEditDialogOpen(true);
-                                    }}
-                                  >
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                </EditGuard>
-                                <DeleteGuard module="payments">
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={() => {
-                                      setSelectedPayment(payment);
-                                      setRefundDialogOpen(true);
-                                    }}
-                                  >
-                                    <RotateCcw className="w-4 h-4 mr-2" />
-                                    Refund
-                                  </DropdownMenuItem>
-                                </DeleteGuard>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                      </TableBody>
+                              </EditGuard>
+                              <DeleteGuard module="payments">
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => {
+                                    setSelectedPayment(payment);
+                                    setRefundDialogOpen(true);
+                                  }}
+                                >
+                                  <RotateCcw className="w-4 h-4 mr-2" />
+                                  Refund
+                                </DropdownMenuItem>
+                              </DeleteGuard>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+              {paginatedPayments.length > 0 && (
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={4} className="hidden xl:table-cell font-semibold">
+                      Filtered Total ({filteredPayments.length} records)
+                    </TableCell>
+                    <TableCell colSpan={2} className="xl:hidden font-semibold">
+                      Total ({filteredPayments.length})
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-success">
+                      {formatCurrency(summaryTotals.totalPaid)}
+                    </TableCell>
+                    <TableCell className="text-right hidden xl:table-cell" />
+                    <TableCell className="text-right font-semibold text-destructive">
+                      {formatCurrency(summaryTotals.totalDue)}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell" />
+                    <TableCell />
+                  </TableRow>
+                </TableFooter>
+              )}
             </Table>
           </div>
 
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 px-1">
+              <p className="text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages} ({sortedPayments.length} records)
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Mobile: Card layout */}
           <div className="block md:hidden space-y-3">
-            {sortedPayments.length === 0 ? (
+            {paginatedPayments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <Clock className="w-8 h-8 mb-2" />
                 <p>No payments found</p>
               </div>
             ) : (
-              sortedPayments.map((payment) => {
+              paginatedPayments.map((payment) => {
                 const invoice = payment.invoice;
                 const invoiceTotal = Number(invoice?.total || 0);
                 const paidAmount = Number(invoice?.paid_amount || 0);
@@ -593,8 +670,11 @@ const Payments = () => {
             <DialogTitle>Confirm Refund</DialogTitle>
             <DialogDescription>
               Are you sure you want to refund this payment of{' '}
-              <strong>{formatCurrency(Number(selectedPayment?.amount || 0))}</strong>? This will
-              update the invoice balance accordingly.
+              <strong>{formatCurrency(Number(selectedPayment?.amount || 0))}</strong>?{' '}
+              <span className="text-destructive font-medium">
+                This will permanently delete the payment record
+              </span>{' '}
+              and update the invoice balance accordingly.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

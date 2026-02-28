@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, FileText, Trash2, Edit, ShieldAlert, Filter, X, Calendar } from 'lucide-react';
+import { Plus, Search, Eye, FileText, Trash2, Edit, ShieldAlert, Filter, X, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, parseISO, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -40,6 +40,8 @@ import { Badge } from '@/components/ui/badge';
 import { SortableTableHeader, type SortDirection } from '@/components/shared/SortableTableHeader';
 
 type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
+
+const PAGE_SIZE = 25;
 
 interface Quotation {
   id: string;
@@ -86,6 +88,7 @@ const Quotations = () => {
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null);
   const [sortKey, setSortKey] = useState<string | null>('quotation_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Permission checks
   const hasViewAccess = canPerform('quotations', 'view');
@@ -109,7 +112,6 @@ const Quotations = () => {
     }
     
     try {
-      // First, auto-expire any quotations that have passed their valid_until date
       await supabase.rpc('auto_expire_quotations');
       
       const { data, error } = await supabase
@@ -129,7 +131,6 @@ const Quotations = () => {
   };
 
   const handleDeleteClick = (quotation: Quotation) => {
-    // Only allow deletion of draft quotations
     if (quotation.status !== 'draft') {
       toast.error('Only draft quotations can be deleted');
       return;
@@ -141,7 +142,6 @@ const Quotations = () => {
   const handleDelete = async () => {
     if (!deleteId || !quotationToDelete) return;
     
-    // Double-check status before deletion
     if (quotationToDelete.status !== 'draft') {
       toast.error('Only draft quotations can be deleted');
       setDeleteId(null);
@@ -150,9 +150,7 @@ const Quotations = () => {
     }
     
     try {
-      // Delete quotation items first
       await supabase.from('quotation_items').delete().eq('quotation_id', deleteId);
-      // Delete quotation
       const { error } = await supabase.from('quotations').delete().eq('id', deleteId);
       if (error) throw error;
       
@@ -166,7 +164,6 @@ const Quotations = () => {
     }
   };
 
-  // Calculate date range boundaries
   const getDateRange = (range: string) => {
     const today = new Date();
     switch (range) {
@@ -189,16 +186,13 @@ const Quotations = () => {
     }
   };
 
-  // Memoized filtered quotations
   const filteredQuotations = useMemo(() => {
     let filtered = quotations;
 
-    // Apply status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(q => q.status === statusFilter);
     }
 
-    // Apply date range filter
     const dateRange = getDateRange(dateRangeFilter);
     if (dateRange) {
       filtered = filtered.filter(q => {
@@ -207,7 +201,6 @@ const Quotations = () => {
       });
     }
 
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -266,21 +259,23 @@ const Quotations = () => {
     });
   }, [filteredQuotations, sortKey, sortDirection]);
 
-  // Status counts for filter badges
+  // Pagination
+  const totalPages = Math.ceil(sortedQuotations.length / PAGE_SIZE);
+  const paginatedQuotations = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return sortedQuotations.slice(start, start + PAGE_SIZE);
+  }, [sortedQuotations, currentPage]);
+
+  // Reset page on filter change
+  useMemo(() => { setCurrentPage(1); }, [searchQuery, statusFilter, dateRangeFilter, sortKey, sortDirection]);
+
   const statusCounts = useMemo(() => {
     const counts: Record<QuotationStatus | 'all', number> = {
       all: quotations.length,
-      draft: 0,
-      sent: 0,
-      accepted: 0,
-      rejected: 0,
-      converted: 0,
-      expired: 0,
+      draft: 0, sent: 0, accepted: 0, rejected: 0, converted: 0, expired: 0,
     };
     quotations.forEach(q => {
-      if (counts[q.status] !== undefined) {
-        counts[q.status]++;
-      }
+      if (counts[q.status] !== undefined) counts[q.status]++;
     });
     return counts;
   }, [quotations]);
@@ -293,10 +288,6 @@ const Quotations = () => {
 
   const hasActiveFilters = statusFilter !== 'all' || dateRangeFilter !== 'all' || searchQuery !== '';
 
-  // UPDATED BUSINESS RULES:
-  // - Edit: Allowed for ALL statuses (permission-based only)
-  // - Delete: Only allowed for draft status
-  const isEditable = (_status: QuotationStatus) => true; // All statuses editable
   const isDeletable = (status: QuotationStatus) => status === 'draft';
 
   // Access denied view
@@ -347,7 +338,6 @@ const Quotations = () => {
       <Card>
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            {/* Search */}
             <div className="relative flex-1 w-full sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -358,9 +348,7 @@ const Quotations = () => {
               />
             </div>
 
-            {/* Filters */}
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Status Filter */}
               <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as QuotationStatus | 'all')}>
                 <SelectTrigger className="w-[140px]">
                   <Filter className="h-4 w-4 mr-2" />
@@ -380,7 +368,6 @@ const Quotations = () => {
                 </SelectContent>
               </Select>
 
-              {/* Date Range Filter */}
               <Select value={dateRangeFilter} onValueChange={setDateRangeFilter}>
                 <SelectTrigger className="w-[150px]">
                   <Calendar className="h-4 w-4 mr-2" />
@@ -395,7 +382,6 @@ const Quotations = () => {
                 </SelectContent>
               </Select>
 
-              {/* Clear Filters */}
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10">
                   <X className="h-4 w-4 mr-1" />
@@ -405,7 +391,6 @@ const Quotations = () => {
             </div>
           </div>
 
-          {/* Active Filter Tags */}
           {hasActiveFilters && (
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               <span className="text-sm text-muted-foreground">Filters:</span>
@@ -457,7 +442,7 @@ const Quotations = () => {
             <>
               {/* Mobile Card View */}
               <div className="md:hidden space-y-3 px-4">
-                {sortedQuotations.map((quotation) => (
+                {paginatedQuotations.map((quotation) => (
                   <QuotationCard
                     key={quotation.id}
                     quotation={quotation}
@@ -500,7 +485,7 @@ const Quotations = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedQuotations.map((quotation) => (
+                    {paginatedQuotations.map((quotation) => (
                       <TableRow 
                         key={quotation.id}
                         className="cursor-pointer hover:bg-muted/50"
@@ -536,7 +521,7 @@ const Quotations = () => {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {hasEditAccess && isEditable(quotation.status) ? (
+                            {hasEditAccess && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -545,24 +530,6 @@ const Quotations = () => {
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                            ) : !isEditable(quotation.status) && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="inline-flex">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      disabled
-                                      className="opacity-50 cursor-not-allowed"
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  Only draft quotations can be edited
-                                </TooltipContent>
-                              </Tooltip>
                             )}
                             {hasDeleteAccess && isDeletable(quotation.status) ? (
                               <Button
@@ -600,6 +567,35 @@ const Quotations = () => {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 px-4 md:px-0">
+                  <p className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages} ({sortedQuotations.length} records)
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => p - 1)}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => p + 1)}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </CardContent>
