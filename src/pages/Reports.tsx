@@ -58,6 +58,15 @@ import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, ea
 import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { formatCurrency as sharedFormatCurrency } from '@/lib/formatters';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 
 interface ReportData {
   totalIncome: number;
@@ -188,6 +197,8 @@ const Reports = () => {
   const [customToDate, setCustomToDate] = useState<Date | undefined>(new Date());
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all');
+  const [invoicePage, setInvoicePage] = useState(1);
+  const INVOICE_PAGE_SIZE = 25;
   const [reportData, setReportData] = useState<ReportData>({
     totalIncome: 0,
     totalExpense: 0,
@@ -257,6 +268,11 @@ const Reports = () => {
       ratio: reportData.totalInvoiceAmount > 0 ? ((cat.value / reportData.totalInvoiceAmount) * 100).toFixed(1) : '0.0',
     }));
   }, [reportData.categoryExpenses, reportData.totalInvoiceAmount]);
+
+  // Reset invoice page when filters change — must be before early returns
+  useEffect(() => {
+    setInvoicePage(1);
+  }, [invoiceSearch, invoiceStatusFilter]);
 
   // Access control check
   if (authLoading) {
@@ -553,9 +569,7 @@ const Reports = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return `BDT ${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  const formatCurrency = (amount: number) => sharedFormatCurrency(amount);
 
   const formatChartCurrency = (value: number) => {
     if (value >= 1000000) {
@@ -683,6 +697,12 @@ const Reports = () => {
     return matchesSearch && matchesStatus;
   });
 
+  const totalInvoicePages = Math.ceil(filteredInvoices.length / INVOICE_PAGE_SIZE);
+  const paginatedInvoices = filteredInvoices.slice(
+    (invoicePage - 1) * INVOICE_PAGE_SIZE,
+    invoicePage * INVOICE_PAGE_SIZE
+  );
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
@@ -697,32 +717,7 @@ const Reports = () => {
 
 
 
-  // Show access denied message for non-admin users
-  if (!isAdmin) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Reports</h1>
-          <p className="text-muted-foreground mt-1">Financial analysis and report generation</p>
-        </div>
-        <Card className="border-destructive/30 bg-destructive/5">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center text-center py-12 space-y-4">
-              <div className="p-4 rounded-2xl bg-destructive/10">
-                <ShieldAlert className="h-12 w-12 text-destructive" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
-                <p className="text-muted-foreground max-w-md">
-                  Only admin users can view reports. Contact your system administrator if you need access.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Redundant !isAdmin check removed — hasReportAccess (line 270) already handles access control
 
   if (loading) {
     return <ReportsSkeleton />;
@@ -1185,7 +1180,7 @@ const Reports = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredInvoices.map((inv) => (
+                      paginatedInvoices.map((inv) => (
                         <TableRow key={inv.id} className="hover:bg-muted/30">
                           <TableCell className="font-medium text-primary">{inv.invoice_number}</TableCell>
                           <TableCell className="text-foreground">{(inv.customers as any)?.name || '-'}</TableCell>
@@ -1203,6 +1198,54 @@ const Reports = () => {
                 </Table>
                 </div>
               </div>
+
+              {/* Pagination */}
+              {totalInvoicePages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {(invoicePage - 1) * INVOICE_PAGE_SIZE + 1}-{Math.min(invoicePage * INVOICE_PAGE_SIZE, filteredInvoices.length)} of {filteredInvoices.length}
+                  </p>
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => setInvoicePage(p => Math.max(1, p - 1))}
+                          className={invoicePage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: Math.min(totalInvoicePages, 5) }, (_, i) => {
+                        let page: number;
+                        if (totalInvoicePages <= 5) {
+                          page = i + 1;
+                        } else if (invoicePage <= 3) {
+                          page = i + 1;
+                        } else if (invoicePage >= totalInvoicePages - 2) {
+                          page = totalInvoicePages - 4 + i;
+                        } else {
+                          page = invoicePage - 2 + i;
+                        }
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              isActive={invoicePage === page}
+                              onClick={() => setInvoicePage(page)}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      })}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => setInvoicePage(p => Math.min(totalInvoicePages, p + 1))}
+                          className={invoicePage === totalInvoicePages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
