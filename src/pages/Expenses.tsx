@@ -211,34 +211,43 @@ const Expenses = () => {
         .order("name");
 
       if (vendorsData) {
-        const vendorsWithDues = await Promise.all(
-          vendorsData.map(async (vendor) => {
-            const { data: bills } = await supabase
-              .from("vendor_bills")
-              .select("amount, discount, net_amount")
-              .eq("vendor_id", vendor.id)
-              .eq("organization_id", organization.id);
+        // Batch fetch all bills and payments in 2 queries instead of N+1
+        const [allBillsRes, allPaymentsRes] = await Promise.all([
+          supabase
+            .from("vendor_bills")
+            .select("vendor_id, net_amount, amount, discount")
+            .eq("organization_id", organization.id),
+          supabase
+            .from("vendor_payments")
+            .select("vendor_id, amount")
+            .eq("organization_id", organization.id),
+        ]);
 
-            const { data: payments } = await supabase
-              .from("vendor_payments")
-              .select("amount")
-              .eq("vendor_id", vendor.id)
-              .eq("organization_id", organization.id);
+        const allBills = allBillsRes.data || [];
+        const allPayments = allPaymentsRes.data || [];
 
-            const totalBills = bills?.reduce((sum, b) => {
-              const netAmount = (b as any).net_amount ?? (Number(b.amount) - Number((b as any).discount || 0));
-              return sum + netAmount;
-            }, 0) || 0;
-            const totalPaid = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+        // Group by vendor_id in JS
+        const billsByVendor = new Map<string, number>();
+        for (const b of allBills) {
+          const netAmount = (b as any).net_amount ?? (Number(b.amount) - Number((b as any).discount || 0));
+          billsByVendor.set(b.vendor_id, (billsByVendor.get(b.vendor_id) || 0) + netAmount);
+        }
 
-            return {
-              ...vendor,
-              total_bills: totalBills,
-              total_paid: totalPaid,
-              due_amount: totalBills - totalPaid,
-            };
-          })
-        );
+        const paymentsByVendor = new Map<string, number>();
+        for (const p of allPayments) {
+          paymentsByVendor.set(p.vendor_id, (paymentsByVendor.get(p.vendor_id) || 0) + Number(p.amount));
+        }
+
+        const vendorsWithDues = vendorsData.map((vendor) => {
+          const totalBills = billsByVendor.get(vendor.id) || 0;
+          const totalPaid = paymentsByVendor.get(vendor.id) || 0;
+          return {
+            ...vendor,
+            total_bills: totalBills,
+            total_paid: totalPaid,
+            due_amount: totalBills - totalPaid,
+          };
+        });
         setVendors(vendorsWithDues);
       }
 

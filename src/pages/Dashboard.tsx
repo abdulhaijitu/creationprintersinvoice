@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useCompanySettings } from '@/contexts/CompanySettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,6 @@ interface DashboardStats {
   tasksActive: number;
   tasksDelivered: number;
   tasksArchived: number;
-  companyName: string | null;
 }
 
 const fetchDashboardData = async (orgId: string): Promise<DashboardStats> => {
@@ -44,7 +44,7 @@ const fetchDashboardData = async (orgId: string): Promise<DashboardStats> => {
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1;
 
-  const [invoicesRes, expensesRes, vendorBillsRes, salaryRes, tasksRes, companySettingsRes] =
+  const [invoicesRes, expensesRes, vendorBillsRes, salaryRes, tasksRes] =
     await Promise.all([
       supabase
         .from('invoices')
@@ -71,7 +71,6 @@ const fetchDashboardData = async (orgId: string): Promise<DashboardStats> => {
         .eq('year', currentYear)
         .eq('month', currentMonth),
       supabase.from('tasks').select('status').eq('organization_id', orgId),
-      supabase.from('company_settings').select('company_name').limit(1).single(),
     ]);
 
   const invoices = invoicesRes.data || [];
@@ -108,7 +107,6 @@ const fetchDashboardData = async (orgId: string): Promise<DashboardStats> => {
     tasksActive,
     tasksDelivered,
     tasksArchived,
-    companyName: companySettingsRes.data?.company_name || null,
   };
 };
 
@@ -116,6 +114,7 @@ const Dashboard = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { organization } = useOrganization();
+  const { settings: companySettings } = useCompanySettings();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const orgId = organization?.id;
@@ -167,7 +166,7 @@ const Dashboard = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold tracking-tight uppercase truncate">
-            {stats.companyName}
+            {companySettings?.company_name || ''}
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
             {format(new Date(), "EEEE, MMMM d, yyyy")}

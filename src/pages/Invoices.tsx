@@ -138,7 +138,7 @@ const Invoices = () => {
     try {
       const { data, error } = await supabase
         .from('invoices')
-        .select('*, customers(name)')
+        .select('id, invoice_number, customer_id, invoice_date, due_date, total, paid_amount, status, created_at, customers(name)')
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
 

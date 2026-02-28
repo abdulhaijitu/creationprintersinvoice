@@ -78,7 +78,7 @@ export function useTasks() {
 
     // Wait for permissions to load
     if (permissionsLoading) {
-      console.log('[Tasks] Waiting for permissions to load...');
+      return;
       return;
     }
 
@@ -97,7 +97,7 @@ export function useTasks() {
 
       // Enforce view permission before showing any tasks
       if (!canViewTasks) {
-        console.log('[Tasks] Access denied: missing tasks.view permission');
+        
         setTasks([]);
         return;
       }
@@ -106,17 +106,17 @@ export function useTasks() {
       // - Public tasks: all org users
       // - Private tasks: only creator + assignee
       // - Department tasks: only department users + creator + assignee
-      console.log('[Tasks] Fetching tasks with RLS-enforced visibility');
+      
 
       const { data: tasksData, error } = await supabase
         .from('tasks')
-        .select('*')
+        .select('id, title, description, assigned_to, assigned_by, created_by, deadline, priority, status, reference_type, reference_id, completed_at, created_at, updated_at, sla_deadline, sla_breached, visibility, department, archived_at, archived_by, parent_task_id, invoice_item_id, item_no')
         .eq('organization_id', organization.id)
         .order('updated_at', { ascending: false });
 
       // Check if this is still the latest fetch
       if (currentFetchCount !== fetchCountRef.current) {
-        console.log('[Tasks] Stale fetch result, ignoring');
+        return;
         return;
       }
 
@@ -125,7 +125,7 @@ export function useTasks() {
         throw error;
       }
 
-      console.log('[Tasks] Fetched tasks count:', tasksData?.length || 0);
+      
 
       if (tasksData && employeesData) {
         const tasksWithEmployees = tasksData.map((task) => {
@@ -185,7 +185,7 @@ export function useTasks() {
           filter: `organization_id=eq.${organization.id}`
         },
         (payload) => {
-          console.log('[Tasks] Realtime update received:', payload.eventType);
+          
           // Refetch on any change - permissions are already loaded at this point
           fetchTasks();
         }
@@ -333,7 +333,7 @@ export function useTasks() {
         return emp?.id ?? null;
       })();
 
-      console.log('[Tasks] Creating task with created_by:', currentUserId, 'assigned_by(employee):', assignedByEmployeeId);
+      
 
       // Calculate SLA deadline based on priority
       const slaDeadline = calculateSlaDeadline(new Date(), data.priority as TaskPriorityLevel);
@@ -370,7 +370,7 @@ export function useTasks() {
         throw error;
       }
       
-      console.log('[Tasks] Task created successfully:', newTask?.id);
+      
 
       // Add multiple assignees to task_assignees table
       if (data.assignees && data.assignees.length > 0 && newTask) {

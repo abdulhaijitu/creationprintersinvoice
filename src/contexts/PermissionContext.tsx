@@ -200,7 +200,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setPermissionsReady(true);
         setLastUpdated(Date.now());
       }
-      console.log('[PermissionContext] Super Admin/Owner - all permissions enabled');
+      return;
       return;
     }
 
@@ -214,7 +214,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
 
     try {
-      console.log(`[PermissionContext] Fetching permissions for org: ${organization.id}, role: ${orgRole}`);
+      
       
       // Fetch BOTH tables in parallel
       const [globalRes, orgRes] = await Promise.all([
@@ -248,7 +248,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           normalizedMap.set(`${canonicalModule}.access`, true);
           // Also store original key
           normalizedMap.set(key, true);
-          console.log(`[PermissionContext] Global: ${key} -> ${canonicalModule}.view`);
+          
         } else {
           // Standard module.action format
           const [moduleRaw, action] = key.split('.');
@@ -283,7 +283,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
            Array.from(normalizedMap.entries()).some(([key, value]) => previousMap.get(key) !== value));
 
         if (permissionsChanged) {
-          console.log('[PermissionContext] Permissions changed - checking access');
+          
           toast.info('Your permissions have been updated', {
             description: 'Access levels have been refreshed.',
           });
@@ -299,7 +299,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setPermissionsReady(true);
       }
 
-      console.log(`[PermissionContext] Loaded permissions: global=${globalRes.data?.length || 0}, org-specific=${orgRes.data?.length || 0}, total map size=${normalizedMap.size}`);
+      
     } catch (err) {
       console.error('[PermissionContext] Error fetching permissions:', err);
       if (isMountedRef.current) {
@@ -338,7 +338,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
 
     if (!hasAccess) {
-      console.log(`[PermissionContext] Access revoked for ${currentModule}, redirecting...`);
+      
       toast.warning('Your access to this page has been revoked', {
         description: 'Redirecting to dashboard...',
       });
@@ -365,7 +365,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return;
     }
 
-    console.log('[PermissionContext] Setting up realtime subscription for permissions');
+    
 
     const channel = supabase
       .channel(`permissions-${organization.id}-${orgRole}`)
@@ -378,17 +378,14 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           filter: `organization_id=eq.${organization.id}`,
         },
         (payload) => {
-          console.log('[PermissionContext] Permission change detected:', payload);
+          
           // Refetch all permissions on any change
           fetchPermissions();
         }
       )
-      .subscribe((status) => {
-        console.log('[PermissionContext] Realtime subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
-      console.log('[PermissionContext] Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [organization?.id, orgRole, isSuperAdmin, isOrgOwner, fetchPermissions]);
@@ -397,7 +394,6 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && !isSuperAdmin && !isOrgOwner) {
-        console.log('[PermissionContext] Tab became visible, refreshing permissions');
         fetchPermissions();
       }
     };

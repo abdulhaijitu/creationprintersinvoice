@@ -55,15 +55,13 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
         .maybeSingle();
 
       if (fetchError) {
-        console.error('[CompanySettingsContext] Fetch error:', fetchError);
         setError(fetchError.message);
         return;
       }
 
-      console.log('[CompanySettingsContext] Settings loaded:', data?.company_name);
+
       setSettings(data as CompanySettings | null);
     } catch (err) {
-      console.error('[CompanySettingsContext] Unexpected error:', err);
       setError('Failed to load company settings');
     } finally {
       setLoading(false);
@@ -75,7 +73,7 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
     setSettings(prev => {
       if (!prev) return prev;
       const updated = { ...prev, ...newSettings };
-      console.log('[CompanySettingsContext] Settings updated locally:', updated.company_name);
+      return updated;
       return updated;
     });
     queryClient.invalidateQueries({ queryKey: ['company-settings'] });
@@ -83,7 +81,7 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
 
   // Refetch settings from database
   const refetchSettings = useCallback(async () => {
-    console.log('[CompanySettingsContext] Refetching settings...');
+    await fetchSettings();
     await fetchSettings();
     queryClient.invalidateQueries({ queryKey: ['company-settings'] });
   }, [fetchSettings, queryClient]);
@@ -106,7 +104,7 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
       supabase.removeChannel(channelRef.current);
     }
 
-    console.log('[CompanySettingsContext] Setting up realtime subscription...');
+    
 
     const channel = supabase
       .channel('company-settings-changes')
@@ -118,28 +116,25 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
           table: 'company_settings',
         },
         (payload) => {
-          console.log('[CompanySettingsContext] Realtime update received:', payload.eventType);
+          
           
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newData = payload.new as CompanySettings;
             setSettings(newData);
             // Invalidate react-query cache
             queryClient.invalidateQueries({ queryKey: ['company-settings'] });
-            console.log('[CompanySettingsContext] Settings synced from realtime');
+            
           } else if (payload.eventType === 'DELETE') {
             setSettings(null);
             queryClient.invalidateQueries({ queryKey: ['company-settings'] });
           }
         }
       )
-      .subscribe((status) => {
-        console.log('[CompanySettingsContext] Realtime subscription status:', status);
-      });
+      .subscribe();
 
     channelRef.current = channel;
 
     return () => {
-      console.log('[CompanySettingsContext] Cleaning up realtime subscription');
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
