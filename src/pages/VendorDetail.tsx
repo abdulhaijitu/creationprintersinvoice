@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { AddBillDialog, type BillFormData } from "@/components/vendor/AddBillDialog";
+import { EditBillDialog } from "@/components/vendor/EditBillDialog";
 import { PayVendorBillDialog } from "@/components/vendor/PayVendorBillDialog";
 import { BillPaymentHistoryDialog } from "@/components/vendor/BillPaymentHistoryDialog";
 import { VendorPaymentReceipt } from "@/components/vendor/VendorPaymentReceipt";
@@ -97,6 +98,7 @@ const VendorDetail = () => {
   const [loading, setLoading] = useState(true);
   const [isAddBillDialogOpen, setIsAddBillDialogOpen] = useState(false);
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
+  const [isEditBillDialogOpen, setIsEditBillDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isPayBillDialogOpen, setIsPayBillDialogOpen] = useState(false);
   const [isPaymentHistoryDialogOpen, setIsPaymentHistoryDialogOpen] = useState(false);
@@ -321,15 +323,43 @@ const VendorDetail = () => {
 
   const openEditBillDialog = (bill: Bill) => {
     setEditingBill(bill);
-    setBillForm({
-      bill_date: bill.bill_date,
-      description: bill.description || "",
-      amount: bill.amount.toString(),
-      discount: bill.discount?.toString() || "0",
-      due_date: bill.due_date || "",
-      reference_no: bill.reference_no || "",
-    });
-    setIsBillDialogOpen(true);
+    setIsEditBillDialogOpen(true);
+  };
+
+  const handleEditBillSave = async (billData: BillFormData) => {
+    if (!editingBill) throw new Error("No bill selected");
+
+    const selectedCustomer = customers.find((c) => c.id === billData.customerId);
+    const customerLine = selectedCustomer
+      ? `Client: ${selectedCustomer.name}${selectedCustomer.company_name ? ` (${selectedCustomer.company_name})` : ""}`
+      : null;
+
+    const itemsSummary = billData.lineItems
+      .map((li, idx) => {
+        const label = li.description?.trim() ? li.description.trim() : `Item ${idx + 1}`;
+        return `${idx + 1}. ${label} — ${li.quantity} × ${li.rate} = ${li.total}`;
+      })
+      .join("\n");
+
+    const description = [customerLine, itemsSummary].filter(Boolean).join("\n") || null;
+
+    const { error } = await supabase
+      .from("vendor_bills")
+      .update({
+        bill_date: format(billData.billDate, "yyyy-MM-dd"),
+        description,
+        amount: billData.amount,
+        discount: billData.discount,
+        net_amount: billData.netPayable,
+        due_date: billData.dueDate ? format(billData.dueDate, "yyyy-MM-dd") : null,
+        reference_no: billData.reference || null,
+      })
+      .eq("id", editingBill.id);
+
+    if (error) throw error;
+    toast.success("Bill updated successfully");
+    setEditingBill(null);
+    fetchVendorData();
   };
 
   const resetBillForm = () => {
@@ -691,114 +721,20 @@ const VendorDetail = () => {
                 }))}
               />
 
-              {/* Keep existing edit-bill dialog intact */}
-              <Dialog
-                open={isBillDialogOpen}
+              <EditBillDialog
+                open={isEditBillDialogOpen}
                 onOpenChange={(open) => {
-                  setIsBillDialogOpen(open);
-                  if (!open) resetBillForm();
+                  setIsEditBillDialogOpen(open);
+                  if (!open) setEditingBill(null);
                 }}
-              >
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{editingBill ? "Edit Bill" : "Add New Bill"}</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleAddBill} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Bill Date</Label>
-                        <Input
-                          type="date"
-                          value={billForm.bill_date}
-                          onChange={(e) =>
-                            setBillForm({ ...billForm, bill_date: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Amount</Label>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          value={billForm.amount}
-                          onChange={(e) =>
-                            setBillForm({ ...billForm, amount: e.target.value })
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Discount</Label>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          min="0"
-                          value={billForm.discount}
-                          onChange={(e) =>
-                            setBillForm({ ...billForm, discount: e.target.value })
-                          }
-                          className={discountError ? "border-destructive" : ""}
-                        />
-                        {discountError && (
-                          <p className="text-xs text-destructive">Discount cannot exceed amount</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Net Payable</Label>
-                        <div className="h-10 px-3 py-2 rounded-md border bg-muted/50 flex items-center font-medium">
-                          {formatCurrency(billNetAmount)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Ref#</Label>
-                      <Input
-                        type="text"
-                        placeholder="Enter reference no."
-                        value={billForm.reference_no}
-                        onChange={(e) =>
-                          setBillForm({ ...billForm, reference_no: e.target.value })
-                        }
-                        className="h-10"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Description</Label>
-                      <Textarea
-                        placeholder="Bill description"
-                        value={billForm.description}
-                        onChange={(e) =>
-                          setBillForm({ ...billForm, description: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Due Date (Optional)</Label>
-                      <Input
-                        type="date"
-                        value={billForm.due_date}
-                        onChange={(e) =>
-                          setBillForm({ ...billForm, due_date: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsBillDialogOpen(false);
-                          resetBillForm();
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit">Save</Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                onSave={handleEditBillSave}
+                bill={editingBill}
+                customers={customers.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  company_name: c.company_name ?? undefined,
+                }))}
+              />
 
               <Dialog open={isPaymentDialogOpen} onOpenChange={(open) => {
                 setIsPaymentDialogOpen(open);
