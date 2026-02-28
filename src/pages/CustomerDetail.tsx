@@ -73,7 +73,7 @@ const CustomerDetail = () => {
       // Fetch customer
       const { data: customerData, error: customerError } = await supabase
         .from("customers")
-        .select("*")
+        .select("id, name, email, phone, address, company_name, notes, created_at")
         .eq("id", id)
         .single();
 
