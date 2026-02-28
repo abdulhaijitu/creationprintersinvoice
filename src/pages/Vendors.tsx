@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,20 +24,26 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload, Pencil } from "lucide-react";
+import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload, Pencil, ChevronLeft, ChevronRight, MoreHorizontal, DollarSign } from "lucide-react";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
-import { parseCSV, downloadTemplate, ImportResult } from "@/lib/importUtils";
+import { ImportResult } from "@/lib/importUtils";
 import CSVImportDialog from "@/components/import/CSVImportDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { SortableTableHeader, type SortDirection } from "@/components/shared/SortableTableHeader";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatCurrency } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 25;
 
 interface Vendor {
   id: string;
@@ -57,7 +63,6 @@ const Vendors = () => {
   const { isSuperAdmin } = useAuth();
   const { organization, orgRole } = useOrganization();
   
-  // Permission-based access controls
   const canView = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'view');
   const canCreate = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'create');
   const canEdit = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'edit');
@@ -79,6 +84,10 @@ const Vendors = () => {
     notes: "",
   });
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [deleteVendorId, setDeleteVendorId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortKey, setSortKey] = useState<string | null>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   useEffect(() => {
     if (organization?.id) {
@@ -104,7 +113,6 @@ const Vendors = () => {
 
       const vendorsWithDues = await Promise.all(
         vendorsData.map(async (vendor) => {
-          // Fetch bills with net_amount (amount - discount) for correct due calculation
           const { data: bills } = await supabase
             .from("vendor_bills")
             .select("amount, discount, net_amount")
@@ -117,7 +125,6 @@ const Vendors = () => {
             .eq("vendor_id", vendor.id)
             .eq("organization_id", organization.id);
 
-          // Use net_amount (after discount) for due calculation, fallback to amount - discount
           const totalNetBills = bills?.reduce((sum, b) => {
             const netAmount = b.net_amount ?? (Number(b.amount) - Number(b.discount || 0));
             return sum + netAmount;
@@ -202,19 +209,17 @@ const Vendors = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this vendor? This will also delete all associated bills and payments.')) return;
+  const handleDeleteConfirmed = async () => {
+    if (!deleteVendorId) return;
     
     try {
-      // Delete payments first
-      await supabase.from('vendor_payments').delete().eq('vendor_id', id);
-      // Delete bills
-      await supabase.from('vendor_bills').delete().eq('vendor_id', id);
-      // Delete vendor
-      const { error } = await supabase.from('vendors').delete().eq('id', id);
+      await supabase.from('vendor_payments').delete().eq('vendor_id', deleteVendorId);
+      await supabase.from('vendor_bills').delete().eq('vendor_id', deleteVendorId);
+      const { error } = await supabase.from('vendors').delete().eq('id', deleteVendorId);
       if (error) throw error;
       
       toast.success('Vendor deleted');
+      setDeleteVendorId(null);
       fetchVendors();
     } catch (error) {
       console.error('Error deleting vendor:', error);
@@ -229,16 +234,42 @@ const Vendors = () => {
       vendor.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalDue = vendors.reduce((sum, v) => sum + (v.due_amount || 0), 0);
+  // Reset page on search
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-BD", {
-      style: "currency",
-      currency: "BDT",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') { setSortDirection(null); setSortKey(null); }
+      else setSortDirection('asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
   };
+
+  const sortedVendors = useMemo(() => {
+    if (!sortKey || !sortDirection) return filteredVendors;
+    return [...filteredVendors].sort((a, b) => {
+      let aVal: any, bVal: any;
+      switch (sortKey) {
+        case 'name': aVal = a.name.toLowerCase(); bVal = b.name.toLowerCase(); break;
+        case 'total_bills': aVal = a.total_bills || 0; bVal = b.total_bills || 0; break;
+        case 'total_paid': aVal = a.total_paid || 0; bVal = b.total_paid || 0; break;
+        case 'due_amount': aVal = a.due_amount || 0; bVal = b.due_amount || 0; break;
+        default: return 0;
+      }
+      const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal) : aVal - bVal;
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [filteredVendors, sortKey, sortDirection]);
+
+  const totalPages = Math.ceil(sortedVendors.length / PAGE_SIZE);
+  const paginatedVendors = sortedVendors.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const totalDue = vendors.reduce((sum, v) => sum + (v.due_amount || 0), 0);
+  const totalPaid = vendors.reduce((sum, v) => sum + (v.total_paid || 0), 0);
+  const totalBills = vendors.reduce((sum, v) => sum + (v.total_bills || 0), 0);
 
   const vendorExportHeaders = {
     name: 'Name',
@@ -253,24 +284,16 @@ const Vendors = () => {
 
   const handleExportCSV = () => {
     const exportData = vendors.map(v => ({
-      name: v.name,
-      phone: v.phone || '',
-      email: v.email || '',
-      address: v.address || '',
-      bank_info: v.bank_info || '',
-      notes: v.notes || '',
+      name: v.name, phone: v.phone || '', email: v.email || '',
+      address: v.address || '', bank_info: v.bank_info || '', notes: v.notes || '',
     }));
     exportToCSV(exportData, 'vendors', vendorExportHeaders);
   };
 
   const handleExportExcel = () => {
     const exportData = vendors.map(v => ({
-      name: v.name,
-      phone: v.phone || '',
-      email: v.email || '',
-      address: v.address || '',
-      bank_info: v.bank_info || '',
-      notes: v.notes || '',
+      name: v.name, phone: v.phone || '', email: v.email || '',
+      address: v.address || '', bank_info: v.bank_info || '', notes: v.notes || '',
     }));
     exportToExcel(exportData, 'vendors', vendorExportHeaders);
   };
@@ -284,20 +307,15 @@ const Vendors = () => {
     let duplicates = 0;
     const errors: string[] = [];
 
-    // Pre-fetch existing vendors for duplicate detection
+    // Org-scoped duplicate check
     const { data: existingVendors } = await supabase
       .from('vendors')
-      .select('email, phone, name');
+      .select('email, phone, name')
+      .eq('organization_id', organization?.id);
 
-    const existingEmails = new Set(
-      existingVendors?.filter(v => v.email).map(v => v.email!.toLowerCase()) || []
-    );
-    const existingPhones = new Set(
-      existingVendors?.filter(v => v.phone).map(v => v.phone!.replace(/\D/g, '')) || []
-    );
-    const existingNames = new Set(
-      existingVendors?.map(v => v.name.toLowerCase()) || []
-    );
+    const existingEmails = new Set(existingVendors?.filter(v => v.email).map(v => v.email!.toLowerCase()) || []);
+    const existingPhones = new Set(existingVendors?.filter(v => v.phone).map(v => v.phone!.replace(/\D/g, '')) || []);
+    const existingNames = new Set(existingVendors?.map(v => v.name.toLowerCase()) || []);
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
@@ -311,63 +329,29 @@ const Vendors = () => {
         const bankInfo = (row.bank_info || row['Bank Info'] || row['bank'] || '').trim();
         const notes = (row.notes || row['Notes'] || '').trim();
 
-        // Validate required field
-        if (!name) {
-          failed++;
-          errors.push(`Row ${i + 2}: Name is required`);
-          continue;
-        }
-
-        // Check for duplicates
-        if (existingNames.has(name.toLowerCase())) {
-          duplicates++;
-          errors.push(`Row ${i + 2}: Vendor "${name}" already exists`);
-          continue;
-        }
-
-        if (email && existingEmails.has(email)) {
-          duplicates++;
-          errors.push(`Row ${i + 2}: Email "${email}" already exists`);
-          continue;
-        }
-        
+        if (!name) { failed++; errors.push(`Row ${i + 2}: Name is required`); continue; }
+        if (existingNames.has(name.toLowerCase())) { duplicates++; errors.push(`Row ${i + 2}: Vendor "${name}" already exists`); continue; }
+        if (email && existingEmails.has(email)) { duplicates++; errors.push(`Row ${i + 2}: Email "${email}" already exists`); continue; }
         const normalizedPhone = phone.replace(/\D/g, '');
-        if (normalizedPhone && existingPhones.has(normalizedPhone)) {
-          duplicates++;
-          errors.push(`Row ${i + 2}: Phone "${phone}" already exists`);
-          continue;
-        }
+        if (normalizedPhone && existingPhones.has(normalizedPhone)) { duplicates++; errors.push(`Row ${i + 2}: Phone "${phone}" already exists`); continue; }
 
         const { error } = await supabase.from('vendors').insert({
-          name,
-          phone: phone || null,
-          email: email || null,
-          address: address || null,
-          bank_info: bankInfo || null,
-          notes: notes || null,
+          name, phone: phone || null, email: email || null,
+          address: address || null, bank_info: bankInfo || null, notes: notes || null,
           organization_id: organization?.id,
         });
 
-        if (error) {
-          failed++;
-          errors.push(`Row ${i + 2}: ${error.message}`);
-        } else {
+        if (error) { failed++; errors.push(`Row ${i + 2}: ${error.message}`); }
+        else {
           success++;
-          // Add to existing sets to prevent duplicates within batch
           existingNames.add(name.toLowerCase());
           if (email) existingEmails.add(email);
           if (normalizedPhone) existingPhones.add(normalizedPhone);
         }
-      } catch (err) {
-        failed++;
-        errors.push(`Row ${i + 2}: Unknown error`);
-      }
+      } catch (err) { failed++; errors.push(`Row ${i + 2}: Unknown error`); }
     }
 
-    if (success > 0) {
-      fetchVendors();
-    }
-
+    if (success > 0) fetchVendors();
     return { success, failed, errors, duplicates };
   };
 
@@ -378,150 +362,75 @@ const Vendors = () => {
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Vendors</h1>
           <p className="text-xs md:text-sm text-muted-foreground">All vendors and due balance</p>
         </div>
-      <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           {canImport && (
             <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-              <Upload className="mr-2 h-4 w-4" />
-              Import
+              <Upload className="mr-2 h-4 w-4" />Import
             </Button>
           )}
           {canExport && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Download className="mr-2 h-4 w-4" />
-                  Export
-                </Button>
+                <Button variant="outline"><Download className="mr-2 h-4 w-4" />Export</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={handleExportCSV}>
-                  Export as CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportExcel}>
-                  Export as Excel
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCSV}>Export as CSV</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportExcel}>Export as Excel</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
           {canCreate && (
-            <Dialog open={isDialogOpen} onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetForm();
-            }}>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Vendor
-                </Button>
+                <Button><Plus className="mr-2 h-4 w-4" />New Vendor</Button>
               </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingVendor ? "Edit Vendor" : "Add New Vendor"}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name *</Label>
-                  <Input
-                    id="name"
-                    placeholder="Vendor name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{editingVendor ? "Edit Vendor" : "Add New Vendor"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      placeholder="01XXXXXXXXX"
-                      value={formData.phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
-                      }
-                    />
+                    <Label htmlFor="name">Name *</Label>
+                    <Input id="name" placeholder="Vendor name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input id="phone" placeholder="01XXXXXXXXX" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input id="email" type="email" placeholder="email@example.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="email@example.com"
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                    />
+                    <Label htmlFor="address">Address</Label>
+                    <Textarea id="address" placeholder="Vendor address" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Textarea
-                    id="address"
-                    placeholder="Vendor address"
-                    value={formData.address}
-                    onChange={(e) =>
-                      setFormData({ ...formData, address: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bank_info">Bank Info</Label>
-                  <Textarea
-                    id="bank_info"
-                    placeholder="Bank account number, branch, etc."
-                    value={formData.bank_info}
-                    onChange={(e) =>
-                      setFormData({ ...formData, bank_info: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Additional information"
-                    value={formData.notes}
-                    onChange={(e) =>
-                      setFormData({ ...formData, notes: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsDialogOpen(false);
-                      resetForm();
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit">Save</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div className="space-y-2">
+                    <Label htmlFor="bank_info">Bank Info</Label>
+                    <Textarea id="bank_info" placeholder="Bank account number, branch, etc." value={formData.bank_info} onChange={(e) => setFormData({ ...formData, bank_info: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea id="notes" placeholder="Additional information" value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); resetForm(); }}>Cancel</Button>
+                    <Button type="submit">Save</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           )}
         </div>
       </div>
 
-      {/* Summary Cards - 2-col tablet, 3-col desktop */}
-      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-3">
+      {/* Summary Cards — 4 col with Total Paid */}
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-              Total Vendors
-            </CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Total Vendors</CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
             <p className="text-xl md:text-2xl font-bold">{vendors.length}</p>
@@ -529,14 +438,21 @@ const Vendors = () => {
         </Card>
         <Card>
           <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-              Total Bills
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Total Bills</CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <p className="text-xl md:text-2xl font-bold">{formatCurrency(totalBills)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium text-success flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Total Paid
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
-            <p className="text-xl md:text-2xl font-bold">
-              {formatCurrency(vendors.reduce((sum, v) => sum + (v.total_bills || 0), 0))}
-            </p>
+            <p className="text-xl md:text-2xl font-bold text-success">{formatCurrency(totalPaid)}</p>
           </CardContent>
         </Card>
         <Card className="border-destructive/50 bg-destructive/5">
@@ -555,12 +471,7 @@ const Vendors = () => {
       {/* Search */}
       <div className="relative min-w-0">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input
-          placeholder="Search vendors..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 w-full md:max-w-md"
-        />
+        <Input placeholder="Search vendors..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-full md:max-w-md" />
       </div>
 
       {/* Mobile Card View */}
@@ -579,7 +490,7 @@ const Vendors = () => {
               </div>
             ))}
           </div>
-        ) : filteredVendors.length === 0 ? (
+        ) : paginatedVendors.length === 0 ? (
           <EmptyState
             icon={Building2}
             title="No vendors found"
@@ -587,7 +498,7 @@ const Vendors = () => {
             action={canCreate && !searchTerm ? { label: "Add Vendor", onClick: () => setIsDialogOpen(true), icon: Plus } : undefined}
           />
         ) : (
-          filteredVendors.map((vendor) => (
+          paginatedVendors.map((vendor) => (
             <div
               key={vendor.id}
               className="bg-card border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-muted/50 transition-colors"
@@ -629,7 +540,7 @@ const Vendors = () => {
                   </Button>
                 )}
                 {canDelete && (
-                  <Button variant="outline" size="sm" className="h-9 text-destructive hover:text-destructive" onClick={() => handleDelete(vendor.id)}>
+                  <Button variant="outline" size="sm" className="h-9 text-destructive hover:text-destructive" onClick={() => setDeleteVendorId(vendor.id)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -644,12 +555,20 @@ const Vendors = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
+              <TableHead>
+                <SortableTableHeader label="Name" sortKey="name" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} />
+              </TableHead>
               <TableHead>Contact</TableHead>
-              <TableHead className="text-right">Total Bills</TableHead>
-              <TableHead className="text-right">Paid</TableHead>
-              <TableHead className="text-right">Due</TableHead>
-              <TableHead className="text-center">Action</TableHead>
+              <TableHead className="text-right">
+                <SortableTableHeader label="Total Bills" sortKey="total_bills" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+              </TableHead>
+              <TableHead className="text-right">
+                <SortableTableHeader label="Paid" sortKey="total_paid" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+              </TableHead>
+              <TableHead className="text-right">
+                <SortableTableHeader label="Due" sortKey="due_amount" currentSortKey={sortKey} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+              </TableHead>
+              <TableHead className="text-center w-[60px]">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -670,25 +589,19 @@ const Vendors = () => {
                   </div>
                 </TableCell>
               </TableRow>
-            ) : filteredVendors.length === 0 ? (
+            ) : paginatedVendors.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="py-0">
                   <EmptyState
                     icon={Building2}
                     title="No vendors found"
-                    description={searchTerm 
-                      ? "Try adjusting your search criteria" 
-                      : "Add your first vendor to start tracking purchases and payments"}
-                    action={canCreate && !searchTerm ? {
-                      label: "Add Vendor",
-                      onClick: () => setIsDialogOpen(true),
-                      icon: Plus,
-                    } : undefined}
+                    description={searchTerm ? "Try adjusting your search criteria" : "Add your first vendor to start tracking purchases and payments"}
+                    action={canCreate && !searchTerm ? { label: "Add Vendor", onClick: () => setIsDialogOpen(true), icon: Plus } : undefined}
                   />
                 </TableCell>
               </TableRow>
             ) : (
-              filteredVendors.map((vendor) => (
+              paginatedVendors.map((vendor) => (
                 <TableRow key={vendor.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -696,33 +609,19 @@ const Vendors = () => {
                       <div>
                         <p className="font-medium">{vendor.name}</p>
                         {vendor.address && (
-                          <p className="text-sm text-muted-foreground truncate max-w-[200px]">
-                            {vendor.address}
-                          </p>
+                          <p className="text-sm text-muted-foreground truncate max-w-[200px]">{vendor.address}</p>
                         )}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      {vendor.phone && (
-                        <div className="flex items-center gap-1 text-sm">
-                          <Phone className="h-3 w-3" />{vendor.phone}
-                        </div>
-                      )}
-                      {vendor.email && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Mail className="h-3 w-3" />{vendor.email}
-                        </div>
-                      )}
+                      {vendor.phone && (<div className="flex items-center gap-1 text-sm"><Phone className="h-3 w-3" />{vendor.phone}</div>)}
+                      {vendor.email && (<div className="flex items-center gap-1 text-sm text-muted-foreground"><Mail className="h-3 w-3" />{vendor.email}</div>)}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatCurrency(vendor.total_bills || 0)}
-                  </TableCell>
-                  <TableCell className="text-right text-success tabular-nums">
-                    {formatCurrency(vendor.total_paid || 0)}
-                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{formatCurrency(vendor.total_bills || 0)}</TableCell>
+                  <TableCell className="text-right text-success tabular-nums">{formatCurrency(vendor.total_paid || 0)}</TableCell>
                   <TableCell className="text-right">
                     {(vendor.due_amount || 0) > 0 ? (
                       <Badge variant="destructive">{formatCurrency(vendor.due_amount || 0)}</Badge>
@@ -731,36 +630,31 @@ const Vendors = () => {
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/vendors/${vendor.id}`)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>View Details</TooltipContent>
-                      </Tooltip>
-                      {canEdit && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(vendor)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Edit Vendor</TooltipContent>
-                        </Tooltip>
-                      )}
-                      {canDelete && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(vendor.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Delete Vendor</TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => navigate(`/vendors/${vendor.id}`)}>
+                          <Eye className="h-4 w-4 mr-2" />View Details
+                        </DropdownMenuItem>
+                        {canEdit && (
+                          <DropdownMenuItem onClick={() => openEditDialog(vendor)}>
+                            <Pencil className="h-4 w-4 mr-2" />Edit
+                          </DropdownMenuItem>
+                        )}
+                        {canDelete && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteVendorId(vendor.id)}>
+                              <Trash2 className="h-4 w-4 mr-2" />Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
@@ -768,6 +662,25 @@ const Vendors = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, sortedVendors.length)} of {sortedVendors.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm px-2">{currentPage} / {totalPages}</span>
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <CSVImportDialog
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
@@ -777,6 +690,16 @@ const Vendors = () => {
         fieldMapping={vendorExportHeaders}
         onImport={handleImport}
         templateFilename="vendors"
+      />
+
+      <ConfirmDialog
+        open={!!deleteVendorId}
+        onOpenChange={() => setDeleteVendorId(null)}
+        title="Delete Vendor"
+        description="Are you sure you want to delete this vendor? This will also permanently delete all associated bills and payments."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDeleteConfirmed}
       />
     </div>
   );
