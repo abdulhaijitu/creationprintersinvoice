@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatCurrency } from "@/lib/formatters";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +38,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { AddBillDialog, type BillFormData } from "@/components/vendor/AddBillDialog";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EditBillDialog } from "@/components/vendor/EditBillDialog";
 import { PayVendorBillDialog } from "@/components/vendor/PayVendorBillDialog";
 import { BillPaymentHistoryDialog } from "@/components/vendor/BillPaymentHistoryDialog";
@@ -303,8 +305,10 @@ const VendorDetail = () => {
     }
   };
 
+  const [deletingBillId, setDeletingBillId] = useState<string | null>(null);
+  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+
   const handleDeleteBill = async (billId: string) => {
-    if (!confirm("Are you sure you want to delete this bill?")) return;
 
     try {
       const { error } = await supabase
@@ -447,7 +451,6 @@ const VendorDetail = () => {
   };
 
   const handleDeletePayment = async (paymentId: string) => {
-    if (!confirm("Are you sure you want to delete this payment?")) return;
 
     try {
       const { error } = await supabase
@@ -489,14 +492,6 @@ const VendorDetail = () => {
     setEditingPayment(null);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-BD", {
-      style: "currency",
-      currency: "BDT",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
 
   const totalBills = bills.reduce((sum, b) => sum + (b.net_amount ?? b.amount), 0);
   const totalDiscount = bills.reduce((sum, b) => sum + (b.discount ?? 0), 0);
@@ -939,7 +934,46 @@ const VendorDetail = () => {
         </TabsContent>
 
         <TabsContent value="bills">
-          <div className="border rounded-lg">
+          {bills.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No bills</div>
+          ) : (
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {bills.map((bill) => {
+                  const billNet = bill.net_amount ?? bill.amount;
+                  const billPaid = bill.paid_amount ?? 0;
+                  const billDue = Math.max(0, billNet - billPaid);
+                  return (
+                    <Card key={bill.id}>
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">{format(new Date(bill.bill_date), "dd/MM/yyyy")}</span>
+                          {getStatusBadge(bill.status)}
+                        </div>
+                        {bill.reference_no && <p className="text-xs text-muted-foreground">Ref: {bill.reference_no}</p>}
+                        <div className="flex justify-between text-sm">
+                          <span>Net: <span className="font-medium">{formatCurrency(billNet)}</span></span>
+                          <span>Due: <span className="font-medium text-destructive">{formatCurrency(billDue)}</span></span>
+                        </div>
+                        {isAdmin && (
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button variant="ghost" size="sm" onClick={() => openEditBillDialog(bill)}>
+                              <Edit2 className="h-3 w-3 mr-1" /> Edit
+                            </Button>
+                            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeletingBillId(bill.id)}>
+                              <Trash2 className="h-3 w-3 mr-1" /> Delete
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -953,14 +987,7 @@ const VendorDetail = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bills.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No bills
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  bills.map((bill) => {
+                {bills.map((bill) => {
                     const billNet = bill.net_amount ?? bill.amount;
                     const billPaid = bill.paid_amount ?? 0;
                     const billDue = Math.max(0, billNet - billPaid);
@@ -1035,7 +1062,7 @@ const VendorDetail = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => handleDeleteBill(bill.id)}
+                                  onClick={() => setDeletingBillId(bill.id)}
                                   className="text-destructive hover:text-destructive"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -1046,78 +1073,95 @@ const VendorDetail = () => {
                         </TableCell>
                       </TableRow>
                     );
-                  })
-                )}
+                  })}
               </TableBody>
             </Table>
           </div>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="payments">
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={isAdmin ? 5 : 4} className="text-center py-8 text-muted-foreground">
-                      No payments
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  payments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell>
-                        {format(new Date(payment.payment_date), "dd MMM yyyy")}
-                      </TableCell>
-                      <TableCell>
+          {payments.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No payments</div>
+          ) : (
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {payments.map((payment) => (
+                  <Card key={payment.id}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">{format(new Date(payment.payment_date), "dd MMM yyyy")}</span>
                         <Badge variant="outline">
-                          {payment.payment_method === "cash"
-                            ? "Cash"
-                            : payment.payment_method === "bank"
-                            ? "Bank"
-                            : "bKash"}
+                          {payment.payment_method === "cash" ? "Cash" : payment.payment_method === "bank" ? "Bank" : "bKash"}
                         </Badge>
-                      </TableCell>
-                      <TableCell>{payment.notes || "-"}</TableCell>
-                      <TableCell className="text-right font-medium text-success">
-                        {formatCurrency(payment.amount)}
-                      </TableCell>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm truncate">{payment.notes || "-"}</span>
+                        <span className="font-medium text-success">{formatCurrency(payment.amount)}</span>
+                      </div>
                       {isAdmin && (
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditPaymentDialog(payment)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeletePayment(payment.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Button variant="ghost" size="sm" onClick={() => openEditPaymentDialog(payment)}>
+                            <Edit2 className="h-3 w-3 mr-1" /> Edit
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeletingPaymentId(payment.id)}>
+                            <Trash2 className="h-3 w-3 mr-1" /> Delete
+                          </Button>
+                        </div>
                       )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Payment Method</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {payments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell>
+                          {format(new Date(payment.payment_date), "dd MMM yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {payment.payment_method === "cash" ? "Cash" : payment.payment_method === "bank" ? "Bank" : "bKash"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{payment.notes || "-"}</TableCell>
+                        <TableCell className="text-right font-medium text-success">
+                          {formatCurrency(payment.amount)}
+                        </TableCell>
+                        {isAdmin && (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => openEditPaymentDialog(payment)}>
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => setDeletingPaymentId(payment.id)} className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </TabsContent>
       </Tabs>
       
@@ -1178,6 +1222,34 @@ const VendorDetail = () => {
           onClose={() => setShowStatementPDF(false)}
         />
       )}
+
+      {/* Confirm Delete Bill Dialog */}
+      <ConfirmDialog
+        open={!!deletingBillId}
+        onOpenChange={(open) => { if (!open) setDeletingBillId(null); }}
+        title="Delete Bill"
+        description="Are you sure you want to delete this bill? This action cannot be undone."
+        onConfirm={() => {
+          if (deletingBillId) {
+            handleDeleteBill(deletingBillId);
+            setDeletingBillId(null);
+          }
+        }}
+      />
+
+      {/* Confirm Delete Payment Dialog */}
+      <ConfirmDialog
+        open={!!deletingPaymentId}
+        onOpenChange={(open) => { if (!open) setDeletingPaymentId(null); }}
+        title="Delete Payment"
+        description="Are you sure you want to delete this payment? This action cannot be undone."
+        onConfirm={() => {
+          if (deletingPaymentId) {
+            handleDeletePayment(deletingPaymentId);
+            setDeletingPaymentId(null);
+          }
+        }}
+      />
     </div>
   );
 };

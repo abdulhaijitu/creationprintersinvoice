@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { formatCurrency } from '@/lib/formatters';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CustomerSelect } from '@/components/shared/CustomerSelect';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import {
   Dialog,
   DialogContent,
@@ -416,14 +418,6 @@ const PriceCalculationForm = () => {
   const quotedPrice = costingTotal + marginAmount;
   const pricePerPcs = formData.quantity > 0 ? quotedPrice / formData.quantity : 0;
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-BD', {
-      style: 'currency',
-      currency: 'BDT',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
 
   // Memoized handlers to prevent cursor jumps
   const handleCategoryItemChange = useCallback((
@@ -710,8 +704,10 @@ const PriceCalculationForm = () => {
     }
   };
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
   const handleDelete = async () => {
-    if (!isEditing || !window.confirm('Delete this calculation?')) return;
+    if (!isEditing) return;
 
     try {
       const { error } = await supabase.from('price_calculations').delete().eq('id', id);
@@ -773,7 +769,7 @@ const PriceCalculationForm = () => {
             </Button>
           )}
           {isEditing && showDelete('price_calculations') && (
-            <Button variant="destructive" size="icon" onClick={handleDelete}>
+            <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(true)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
@@ -1006,6 +1002,13 @@ const PriceCalculationForm = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete Calculation"
+        description="Are you sure you want to delete this calculation? This action cannot be undone."
+        onConfirm={handleDelete}
+      />
     </div>
   );
 };

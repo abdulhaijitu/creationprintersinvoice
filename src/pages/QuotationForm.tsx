@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { formatCurrency } from '@/lib/formatters';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -398,14 +399,6 @@ const QuotationForm = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-BD', {
-      style: 'currency',
-      currency: 'BDT',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
 
   if (fetching) {
     return (

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { formatCurrency } from '@/lib/formatters';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { SortableTableHeader, useSortableTable } from '@/components/shared/SortableTableHeader';
@@ -83,9 +84,6 @@ const Payments = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const { sortKey, sortDirection, handleSort } = useSortableTable<Payment>('payment_date', 'desc');
 
-  const formatCurrency = (amount: number) => {
-    return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
 
   const getInvoiceStatus = (payment: Payment) => {
     const invoice = payment.invoice;
