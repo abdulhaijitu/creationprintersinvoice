@@ -1,33 +1,40 @@
 
 
-## Edit Bill Modal — Match AddBillDialog Design
+## Reports পেইজ — Profit/Loss Enhancement Plan
 
-The current Edit Bill uses a basic inline `Dialog` with plain text inputs (lines 694-801 in VendorDetail.tsx). The goal is to create a dedicated `EditBillDialog` component that mirrors the `AddBillDialog` design — with line items table, calendar pickers, client's job select, and the same layout sections.
+### বর্তমান সমস্যা
+- Reports পেইজে শুধু Monthly এবং Yearly ফিল্টার আছে, **Custom Date Range (তারিখ থেকে তারিখ)** নেই
+- Profit/Loss ক্যালকুলেশন আছে কিন্তু **একটু গভীরে দেখায় না** — শুধু Income - Expense = Net Profit দেখায়
+- Monthly রিপোর্টে কোনো **চার্ট নেই** (চার্ট শুধু Yearly-তে আছে)
+- **Vendor bill payments** খরচের মধ্যে কাউন্ট হচ্ছে expenses টেবিল থেকে (vendor bill → expense sync trigger আছে), তবে vendor due আলাদা দেখায়
 
-### Current State
-- **AddBillDialog** (`src/components/vendor/AddBillDialog.tsx`): Rich UI with line items table, `CalendarWithJumps`, client combobox, discount, net payable summary
-- **Edit Bill**: Basic inline `Dialog` in `VendorDetail.tsx` with plain `<Input type="date">` and simple amount/discount fields
-- **DB**: `vendor_bills` stores `amount`, `discount`, `net_amount`, `description` — no separate line items table. Line items are serialized into the `description` field as text
+### পরিবর্তনসমূহ
 
-### Plan
+#### 1. Custom Date Range ফিল্টার যোগ
+- Report Type-এ নতুন অপশন: `'monthly' | 'yearly' | 'custom'`
+- Custom সিলেক্ট করলে **From Date** এবং **To Date** date picker দেখাবে
+- যেকোনো তারিখ থেকে তারিখের রিপোর্ট বের করা যাবে
 
-#### 1. Create `EditBillDialog` component
-**File:** `src/components/vendor/EditBillDialog.tsx`
+#### 2. Profit/Loss হাইলাইট কার্ড উন্নত করা
+- Net Profit/Loss কার্ডে **Profit Margin %** যোগ: `(Net Profit / Total Income) × 100`
+- কার্ডের ব্যাকগ্রাউন্ডে সবুজ (লাভ) বা লাল (লস) গ্রেডিয়েন্ট ইফেক্ট
+- আগের পিরিয়ডের সাথে তুলনামূলক **↑/↓ শতাংশ পরিবর্তন** দেখাবে
 
-- Clone the `AddBillDialog` structure (same sections: Bill Meta, Line Items table, Context, Payment Summary, Due Date)
-- Accept a `bill` prop with existing bill data
-- On open, parse the existing `description` field to pre-populate line items (best-effort: parse `"1. Item — qty × rate = total"` format, fallback to single line item with full amount)
-- Pre-fill: bill date, reference, discount, due date, customer (if parseable from description)
-- `onSave` callback receives `BillFormData` for the update
+#### 3. নতুন "Profit/Loss" ট্যাব যোগ
+- Tabs-এ নতুন ট্যাব: **"Profit & Loss"**
+- এই ট্যাবে থাকবে:
+  - **P&L Summary Card**: Income, Expense, Gross Profit, Profit Margin % — বড় সংখ্যায়, সবুজ/লাল কালারে
+  - **Monthly P&L Trend Chart** (AreaChart): প্রতিমাসে Income, Expense, এবং Profit লাইন — Custom range হলে দৈনিক
+  - **Income vs Expense Comparison Bar**: পাশাপাশি বার চার্ট
+  - **Category-wise Expense vs Income Ratio**: কোন ক্যাটেগরিতে কত খরচ হচ্ছে, মোট আয়ের কত %
 
-#### 2. Update `VendorDetail.tsx`
-- Import `EditBillDialog`
-- Remove the old inline edit bill `Dialog` (lines 694-801)
-- Wire `openEditBillDialog` to open the new `EditBillDialog` with the selected bill
-- Update `handleAddBill` (the edit path at lines 261-275) to accept `BillFormData` and build description the same way as `handleSaveNewBill`
+#### 4. Monthly রিপোর্টেও Income/Expense চার্ট
+- বর্তমানে Yearly-তে শুধু `BarChart` আছে — Monthly-তেও সেই পিরিয়ডের **দৈনিক Income vs Expense** AreaChart দেখাবে (Overview ট্যাবে)
 
-### Technical Detail
-- The description parsing will use regex to extract line items from the format `"N. description — qty × rate = total"`. If parsing fails, a single line item with the bill's full amount is created.
-- Customer ID extraction: If description starts with `"Client: Name"`, attempt to match against the customers list to pre-select.
-- No DB changes needed — same `vendor_bills` table, same columns.
+### টেকনিক্যাল বিবরণ
+- শুধুমাত্র `src/pages/Reports.tsx` ফাইল পরিবর্তন হবে
+- কোনো DB পরিবর্তন নেই — বিদ্যমান `invoices` এবং `expenses` টেবিল থেকেই ডেটা আসবে
+- date-fns ব্যবহার করে date range calculation
+- recharts ব্যবহার করে নতুন চার্ট
+- `date-picker` Popover ব্যবহার করে custom date range input
 
