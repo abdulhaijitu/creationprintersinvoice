@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -11,13 +10,7 @@ import {
   FileText,
   Receipt,
   Wallet,
-  CreditCard,
-  Banknote,
-  Users,
   ClipboardList,
-  Truck,
-  Package,
-  ArrowRight,
   ChevronRight,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -25,22 +18,99 @@ import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileHomeTiles } from '@/components/layout/MobileHomeTiles';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys, STALE_TIMES } from '@/hooks/useQueryConfig';
 
 interface DashboardStats {
-  // Invoices
   invoiceTotal: number;
   invoicePayments: number;
   invoiceDue: number;
-  // Expenses
   vendorBills: number;
   officeExpenses: number;
   salary: number;
   totalExpense: number;
-  // Tasks
   tasksActive: number;
   tasksDelivered: number;
   tasksArchived: number;
+  companyName: string | null;
 }
+
+const fetchDashboardData = async (orgId: string): Promise<DashboardStats> => {
+  const today = new Date();
+  const monthStart = startOfMonth(today);
+  const monthEnd = endOfMonth(today);
+  const monthStartStr = format(monthStart, 'yyyy-MM-dd');
+  const monthEndStr = format(monthEnd, 'yyyy-MM-dd');
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+
+  const [invoicesRes, expensesRes, vendorBillsRes, salaryRes, tasksRes, companySettingsRes] =
+    await Promise.all([
+      supabase
+        .from('invoices')
+        .select('total, paid_amount')
+        .eq('organization_id', orgId)
+        .gte('invoice_date', monthStartStr)
+        .lte('invoice_date', monthEndStr),
+      supabase
+        .from('expenses')
+        .select('amount, vendor_bill_id')
+        .eq('organization_id', orgId)
+        .gte('date', monthStartStr)
+        .lte('date', monthEndStr),
+      supabase
+        .from('vendor_bills')
+        .select('net_amount')
+        .eq('organization_id', orgId)
+        .gte('bill_date', monthStartStr)
+        .lte('bill_date', monthEndStr),
+      supabase
+        .from('employee_salary_records')
+        .select('net_payable')
+        .eq('organization_id', orgId)
+        .eq('year', currentYear)
+        .eq('month', currentMonth),
+      supabase.from('tasks').select('status').eq('organization_id', orgId),
+      supabase.from('company_settings').select('company_name').limit(1).single(),
+    ]);
+
+  const invoices = invoicesRes.data || [];
+  const invoiceTotal = invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+  const invoicePayments = invoices.reduce((sum, inv) => sum + Number(inv.paid_amount || 0), 0);
+  const invoiceDue = invoiceTotal - invoicePayments;
+
+  const expenses = expensesRes.data || [];
+  const officeExpenses = expenses
+    .filter((e) => !e.vendor_bill_id)
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const vendorBills = (vendorBillsRes.data || []).reduce(
+    (sum, b) => sum + Number(b.net_amount || 0), 0
+  );
+  const salary = (salaryRes.data || []).reduce(
+    (sum, s) => sum + Number(s.net_payable || 0), 0
+  );
+  const totalExpense = vendorBills + officeExpenses + salary;
+
+  const tasks = tasksRes.data || [];
+  const activeStatuses = ['todo', 'in_progress', 'design', 'printing', 'packaging'];
+  const tasksActive = tasks.filter((t) => activeStatuses.includes(t.status)).length;
+  const tasksDelivered = tasks.filter((t) => t.status === 'delivered').length;
+  const tasksArchived = tasks.filter((t) => t.status === 'archived').length;
+
+  return {
+    invoiceTotal,
+    invoicePayments,
+    invoiceDue,
+    vendorBills,
+    officeExpenses,
+    salary,
+    totalExpense,
+    tasksActive,
+    tasksDelivered,
+    tasksArchived,
+    companyName: companySettingsRes.data?.company_name || null,
+  };
+};
 
 const Dashboard = () => {
   const location = useLocation();
@@ -48,141 +118,21 @@ const Dashboard = () => {
   const { organization } = useOrganization();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [stats, setStats] = useState<DashboardStats>({
-    invoiceTotal: 0,
-    invoicePayments: 0,
-    invoiceDue: 0,
-    vendorBills: 0,
-    officeExpenses: 0,
-    salary: 0,
-    totalExpense: 0,
-    tasksActive: 0,
-    tasksDelivered: 0,
-    tasksArchived: 0,
+  const orgId = organization?.id;
+
+  const { data: stats, isLoading: loading } = useQuery({
+    queryKey: queryKeys.dashboardStats(orgId || ''),
+    queryFn: () => fetchDashboardData(orgId!),
+    enabled: !!orgId,
+    staleTime: STALE_TIMES.DASHBOARD,
   });
-  const [loading, setLoading] = useState(true);
-  const [companyName, setCompanyName] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!organization?.id) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchDashboardData = async () => {
-      try {
-        const orgId = organization.id;
-        const today = new Date();
-        const monthStart = startOfMonth(today);
-        const monthEnd = endOfMonth(today);
-        const monthStartStr = format(monthStart, 'yyyy-MM-dd');
-        const monthEndStr = format(monthEnd, 'yyyy-MM-dd');
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth() + 1; // 1-based
-
-        const [
-          invoicesRes,
-          expensesRes,
-          vendorBillsRes,
-          salaryRes,
-          tasksRes,
-          companySettingsRes,
-        ] = await Promise.all([
-          // Monthly invoices
-          supabase
-            .from('invoices')
-            .select('total, paid_amount')
-            .eq('organization_id', orgId)
-            .gte('invoice_date', monthStartStr)
-            .lte('invoice_date', monthEndStr),
-          // Monthly office expenses (excluding vendor_bill linked)
-          supabase
-            .from('expenses')
-            .select('amount, vendor_bill_id')
-            .eq('organization_id', orgId)
-            .gte('date', monthStartStr)
-            .lte('date', monthEndStr),
-          // Monthly vendor bills
-          supabase
-            .from('vendor_bills')
-            .select('net_amount')
-            .eq('organization_id', orgId)
-            .gte('bill_date', monthStartStr)
-            .lte('bill_date', monthEndStr),
-          // Monthly salary
-          supabase
-            .from('employee_salary_records')
-            .select('net_payable')
-            .eq('organization_id', orgId)
-            .eq('year', currentYear)
-            .eq('month', currentMonth),
-          // All tasks
-          supabase
-            .from('tasks')
-            .select('status')
-            .eq('organization_id', orgId),
-          // Company name
-          supabase.from('company_settings').select('company_name').limit(1).single(),
-        ]);
-
-        // Invoice calculations
-        const invoices = invoicesRes.data || [];
-        const invoiceTotal = invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
-        const invoicePayments = invoices.reduce((sum, inv) => sum + Number(inv.paid_amount || 0), 0);
-        const invoiceDue = invoiceTotal - invoicePayments;
-
-        // Expense calculations
-        const expenses = expensesRes.data || [];
-        const officeExpenses = expenses
-          .filter((e) => !e.vendor_bill_id)
-          .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-        const vendorBills = (vendorBillsRes.data || []).reduce(
-          (sum, b) => sum + Number(b.net_amount || 0), 0
-        );
-        const salary = (salaryRes.data || []).reduce(
-          (sum, s) => sum + Number(s.net_payable || 0), 0
-        );
-        const totalExpense = vendorBills + officeExpenses + salary;
-
-        // Task calculations
-        const tasks = tasksRes.data || [];
-        const activeStatuses = ['todo', 'in_progress', 'design', 'printing', 'packaging'];
-        const tasksActive = tasks.filter((t) => activeStatuses.includes(t.status)).length;
-        const tasksDelivered = tasks.filter((t) => t.status === 'delivered').length;
-        const tasksArchived = tasks.filter((t) => t.status === 'archived').length;
-
-        setStats({
-          invoiceTotal,
-          invoicePayments,
-          invoiceDue,
-          vendorBills,
-          officeExpenses,
-          salary,
-          totalExpense,
-          tasksActive,
-          tasksDelivered,
-          tasksArchived,
-        });
-
-        if (companySettingsRes.data?.company_name) {
-          setCompanyName(companySettingsRes.data.company_name);
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, [user, organization?.id]);
 
   // Mobile: show tile navigation on "/" root
   if (isMobile && location.pathname === '/') {
     return <MobileHomeTiles />;
   }
 
-  if (loading) {
+  if (loading || !stats) {
     return (
       <div className="space-y-6">
         <div className="space-y-2">
@@ -217,7 +167,7 @@ const Dashboard = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold tracking-tight uppercase truncate">
-            {companyName}
+            {stats.companyName}
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
@@ -249,26 +199,14 @@ const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
-              <MetricColumn
-                label="Total"
-                value={formatCurrency(stats.invoiceTotal)}
-                colorClass="text-foreground"
-              />
+              <MetricColumn label="Total" value={formatCurrency(stats.invoiceTotal)} colorClass="text-foreground" />
               <div className="flex gap-3 sm:gap-4">
                 <Separator orientation="vertical" className="h-auto" />
-                <MetricColumn
-                  label="Payments"
-                  value={formatCurrency(stats.invoicePayments)}
-                  colorClass="text-success"
-                />
+                <MetricColumn label="Payments" value={formatCurrency(stats.invoicePayments)} colorClass="text-success" />
               </div>
               <div className="flex gap-3 sm:gap-4">
                 <Separator orientation="vertical" className="h-auto" />
-                <MetricColumn
-                  label="Due"
-                  value={formatCurrency(stats.invoiceDue)}
-                  colorClass={stats.invoiceDue > 0 ? 'text-destructive' : 'text-success'}
-                />
+                <MetricColumn label="Due" value={formatCurrency(stats.invoiceDue)} colorClass={stats.invoiceDue > 0 ? 'text-destructive' : 'text-success'} />
               </div>
             </div>
           </CardContent>
@@ -291,27 +229,14 @@ const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
-              <MetricColumn
-                label="Vendor Bills"
-                value={formatCurrency(stats.vendorBills)}
-                colorClass="text-foreground"
-              />
+              <MetricColumn label="Vendor Bills" value={formatCurrency(stats.vendorBills)} colorClass="text-foreground" />
               <div className="flex gap-3 sm:gap-4">
                 <Separator orientation="vertical" className="h-auto" />
-                <MetricColumn
-                  label="Expense + Salary"
-                  value={formatCurrency(stats.officeExpenses + stats.salary)}
-                  colorClass="text-foreground"
-                />
+                <MetricColumn label="Expense + Salary" value={formatCurrency(stats.officeExpenses + stats.salary)} colorClass="text-foreground" />
               </div>
               <div className="flex gap-3 sm:gap-4">
                 <Separator orientation="vertical" className="h-auto" />
-                <MetricColumn
-                  label="Total"
-                  value={formatCurrency(stats.totalExpense)}
-                  colorClass="text-destructive"
-                  bold
-                />
+                <MetricColumn label="Total" value={formatCurrency(stats.totalExpense)} colorClass="text-destructive" bold />
               </div>
             </div>
           </CardContent>
@@ -334,26 +259,14 @@ const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
-              <MetricColumn
-                label="Active"
-                value={String(stats.tasksActive)}
-                colorClass="text-primary"
-              />
+              <MetricColumn label="Active" value={String(stats.tasksActive)} colorClass="text-primary" />
               <div className="flex gap-3 sm:gap-4">
                 <Separator orientation="vertical" className="h-auto" />
-                <MetricColumn
-                  label="Delivered"
-                  value={String(stats.tasksDelivered)}
-                  colorClass="text-success"
-                />
+                <MetricColumn label="Delivered" value={String(stats.tasksDelivered)} colorClass="text-success" />
               </div>
               <div className="flex gap-3 sm:gap-4">
                 <Separator orientation="vertical" className="h-auto" />
-                <MetricColumn
-                  label="Archived"
-                  value={String(stats.tasksArchived)}
-                  colorClass="text-muted-foreground"
-                />
+                <MetricColumn label="Archived" value={String(stats.tasksArchived)} colorClass="text-muted-foreground" />
               </div>
             </div>
           </CardContent>
@@ -363,7 +276,6 @@ const Dashboard = () => {
   );
 };
 
-// Reusable metric column for the dashboard cards
 interface MetricColumnProps {
   label: string;
   value: string;

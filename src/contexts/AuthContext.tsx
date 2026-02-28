@@ -58,12 +58,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Fetch role after a small delay to ensure the trigger has completed
-          setTimeout(async () => {
-            const userRole = await fetchUserRole(session.user.id);
-            setRole(userRole);
-            setLoading(false);
-          }, 100);
+          const userRole = await fetchUserRole(session.user.id);
+          setRole(userRole);
+          setLoading(false);
         } else {
           setRole(null);
           setLoading(false);
