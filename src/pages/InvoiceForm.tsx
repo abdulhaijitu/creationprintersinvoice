@@ -82,10 +82,11 @@ const InvoiceItemCard = ({
     </div>
     <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground">Description</Label>
-      <Input
+      <RichTextEditor
         value={item.description}
-        onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+        onChange={(val) => updateItem(item.id, 'description', val)}
         placeholder="Item description"
+        minHeight="60px"
       />
     </div>
     <div className="grid grid-cols-3 gap-2">
@@ -696,13 +697,12 @@ const InvoiceForm = () => {
                               </span>
                             </TableCell>
                             <TableCell>
-                              <Input
+                              <RichTextEditor
                                 value={item.description}
-                                onChange={(e) =>
-                                  updateItem(item.id, 'description', e.target.value)
-                                }
+                                onChange={(val) => updateItem(item.id, 'description', val)}
                                 placeholder="Item description"
-                                className="border-0 shadow-none px-0 focus-visible:ring-0 h-auto py-1.5 text-sm"
+                                minHeight="40px"
+                                className="border-0 [&>div]:border-0 [&>div]:bg-transparent"
                               />
                             </TableCell>
                             <TableCell>
