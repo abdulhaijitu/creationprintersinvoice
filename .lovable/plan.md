@@ -1,30 +1,48 @@
 
 
-## Line Items Description-এ Rich Text Editor যোগ করা
+## সকল পেইজ লোডিং ইস্যু — হার্ড পলিশ প্ল্যান
 
-### বর্তমান অবস্থা
-- ডেস্কটপ টেবিল (লাইন 699-706): সাধারণ `<Input>` ব্যবহার হচ্ছে — single-line plain text
-- মোবাইল কার্ড (লাইন 85-89): একই `<Input>` — single-line plain text
+### মূল সমস্যা চিহ্নিতকরণ
 
-### পরিবর্তন
+নেটওয়ার্ক লগে দেখা যাচ্ছে `organization_members` এবং `organizations` কোয়েরি **20+ বার** রিপিট হচ্ছে প্রতিটি পেইজ লোডে। এটি সকল পেইজের লোডিং ইস্যুর মূল কারণ।
 
-**ফাইল: `src/pages/InvoiceForm.tsx`**
+---
 
-`RichTextEditor` ইম্পোর্ট ইতিমধ্যেই আছে (লাইন 13)।
+### বাগ ১: OrganizationContext — Infinite Fetch Loop (CRITICAL)
 
-**১. মোবাইল কার্ড কম্পোনেন্ট (লাইন 83-90)**
-- `<Input>` → `<RichTextEditor>` পরিবর্তন
-- `minHeight="60px"` দিয়ে কমপ্যাক্ট রাখা
+**ফাইল:** `src/contexts/OrganizationContext.tsx`
 
-**২. ডেস্কটপ টেবিল (লাইন 698-707)**
-- টেবিলের ভেতরের borderless `<Input>` → `<RichTextEditor>` পরিবর্তন
-- টেবিলের ভেতরে ফিট করতে কাস্টম styling: `className="border-0 [&>div]:border-0"` এবং `minHeight="40px"`
+`fetchOrganization` callback-এর dependency array-তে `membership` আছে (লাইন 127)। যখন ফাংশন রান হয়, এটি `setMembership()` কল করে → `membership` পরিবর্তন হয় → `fetchOrganization` recreate হয় → `useEffect` (লাইন 176) আবার ফায়ার হয় `forceRefresh: true` দিয়ে → **অসীম লুপ**।
 
-**৩. মোবাইল কার্ড কম্পোনেন্টের props-এ `RichTextEditor` ইম্পোর্ট অ্যাক্সেস**
-- `InvoiceItemCard` কম্পোনেন্ট ফাইলের ভেতরেই আছে, তাই আলাদা ইম্পোর্ট লাগবে না
+**ফিক্স:**
+- `fetchOrganization` থেকে `membership` dependency সরানো
+- `useEffect`-এ `fetchOrganization` dependency সরানো, শুধু `user?.id` এবং `authLoading` রাখা
+- প্রথমবার ছাড়া `forceRefresh: true` না পাঠানো
 
-### কোনো ব্রেকিং চেঞ্জ নেই
-- `updateItem` ফাংশন `string | number` accept করে — HTML string সরাসরি কাজ করবে
-- ডাটাবেসে description কলাম `text` টাইপ — HTML সংরক্ষণে কোনো সমস্যা নেই
-- PDF টেমপ্লেট এবং ডিটেইল ভিউতে ইতিমধ্যে `prose` styling আছে (memory অনুযায়ী)
+---
+
+### বাগ ২: CompanySettingsContext — ডাবল ফেচ ও ডাবল রিটার্ন
+
+**ফাইল:** `src/contexts/CompanySettingsContext.tsx`
+
+- লাইন 84-85: `refetchSettings` এ `fetchSettings()` **দুইবার** কল হচ্ছে
+- লাইন 76-77: `updateSettingsLocally`-এ ডুপ্লিকেট `return updated`
+
+**ফিক্স:**
+- ডুপ্লিকেট `fetchSettings()` কল সরানো
+- ডুপ্লিকেট `return` সরানো
+
+---
+
+### বাগ ৩: PermissionContext — ডুপ্লিকেট Return
+
+**ফাইল:** `src/contexts/PermissionContext.tsx`
+
+- লাইন 203-204: ডুপ্লিকেট `return;` statement
+
+**ফিক্স:** একটি `return` সরানো
+
+---
+
+### মোট: ৩টি ফাইল পরিবর্তন। সকল পেইজের লোডিং ইস্যু এক সাথে সমাধান হবে।
 
