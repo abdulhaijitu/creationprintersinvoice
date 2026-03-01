@@ -124,7 +124,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       fetchInProgress.current = false;
     }
-  }, [user, membership]);
+  }, [user]);
 
   const createOrganization = async (name: string, slug: string): Promise<{ error: Error | null; organization: Organization | null }> => {
     if (!user) {
@@ -181,7 +181,8 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setMembership(null);
       setLoading(false);
     }
-  }, [user?.id, authLoading, fetchOrganization]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, authLoading]);
 
   const orgRole = membership?.role || null;
   const isOrgOwner = orgRole === 'owner';
