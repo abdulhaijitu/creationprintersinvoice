@@ -77,35 +77,51 @@ export const useOrgRolePermissions = () => {
   const [lastFetch, setLastFetch] = useState<number>(0);
   const isMountedRef = useRef(true);
 
-  // Fetch global role permissions
+  // Single-flight guard for global permissions
+  const globalFetchInFlight = useRef<Promise<OrgRolePermission[]> | null>(null);
+
+  // Fetch global role permissions with single-flight dedup
   const fetchGlobalPermissions = useCallback(async (forceRefresh = false) => {
     if (!forceRefresh && globalPermissionCache && Date.now() - globalCacheTimestamp < CACHE_DURATION) {
       setGlobalPermissions(globalPermissionCache);
       return globalPermissionCache;
     }
 
-    try {
-      console.log('[Permissions] Fetching global permissions from database...');
-      const { data, error } = await supabase
-        .from('org_role_permissions')
-        .select('role, permission_key, is_enabled, is_protected');
-
-      if (error) throw error;
-
-      globalPermissionCache = data || [];
-      globalCacheTimestamp = Date.now();
-      if (isMountedRef.current) {
-        setGlobalPermissions(globalPermissionCache);
-      }
-      console.log(`[Permissions] Loaded ${data?.length || 0} global permissions`);
-      return globalPermissionCache;
-    } catch (error) {
-      console.error('[Permissions] Error fetching global role permissions:', error);
-      return [];
+    // Deduplicate concurrent calls
+    if (globalFetchInFlight.current) {
+      return globalFetchInFlight.current;
     }
+
+    const fetchPromise = (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('org_role_permissions')
+          .select('role, permission_key, is_enabled, is_protected');
+
+        if (error) throw error;
+
+        globalPermissionCache = data || [];
+        globalCacheTimestamp = Date.now();
+        if (isMountedRef.current) {
+          setGlobalPermissions(globalPermissionCache);
+        }
+        return globalPermissionCache;
+      } catch (error) {
+        console.error('[Permissions] Error fetching global role permissions:', error);
+        return [];
+      } finally {
+        globalFetchInFlight.current = null;
+      }
+    })();
+
+    globalFetchInFlight.current = fetchPromise;
+    return fetchPromise;
   }, []);
 
-  // Fetch org-specific permission overrides
+  // Single-flight guard for org permissions
+  const orgFetchInFlight = useRef<Promise<OrgSpecificPermission[]> | null>(null);
+
+  // Fetch org-specific permission overrides with single-flight dedup
   const fetchOrgPermissions = useCallback(async (forceRefresh = false) => {
     if (!organization?.id) return [];
 
@@ -115,29 +131,39 @@ export const useOrgRolePermissions = () => {
       return cached.permissions;
     }
 
-    try {
-      console.log(`[Permissions] Fetching org-specific permissions for org: ${organization.id}`);
-      const { data, error } = await supabase
-        .from('org_specific_permissions')
-        .select('id, organization_id, role, permission_key, is_enabled')
-        .eq('organization_id', organization.id);
-
-      if (error) throw error;
-
-      const perms = data || [];
-      orgPermissionCache.set(organization.id, {
-        permissions: perms,
-        timestamp: Date.now(),
-      });
-      if (isMountedRef.current) {
-        setOrgPermissions(perms);
-      }
-      console.log(`[Permissions] Loaded ${perms.length} org-specific permissions`);
-      return perms;
-    } catch (error) {
-      console.error('[Permissions] Error fetching org-specific permissions:', error);
-      return [];
+    // Deduplicate concurrent calls
+    if (orgFetchInFlight.current) {
+      return orgFetchInFlight.current;
     }
+
+    const fetchPromise = (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('org_specific_permissions')
+          .select('id, organization_id, role, permission_key, is_enabled')
+          .eq('organization_id', organization.id);
+
+        if (error) throw error;
+
+        const perms = data || [];
+        orgPermissionCache.set(organization.id, {
+          permissions: perms,
+          timestamp: Date.now(),
+        });
+        if (isMountedRef.current) {
+          setOrgPermissions(perms);
+        }
+        return perms;
+      } catch (error) {
+        console.error('[Permissions] Error fetching org-specific permissions:', error);
+        return [];
+      } finally {
+        orgFetchInFlight.current = null;
+      }
+    })();
+
+    orgFetchInFlight.current = fetchPromise;
+    return fetchPromise;
   }, [organization?.id]);
 
   // Initial fetch - with mounted check

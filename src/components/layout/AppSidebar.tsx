@@ -76,13 +76,7 @@ export function AppSidebar() {
     }
   }, [permissionsReady, getEnabledModules, lastUpdated]);
 
-  const lastPathRef = useRef(location.pathname);
-  useEffect(() => {
-    if (lastPathRef.current !== location.pathname) {
-      lastPathRef.current = location.pathname;
-      refreshPermissions?.();
-    }
-  }, [location.pathname, refreshPermissions]);
+  // Removed: route-change based refreshPermissions() was causing unnecessary refetches on every navigation
 
   const handleSignOut = async () => {
     await signOut();

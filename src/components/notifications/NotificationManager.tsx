@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { differenceInDays, differenceInHours, parseISO, isToday, addDays } from 'date-fns';
 
 export const NotificationManager = () => {
   const { user } = useAuth();
+  const { organization } = useOrganization();
   const { showNotification, isSubscribed, permission } = usePushNotifications();
   const notifiedInvoices = useRef<Set<string>>(new Set());
   const notifiedTasks = useRef<Set<string>>(new Set());
@@ -14,9 +16,9 @@ export const NotificationManager = () => {
   const slaCheckDone = useRef(false);
   const quotationExpiryCheckDone = useRef(false);
 
-  // Trigger SLA/overdue check on app load (once per session)
+  // Trigger SLA/overdue check on app load (once per session, only with org context)
   useEffect(() => {
-    if (!user || slaCheckDone.current) return;
+    if (!user || !organization?.id || slaCheckDone.current) return;
 
     const triggerSlaCheck = async () => {
       try {
@@ -33,14 +35,14 @@ export const NotificationManager = () => {
       }
     };
 
-    // Delay the check slightly to not block app startup
-    const timeout = setTimeout(triggerSlaCheck, 3000);
+    // Delay the check to not block app startup
+    const timeout = setTimeout(triggerSlaCheck, 5000);
     return () => clearTimeout(timeout);
-  }, [user]);
+  }, [user, organization?.id]);
 
-  // Check for quotations about to expire (once per session)
+  // Check for quotations about to expire (once per session, only with org context)
   useEffect(() => {
-    if (!user || quotationExpiryCheckDone.current) return;
+    if (!user || !organization?.id || quotationExpiryCheckDone.current) return;
 
     const checkExpiringQuotations = async () => {
       try {
@@ -86,9 +88,9 @@ export const NotificationManager = () => {
     };
 
     // Delay the check to not block app startup
-    const timeout = setTimeout(checkExpiringQuotations, 5000);
+    const timeout = setTimeout(checkExpiringQuotations, 8000);
     return () => clearTimeout(timeout);
-  }, [user]);
+  }, [user, organization?.id]);
 
   // Check for invoice reminders
   useEffect(() => {

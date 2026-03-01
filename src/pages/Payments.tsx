@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { formatCurrency } from '@/lib/formatters';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
@@ -202,8 +202,9 @@ const Payments = () => {
     return sortedPayments.slice(start, start + PAGE_SIZE);
   }, [sortedPayments, currentPage]);
 
-  // Reset page on filter change
-  useMemo(() => { setCurrentPage(1); }, [searchQuery, statusFilter, sortKey, sortDirection]);
+  // Reset page on filter change — must be useEffect, not useMemo (side-effect)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter, sortKey, sortDirection]);
 
   // Summary totals for filtered data
   const summaryTotals = useMemo(() => {
