@@ -74,14 +74,12 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
       if (!prev) return prev;
       const updated = { ...prev, ...newSettings };
       return updated;
-      return updated;
     });
     queryClient.invalidateQueries({ queryKey: ['company-settings'] });
   }, [queryClient]);
 
   // Refetch settings from database
   const refetchSettings = useCallback(async () => {
-    await fetchSettings();
     await fetchSettings();
     queryClient.invalidateQueries({ queryKey: ['company-settings'] });
   }, [fetchSettings, queryClient]);

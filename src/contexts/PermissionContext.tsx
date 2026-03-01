@@ -201,7 +201,6 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setLastUpdated(Date.now());
       }
       return;
-      return;
     }
 
     if (!orgRole) {
