@@ -79,7 +79,6 @@ export function useTasks() {
     // Wait for permissions to load
     if (permissionsLoading) {
       return;
-      return;
     }
 
     const currentFetchCount = ++fetchCountRef.current;
@@ -116,7 +115,6 @@ export function useTasks() {
 
       // Check if this is still the latest fetch
       if (currentFetchCount !== fetchCountRef.current) {
-        return;
         return;
       }
 
@@ -184,11 +182,17 @@ export function useTasks() {
           table: 'tasks',
           filter: `organization_id=eq.${organization.id}`
         },
-        (payload) => {
-          
-          // Refetch on any change - permissions are already loaded at this point
-          fetchTasks();
-        }
+        (() => {
+          let throttleTimer: ReturnType<typeof setTimeout> | null = null;
+          return () => {
+            // Throttle realtime refetches to max once per 2 seconds
+            if (throttleTimer) return;
+            throttleTimer = setTimeout(() => {
+              throttleTimer = null;
+              fetchTasks();
+            }, 2000);
+          };
+        })()
       )
       .subscribe();
 
