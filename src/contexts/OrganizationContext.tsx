@@ -192,7 +192,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const value = {
     organization,
     membership,
-    loading: loading || authLoading,
+    loading,
     isOrgOwner,
     isOrgManager,
     isOrgAdmin,
