@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
 import { useOrgRolePermissions } from "@/hooks/useOrgRolePermissions";
 import { useWeeklyHolidays } from "@/hooks/useWeeklyHolidays";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys, STALE_TIMES } from "@/hooks/useQueryConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -110,14 +112,12 @@ const Attendance = () => {
   const { hasPermission } = useOrgRolePermissions();
   const { isWeeklyHoliday, getWeekdayLabel, loading: holidaysLoading } = useWeeklyHolidays();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   
   const canViewAttendance = isSuperAdmin || hasPermission('attendance.view');
   const canCreateAttendance = isSuperAdmin || hasPermission('attendance.create');
   const canEditAttendance = isSuperAdmin || hasPermission('attendance.edit');
   
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -165,60 +165,72 @@ const Attendance = () => {
     }
   }, [organizationId, hasOrgContext, user?.email, isAdmin, isSuperAdmin]);
 
-  useEffect(() => {
-    if (hasOrgContext && organizationId) {
-      fetchData();
-    }
-  }, [selectedDate, selectedEmployee, organizationId, hasOrgContext, currentUserEmployeeId, isAdmin, isSuperAdmin]);
-
-  const fetchData = async () => {
-    if (!organizationId) return;
-    
-    setLoading(true);
-    try {
-      const { data: employeesData } = await supabase
+  // Query: Employees (cached, rarely changes)
+  const { data: employees = [] } = useQuery({
+    queryKey: queryKeys.employees(organizationId || ''),
+    queryFn: async () => {
+      const { data } = await supabase
         .from("employees")
         .select("id, full_name")
-        .eq("organization_id", organizationId)
+        .eq("organization_id", organizationId!)
         .eq("is_active", true)
         .order("full_name");
-      setEmployees(employeesData || []);
+      return (data || []) as Employee[];
+    },
+    enabled: !!organizationId && hasOrgContext,
+    staleTime: STALE_TIMES.USER_DATA,
+  });
 
+  // Employee map for O(1) lookups
+  const employeeMap = useMemo(() => {
+    const map = new Map<string, Employee>();
+    employees.forEach(e => map.set(e.id, e));
+    return map;
+  }, [employees]);
+
+  // Determine employee filter
+  const effectiveEmployeeFilter = (!isAdmin && !isSuperAdmin)
+    ? currentUserEmployeeId
+    : (selectedEmployee !== "all" ? selectedEmployee : undefined);
+
+  // Query: Attendance records (date/filter dependent)
+  const attendanceQueryKey = useMemo(() =>
+    [...queryKeys.attendance(organizationId || '', selectedDate), effectiveEmployeeFilter],
+    [organizationId, selectedDate, effectiveEmployeeFilter]
+  );
+
+  const { data: rawAttendance = [], isLoading: loading } = useQuery({
+    queryKey: attendanceQueryKey,
+    queryFn: async () => {
+      if (!isAdmin && !isSuperAdmin && !currentUserEmployeeId) return [];
       let query = supabase
         .from("employee_attendance")
         .select("id, employee_id, date, check_in, check_out, status, notes, is_overnight_shift")
-        .eq("organization_id", organizationId)
+        .eq("organization_id", organizationId!)
         .eq("date", selectedDate)
         .order("created_at", { ascending: false });
-
-      if (!isAdmin && !isSuperAdmin) {
-        if (currentUserEmployeeId) {
-          query = query.eq("employee_id", currentUserEmployeeId);
-        } else {
-          setAttendance([]);
-          setLoading(false);
-          return;
-        }
-      } else if (selectedEmployee !== "all") {
-        query = query.eq("employee_id", selectedEmployee);
+      if (effectiveEmployeeFilter) {
+        query = query.eq("employee_id", effectiveEmployeeFilter);
       }
+      const { data } = await query;
+      return data || [];
+    },
+    enabled: !!organizationId && hasOrgContext && (isAdmin || isSuperAdmin || !!currentUserEmployeeId),
+    staleTime: STALE_TIMES.REALTIME,
+  });
 
-      const { data: attendanceData } = await query;
+  // Enriched attendance with employee names
+  const attendance: AttendanceRecord[] = useMemo(() =>
+    rawAttendance.map(record => ({
+      ...record,
+      employee: employeeMap.get(record.employee_id) || null,
+    })),
+    [rawAttendance, employeeMap]
+  );
 
-      if (attendanceData && employeesData) {
-        const attendanceWithEmployee = attendanceData.map((record) => {
-          const employee = employeesData.find((e) => e.id === record.employee_id);
-          return { ...record, employee };
-        });
-        setAttendance(attendanceWithEmployee);
-      }
-    } catch (error) {
-      console.error("Error fetching attendance:", error);
-      toast.error("Failed to load attendance data");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const invalidateAttendance = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.attendance(organizationId || '') });
+  }, [queryClient, organizationId]);
 
   const validateFormTimes = useCallback((): boolean => {
     const validation = validateAttendanceTimesEnhanced(
@@ -279,7 +291,7 @@ const Attendance = () => {
       toast.success("Attendance added successfully");
       setIsAddDialogOpen(false);
       resetForm();
-      fetchData();
+      invalidateAttendance();
     } catch (error) {
       console.error("Error adding attendance:", error);
       toast.error("Failed to add attendance");
@@ -308,11 +320,12 @@ const Attendance = () => {
         .update({ status })
         .eq("id", id);
       if (error) throw error;
-      setAttendance(prev => prev.map(record => record.id === id ? { ...record, status } : record));
+      queryClient.setQueryData(attendanceQueryKey, (old: typeof rawAttendance) =>
+        (old || []).map(record => record.id === id ? { ...record, status } : record));
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error("Failed to update status");
-      fetchData();
+      invalidateAttendance();
     } finally {
       setUpdatingRows(prev => { const next = new Set(prev); next.delete(id); return next; });
     }
@@ -339,11 +352,12 @@ const Attendance = () => {
       const autoStatus = time ? calculateAttendanceStatus(time, DEFAULT_ATTENDANCE_SETTINGS) : 'absent';
       const { error } = await supabase.from("employee_attendance").update({ check_in: timestamp, status: autoStatus }).eq("id", id);
       if (error) throw error;
-      setAttendance(prev => prev.map(record => record.id === id ? { ...record, check_in: timestamp, status: autoStatus } : record));
+      queryClient.setQueryData(attendanceQueryKey, (old: typeof rawAttendance) =>
+        (old || []).map(record => record.id === id ? { ...record, check_in: timestamp, status: autoStatus } : record));
     } catch (error) {
       console.error("Error updating check-in:", error);
       toast.error("Failed to update check-in time");
-      fetchData();
+      invalidateAttendance();
     } finally {
       setUpdatingRows(prev => { const next = new Set(prev); next.delete(id); return next; });
     }
@@ -369,11 +383,12 @@ const Attendance = () => {
       const timestamp = time ? combineAttendanceDateTime(recordDate, time, true, record?.is_overnight_shift || false) : null;
       const { error } = await supabase.from("employee_attendance").update({ check_out: timestamp }).eq("id", id);
       if (error) throw error;
-      setAttendance(prev => prev.map(r => r.id === id ? { ...r, check_out: timestamp } : r));
+      queryClient.setQueryData(attendanceQueryKey, (old: typeof rawAttendance) =>
+        (old || []).map(r => r.id === id ? { ...r, check_out: timestamp } : r));
     } catch (error) {
       console.error("Error updating check-out:", error);
       toast.error("Failed to update check-out time");
-      fetchData();
+      invalidateAttendance();
     } finally {
       setUpdatingRows(prev => { const next = new Set(prev); next.delete(id); return next; });
     }
@@ -391,12 +406,13 @@ const Attendance = () => {
       }
       const { error } = await supabase.from("employee_attendance").update({ is_overnight_shift: isOvernight, check_out: newCheckOut }).eq("id", id);
       if (error) throw error;
-      setAttendance(prev => prev.map(r => r.id === id ? { ...r, is_overnight_shift: isOvernight, check_out: newCheckOut } : r));
+      queryClient.setQueryData(attendanceQueryKey, (old: typeof rawAttendance) =>
+        (old || []).map(r => r.id === id ? { ...r, is_overnight_shift: isOvernight, check_out: newCheckOut } : r));
       setRowErrors(prev => ({ ...prev, [id]: null }));
     } catch (error) {
       console.error("Error updating overnight shift:", error);
       toast.error("Failed to update overnight shift");
-      fetchData();
+      invalidateAttendance();
     } finally {
       setUpdatingRows(prev => { const next = new Set(prev); next.delete(id); return next; });
     }
@@ -421,7 +437,7 @@ const Attendance = () => {
       const { error } = await supabase.from("employee_attendance").insert(records);
       if (error) throw error;
       toast.success(`${employeeIds.length} employees marked present`);
-      fetchData();
+      invalidateAttendance();
     } catch (error) {
       console.error("Error marking all present:", error);
       toast.error("Failed to mark all present");
@@ -785,7 +801,7 @@ const Attendance = () => {
                 organizationId={organizationId}
                 employees={employees}
                 selectedDate={selectedDate}
-                onSaved={fetchData}
+                onSaved={invalidateAttendance}
               />
             )}
           </TabsContent>
