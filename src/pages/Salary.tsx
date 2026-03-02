@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
 import { useOrgRolePermissions } from "@/hooks/useOrgRolePermissions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys, STALE_TIMES } from "@/hooks/useQueryConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,7 +91,7 @@ interface EmployeeAdvance {
   date: string;
   reason: string | null;
   status: string;
-  deduct_month: string | null; // YYYY-MM format - when to start deducting
+  deduct_month: string | null;
   deducted_from_month: number | null;
   deducted_from_year: number | null;
   created_at: string;
@@ -105,16 +107,13 @@ const Salary = () => {
   const { isAdmin, isSuperAdmin, loading: authLoading } = useAuth();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
   const { hasPermission } = useOrgRolePermissions();
+  const queryClient = useQueryClient();
   
   // Database-driven permission checks
   const canViewSalary = isSuperAdmin || hasPermission('salary.view');
   const canCreateSalary = isSuperAdmin || hasPermission('salary.create');
   const canEditSalary = isSuperAdmin || hasPermission('salary.edit');
   
-  const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [advances, setAdvances] = useState<EmployeeAdvance[]>([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -128,7 +127,7 @@ const Salary = () => {
   const [deletingAdvance, setDeletingAdvance] = useState<EmployeeAdvance | null>(null);
   const [editingAdvance, setEditingAdvance] = useState<EmployeeAdvance | null>(null);
   
-  // Edit form for salary (excludes employee_id and month/year)
+  // Edit form for salary
   const [editSalaryForm, setEditSalaryForm] = useState({
     basic_salary: "",
     bonus: "0",
@@ -158,74 +157,108 @@ const Salary = () => {
   });
   const [advanceFormData, setAdvanceFormData] = useState({
     employee_id: "",
-    entry_date: new Date(), // Entry date for record/reporting
+    entry_date: new Date(),
     amount: "",
-    payment_method: "cash", // Default payment method
+    payment_method: "cash",
     reason: "",
-    deduct_month: format(new Date(), "yyyy-MM"), // Default to current month
+    deduct_month: format(new Date(), "yyyy-MM"),
   });
 
-  const fetchData = useCallback(async () => {
-    if (!organizationId) return;
-    
-    setLoading(true);
-    try {
-      // Fetch employees
-      const { data: employeesData } = await supabase
+  // Query: Employees (cached, rarely changes - shared key with Attendance page)
+  const { data: employeesRaw = [] } = useQuery({
+    queryKey: queryKeys.employees(organizationId || ''),
+    queryFn: async () => {
+      const { data } = await supabase
         .from("employees")
         .select("id, full_name, basic_salary")
-        .eq("organization_id", organizationId)
+        .eq("organization_id", organizationId!)
         .eq("is_active", true)
         .order("full_name");
-      setEmployees(employeesData || []);
+      return (data || []) as Employee[];
+    },
+    enabled: !!organizationId && hasOrgContext,
+    staleTime: STALE_TIMES.USER_DATA,
+  });
+  const employees = employeesRaw;
 
-      // Fetch salary records
-      const { data: salaryData } = await supabase
+  // Employee map for O(1) lookups
+  const employeeMap = useMemo(() => {
+    const map = new Map<string, Employee>();
+    employees.forEach(e => map.set(e.id, e));
+    return map;
+  }, [employees]);
+
+  // Query: Salary records (month/year dependent)
+  const salaryQueryKey = useMemo(() =>
+    [...queryKeys.salary(organizationId || '', `${selectedYear}-${selectedMonth}`)] as const,
+    [organizationId, selectedYear, selectedMonth]
+  );
+
+  const { data: rawSalaryRecords = [], isLoading: salaryLoading } = useQuery({
+    queryKey: salaryQueryKey,
+    queryFn: async () => {
+      const { data } = await supabase
         .from("employee_salary_records")
         .select("id, employee_id, month, year, basic_salary, bonus, deductions, advance, net_payable, status, paid_date, notes, advance_deducted_ids, advance_deduction_details, overtime_hours, overtime_amount, created_at")
-        .eq("organization_id", organizationId)
+        .eq("organization_id", organizationId!)
         .eq("year", selectedYear)
         .eq("month", selectedMonth)
         .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!organizationId && hasOrgContext,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
 
-      if (salaryData && employeesData) {
-        const recordsWithEmployee = salaryData.map((record) => {
-          const employee = employeesData.find((e) => e.id === record.employee_id);
-          return { ...record, employee: employee ? { full_name: employee.full_name } : null };
-        });
-        setSalaryRecords(recordsWithEmployee);
-      }
+  // Enriched salary records with employee names
+  const salaryRecords: SalaryRecord[] = useMemo(() =>
+    rawSalaryRecords.map(record => ({
+      ...record,
+      employee: employeeMap.has(record.employee_id)
+        ? { full_name: employeeMap.get(record.employee_id)!.full_name }
+        : null,
+    })),
+    [rawSalaryRecords, employeeMap]
+  );
 
-      // Fetch advances with remaining_balance
-      const { data: advancesData } = await supabase
+  // Query: Advances
+  const advancesQueryKey = useMemo(() =>
+    ['advances', organizationId || ''] as const,
+    [organizationId]
+  );
+
+  const { data: rawAdvances = [], isLoading: advancesLoading } = useQuery({
+    queryKey: advancesQueryKey,
+    queryFn: async () => {
+      const { data } = await supabase
         .from("employee_advances")
         .select("id, employee_id, amount, remaining_balance, date, reason, status, deduct_month, deducted_from_month, deducted_from_year, created_at, payment_method")
-        .eq("organization_id", organizationId)
+        .eq("organization_id", organizationId!)
         .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!organizationId && hasOrgContext,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
 
-      if (advancesData && employeesData) {
-        const advancesWithEmployee = advancesData.map((advance) => {
-          const employee = employeesData.find((e) => e.id === advance.employee_id);
-          return { 
-            ...advance, 
-            remaining_balance: advance.remaining_balance ?? advance.amount,
-            employee: employee ? { full_name: employee.full_name } : null 
-          };
-        });
-        setAdvances(advancesWithEmployee);
-      }
-    } catch (error) {
-      console.error("Error fetching salary data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedYear, selectedMonth, organizationId]);
+  // Enriched advances with employee names
+  const advances: EmployeeAdvance[] = useMemo(() =>
+    rawAdvances.map(advance => ({
+      ...advance,
+      remaining_balance: advance.remaining_balance ?? advance.amount,
+      employee: employeeMap.has(advance.employee_id)
+        ? { full_name: employeeMap.get(advance.employee_id)!.full_name }
+        : null,
+    })),
+    [rawAdvances, employeeMap]
+  );
 
-  useEffect(() => {
-    if (hasOrgContext && organizationId) {
-      fetchData();
-    }
-  }, [fetchData, organizationId, hasOrgContext]);
+  const loading = salaryLoading || advancesLoading;
+
+  const invalidateAll = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.salary(organizationId || '') });
+    queryClient.invalidateQueries({ queryKey: advancesQueryKey });
+  }, [queryClient, organizationId, advancesQueryKey]);
 
   // Fetch pending advances when employee is selected (for the selected salary month)
   const fetchPendingAdvances = useCallback(async (employeeId: string, salaryMonth?: number, salaryYear?: number) => {
@@ -246,7 +279,7 @@ const Salary = () => {
       .eq("employee_id", employeeId)
       .eq("status", "active")
       .gt("remaining_balance", 0)
-      .eq("deduct_month", salaryMonthStr) // Only advances where deduct_month == salary month (exact match)
+      .eq("deduct_month", salaryMonthStr)
       .order("created_at", { ascending: true });
 
     if (data) {
@@ -263,10 +296,8 @@ const Salary = () => {
     const basic = safeParseFloat(formData.basic_salary, 0, 0, 100000000);
     const bonus = safeParseFloat(formData.bonus, 0, 0, 100000000);
     const deductions = safeParseFloat(formData.deductions, 0, 0, 100000000);
-    // Formula: (Basic + Bonus) - (Deductions + Advance)
     const grossSalary = basic + bonus;
     const advanceToDeduct = Math.min(autoAdvanceDeduction, Math.max(0, grossSalary - deductions));
-
     return grossSalary - deductions - advanceToDeduct;
   };
 
@@ -277,12 +308,9 @@ const Salary = () => {
       employee_id: employeeId,
       basic_salary: employee?.basic_salary?.toString() || "0",
     });
-    
-    // Fetch pending advances for this employee (for the selected salary month)
     await fetchPendingAdvances(employeeId, formData.month, formData.year);
   };
 
-  // Re-fetch pending advances when salary month/year changes
   const handleMonthChange = async (month: number) => {
     setFormData({ ...formData, month });
     if (formData.employee_id) {
@@ -308,13 +336,11 @@ const Salary = () => {
     setSubmitting(true);
 
     try {
-      // Calculate salary: (Basic + Bonus) - (Deductions + Advance)
       const basicSalary = safeParseFloat(formData.basic_salary, 0, 0, 100000000);
       const bonus = safeParseFloat(formData.bonus, 0, 0, 100000000);
       const deductions = safeParseFloat(formData.deductions, 0, 0, 100000000);
       const grossSalary = basicSalary + bonus;
 
-      // Fetch FRESH pending advances for this employee (for the target salary month)
       const salaryMonthStr = `${formData.year}-${String(formData.month).padStart(2, '0')}`;
       
       const { data: freshAdvances } = await supabase
@@ -324,10 +350,9 @@ const Salary = () => {
         .eq("employee_id", formData.employee_id)
         .eq("status", "active")
         .gt("remaining_balance", 0)
-        .eq("deduct_month", salaryMonthStr) // Only advances where deduct_month == salary month (exact match)
+        .eq("deduct_month", salaryMonthStr)
         .order("created_at", { ascending: true });
 
-      // Calculate advance deductions: max deductible = grossSalary - deductions
       let remainingForAdvance = grossSalary - deductions;
       let totalAdvanceDeducted = 0;
       const advanceDeductionDetails: AdvanceDeductionDetail[] = [];
@@ -358,10 +383,8 @@ const Salary = () => {
         }
       }
 
-      // Net Payable = (Basic + Bonus) - (Deductions + Advance)
       const netPayable = grossSalary - deductions - totalAdvanceDeducted;
 
-      // Insert salary record with advance snapshot
       const salaryInsertData = {
         employee_id: formData.employee_id,
         month: formData.month,
@@ -386,7 +409,6 @@ const Salary = () => {
 
       if (salaryError) throw salaryError;
 
-      // Update advance balances in database
       for (const adv of advanceIdsToUpdate) {
         const { error: advError } = await supabase
           .from("employee_advances")
@@ -406,7 +428,7 @@ const Salary = () => {
       toast.success(`Salary record saved. Advance deducted: ${formatCurrency(totalAdvanceDeducted)}`);
       setIsDialogOpen(false);
       resetForm();
-      fetchData();
+      invalidateAll();
     } catch (error: any) {
       console.error("Error saving salary record:", error);
       if (error.message?.includes("duplicate")) {
@@ -452,7 +474,6 @@ const Salary = () => {
       return;
     }
 
-    // Validate amount
     let validatedAmount: number;
     try {
       validatedAmount = parseValidatedFloat(advanceFormData.amount, 'Advance amount', 0.01, 100000000);
@@ -464,12 +485,11 @@ const Salary = () => {
     setSubmitting(true);
 
     try {
-      // Insert the advance record
       const { data: newAdvance, error } = await supabase.from("employee_advances").insert({
         employee_id: advanceFormData.employee_id,
         amount: validatedAmount,
         remaining_balance: validatedAmount,
-        date: format(advanceFormData.entry_date, "yyyy-MM-dd"), // Entry date for record/reporting
+        date: format(advanceFormData.entry_date, "yyyy-MM-dd"),
         payment_method: advanceFormData.payment_method,
         reason: advanceFormData.reason || null,
         deduct_month: advanceFormData.deduct_month,
@@ -492,19 +512,15 @@ const Salary = () => {
         .maybeSingle();
 
       if (existingSalary) {
-        // Check if salary is already paid - block auto-sync if paid
         if (existingSalary.status === "paid") {
           toast.warning("Advance created but salary for that month is already paid. Manual adjustment may be needed.");
         } else {
-          // Recalculate and update the salary record
           const currentAdvance = existingSalary.advance || 0;
           const newTotalAdvance = currentAdvance + validatedAmount;
           
-          // Net Payable = (Basic + Bonus) - (Deductions + Advance)
           const grossSalary = (existingSalary.basic_salary || 0) + (existingSalary.bonus || 0);
           const newNetPayable = grossSalary - (existingSalary.deductions || 0) - newTotalAdvance;
 
-          // Parse existing advance_deduction_details
           let existingDetails: AdvanceDeductionDetail[] = [];
           if (existingSalary.advance_deduction_details) {
             try {
@@ -518,19 +534,15 @@ const Salary = () => {
             }
           }
 
-          // Add new advance to deduction details
           const newDetail: AdvanceDeductionDetail = {
             advance_id: newAdvance.id,
             amount_deducted: validatedAmount,
             remaining_after: 0,
           };
           const updatedDetails = [...existingDetails, newDetail];
-
-          // Update existing advance_deducted_ids
           const existingIds = existingSalary.advance_deducted_ids || [];
           const updatedIds = [...existingIds, newAdvance.id];
 
-          // Update salary record
           const { error: salaryUpdateError } = await supabase
             .from("employee_salary_records")
             .update({
@@ -545,7 +557,6 @@ const Salary = () => {
             console.error("Error updating salary:", salaryUpdateError);
             toast.error("Advance created but failed to sync with existing salary record.");
           } else {
-            // Mark the advance as settled since it's been deducted
             await supabase
               .from("employee_advances")
               .update({
@@ -559,7 +570,7 @@ const Salary = () => {
             toast.success(`Advance created and auto-synced with existing salary. Net payable reduced by ${formatCurrency(validatedAmount)}`);
             setIsAdvanceDialogOpen(false);
             resetAdvanceForm();
-            fetchData();
+            invalidateAll();
             return;
           }
         }
@@ -568,7 +579,7 @@ const Salary = () => {
       toast.success("Advance recorded. It will be auto-deducted when salary is generated.");
       setIsAdvanceDialogOpen(false);
       resetAdvanceForm();
-      fetchData();
+      invalidateAll();
     } catch (error) {
       console.error("Error saving advance:", error);
       toast.error("Failed to save advance");
@@ -588,19 +599,15 @@ const Salary = () => {
     });
   };
 
-  // Calculate net payable for edit form (advance stays unchanged)
-  // Formula: (Basic + Bonus) - (Deductions + Advance)
   const calculateEditNetPayable = () => {
     if (!editingSalary) return 0;
     const basic = safeParseFloat(editSalaryForm.basic_salary, 0, 0, 100000000);
     const bonus = safeParseFloat(editSalaryForm.bonus, 0, 0, 100000000);
     const deductions = safeParseFloat(editSalaryForm.deductions, 0, 0, 100000000);
     const grossSalary = basic + bonus;
-    // Net = (Basic + Bonus) - (Deductions + Advance)
     return grossSalary - deductions - (editingSalary.advance || 0);
   };
 
-  // Handle edit salary submission
   const handleEditSalary = async () => {
     if (!editingSalary) return;
 
@@ -610,7 +617,6 @@ const Salary = () => {
       const bonus = safeParseFloat(editSalaryForm.bonus, 0, 0, 100000000);
       const deductions = safeParseFloat(editSalaryForm.deductions, 0, 0, 100000000);
       
-      // Net = (Basic + Bonus) - (Deductions + Advance)
       const grossSalary = basicSalary + bonus;
       const netPayable = grossSalary - deductions - (editingSalary.advance || 0);
       
@@ -635,7 +641,7 @@ const Salary = () => {
 
       toast.success("Salary record updated successfully");
       setEditingSalary(null);
-      fetchData();
+      invalidateAll();
     } catch (error) {
       console.error("Error updating salary:", error);
       toast.error("Failed to update salary record");
@@ -644,13 +650,11 @@ const Salary = () => {
     }
   };
 
-  // Handle delete salary with advance reversal
   const handleDeleteSalary = async () => {
     if (!deletingSalary) return;
 
     setSubmitting(true);
     try {
-      // If there's advance deducted, we need to reverse it
       if (deletingSalary.advance > 0 && deletingSalary.advance_deduction_details) {
         let deductionDetails: AdvanceDeductionDetail[] = [];
         
@@ -664,9 +668,7 @@ const Salary = () => {
           console.error("Failed to parse advance_deduction_details");
         }
 
-        // Reverse each advance deduction
         for (const detail of deductionDetails) {
-          // Get current advance state
           const { data: advanceData } = await supabase
             .from("employee_advances")
             .select("*")
@@ -674,21 +676,19 @@ const Salary = () => {
             .single();
 
           if (advanceData) {
-            // Add back the deducted amount
             const newBalance = (advanceData.remaining_balance ?? 0) + detail.amount_deducted;
             
             await supabase
               .from("employee_advances")
               .update({
                 remaining_balance: newBalance,
-                status: "active", // Reactivate the advance
+                status: "active",
               })
               .eq("id", detail.advance_id);
           }
         }
       }
 
-      // Now delete the salary record
       const { error } = await supabase
         .from("employee_salary_records")
         .delete()
@@ -702,7 +702,7 @@ const Salary = () => {
           : "Salary record deleted"
       );
       setDeletingSalary(null);
-      fetchData();
+      invalidateAll();
     } catch (error) {
       console.error("Error deleting salary:", error);
       toast.error("Failed to delete salary record");
@@ -711,14 +711,11 @@ const Salary = () => {
     }
   };
 
-  // Check if advance can be edited - now allowed even if settled, but blocked if salary is paid
   const canEditAdvance = async (advance: EmployeeAdvance): Promise<{ allowed: boolean; reason?: string; salaryPaid?: boolean }> => {
-    // If never deducted, always allow
     if (advance.remaining_balance === advance.amount) {
       return { allowed: true };
     }
     
-    // Check if related salary is marked as paid
     if (advance.deducted_from_month && advance.deducted_from_year) {
       const { data: salaryRecord } = await supabase
         .from("employee_salary_records")
@@ -737,14 +734,11 @@ const Salary = () => {
     return { allowed: true };
   };
 
-  // Check if advance can be deleted - now allowed even if settled, but blocked if salary is paid
   const canDeleteAdvance = async (advance: EmployeeAdvance): Promise<{ allowed: boolean; reason?: string; salaryPaid?: boolean }> => {
-    // If never deducted, always allow
     if (advance.remaining_balance === advance.amount) {
       return { allowed: true };
     }
     
-    // Check if related salary is marked as paid
     if (advance.deducted_from_month && advance.deducted_from_year) {
       const { data: salaryRecord } = await supabase
         .from("employee_salary_records")
@@ -763,7 +757,6 @@ const Salary = () => {
     return { allowed: true };
   };
 
-  // Open edit dialog for advance
   const openEditAdvance = async (advance: EmployeeAdvance) => {
     const checkResult = await canEditAdvance(advance);
     if (!checkResult.allowed) {
@@ -778,11 +771,9 @@ const Salary = () => {
     });
   };
 
-  // Handle edit advance submission (with salary rollback for settled advances)
   const handleEditAdvance = async () => {
     if (!editingAdvance) return;
 
-    // Validate amount
     let validatedAmount: number;
     try {
       validatedAmount = parseValidatedFloat(editAdvanceForm.amount, 'Advance amount', 0.01, 100000000);
@@ -796,9 +787,7 @@ const Salary = () => {
       const wasDeducted = editingAdvance.remaining_balance !== editingAdvance.amount;
       const oldDeductedAmount = editingAdvance.amount - (editingAdvance.remaining_balance ?? editingAdvance.amount);
       
-      // If advance was already deducted, we need to update the related salary record
       if (wasDeducted && editingAdvance.deducted_from_month && editingAdvance.deducted_from_year) {
-        // Find the related salary record
         const { data: salaryRecord } = await supabase
           .from("employee_salary_records")
           .select("*")
@@ -809,18 +798,15 @@ const Salary = () => {
           .single();
 
         if (salaryRecord) {
-          // Calculate new deduction amount (cap at gross - deductions)
           const grossSalary = salaryRecord.basic_salary + salaryRecord.bonus;
           const maxDeductible = Math.max(0, grossSalary - salaryRecord.deductions);
           const newDeductedAmount = Math.min(validatedAmount, maxDeductible);
           const newRemainingBalance = validatedAmount - newDeductedAmount;
           
-          // Update salary record: remove old advance, apply new
           const advanceDiff = newDeductedAmount - oldDeductedAmount;
           const newAdvanceTotal = (salaryRecord.advance || 0) + advanceDiff;
           const newNetPayable = grossSalary - salaryRecord.deductions - newAdvanceTotal;
           
-          // Update advance_deduction_details
           let deductionDetails: AdvanceDeductionDetail[] = [];
           try {
             if (salaryRecord.advance_deduction_details) {
@@ -834,7 +820,6 @@ const Salary = () => {
             deductionDetails = [];
           }
           
-          // Update the specific advance entry in details
           const detailIndex = deductionDetails.findIndex(d => d.advance_id === editingAdvance.id);
           if (detailIndex >= 0) {
             deductionDetails[detailIndex] = {
@@ -844,7 +829,6 @@ const Salary = () => {
             };
           }
           
-          // Update salary record
           const { error: salaryError } = await supabase
             .from("employee_salary_records")
             .update({
@@ -856,7 +840,6 @@ const Salary = () => {
           
           if (salaryError) throw salaryError;
           
-          // Update advance record
           const { error: advanceError } = await supabase
             .from("employee_advances")
             .update({
@@ -873,7 +856,6 @@ const Salary = () => {
           toast.success(`Advance updated. Salary recalculated: ${formatCurrency(newNetPayable)} net payable.`);
         }
       } else {
-        // Never deducted - simple update
         const { error } = await supabase
           .from("employee_advances")
           .update({
@@ -889,7 +871,7 @@ const Salary = () => {
       }
       
       setEditingAdvance(null);
-      fetchData();
+      invalidateAll();
     } catch (error) {
       console.error("Error updating advance:", error);
       toast.error("Failed to update advance");
@@ -898,11 +880,9 @@ const Salary = () => {
     }
   };
 
-  // Handle delete advance (with salary rollback for settled advances)
   const handleDeleteAdvance = async () => {
     if (!deletingAdvance) return;
 
-    // Check if salary is paid
     const checkResult = await canDeleteAdvance(deletingAdvance);
     if (!checkResult.allowed) {
       toast.error(checkResult.reason || "Cannot delete this advance");
@@ -915,9 +895,7 @@ const Salary = () => {
       const wasDeducted = deletingAdvance.remaining_balance !== deletingAdvance.amount;
       const deductedAmount = deletingAdvance.amount - (deletingAdvance.remaining_balance ?? deletingAdvance.amount);
       
-      // If advance was already deducted, we need to roll back the salary record
       if (wasDeducted && deletingAdvance.deducted_from_month && deletingAdvance.deducted_from_year) {
-        // Find the related salary record
         const { data: salaryRecord } = await supabase
           .from("employee_salary_records")
           .select("*")
@@ -928,12 +906,10 @@ const Salary = () => {
           .single();
 
         if (salaryRecord) {
-          // Roll back: remove the advance deduction from salary
           const newAdvanceTotal = Math.max(0, (salaryRecord.advance || 0) - deductedAmount);
           const grossSalary = salaryRecord.basic_salary + salaryRecord.bonus;
           const newNetPayable = grossSalary - salaryRecord.deductions - newAdvanceTotal;
           
-          // Update advance_deduction_details - remove this advance
           let deductionDetails: AdvanceDeductionDetail[] = [];
           try {
             if (salaryRecord.advance_deduction_details) {
@@ -946,31 +922,24 @@ const Salary = () => {
           } catch {
             deductionDetails = [];
           }
-          
-          // Remove the advance entry from details
-          deductionDetails = deductionDetails.filter(d => d.advance_id !== deletingAdvance.id);
-          
-          // Update advance_deducted_ids
-          const advanceIds = salaryRecord.advance_deducted_ids?.filter(id => id !== deletingAdvance.id) || null;
-          
-          // Update salary record
+
+          const filteredDetails = deductionDetails.filter(d => d.advance_id !== deletingAdvance.id);
+          const filteredIds = (salaryRecord.advance_deducted_ids || []).filter((id: string) => id !== deletingAdvance.id);
+
           const { error: salaryError } = await supabase
             .from("employee_salary_records")
             .update({
               advance: newAdvanceTotal,
               net_payable: newNetPayable,
-              advance_deduction_details: deductionDetails.length > 0 ? JSON.stringify(deductionDetails) : null,
-              advance_deducted_ids: advanceIds && advanceIds.length > 0 ? advanceIds : null,
+              advance_deducted_ids: filteredIds.length > 0 ? filteredIds : null,
+              advance_deduction_details: filteredDetails.length > 0 ? JSON.stringify(filteredDetails) : null,
             })
             .eq("id", salaryRecord.id);
-          
+
           if (salaryError) throw salaryError;
-          
-          toast.success(`Advance deleted. Salary updated: ${formatCurrency(deductedAmount)} restored to net payable.`);
         }
       }
-      
-      // Delete the advance record
+
       const { error } = await supabase
         .from("employee_advances")
         .delete()
@@ -978,12 +947,14 @@ const Salary = () => {
 
       if (error) throw error;
 
-      if (!wasDeducted) {
-        toast.success("Advance deleted successfully");
-      }
+      toast.success(
+        wasDeducted
+          ? `Advance deleted. ${formatCurrency(deductedAmount)} restored to salary net payable.`
+          : "Advance deleted successfully"
+      );
       
       setDeletingAdvance(null);
-      fetchData();
+      invalidateAll();
     } catch (error) {
       console.error("Error deleting advance:", error);
       toast.error("Failed to delete advance");
@@ -992,7 +963,7 @@ const Salary = () => {
     }
   };
 
-  const markAsPaid = async (id: string) => {
+  const handleMarkAsPaid = async (recordId: string) => {
     try {
       const { error } = await supabase
         .from("employee_salary_records")
@@ -1000,15 +971,15 @@ const Salary = () => {
           status: "paid",
           paid_date: format(new Date(), "yyyy-MM-dd"),
         })
-        .eq("id", id);
+        .eq("id", recordId);
 
       if (error) throw error;
 
       toast.success("Marked as paid");
-      fetchData();
+      invalidateAll();
     } catch (error) {
       console.error("Error marking as paid:", error);
-      toast.error("Update failed");
+      toast.error("Failed to update status");
     }
   };
 
@@ -1539,7 +1510,7 @@ const Salary = () => {
                       <div className="flex items-center gap-1">
                         {record.status !== "paid" && (
                           <>
-                            <Button size="sm" variant="outline" onClick={() => markAsPaid(record.id)}>Pay</Button>
+                            <Button size="sm" variant="outline" onClick={() => handleMarkAsPaid(record.id)}>Pay</Button>
                             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditSalary(record)}><Pencil className="h-4 w-4" /></Button>
                             <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeletingSalary(record)}><Trash2 className="h-4 w-4" /></Button>
                           </>
@@ -1589,7 +1560,7 @@ const Salary = () => {
               </div>
               {canEditSalary && record.status !== "paid" && (
                 <div className="flex items-center gap-2 pt-2">
-                  <Button size="sm" className="flex-1" onClick={() => markAsPaid(record.id)}>Mark Paid</Button>
+                  <Button size="sm" className="flex-1" onClick={() => handleMarkAsPaid(record.id)}>Mark Paid</Button>
                   <Button size="sm" variant="outline" onClick={() => openEditSalary(record)}><Pencil className="h-4 w-4" /></Button>
                   <Button size="sm" variant="outline" className="text-destructive" onClick={() => setDeletingSalary(record)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
