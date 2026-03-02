@@ -1,7 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys, STALE_TIMES } from "@/hooks/useQueryConfig";
 import { useWeeklyHolidays } from "@/hooks/useWeeklyHolidays";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,9 +78,7 @@ const Leave = () => {
   const { isAdmin, user } = useAuth();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
   const { isWeeklyHoliday, getHolidayDays } = useWeeklyHolidays();
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-  const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -111,21 +111,14 @@ const Leave = () => {
     }
   };
 
-  useEffect(() => {
-    if (hasOrgContext && organizationId) {
-      fetchData();
-    }
-  }, [isAdmin, organizationId, hasOrgContext]);
-
-  const fetchData = async () => {
-    if (!organizationId) return;
-    
-    setLoading(true);
-    try {
+  // Leave requests query
+  const { data: leaveRequests = [], isLoading: requestsLoading } = useQuery({
+    queryKey: [...queryKeys.leave(organizationId || ''), isAdmin ? 'all' : user?.id],
+    queryFn: async () => {
       let query = supabase
         .from("leave_requests")
         .select("id, user_id, leave_type, start_date, end_date, reason, status, rejection_reason, created_at")
-        .eq("organization_id", organizationId)
+        .eq("organization_id", organizationId!)
         .order("created_at", { ascending: false });
 
       if (!isAdmin) {
@@ -133,56 +126,60 @@ const Leave = () => {
       }
 
       const { data: requestsData } = await query;
+      if (!requestsData) return [];
 
-      if (requestsData) {
-        // Batch fetch all profiles in one query instead of N+1
-        const userIds = [...new Set(requestsData.map(r => r.user_id))];
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", userIds);
+      const userIds = [...new Set(requestsData.map(r => r.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", userIds);
 
-        const profileMap = new Map(profiles?.map(p => [p.id, { full_name: p.full_name }]) || []);
+      const profileMap = new Map(profiles?.map(p => [p.id, { full_name: p.full_name }]) || []);
 
-        const requestsWithProfiles = requestsData.map((request) => ({
-          ...request,
-          profile: profileMap.get(request.user_id) || null,
-        }));
-        setLeaveRequests(requestsWithProfiles);
-      }
+      return requestsData.map((request) => ({
+        ...request,
+        profile: profileMap.get(request.user_id) || null,
+      })) as LeaveRequest[];
+    },
+    enabled: hasOrgContext && !!organizationId,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
 
-      if (user?.id) {
-        const currentYear = new Date().getFullYear();
-        const { data: balanceData } = await supabase
-          .from("leave_balances")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("year", currentYear)
-          .single();
+  // Leave balance query
+  const { data: leaveBalance = null } = useQuery({
+    queryKey: ['leave-balance', user?.id, organizationId],
+    queryFn: async () => {
+      const currentYear = new Date().getFullYear();
+      const { data: balanceData } = await supabase
+        .from("leave_balances")
+        .select("*")
+        .eq("user_id", user!.id)
+        .eq("year", currentYear)
+        .single();
 
-        if (balanceData) {
-          setLeaveBalance(balanceData);
-        } else {
-          const { data: newBalance } = await supabase
-            .from("leave_balances")
-            .insert({
-              user_id: user.id,
-              year: currentYear,
-              organization_id: organizationId,
-            })
-            .select()
-            .single();
+      if (balanceData) return balanceData as LeaveBalance;
 
-          if (newBalance) {
-            setLeaveBalance(newBalance);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching leave data:", error);
-    } finally {
-      setLoading(false);
-    }
+      const { data: newBalance } = await supabase
+        .from("leave_balances")
+        .insert({
+          user_id: user!.id,
+          year: currentYear,
+          organization_id: organizationId!,
+        })
+        .select()
+        .single();
+
+      return (newBalance as LeaveBalance) || null;
+    },
+    enabled: !!user?.id && !!organizationId,
+    staleTime: STALE_TIMES.USER_DATA,
+  });
+
+  const loading = requestsLoading;
+
+  const invalidateLeave = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.leave(organizationId || '') });
+    queryClient.invalidateQueries({ queryKey: ['leave-balance', user?.id, organizationId] });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -231,7 +228,7 @@ const Leave = () => {
       toast.success("Leave request submitted");
       setIsDialogOpen(false);
       resetForm();
-      fetchData();
+      invalidateLeave();
     } catch (error) {
       console.error("Error submitting leave request:", error);
       toast.error("Failed to submit request");
@@ -296,7 +293,7 @@ const Leave = () => {
       );
 
       toast.success("Leave approved");
-      fetchData();
+      invalidateLeave();
     } catch (error) {
       console.error("Error approving leave:", error);
       toast.error("Failed to approve");
@@ -326,7 +323,7 @@ const Leave = () => {
       );
 
       toast.success("Leave rejected");
-      fetchData();
+      invalidateLeave();
     } catch (error) {
       console.error("Error rejecting leave:", error);
       toast.error("Failed to reject");
@@ -342,7 +339,7 @@ const Leave = () => {
       
       toast.success('Leave request deleted');
       setDeleteId(null);
-      fetchData();
+      invalidateLeave();
     } catch (error) {
       console.error('Error deleting leave request:', error);
       toast.error('Failed to delete leave request');

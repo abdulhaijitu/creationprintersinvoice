@@ -1,4 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/hooks/useQueryConfig';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { usePermissions } from '@/lib/permissions/hooks';
@@ -189,7 +191,6 @@ const Reports = () => {
   const { organization } = useOrganization();
   const { canPerform } = usePermissions();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
   const [reportType, setReportType] = useState<'monthly' | 'yearly' | 'custom'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [selectedYear, setSelectedYear] = useState(format(new Date(), 'yyyy'));
@@ -199,32 +200,6 @@ const Reports = () => {
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all');
   const [invoicePage, setInvoicePage] = useState(1);
   const INVOICE_PAGE_SIZE = 25;
-  const [reportData, setReportData] = useState<ReportData>({
-    totalIncome: 0,
-    totalExpense: 0,
-    netProfit: 0,
-    invoiceCount: 0,
-    paidInvoices: 0,
-    unpaidInvoices: 0,
-    customerCount: 0,
-    vendorDue: 0,
-    monthlyData: [],
-    dailyData: [],
-    categoryExpenses: [],
-    topCustomers: [],
-    invoices: [],
-    prevTotalIncome: 0,
-    prevTotalExpense: 0,
-    prevNetProfit: 0,
-    totalInvoiceAmount: 0,
-    totalCollection: 0,
-    totalDue: 0,
-    vendorBillExpense: 0,
-    salaryExpense: 0,
-    officeExpense: 0,
-    prevTotalInvoiceAmount: 0,
-    prevTotalCollection: 0,
-  });
 
   const months = [];
   for (let i = 0; i < 12; i++) {
@@ -246,11 +221,30 @@ const Reports = () => {
 
   const hasReportAccess = canPerform('reports', 'view');
 
-  useEffect(() => {
-    if (hasReportAccess && organization?.id) {
-      fetchReportData();
-    }
-  }, [reportType, selectedMonth, selectedYear, customFromDate, customToDate, hasReportAccess, organization?.id]);
+  // Compute date range for query key
+  const dateRangeKey = useMemo(() => {
+    if (reportType === 'monthly') return selectedMonth;
+    if (reportType === 'yearly') return selectedYear;
+    return `${customFromDate?.toISOString()}-${customToDate?.toISOString()}`;
+  }, [reportType, selectedMonth, selectedYear, customFromDate, customToDate]);
+
+  const defaultReportData: ReportData = {
+    totalIncome: 0, totalExpense: 0, netProfit: 0,
+    invoiceCount: 0, paidInvoices: 0, unpaidInvoices: 0,
+    customerCount: 0, vendorDue: 0,
+    monthlyData: [], dailyData: [], categoryExpenses: [], topCustomers: [], invoices: [],
+    prevTotalIncome: 0, prevTotalExpense: 0, prevNetProfit: 0,
+    totalInvoiceAmount: 0, totalCollection: 0, totalDue: 0,
+    vendorBillExpense: 0, salaryExpense: 0, officeExpense: 0,
+    prevTotalInvoiceAmount: 0, prevTotalCollection: 0,
+  };
+
+  const { data: reportData = defaultReportData, isLoading: loading } = useQuery({
+    queryKey: ['reports', organization?.id, reportType, dateRangeKey],
+    queryFn: () => fetchReportData(),
+    enabled: hasReportAccess && !!organization?.id,
+    staleTime: STALE_TIMES.DASHBOARD,
+  });
 
   // Expense breakdown for pie chart
   const expenseBreakdownData = useMemo(() => {
@@ -295,10 +289,9 @@ const Reports = () => {
     );
   }
 
-  const fetchReportData = async () => {
-    if (!organization?.id) return;
+  const fetchReportData = async (): Promise<ReportData> => {
+    if (!organization?.id) return defaultReportData;
     
-    setLoading(true);
     try {
       let startDate: Date;
       let endDate: Date;
@@ -531,7 +524,7 @@ const Reports = () => {
         .sort((a, b) => b.total - a.total)
         .slice(0, 5);
 
-      setReportData({
+      return {
         totalIncome,
         totalExpense,
         netProfit,
@@ -556,7 +549,7 @@ const Reports = () => {
         officeExpense,
         prevTotalInvoiceAmount,
         prevTotalCollection,
-      });
+      };
     } catch (error) {
       console.error('Error fetching report data:', error);
       toast({
@@ -564,8 +557,7 @@ const Reports = () => {
         description: 'Failed to load report data',
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
+      return defaultReportData;
     }
   };
 
