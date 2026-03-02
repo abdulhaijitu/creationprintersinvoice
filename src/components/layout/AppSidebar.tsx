@@ -28,6 +28,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSidebar } from '@/components/ui/sidebar';
+import { prefetchRoute } from '@/lib/routePrefetch';
 
 const sidebarVariants = {
   open: { width: '15rem' },
@@ -203,6 +204,7 @@ export function AppSidebar() {
                         <NavLink
                           to={item.url}
                           onClick={(e) => { if (isActive) e.preventDefault(); }}
+                          onMouseEnter={() => prefetchRoute(item.url)}
                           className={cn(
                             "flex items-center rounded-md transition-all duration-150 outline-none",
                             "focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1",
