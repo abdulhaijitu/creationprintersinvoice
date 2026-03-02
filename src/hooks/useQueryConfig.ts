@@ -94,4 +94,8 @@ export const queryKeys = {
   
   // Delivery
   challans: (orgId: string) => ['challans', orgId] as const,
+
+  // Expense sub-queries
+  expenseCategories: (orgId: string) => ['expense-categories', orgId] as const,
+  vendorsWithDues: (orgId: string) => ['vendors-with-dues', orgId] as const,
 } as const;

@@ -44,6 +44,8 @@ import { SalaryHistoryPanel } from "@/components/employees/SalaryHistoryPanel";
 import { SalaryChangeConfirmDialog } from "@/components/employees/SalaryChangeConfirmDialog";
 import { FormFieldWithError } from "@/components/employees/FormFieldWithError";
 import { EmployeePhotoUpload } from "@/components/employees/EmployeePhotoUpload";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys, STALE_TIMES } from '@/hooks/useQueryConfig';
 
 interface Employee {
   id: string;
@@ -84,8 +86,7 @@ const Employees = () => {
   const canEdit = isSuperAdmin || hasPermission('employees.edit');
   const canDelete = isSuperAdmin || hasPermission('employees.delete');
   
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -118,30 +119,23 @@ const Employees = () => {
     updateData: Record<string, any>;
   } | null>(null);
 
-  useEffect(() => {
-    if (canView && organization?.id) fetchEmployees();
-  }, [canView, organization?.id]);
-
-  const fetchEmployees = async () => {
-    if (!organization?.id) return;
-    
-    setLoading(true);
-    try {
+  const { data: employees = [], isLoading: loading } = useQuery({
+    queryKey: queryKeys.employees(organization?.id || ''),
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("employees")
         .select("id, full_name, phone, email, designation, department, joining_date, basic_salary, is_active, photo_url, address, nid")
-        .eq("organization_id", organization.id)
+        .eq("organization_id", organization!.id)
         .eq("is_active", true)
         .order("full_name");
-
       if (error) throw error;
-      setEmployees(data || []);
-    } catch (error) {
-      console.error("Error fetching employees:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (data || []) as Employee[];
+    },
+    enabled: canView && !!organization?.id,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
+
+  const invalidateEmployees = () => queryClient.invalidateQueries({ queryKey: queryKeys.employees(organization?.id || '') });
 
   // Validation handlers
   const handleFieldBlur = useCallback((fieldName: keyof FieldErrors, isNew = false) => {
@@ -359,12 +353,10 @@ const Employees = () => {
         );
       }
 
-      // Optimistic UI update
-      setEmployees(prev =>
-        prev.map(emp =>
-          emp.id === editingEmployee.id
-            ? { ...emp, ...updateData }
-            : emp
+      // Optimistic UI update via query cache
+      queryClient.setQueryData(queryKeys.employees(organization?.id || ''), (old: Employee[] | undefined) =>
+        (old || []).map(emp =>
+          emp.id === editingEmployee.id ? { ...emp, ...updateData } : emp
         )
       );
 
@@ -445,7 +437,7 @@ const Employees = () => {
 
       toast.success("New employee added");
       closeAddDialog();
-      fetchEmployees();
+      invalidateEmployees();
     } catch (error: any) {
       console.error("Error adding employee:", error);
       toast.error(error.message || "Failed to add employee");
@@ -467,7 +459,9 @@ const Employees = () => {
 
       toast.success("Employee removed");
       setDeleteId(null);
-      setEmployees(prev => prev.filter(emp => emp.id !== deleteId));
+      queryClient.setQueryData(queryKeys.employees(organization?.id || ''), (old: Employee[] | undefined) =>
+        (old || []).filter(emp => emp.id !== deleteId)
+      );
     } catch (error) {
       console.error("Error removing employee:", error);
       toast.error("Failed to remove employee");
