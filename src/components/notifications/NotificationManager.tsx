@@ -97,11 +97,14 @@ export const NotificationManager = () => {
     if (!user || !isSubscribed || permission !== 'granted') return;
 
     const checkInvoiceReminders = async () => {
+      if (!organization?.id) return;
       const { data: invoices } = await supabase
         .from('invoices')
         .select('id, invoice_number, due_date, total, status, customers(name)')
+        .eq('organization_id', organization.id)
         .or('status.eq.unpaid,status.eq.partial')
-        .not('due_date', 'is', null);
+        .not('due_date', 'is', null)
+        .limit(50);
 
       if (!invoices) return;
 
@@ -147,11 +150,14 @@ export const NotificationManager = () => {
     if (!user || !isSubscribed || permission !== 'granted') return;
 
     const checkTaskDeadlines = async () => {
+      if (!organization?.id) return;
       const { data: tasks } = await supabase
         .from('tasks')
         .select('id, title, deadline, priority, status')
+        .eq('organization_id', organization.id)
         .not('deadline', 'is', null)
-        .not('status', 'in', '("completed","delivered")');
+        .not('status', 'in', '("completed","delivered")')
+        .limit(50);
 
       if (!tasks) return;
 

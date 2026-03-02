@@ -139,19 +139,23 @@ const Customers = () => {
     if (!organization?.id) return;
     
     try {
-      const { data: customersData, error } = await supabase
-        .from('customers')
-        .select('id, name, phone, email, address, company_name, notes, default_notes, default_terms, created_at')
-        .eq('organization_id', organization.id)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false });
+      // Parallel fetch customers and invoices
+      const [customersResult, invoicesResult] = await Promise.all([
+        supabase
+          .from('customers')
+          .select('id, name, phone, email, address, company_name, notes, default_notes, default_terms, created_at')
+          .eq('organization_id', organization.id)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('invoices')
+          .select('customer_id, total, paid_amount')
+          .eq('organization_id', organization.id),
+      ]);
 
+      const { data: customersData, error } = customersResult;
       if (error) throw error;
-
-      const { data: invoicesData } = await supabase
-        .from('invoices')
-        .select('customer_id, total, paid_amount')
-        .eq('organization_id', organization.id);
+      const invoicesData = invoicesResult.data;
 
       const customerWithLedger = (customersData || []).map(customer => {
         const customerInvoices = invoicesData?.filter(inv => inv.customer_id === customer.id) || [];

@@ -84,34 +84,32 @@ export function useTasks() {
     const currentFetchCount = ++fetchCountRef.current;
 
     try {
-      // Fetch employees with department - scoped to organization
-      const { data: employeesData } = await supabase
-        .from('employees')
-        .select('id, full_name, email, department')
-        .eq('organization_id', organization.id)
-        .eq('is_active', true)
-        .order('full_name');
+      // Parallel fetch employees and tasks
+      const [employeesResult, tasksResult] = await Promise.all([
+        supabase
+          .from('employees')
+          .select('id, full_name, email, department')
+          .eq('organization_id', organization.id)
+          .eq('is_active', true)
+          .order('full_name'),
+        canViewTasks
+          ? supabase
+              .from('tasks')
+              .select('id, title, description, assigned_to, assigned_by, created_by, deadline, priority, status, reference_type, reference_id, completed_at, created_at, updated_at, sla_deadline, sla_breached, visibility, department, archived_at, archived_by, parent_task_id, invoice_item_id, item_no')
+              .eq('organization_id', organization.id)
+              .order('updated_at', { ascending: false })
+          : Promise.resolve({ data: null, error: null }),
+      ]);
 
+      const employeesData = employeesResult.data;
       setEmployees(employeesData || []);
 
-      // Enforce view permission before showing any tasks
       if (!canViewTasks) {
-        
         setTasks([]);
         return;
       }
 
-      // VISIBILITY enforced by RLS (can_view_task function):
-      // - Public tasks: all org users
-      // - Private tasks: only creator + assignee
-      // - Department tasks: only department users + creator + assignee
-      
-
-      const { data: tasksData, error } = await supabase
-        .from('tasks')
-        .select('id, title, description, assigned_to, assigned_by, created_by, deadline, priority, status, reference_type, reference_id, completed_at, created_at, updated_at, sla_deadline, sla_breached, visibility, department, archived_at, archived_by, parent_task_id, invoice_item_id, item_no')
-        .eq('organization_id', organization.id)
-        .order('updated_at', { ascending: false });
+      const { data: tasksData, error } = tasksResult;
 
       // Check if this is still the latest fetch
       if (currentFetchCount !== fetchCountRef.current) {
@@ -126,9 +124,13 @@ export function useTasks() {
       
 
       if (tasksData && employeesData) {
+        // Build O(1) lookup maps instead of O(n) find per task
+        const employeeById = new Map(employeesData.map(e => [e.id, e]));
+        const creatorByEmail = employeesData.find((e) => e.email?.toLowerCase() === user?.email?.toLowerCase());
+
         const tasksWithEmployees = tasksData.map((task) => {
-          const assignee = employeesData.find((e) => e.id === task.assigned_to);
-          const creator = employeesData.find((e) => e.email?.toLowerCase() === user?.email?.toLowerCase());
+          const assignee = employeeById.get(task.assigned_to || '');
+          const creator = creatorByEmail;
           
           // Map old statuses to new workflow if needed
           let status = task.status as TaskStatus;
