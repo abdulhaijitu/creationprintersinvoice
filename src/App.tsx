@@ -18,39 +18,52 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 
-// Lazy loaded pages
-const Register = lazy(() => import("./pages/Register"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const Customers = lazy(() => import("./pages/Customers"));
-const CustomerDetail = lazy(() => import("./pages/CustomerDetail"));
-const Invoices = lazy(() => import("./pages/Invoices"));
-const Payments = lazy(() => import("./pages/Payments"));
-const InvoiceForm = lazy(() => import("./pages/InvoiceForm"));
-const InvoiceDetail = lazy(() => import("./pages/InvoiceDetail"));
-const Quotations = lazy(() => import("./pages/Quotations"));
-const QuotationForm = lazy(() => import("./pages/QuotationForm"));
-const QuotationDetail = lazy(() => import("./pages/QuotationDetail"));
-const PriceCalculations = lazy(() => import("./pages/PriceCalculations"));
-const PriceCalculationForm = lazy(() => import("./pages/PriceCalculationForm"));
-const Expenses = lazy(() => import("./pages/Expenses"));
-const Vendors = lazy(() => import("./pages/Vendors"));
-const VendorDetail = lazy(() => import("./pages/VendorDetail"));
-const Employees = lazy(() => import("./pages/Employees"));
-const Attendance = lazy(() => import("./pages/Attendance"));
-const Salary = lazy(() => import("./pages/Salary"));
-const Leave = lazy(() => import("./pages/Leave"));
-const Performance = lazy(() => import("./pages/Performance"));
-const Tasks = lazy(() => import("./pages/Tasks"));
-const Reports = lazy(() => import("./pages/Reports"));
-const Settings = lazy(() => import("./pages/Settings"));
-const TeamMembers = lazy(() => import("./pages/TeamMembers"));
-const DeliveryChallans = lazy(() => import("./pages/DeliveryChallans"));
-const ChallanPrintTemplate = lazy(() => import("./components/delivery-challan/ChallanPrintTemplate"));
-const CostingItemTemplates = lazy(() => import("./pages/CostingItemTemplates"));
-const Admin = lazy(() => import("./pages/Admin"));
-const CalendarView = lazy(() => import("./pages/CalendarView"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
+// Retry wrapper for lazy imports — handles stale HMR cache errors
+const lazyRetry = (importFn: () => Promise<any>, retries = 2): Promise<any> =>
+  importFn().catch((err) => {
+    if (retries > 0) {
+      return new Promise((resolve) => setTimeout(resolve, 300)).then(() =>
+        lazyRetry(importFn, retries - 1)
+      );
+    }
+    // Force reload if all retries fail (stale deployment cache)
+    window.location.reload();
+    throw err;
+  });
+
+// Lazy loaded pages with retry
+const Register = lazy(() => lazyRetry(() => import("./pages/Register")));
+const ResetPassword = lazy(() => lazyRetry(() => import("./pages/ResetPassword")));
+const Customers = lazy(() => lazyRetry(() => import("./pages/Customers")));
+const CustomerDetail = lazy(() => lazyRetry(() => import("./pages/CustomerDetail")));
+const Invoices = lazy(() => lazyRetry(() => import("./pages/Invoices")));
+const Payments = lazy(() => lazyRetry(() => import("./pages/Payments")));
+const InvoiceForm = lazy(() => lazyRetry(() => import("./pages/InvoiceForm")));
+const InvoiceDetail = lazy(() => lazyRetry(() => import("./pages/InvoiceDetail")));
+const Quotations = lazy(() => lazyRetry(() => import("./pages/Quotations")));
+const QuotationForm = lazy(() => lazyRetry(() => import("./pages/QuotationForm")));
+const QuotationDetail = lazy(() => lazyRetry(() => import("./pages/QuotationDetail")));
+const PriceCalculations = lazy(() => lazyRetry(() => import("./pages/PriceCalculations")));
+const PriceCalculationForm = lazy(() => lazyRetry(() => import("./pages/PriceCalculationForm")));
+const Expenses = lazy(() => lazyRetry(() => import("./pages/Expenses")));
+const Vendors = lazy(() => lazyRetry(() => import("./pages/Vendors")));
+const VendorDetail = lazy(() => lazyRetry(() => import("./pages/VendorDetail")));
+const Employees = lazy(() => lazyRetry(() => import("./pages/Employees")));
+const Attendance = lazy(() => lazyRetry(() => import("./pages/Attendance")));
+const Salary = lazy(() => lazyRetry(() => import("./pages/Salary")));
+const Leave = lazy(() => lazyRetry(() => import("./pages/Leave")));
+const Performance = lazy(() => lazyRetry(() => import("./pages/Performance")));
+const Tasks = lazy(() => lazyRetry(() => import("./pages/Tasks")));
+const Reports = lazy(() => lazyRetry(() => import("./pages/Reports")));
+const Settings = lazy(() => lazyRetry(() => import("./pages/Settings")));
+const TeamMembers = lazy(() => lazyRetry(() => import("./pages/TeamMembers")));
+const DeliveryChallans = lazy(() => lazyRetry(() => import("./pages/DeliveryChallans")));
+const ChallanPrintTemplate = lazy(() => lazyRetry(() => import("./components/delivery-challan/ChallanPrintTemplate")));
+const CostingItemTemplates = lazy(() => lazyRetry(() => import("./pages/CostingItemTemplates")));
+const Admin = lazy(() => lazyRetry(() => import("./pages/Admin")));
+const CalendarView = lazy(() => lazyRetry(() => import("./pages/CalendarView")));
+const NotFound = lazy(() => lazyRetry(() => import("./pages/NotFound")));
+const AcceptInvite = lazy(() => lazyRetry(() => import("./pages/AcceptInvite")));
 
 // Page loading fallback
 const PageLoader = () => (
