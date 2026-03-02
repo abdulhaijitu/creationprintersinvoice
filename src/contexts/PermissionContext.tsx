@@ -181,11 +181,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
    * Priority: org_specific_permissions OVERRIDES org_role_permissions
    */
   const fetchPermissions = useCallback(async () => {
-    if (!organization?.id || orgLoading) {
-      return;
-    }
-
-    // Super Admin and Owner bypass
+    // Super Admin and Owner bypass — no DB fetch needed, instant ready
     if (isSuperAdmin || isOrgOwner) {
       const allPermsMap = new Map<string, boolean>();
       Object.keys(MODULE_NAME_ALIASES).forEach(moduleName => {
@@ -200,6 +196,11 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setPermissionsReady(true);
         setLastUpdated(Date.now());
       }
+      return;
+    }
+
+    // For non-owner/admin roles, we need org to be loaded
+    if (!organization?.id || orgLoading) {
       return;
     }
 
@@ -536,7 +537,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     canEdit,
     canDelete,
     canManage,
-    loading: loading || orgLoading,
+    loading,
     permissionsReady,
     lastUpdated,
     refreshPermissions,
