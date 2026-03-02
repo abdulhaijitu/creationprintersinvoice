@@ -84,7 +84,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Get the user's organization membership
       const { data: membershipRows, error: membershipError } = await supabase
         .from('organization_members')
-        .select('*')
+        .select('id, organization_id, user_id, role')
         .eq('user_id', user.id)
         .limit(1);
 
@@ -105,7 +105,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Get the organization details
       const { data: orgData, error: orgError } = await supabase
         .from('organizations')
-        .select('*')
+        .select('id, name, slug, logo_url, address, phone, email, website, tax_rate, invoice_prefix, quotation_prefix, challan_prefix, invoice_terms, invoice_footer, bank_name, bank_account_name, bank_account_number, bank_branch, bank_routing_number, mobile_banking, owner_id')
         .eq('id', selectedMembership.organization_id)
         .single();
 
@@ -175,7 +175,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Fetch organization on mount and when auth changes
   useEffect(() => {
     if (!authLoading && user) {
-      fetchOrganization(true);
+      fetchOrganization();
     } else if (!authLoading && !user) {
       setOrganization(null);
       setMembership(null);

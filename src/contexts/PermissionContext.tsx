@@ -389,11 +389,16 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   }, [organization?.id, orgRole, isSuperAdmin, isOrgOwner, fetchPermissions]);
 
-  // Visibility change listener for tab focus refresh
+  // Visibility change listener for tab focus refresh (with 60s cooldown)
   useEffect(() => {
+    let lastFetchTime = Date.now();
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && !isSuperAdmin && !isOrgOwner) {
-        fetchPermissions();
+        const now = Date.now();
+        if (now - lastFetchTime >= 60000) {
+          lastFetchTime = now;
+          fetchPermissions();
+        }
       }
     };
 
