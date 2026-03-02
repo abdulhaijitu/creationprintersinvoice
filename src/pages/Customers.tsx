@@ -98,6 +98,7 @@ const Customers = () => {
   const [sortKey, setSortKey] = useState<string | null>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -177,20 +178,44 @@ const Customers = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
 
+    if (!editingCustomer && !organization?.id) {
+      toast.error('Organization not loaded yet. Please try again.');
+      return;
+    }
+
+    setSaving(true);
     try {
+      // Clean empty strings to null
+      const cleanedData = {
+        name: formData.name.trim(),
+        phone: formData.phone.trim() || null,
+        email: formData.email.trim() || null,
+        address: formData.address.trim() || null,
+        company_name: formData.company_name.trim() || null,
+        notes: formData.notes.trim() || null,
+        default_notes: formData.default_notes.trim() || null,
+        default_terms: formData.default_terms.trim() || null,
+      };
+
+      if (!cleanedData.name) {
+        toast.error('Customer name is required');
+        return;
+      }
+
       if (editingCustomer) {
         const { error } = await supabase
           .from('customers')
-          .update(formData)
+          .update(cleanedData)
           .eq('id', editingCustomer.id);
 
         if (error) throw error;
         toast.success('Customer updated successfully');
       } else {
         const { error } = await supabase.from('customers').insert([{
-          ...formData,
-          organization_id: organization?.id,
+          ...cleanedData,
+          organization_id: organization!.id,
         }]);
 
         if (error) throw error;
@@ -203,6 +228,8 @@ const Customers = () => {
     } catch (error: any) {
       console.error('Error saving customer:', error);
       toast.error(error.message || 'An error occurred');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -704,7 +731,7 @@ const Customers = () => {
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit">
+                    <Button type="submit" disabled={saving} loading={saving}>
                       {editingCustomer ? 'Update' : 'Save'}
                     </Button>
                   </DialogFooter>
