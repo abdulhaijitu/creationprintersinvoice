@@ -1,75 +1,47 @@
 
 
-## ডিপ পারফরম্যান্স অডিট ও রিফ্যাক্টর প্ল্যান
+## স্কেলেটন লোডিং সমস্যার মূল কারণ ও সমাধান প্ল্যান
 
-### অডিট ফলাফল
+### মূল কারণ চিহ্নিত
 
-**ইতিমধ্যে অপটিমাইজড (কোনো পরিবর্তন নয়):**
-- Dashboard, Invoices, Expenses, Vendors, Employees, Quotations → `useQuery` দিয়ে ক্যাশড
-- OrganizationContext → স্পেসিফিক কলাম সিলেক্ট, dedup guard
-- CompanySettingsContext → কন্ডিশনাল লোডিং, স্পেসিফিক কলাম
-- PermissionContext → 60s cooldown on tab focus
-- NotificationManager → org filter + limit + deferred startup
-- useTasks → Promise.all + Map lookup
-- perfLogger.ts → slow fetch warning utility
+সমস্যাটি **ডেটা ফেচিং ওয়াটারফল চেইন** থেকে আসছে:
 
-**এখনো সমস্যাযুক্ত পেজ ও প্যাটার্ন:**
+```text
+AuthContext (loading=true)          ← ব্লকিং পয়েন্ট ১
+  → OrganizationContext (loading=true)  ← ব্লকিং পয়েন্ট ২  
+    → PermissionContext (loading=true)    ← ব্লকিং পয়েন্ট ৩
+      → Page useQuery (enabled: !!org?.id)  ← ব্লকিং পয়েন্ট ৪
+```
 
-| সমস্যা | ফাইল | বিবরণ |
-|--------|------|-------|
-| Raw useEffect + sequential fetch | Attendance.tsx | `fetchData()` sequential: employees → attendance, `setLoading(true)` প্রতিবার |
-| Raw useEffect + sequential fetch | Salary.tsx | `fetchData()` sequential: employees → salary → advances, `setLoading(true)` প্রতিবার |
-| Console warning | Dashboard.tsx | `MetricColumn` gets refs passed — React.memo missing `forwardRef` |
-| Realtime without org filter | CompanySettingsContext | Global subscription on `company_settings` table |
+প্রতিটি স্তর আগেরটি শেষ না হওয়া পর্যন্ত অপেক্ষা করে। মোট ৪টি sequential নেটওয়ার্ক কল হয় পেজ কন্টেন্ট দেখানোর আগে।
 
----
+এছাড়া **`usePayments` হুক** এখনো raw `useEffect` + `setLoading(true)` প্যাটার্ন ব্যবহার করে — প্রতিবার ফুল রিফেচ, কোনো ক্যাশ নেই।
 
-### ফেজ ১: Attendance পেজ useQuery মাইগ্রেশন (১টি ফাইল)
+### সমাধান (৩টি ফাইল)
 
-**`src/pages/Attendance.tsx`**
-- `useEffect` + `fetchData()` → ২টি আলাদা `useQuery`:
-  1. `useQuery(['employees', orgId])` → employees list (ক্যাশড, কম চেঞ্জ হয়)
-  2. `useQuery(['attendance', orgId, selectedDate, selectedEmployee])` → attendance records (date/filter ডিপেন্ডেন্ট)
-- Employees query-এ `staleTime: STALE_TIMES.USER_DATA` (5 min)
-- ডেট বা ফিল্টার চেঞ্জে শুধু attendance query রিফেচ হবে
-- `setLoading(true)` সরিয়ে `isLoading` from useQuery ব্যবহার
-- Employee matching-এ Map lookup ব্যবহার (O(1))
+**১. `src/contexts/OrganizationContext.tsx`** — ওয়াটারফল ভাঙা
+- `loading` ইনিশিয়ালি `true` থাকে এবং auth শেষ হওয়ার পরও org fetch চলাকালীন `true` থাকে
+- **ফিক্স:** `loading: loading || authLoading` থেকে পরিবর্তন করে শুধু `loading` রাখা — AppLayout ইতিমধ্যে `authLoading` আলাদাভাবে চেক করে
+- `loading` ডিফল্ট `false` করা যখন user নেই (line 58: `useState(true)` → auth ready হলে তখনই `true`)
+- PermissionContext-এও একই — org ready হওয়ার আগেই owner/superadmin-দের জন্য ইন্সট্যান্ট `permissionsReady=true`
 
-### ফেজ ২: Salary পেজ useQuery মাইগ্রেশন (১টি ফাইল)
+**২. `src/hooks/usePayments.ts`** — useQuery মাইগ্রেশন
+- `useEffect` + `fetchPayments` + `setLoading(true)` → `useQuery` দিয়ে রিপ্লেস
+- ক্যাশড নেভিগেশন, loading flash দূর
+- `refetch` ফাংশন `queryClient.invalidateQueries` দিয়ে রিটার্ন
 
-**`src/pages/Salary.tsx`**
-- `fetchData()` → ৩টি `useQuery`:
-  1. `useQuery(['employees', orgId])` → employees (shared key with Attendance!)
-  2. `useQuery(['salary', orgId, selectedYear, selectedMonth])` → salary records
-  3. `useQuery(['advances', orgId])` → advances
-- Promise.all না লাগবে কারণ useQuery নিজেই parallel চালায়
-- Employee matching-এ Map lookup ব্যবহার
-- Month/year চেঞ্জে শুধু salary query রিফেচ, employees ক্যাশ থেকে আসবে
-
-### ফেজ ৩: Dashboard MetricColumn ref warning ফিক্স (১টি ফাইল)
-
-**`src/pages/Dashboard.tsx`**
-- Console error: "Function components cannot be given refs"
-- `MetricColumn`-কে `React.memo` দিয়ে wrap করলে এটা ফিক্স হবে না — আসল সমস্যা হলো Card-এর child হিসেবে ref pass হচ্ছে
-- সমাধান: `React.memo(React.forwardRef(...))` অথবা wrapper div দিয়ে isolate
-
-### ফেজ ৪: Attendance fetchData-তে Promise.all (উপরের সাথেই)
-
-Attendance-এ employees আর attendance data sequential ফেচ হচ্ছে — useQuery মাইগ্রেশনে এটা অটো parallel হবে।
-
-### ফেজ ৫: Salary fetchData-তে Promise.all (উপরের সাথেই)
-
-Salary-তে employees, salary records, advances sequential — useQuery মাইগ্রেশনে অটো parallel।
-
----
+**৩. `src/contexts/PermissionContext.tsx`** — Owner/SuperAdmin দের জন্য instant ready
+- Super Admin এবং Owner-দের জন্য কোনো DB fetch লাগে না — এরা সব permission পায়
+- **ফিক্স:** `fetchPermissions` dependency-তে `orgLoading` চেক সরিয়ে, owner/superadmin হলে `setLoading(false)` + `setPermissionsReady(true)` ইন্সট্যান্ট করা — DB call ছাড়াই
+- এটি ইতিমধ্যে কোডে আছে (line 189-203) কিন্তু `orgLoading` true থাকায় `fetchPermissions` কল হয় না যতক্ষণ না org fully loaded
 
 ### সারাংশ
 
 | ফাইল | পরিবর্তন | ইমপ্যাক্ট |
 |------|-----------|-----------|
-| Attendance.tsx | ২টি useQuery, Map lookup | ক্যাশড, parallel fetch, loading flash দূর |
-| Salary.tsx | ৩টি useQuery, Map lookup | ক্যাশড, parallel fetch, loading flash দূর |
-| Dashboard.tsx | MetricColumn ref warning ফিক্স | Console error দূর |
+| OrganizationContext.tsx | loading chain decouple | ওয়াটারফল কমানো |
+| PermissionContext.tsx | Owner/Admin instant ready | Skeleton ফ্ল্যাশ দূর |
+| usePayments.ts | useQuery মাইগ্রেশন | Payments পেজ ক্যাশড |
 
-মোট ৩টি ফাইল। UI অপরিবর্তিত। কোনো ফিচার রিমুভ নয়।
+UI অপরিবর্তিত। কোনো ফিচার রিমুভ নয়।
 
