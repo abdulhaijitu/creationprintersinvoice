@@ -18,16 +18,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 
-// Retry wrapper for lazy imports — handles stale HMR cache errors
+// Retry wrapper for lazy imports — handles stale HMR/deployment cache errors
 const lazyRetry = (importFn: () => Promise<any>, retries = 2): Promise<any> =>
   importFn().catch((err) => {
     if (retries > 0) {
-      return new Promise((resolve) => setTimeout(resolve, 300)).then(() =>
+      return new Promise((resolve) => setTimeout(resolve, 500)).then(() =>
         lazyRetry(importFn, retries - 1)
       );
     }
-    // Force reload if all retries fail (stale deployment cache)
-    window.location.reload();
+    // All retries exhausted — force full page reload to clear stale cache
+    if (!sessionStorage.getItem('lazyRetryReload')) {
+      sessionStorage.setItem('lazyRetryReload', '1');
+      window.location.reload();
+    }
     throw err;
   });
 
