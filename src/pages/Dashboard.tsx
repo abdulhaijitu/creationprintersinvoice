@@ -140,7 +140,11 @@ const Dashboard = () => {
         </div>
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} className="p-6">
+            <Card
+              key={i}
+              className="p-6 animate-fade-in opacity-0"
+              style={{ animationDelay: `${i * 150}ms`, animationFillMode: 'forwards' }}
+            >
               <div className="flex items-center justify-between mb-6">
                 <Skeleton className="h-5 w-36" />
                 <Skeleton className="h-8 w-8 rounded-lg" />

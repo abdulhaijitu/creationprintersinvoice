@@ -70,6 +70,8 @@ import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { BulkActionsBar } from '@/components/shared/BulkActionsBar';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { SortableTableHeader, type SortDirection } from '@/components/shared/SortableTableHeader';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys, STALE_TIMES } from '@/hooks/useQueryConfig';
 
 interface Invoice {
   id: string;
@@ -94,8 +96,7 @@ const Invoices = () => {
   
   const invoicePerms = useActionPermission('invoices');
   
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [importOpen, setImportOpen] = useState(false);
@@ -109,6 +110,21 @@ const Invoices = () => {
   const [showStats, setShowStats] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
+  const { data: invoices = [], isLoading: loading } = useQuery({
+    queryKey: queryKeys.invoices(organization?.id || ''),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, customer_id, invoice_date, due_date, total, paid_amount, status, created_at, customers(name)')
+        .eq('organization_id', organization!.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as Invoice[];
+    },
+    enabled: !!organization?.id,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
+
   const {
     selectedIds,
     selectedItems,
@@ -121,36 +137,12 @@ const Invoices = () => {
     clearSelection,
   } = useBulkSelection(invoices);
 
-  useEffect(() => {
-    if (organization?.id) {
-      fetchInvoices();
-    }
-  }, [organization?.id]);
+  const invalidateInvoices = () => queryClient.invalidateQueries({ queryKey: queryKeys.invoices(organization?.id || '') });
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, statusFilter]);
-
-  const fetchInvoices = async () => {
-    if (!organization?.id) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('invoices')
-        .select('id, invoice_number, customer_id, invoice_date, due_date, total, paid_amount, status, created_at, customers(name)')
-        .eq('organization_id', organization.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setInvoices(data || []);
-    } catch (error) {
-      console.error('Error fetching invoices:', error);
-      toast.error('Failed to load invoices');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!singleDeleteId) return;
@@ -162,7 +154,7 @@ const Invoices = () => {
       if (error) throw error;
       
       toast.success('Invoice deleted');
-      fetchInvoices();
+      invalidateInvoices();
     } catch (error) {
       console.error('Error deleting invoice:', error);
       toast.error('Failed to delete invoice');
@@ -187,7 +179,7 @@ const Invoices = () => {
         status: 'paid',
       }).eq('id', invoice.id);
       toast.success('Invoice marked as paid');
-      fetchInvoices();
+      invalidateInvoices();
     } catch (error) {
       console.error('Error marking invoice as paid:', error);
       toast.error('Failed to mark as paid');
@@ -233,7 +225,7 @@ const Invoices = () => {
       }
       
       clearSelection();
-      fetchInvoices();
+      invalidateInvoices();
       setDeleteDialogOpen(false);
     } catch (error) {
       console.error('Error during bulk delete:', error);
@@ -263,7 +255,7 @@ const Invoices = () => {
       }
       toast.success(`${selectedCount} invoices marked as paid`);
       clearSelection();
-      fetchInvoices();
+      invalidateInvoices();
     } catch (error) {
       console.error('Error marking invoices as paid:', error);
       toast.error('Failed to update some invoices');
@@ -556,7 +548,7 @@ const Invoices = () => {
     }
 
     if (success > 0) {
-      fetchInvoices();
+      invalidateInvoices();
     }
 
     return { success, failed, errors, duplicates };

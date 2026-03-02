@@ -42,6 +42,8 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys, STALE_TIMES } from '@/hooks/useQueryConfig';
 
 const PAGE_SIZE = 25;
 
@@ -70,8 +72,7 @@ const Vendors = () => {
   const canImport = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'import');
   const canExport = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'export');
   
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
@@ -89,73 +90,42 @@ const Vendors = () => {
   const [sortKey, setSortKey] = useState<string | null>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  useEffect(() => {
-    if (organization?.id) {
-      fetchVendors();
-    }
-  }, [organization?.id]);
-
-  const fetchVendors = async () => {
-    if (!organization?.id) return;
-    
-    setLoading(true);
-    try {
+  const { data: vendors = [], isLoading: loading } = useQuery({
+    queryKey: queryKeys.vendors(organization?.id || ''),
+    queryFn: async () => {
       const { data: vendorsData } = await supabase
         .from("vendors")
         .select("id, name, phone, email, address, bank_info, notes")
-        .eq("organization_id", organization.id)
+        .eq("organization_id", organization!.id)
         .order("name");
-
-      if (!vendorsData) {
-        setVendors([]);
-        return;
-      }
-
-      // Batch fetch all bills and payments in 2 queries instead of N+1
+      if (!vendorsData) return [] as Vendor[];
       const [allBillsRes, allPaymentsRes] = await Promise.all([
-        supabase
-          .from("vendor_bills")
-          .select("vendor_id, net_amount, amount, discount")
-          .eq("organization_id", organization.id),
-        supabase
-          .from("vendor_payments")
-          .select("vendor_id, amount")
-          .eq("organization_id", organization.id),
+        supabase.from("vendor_bills").select("vendor_id, net_amount, amount, discount").eq("organization_id", organization!.id),
+        supabase.from("vendor_payments").select("vendor_id, amount").eq("organization_id", organization!.id),
       ]);
-
       const allBills = allBillsRes.data || [];
       const allPayments = allPaymentsRes.data || [];
-
-      // Group by vendor_id in JS
       const billsByVendor = new Map<string, number>();
       for (const b of allBills) {
         const netAmount = (b as any).net_amount ?? (Number(b.amount) - Number((b as any).discount || 0));
         billsByVendor.set(b.vendor_id, (billsByVendor.get(b.vendor_id) || 0) + netAmount);
       }
-
       const paymentsByVendor = new Map<string, number>();
       for (const p of allPayments) {
         paymentsByVendor.set(p.vendor_id, (paymentsByVendor.get(p.vendor_id) || 0) + Number(p.amount));
       }
+      return vendorsData.map((vendor) => ({
+        ...vendor,
+        total_bills: billsByVendor.get(vendor.id) || 0,
+        total_paid: paymentsByVendor.get(vendor.id) || 0,
+        due_amount: (billsByVendor.get(vendor.id) || 0) - (paymentsByVendor.get(vendor.id) || 0),
+      })) as Vendor[];
+    },
+    enabled: !!organization?.id,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
 
-      const vendorsWithDues = vendorsData.map((vendor) => {
-        const totalBills = billsByVendor.get(vendor.id) || 0;
-        const totalPaid = paymentsByVendor.get(vendor.id) || 0;
-        return {
-          ...vendor,
-          total_bills: totalBills,
-          total_paid: totalPaid,
-          due_amount: totalBills - totalPaid,
-        };
-      });
-
-      setVendors(vendorsWithDues);
-    } catch (error) {
-      console.error("Error fetching vendors:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const invalidateVendors = () => queryClient.invalidateQueries({ queryKey: queryKeys.vendors(organization?.id || '') });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,7 +156,7 @@ const Vendors = () => {
 
       setIsDialogOpen(false);
       resetForm();
-      fetchVendors();
+      invalidateVendors();
     } catch (error) {
       console.error("Error saving vendor:", error);
       toast.error("Failed to save vendor");
@@ -229,7 +199,7 @@ const Vendors = () => {
       
       toast.success('Vendor deleted');
       setDeleteVendorId(null);
-      fetchVendors();
+      invalidateVendors();
     } catch (error) {
       console.error('Error deleting vendor:', error);
       toast.error('Failed to delete vendor');
@@ -360,7 +330,7 @@ const Vendors = () => {
       } catch (err) { failed++; errors.push(`Row ${i + 2}: Unknown error`); }
     }
 
-    if (success > 0) fetchVendors();
+    if (success > 0) invalidateVendors();
     return { success, failed, errors, duplicates };
   };
 

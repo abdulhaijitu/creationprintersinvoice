@@ -38,6 +38,8 @@ import { QuotationCard } from '@/components/shared/mobile-cards/QuotationCard';
 import { formatCurrency } from '@/lib/formatters';
 import { Badge } from '@/components/ui/badge';
 import { SortableTableHeader, type SortDirection } from '@/components/shared/SortableTableHeader';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys, STALE_TIMES } from '@/hooks/useQueryConfig';
 
 type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
 
@@ -79,8 +81,7 @@ const Quotations = () => {
   const navigate = useNavigate();
   const { canPerform, showCreate, showDelete, showEdit } = usePermissions();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
-  const [quotations, setQuotations] = useState<Quotation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<QuotationStatus | 'all'>('all');
   const [dateRangeFilter, setDateRangeFilter] = useState('all');
@@ -96,40 +97,25 @@ const Quotations = () => {
   const hasEditAccess = showEdit('quotations');
   const hasDeleteAccess = showDelete('quotations');
 
-  useEffect(() => {
-    if (hasOrgContext && organizationId) {
-      fetchQuotations();
-    } else {
-      setQuotations([]);
-      setLoading(false);
-    }
-  }, [organizationId, hasOrgContext]);
-
-  const fetchQuotations = async () => {
-    if (!organizationId) {
-      setLoading(false);
-      return;
-    }
-    
-    try {
+  const { data: quotations = [], isLoading: loading } = useQuery({
+    queryKey: queryKeys.quotations(organizationId || ''),
+    queryFn: async () => {
       // Fire-and-forget: don't block page load
       supabase.rpc('auto_expire_quotations').then(() => {});
       
       const { data, error } = await supabase
         .from('quotations')
         .select('id, quotation_number, customer_id, quotation_date, valid_until, total, status, created_at, customers(name)')
-        .eq('organization_id', organizationId)
+        .eq('organization_id', organizationId!)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
-      setQuotations((data || []) as Quotation[]);
-    } catch (error) {
-      console.error('Error fetching quotations:', error);
-      toast.error('Failed to load quotations');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (data || []) as Quotation[];
+    },
+    enabled: hasOrgContext && !!organizationId,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
+
+  const invalidateQuotations = () => queryClient.invalidateQueries({ queryKey: queryKeys.quotations(organizationId || '') });
 
   const handleDeleteClick = (quotation: Quotation) => {
     if (quotation.status !== 'draft') {
@@ -158,7 +144,7 @@ const Quotations = () => {
       toast.success('Quotation deleted');
       setDeleteId(null);
       setQuotationToDelete(null);
-      fetchQuotations();
+      invalidateQuotations();
     } catch (error) {
       console.error('Error deleting quotation:', error);
       toast.error('Failed to delete quotation');

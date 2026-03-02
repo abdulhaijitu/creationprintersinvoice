@@ -59,6 +59,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { parseValidatedFloat } from "@/lib/validation";
 import { SortableTableHeader, type SortDirection } from '@/components/shared/SortableTableHeader';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/hooks/useQueryConfig';
 
 interface Expense {
   id: string;
@@ -116,10 +118,7 @@ const Expenses = () => {
   const canEditVendors = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'edit');
   const canDeleteVendors = isSuperAdmin || canRolePerform(orgRole as OrgRole, 'vendors', 'delete');
   
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [vendorSearchTerm, setVendorSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -184,106 +183,83 @@ const Expenses = () => {
     notes: "",
   });
 
-  useEffect(() => {
-    if (organization?.id) {
-      fetchData();
-    }
-  }, [filterCategory, filterVendor, filterMonth, organization?.id]);
-
-  const fetchData = async () => {
-    if (!organization?.id) return;
-    
-    setLoading(true);
-    try {
-      // Fetch categories - scoped to organization
-      const { data: categoriesData } = await supabase
+  const { data: categories = [] } = useQuery({
+    queryKey: ['expense-categories', organization?.id],
+    queryFn: async () => {
+      const { data } = await supabase
         .from("expense_categories")
         .select("id, name, description")
-        .eq("organization_id", organization.id)
+        .eq("organization_id", organization!.id)
         .order("name");
-      setCategories(categoriesData || []);
+      return (data || []) as Category[];
+    },
+    enabled: !!organization?.id,
+    staleTime: STALE_TIMES.USER_DATA,
+  });
 
-      // Fetch vendors with dues - scoped to organization
+  const { data: vendors = [] } = useQuery({
+    queryKey: ['vendors-with-dues', organization?.id],
+    queryFn: async () => {
       const { data: vendorsData } = await supabase
         .from("vendors")
         .select("id, name, phone, email, address, bank_info, notes")
-        .eq("organization_id", organization.id)
+        .eq("organization_id", organization!.id)
         .order("name");
-
-      if (vendorsData) {
-        // Batch fetch all bills and payments in 2 queries instead of N+1
-        const [allBillsRes, allPaymentsRes] = await Promise.all([
-          supabase
-            .from("vendor_bills")
-            .select("vendor_id, net_amount, amount, discount")
-            .eq("organization_id", organization.id),
-          supabase
-            .from("vendor_payments")
-            .select("vendor_id, amount")
-            .eq("organization_id", organization.id),
-        ]);
-
-        const allBills = allBillsRes.data || [];
-        const allPayments = allPaymentsRes.data || [];
-
-        // Group by vendor_id in JS
-        const billsByVendor = new Map<string, number>();
-        for (const b of allBills) {
-          const netAmount = (b as any).net_amount ?? (Number(b.amount) - Number((b as any).discount || 0));
-          billsByVendor.set(b.vendor_id, (billsByVendor.get(b.vendor_id) || 0) + netAmount);
-        }
-
-        const paymentsByVendor = new Map<string, number>();
-        for (const p of allPayments) {
-          paymentsByVendor.set(p.vendor_id, (paymentsByVendor.get(p.vendor_id) || 0) + Number(p.amount));
-        }
-
-        const vendorsWithDues = vendorsData.map((vendor) => {
-          const totalBills = billsByVendor.get(vendor.id) || 0;
-          const totalPaid = paymentsByVendor.get(vendor.id) || 0;
-          return {
-            ...vendor,
-            total_bills: totalBills,
-            total_paid: totalPaid,
-            due_amount: totalBills - totalPaid,
-          };
-        });
-        setVendors(vendorsWithDues);
+      if (!vendorsData) return [] as Vendor[];
+      const [allBillsRes, allPaymentsRes] = await Promise.all([
+        supabase.from("vendor_bills").select("vendor_id, net_amount, amount, discount").eq("organization_id", organization!.id),
+        supabase.from("vendor_payments").select("vendor_id, amount").eq("organization_id", organization!.id),
+      ]);
+      const allBills = allBillsRes.data || [];
+      const allPayments = allPaymentsRes.data || [];
+      const billsByVendor = new Map<string, number>();
+      for (const b of allBills) {
+        const netAmount = (b as any).net_amount ?? (Number(b.amount) - Number((b as any).discount || 0));
+        billsByVendor.set(b.vendor_id, (billsByVendor.get(b.vendor_id) || 0) + netAmount);
       }
+      const paymentsByVendor = new Map<string, number>();
+      for (const p of allPayments) {
+        paymentsByVendor.set(p.vendor_id, (paymentsByVendor.get(p.vendor_id) || 0) + Number(p.amount));
+      }
+      return vendorsData.map((vendor) => ({
+        ...vendor,
+        total_bills: billsByVendor.get(vendor.id) || 0,
+        total_paid: paymentsByVendor.get(vendor.id) || 0,
+        due_amount: (billsByVendor.get(vendor.id) || 0) - (paymentsByVendor.get(vendor.id) || 0),
+      })) as Vendor[];
+    },
+    enabled: !!organization?.id,
+    staleTime: STALE_TIMES.USER_DATA,
+  });
 
-      // Fetch expenses with filters - scoped to organization
+  const { data: expenses = [], isLoading: loading } = useQuery({
+    queryKey: ['expenses', organization?.id, filterCategory, filterVendor, filterMonth],
+    queryFn: async () => {
       let query = supabase
         .from("expenses")
-        .select(`
-          *,
-          category:expense_categories(id, name),
-          vendor:vendors(id, name)
-        `)
-        .eq("organization_id", organization.id)
+        .select(`id, date, description, amount, payment_method, category_id, vendor_id, created_at, category:expense_categories(id, name), vendor:vendors(id, name)`)
+        .eq("organization_id", organization!.id)
         .order("date", { ascending: false });
-
-      if (filterCategory && filterCategory !== "all") {
-        query = query.eq("category_id", filterCategory);
-      }
-
-      if (filterVendor && filterVendor !== "all") {
-        query = query.eq("vendor_id", filterVendor);
-      }
-
+      if (filterCategory && filterCategory !== "all") query = query.eq("category_id", filterCategory);
+      if (filterVendor && filterVendor !== "all") query = query.eq("vendor_id", filterVendor);
       if (filterMonth) {
-        const startDate = `${filterMonth}-01`;
-        const endDate = `${filterMonth}-31`;
-        query = query.gte("date", startDate).lte("date", endDate);
+        query = query.gte("date", `${filterMonth}-01`).lte("date", `${filterMonth}-31`);
       }
+      const { data } = await query;
+      return (data || []) as Expense[];
+    },
+    enabled: !!organization?.id,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
 
-      const { data: expensesData } = await query;
-      setExpenses(expensesData || []);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Reset page when filters change
+  useEffect(() => {
+    setExpCurrentPage(1);
+  }, [filterCategory, filterVendor, filterMonth]);
+
+  const invalidateExpenses = () => queryClient.invalidateQueries({ queryKey: ['expenses', organization?.id] });
+  const invalidateVendors = () => queryClient.invalidateQueries({ queryKey: ['vendors-with-dues', organization?.id] });
+  const invalidateCategories = () => queryClient.invalidateQueries({ queryKey: ['expense-categories', organization?.id] });
 
   const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -349,7 +325,7 @@ const Expenses = () => {
 
       setIsExpenseDialogOpen(false);
       resetExpenseForm();
-      await fetchData(); // Ensure data is refetched
+      invalidateExpenses();
     } catch (error: any) {
       console.error("Error saving expense:", error);
       toast.error(error?.message || "Failed to save expense");
@@ -370,7 +346,7 @@ const Expenses = () => {
       if (error) throw error;
       toast.success("Expense deleted successfully");
       setDeleteExpenseId(null);
-      fetchData();
+      invalidateExpenses();
     } catch (error) {
       console.error("Error deleting expense:", error);
       toast.error("Failed to delete expense");
@@ -421,7 +397,7 @@ const Expenses = () => {
 
       setIsVendorDialogOpen(false);
       resetVendorForm();
-      await fetchData();
+      invalidateVendors();
     } catch (error: any) {
       console.error("Error saving vendor:", error);
       toast.error(error?.message || "Failed to save vendor");
@@ -467,7 +443,7 @@ const Expenses = () => {
       toast.success("Bill saved successfully");
       setIsBillDialogOpen(false);
       resetBillForm();
-      await fetchData();
+      invalidateVendors();
     } catch (error: any) {
       console.error("Error saving bill:", error);
       toast.error(error?.message || "Failed to save bill");
@@ -511,7 +487,7 @@ const Expenses = () => {
       toast.success("Payment saved successfully");
       setIsPaymentDialogOpen(false);
       resetPaymentForm();
-      await fetchData();
+      invalidateVendors();
     } catch (error: any) {
       console.error("Error saving payment:", error);
       toast.error(error?.message || "Failed to save payment");
@@ -612,7 +588,7 @@ const Expenses = () => {
 
       setIsCategoryDialogOpen(false);
       resetCategoryForm();
-      await fetchData();
+      invalidateCategories(); invalidateExpenses();
     } catch (error: any) {
       console.error("Error saving category:", error);
       toast.error(error?.message || "Failed to save category");
@@ -642,7 +618,7 @@ const Expenses = () => {
       if (error) throw error;
       toast.success("Category deleted successfully");
       setDeleteCategoryConfirm({ open: false, category: null });
-      fetchData();
+      invalidateCategories(); invalidateExpenses();
     } catch (error) {
       console.error("Error deleting category:", error);
       toast.error("Failed to delete category");
@@ -686,7 +662,7 @@ const Expenses = () => {
       if (error) throw error;
       toast.success("Vendor deleted successfully");
       setDeleteVendorId(null);
-      fetchData();
+      invalidateVendors();
     } catch (error) {
       console.error("Error deleting vendor:", error);
       toast.error("Failed to delete vendor");
@@ -1017,7 +993,7 @@ const Expenses = () => {
                             setBillFormData({ ...billFormData, vendor_id: value })
                           }
                           vendors={vendors}
-                          onVendorAdded={fetchData}
+                          onVendorAdded={() => invalidateVendors()}
                           placeholder="Select vendor"
                         />
                       </div>
@@ -1109,7 +1085,7 @@ const Expenses = () => {
                             setPaymentFormData({ ...paymentFormData, vendor_id: value })
                           }
                           vendors={vendors}
-                          onVendorAdded={fetchData}
+                          onVendorAdded={() => invalidateVendors()}
                           placeholder="Select vendor"
                           showDueAmount
                           formatCurrency={formatCurrency}
