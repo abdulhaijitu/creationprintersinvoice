@@ -1,47 +1,35 @@
 
 
-## স্কেলেটন লোডিং সমস্যার মূল কারণ ও সমাধান প্ল্যান
+## সাইডবার নেভিগেশন স্লো — রুট প্রিফেচিং সমাধান
 
-### মূল কারণ চিহ্নিত
+### মূল কারণ
 
-সমস্যাটি **ডেটা ফেচিং ওয়াটারফল চেইন** থেকে আসছে:
+প্রতিটি পেজ `React.lazy()` দিয়ে code-split করা। সাইডবারে ক্লিক করলে:
+1. React Router navigate হয়
+2. JS chunk নেটওয়ার্ক থেকে ফেচ হয় (প্রথমবার)
+3. তারপর কম্পোনেন্ট রেন্ডার হয়
+
+এই chunk fetch-ই delay তৈরি করে — বিশেষত প্রথমবার ভিজিট করলে।
+
+### সমাধান: হোভারে প্রিফেচ
+
+সাইডবার লিংকে **hover** করলে সেই পেজের lazy chunk আগেই লোড করা শুরু হবে। ক্লিক করার সময় chunk ইতিমধ্যে ক্যাশে থাকবে — instant navigation।
+
+**১. `src/lib/routePrefetch.ts`** — নতুন ফাইল
+- প্রতিটি route path-কে তার lazy import function-এ ম্যাপ করা
+- `prefetchRoute(path)` ফাংশন — import() কল করে কিন্তু await করে না (fire-and-forget)
+- একবার প্রিফেচ হলে Set-এ ট্র্যাক — দ্বিতীয়বার কল হবে না
+
+**২. `src/components/layout/AppSidebar.tsx`** — NavLink-এ `onMouseEnter` যোগ
+- হোভারে `prefetchRoute(item.url)` কল
+- কোনো UI পরিবর্তন নেই, শুধু chunk আগেই লোড হবে
+
+### টেকনিক্যাল ডিটেইল
 
 ```text
-AuthContext (loading=true)          ← ব্লকিং পয়েন্ট ১
-  → OrganizationContext (loading=true)  ← ব্লকিং পয়েন্ট ২  
-    → PermissionContext (loading=true)    ← ব্লকিং পয়েন্ট ৩
-      → Page useQuery (enabled: !!org?.id)  ← ব্লকিং পয়েন্ট ৪
+User hovers "Invoices" → import("./pages/Invoices") fires
+User clicks "Invoices" → chunk already in browser cache → instant render
 ```
 
-প্রতিটি স্তর আগেরটি শেষ না হওয়া পর্যন্ত অপেক্ষা করে। মোট ৪টি sequential নেটওয়ার্ক কল হয় পেজ কন্টেন্ট দেখানোর আগে।
-
-এছাড়া **`usePayments` হুক** এখনো raw `useEffect` + `setLoading(true)` প্যাটার্ন ব্যবহার করে — প্রতিবার ফুল রিফেচ, কোনো ক্যাশ নেই।
-
-### সমাধান (৩টি ফাইল)
-
-**১. `src/contexts/OrganizationContext.tsx`** — ওয়াটারফল ভাঙা
-- `loading` ইনিশিয়ালি `true` থাকে এবং auth শেষ হওয়ার পরও org fetch চলাকালীন `true` থাকে
-- **ফিক্স:** `loading: loading || authLoading` থেকে পরিবর্তন করে শুধু `loading` রাখা — AppLayout ইতিমধ্যে `authLoading` আলাদাভাবে চেক করে
-- `loading` ডিফল্ট `false` করা যখন user নেই (line 58: `useState(true)` → auth ready হলে তখনই `true`)
-- PermissionContext-এও একই — org ready হওয়ার আগেই owner/superadmin-দের জন্য ইন্সট্যান্ট `permissionsReady=true`
-
-**২. `src/hooks/usePayments.ts`** — useQuery মাইগ্রেশন
-- `useEffect` + `fetchPayments` + `setLoading(true)` → `useQuery` দিয়ে রিপ্লেস
-- ক্যাশড নেভিগেশন, loading flash দূর
-- `refetch` ফাংশন `queryClient.invalidateQueries` দিয়ে রিটার্ন
-
-**৩. `src/contexts/PermissionContext.tsx`** — Owner/SuperAdmin দের জন্য instant ready
-- Super Admin এবং Owner-দের জন্য কোনো DB fetch লাগে না — এরা সব permission পায়
-- **ফিক্স:** `fetchPermissions` dependency-তে `orgLoading` চেক সরিয়ে, owner/superadmin হলে `setLoading(false)` + `setPermissionsReady(true)` ইন্সট্যান্ট করা — DB call ছাড়াই
-- এটি ইতিমধ্যে কোডে আছে (line 189-203) কিন্তু `orgLoading` true থাকায় `fetchPermissions` কল হয় না যতক্ষণ না org fully loaded
-
-### সারাংশ
-
-| ফাইল | পরিবর্তন | ইমপ্যাক্ট |
-|------|-----------|-----------|
-| OrganizationContext.tsx | loading chain decouple | ওয়াটারফল কমানো |
-| PermissionContext.tsx | Owner/Admin instant ready | Skeleton ফ্ল্যাশ দূর |
-| usePayments.ts | useQuery মাইগ্রেশন | Payments পেজ ক্যাশড |
-
-UI অপরিবর্তিত। কোনো ফিচার রিমুভ নয়।
+মোট ২টি ফাইল। ১টি নতুন, ১টি এডিট। UI অপরিবর্তিত।
 
