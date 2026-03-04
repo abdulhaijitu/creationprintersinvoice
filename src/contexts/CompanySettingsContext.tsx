@@ -156,10 +156,16 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
   );
 };
 
+const fallbackContext: CompanySettingsContextType = {
+  settings: null,
+  loading: true,
+  error: null,
+  refetchSettings: async () => {},
+  updateSettingsLocally: () => {},
+};
+
 export const useCompanySettings = () => {
   const context = useContext(CompanySettingsContext);
-  if (context === undefined) {
-    throw new Error('useCompanySettings must be used within a CompanySettingsProvider');
-  }
-  return context;
+  // Return safe fallback instead of crashing if provider hasn't mounted yet
+  return context ?? fallbackContext;
 };
