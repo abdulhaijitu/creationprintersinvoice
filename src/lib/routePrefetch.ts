@@ -20,15 +20,34 @@ const routeImportMap: Record<string, () => Promise<unknown>> = {
 };
 
 const prefetched = new Set<string>();
+let hoverTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * Prefetch a route's JS chunk on hover-intent (150ms debounce).
+ * Failures are silently swallowed so the Set stays clean for retry.
+ */
 export function prefetchRoute(path: string) {
   if (prefetched.has(path)) return;
-  const importFn = routeImportMap[path];
-  if (importFn) {
-    prefetched.add(path);
-    importFn().catch(() => {
-      // Remove from set so it can retry next hover
-      prefetched.delete(path);
-    });
+
+  // Cancel any pending prefetch from a previous hover
+  if (hoverTimer) clearTimeout(hoverTimer);
+
+  hoverTimer = setTimeout(() => {
+    const importFn = routeImportMap[path];
+    if (importFn) {
+      prefetched.add(path);
+      importFn().catch(() => {
+        // Remove so next hover can retry — don't poison cache
+        prefetched.delete(path);
+      });
+    }
+  }, 150);
+}
+
+/** Cancel pending prefetch (call on mouseleave) */
+export function cancelPrefetch() {
+  if (hoverTimer) {
+    clearTimeout(hoverTimer);
+    hoverTimer = null;
   }
 }
