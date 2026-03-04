@@ -1,67 +1,66 @@
 
-সমস্যার অবস্থা (আমি যা পেলাম)
-- Error pattern একই: `Failed to fetch dynamically imported module` → blank screen → manual reload দিলে ঠিক।
-- `App.tsx`-এ current `lazyRetry` আছে, কিন্তু `lazyRetryReload` guard **set হয়, clear হয় না**। ফলে session-এ একবার auto-reload হওয়ার পর পরের import failure-গুলোতে আর auto-recover হয় না।
-- `src/lib/routePrefetch.ts` prefetch করছে, কিন্তু এটা main lazy-recovery flow-এর সাথে unified না; তাই prefetch/import failure handling fragmented।
-- Vite docs অনুযায়ী (`vite:preloadError`) global handler রাখা উচিত chunk/preload failure recovery-এর জন্য।
+সমস্যা নির্ণয়
+- Do I know what the issue is? হ্যাঁ।
+- দুইটা root cause একসাথে হচ্ছে:
+  1) Dynamic import recovery flow-এ বর্তমান retry + reload guard behavior সবসময় দ্রুত recover করতে পারছে না।
+  2) Core bootstrap API callগুলো (role/org/permissions/settings/notifications) intermittently `Failed to fetch` হলে retry না থাকায় app state ভেঙে যায়, পরে reload দিলে ঠিক হয়।
 
-Do I know what the issue is? হ্যাঁ।
+প্রমাণ
+- `lazyLoadRecovery.ts` এখনো retry delay চালায়, কিন্তু Vite guideline অনুযায়ী dynamic import failure browser-side retry সাধারণত reliable না।
+- সাম্প্রতিক runtime network snapshot-এ critical startup calls-এ ধারাবাহিক `Failed to fetch` (user_roles, organization_members, org_role_permissions, company_settings, notifications) দেখা গেছে।
 
-মূল কারণ (সংক্ষেপে)
-1) Stale dynamic-import URL (HMR/deploy cache skew)  
-2) Reload guard lifecycle অসম্পূর্ণ (set-only, reset নেই)  
-3) Prefetch path ও lazy route loading recovery এক জায়গায় না  
-4) Global preload/chunk error boundary নেই, তাই white screen
+Implementation Plan
+1) Dynamic import recovery simplify + harden
+- `src/lib/lazyLoadRecovery.ts`
+  - retry loop কমিয়ে fast-fail recovery model (bounded auto reload)।
+  - reload guard কে session-based attempt budgetে আনবো (infinite loop না, blockও না)।
+  - successful boot/lazy load-এ guard reset নিশ্চিত করবো।
 
-Implementation plan (all pages audit + fix)
-1. Centralized lazy-load recovery utility বানানো
-   - নতুন utility: `src/lib/lazyLoadRecovery.ts`
-   - থাকবে:
-     - `isDynamicImportError(error)` detector
-     - retry with backoff
-     - guarded hard reload (`sessionStorage` with timestamp-based cooldown)
-     - success হলে reload guard clear
-   - Goal: সব lazy import-এর জন্য একটাই reliable behavior।
+2) Global load error handling stabilize
+- `src/main.tsx`
+  - `vite:preloadError` listener idempotent করা (duplicate register guard)।
+  - dynamic-import error detection object/string-safe করা।
+  - non-dynamic unhandled rejection শুধু log করা, reload trigger না করা।
 
-2. `App.tsx` harden করা (সব route-level lazy page)
-   - বর্তমান inline `lazyRetry` বাদ দিয়ে centralized helper ব্যবহার।
-   - সব `lazy(() => import(...))` path unified recovery stack-এ আনা।
-   - Loader fail হলে infinite reload loop ছাড়া deterministic recover নিশ্চিত করা।
+3) Prefetch কে dev-safe করা
+- `src/lib/routePrefetch.ts`
+  - preview/dev mode-এ prefetch disable বা strict throttle।
+  - hover timer cleanup improve (pending কাজ বাতিল)।
+- `src/components/layout/AppSidebar.tsx`
+  - prefetch call env-gated করা।
+  - `onMouseLeave`-এ cancel hook যুক্ত করা।
 
-3. Global Vite preload error handling যোগ করা
-   - `src/main.tsx`-এ:
-     - `window.addEventListener('vite:preloadError', ...)`
-     - `event.preventDefault()` + guarded `window.location.reload()`
-   - এতে React.lazy-এর বাইরের preload/chunk mismatch-ও recover হবে।
+4) Critical bootstrap fetch-এ network retry যোগ
+- নতুন helper: `src/lib/networkRetry.ts`
+  - transient network failure (`Failed to fetch`, timeout, 429/5xx) হলে backoff retry।
+- Apply in:
+  - `src/contexts/AuthContext.tsx` (role fetch)
+  - `src/contexts/OrganizationContext.tsx` (membership + org fetch)
+  - `src/contexts/PermissionContext.tsx` (permission fetch)
+  - `src/contexts/CompanySettingsContext.tsx` (settings fetch)
 
-4. Route prefetch system safe করা
-   - `src/lib/routePrefetch.ts` refactor:
-     - prefetchকে same loader registry/recovery logic-এর সাথে align করা
-     - hover-intent debounce (accidental mass prefetch কমাতে)
-     - dev/HMR mode-এ aggressive prefetch disable বা throttle
-     - failure হলে silent retryযোগ্য state রাখা (poisoned cache না)
-   - `src/components/layout/AppSidebar.tsx`-এ event wiring update (hover intent + cancel on leave)।
+5) Error fallback UX refine
+- `src/components/errors/ChunkLoadBoundary.tsx`
+  - Retry behavior বাস্তবসম্মত করা (soft retry + hard reload path)।
+  - network-instability hint যোগ করা।
 
-5. Nested lazy imports audit (non-route heavy sections)
-   - `src/pages/Admin.tsx`-এর internal lazy components একই recovery helper-এ migrate করা।
-   - যাতে “all pages” scope-এ admin sub-sections-ও covered থাকে।
+Validation Checklist
+- Desktop + mobile route sweep: `/invoices`, `/payments`, `/customers`, `/vendors`, `/reports`, `/settings`, `/admin`।
+- Simulated intermittent network test: reload ছাড়া recovery verify।
+- Console লক্ষ্য:
+  - recurring dynamic-import blank screen বন্ধ
+  - startup fetch failure হলে auto-retry success
+- Regression check:
+  - sidebar navigation speed degrade না হওয়া
+  - production prefetch intact থাকা
 
-6. Graceful fallback UI (blank screen prevention)
-   - নতুন component: `src/components/errors/ChunkLoadBoundary.tsx`
-   - chunk/load failure detect হলে full blank না দেখিয়ে:
-     - “Retry”
-     - “Reload app”
-   - App root route tree-কে এই boundary-তে wrap করা।
+Technical Snapshot
+```text
+Before:
+Route import fail -> retry delay -> guard block -> manual reload needed
 
-Validation checklist (fix complete criteria)
-- Desktop: sidebar থেকে সব primary route ১ বার করে open (Invoices, Payments, Customers, ...), manual reload ছাড়া।
-- Repeat navigation after code hot-update simulation: stale module error এলে auto recover হচ্ছে কিনা।
-- Mobile navigation (bottom nav + mobile tiles) route switching test।
-- Admin page sections lazy-load test।
-- Console-এ uncaught dynamic import error/blank screen zero tolerance।
-- First-load UX regression check (prefetch changes এ over-fetching না হয়)।
-
-Risk control
-- Reload cooldown রাখব যাতে loop না হয়।
-- Recovery শুধু dynamic-import/chunk errors-এ apply হবে; API/data errors-এর সাথে mix হবে না।
-- Existing business data/auth flow untouched (no backend schema change needed)।
+After:
+Route import fail -> bounded auto-recover
++
+Bootstrap API transient fail -> auto-retry -> state self-heals without manual reload
+```
