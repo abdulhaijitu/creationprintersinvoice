@@ -1,10 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+function _getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  return {
+    'Access-Control-Allow-Origin': origin.endsWith('.lovable.app') ? origin : 'https://creationbms.lovable.app',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+}
 
 interface NotificationLog {
   organization_id: string;

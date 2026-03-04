@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -257,7 +258,7 @@ export function PartialConversionDialog({
                     <TableCell>
                       <div
                         className="prose prose-sm max-w-none prose-p:m-0 line-clamp-2"
-                        dangerouslySetInnerHTML={{ __html: item.description }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }}
                       />
                     </TableCell>
                     <TableCell className="text-center text-muted-foreground">

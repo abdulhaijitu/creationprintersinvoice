@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { formatCurrency } from '@/lib/formatters';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { EntityAttachmentsSection } from '@/components/shared/EntityAttachmentsSection';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -420,7 +421,7 @@ const InvoiceDetail = () => {
                         <TableCell className="font-medium">
                           <div 
                             className="prose prose-sm max-w-none prose-p:m-0 prose-p:leading-relaxed prose-ul:my-1 prose-ol:my-1 prose-li:my-0"
-                            dangerouslySetInnerHTML={{ __html: item.description }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }}
                           />
                         </TableCell>
                         <TableCell className="text-center">{item.quantity}</TableCell>
@@ -454,7 +455,7 @@ const InvoiceDetail = () => {
                       </div>
                       <div 
                         className="prose prose-sm max-w-none prose-p:m-0 prose-p:leading-relaxed prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-a:text-primary prose-a:underline text-muted-foreground"
-                        dangerouslySetInnerHTML={{ __html: invoice.notes }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(invoice.notes) }}
                       />
                     </div>
                   )}
@@ -468,7 +469,7 @@ const InvoiceDetail = () => {
                       </div>
                       <div 
                         className="prose prose-sm max-w-none prose-p:m-0 prose-p:leading-relaxed prose-ul:my-1 prose-ol:my-1 prose-li:my-0 text-muted-foreground"
-                        dangerouslySetInnerHTML={{ __html: (invoice as any).terms }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml((invoice as any).terms) }}
                       />
                     </div>
                   )}

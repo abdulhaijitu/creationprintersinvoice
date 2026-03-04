@@ -1,9 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+function _getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  return {
+    'Access-Control-Allow-Origin': origin.endsWith('.lovable.app') ? origin : 'https://creationbms.lovable.app',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+}
 
 /**
  * Check if a user has a specific permission based on their role.
@@ -78,6 +81,7 @@ async function hasPaymentCreatePermission(
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = _getCorsHeaders(req);
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
