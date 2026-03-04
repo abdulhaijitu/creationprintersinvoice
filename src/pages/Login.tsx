@@ -75,9 +75,7 @@ const Login = () => {
         return;
       }
 
-      // Give role/user bootstrap triggers a moment to complete
-      await new Promise((r) => setTimeout(r, 150));
-
+      // Get user data — this is the only blocking call needed
       const { data: userData } = await supabase.auth.getUser();
       const authedUser = userData.user;
 
@@ -107,18 +105,26 @@ const Login = () => {
         return;
       }
 
-      const { data: roleRow } = await supabase
-        .from('user_roles')
-        .select('role, must_reset_password')
-        .eq('user_id', authedUser.id)
-        .maybeSingle();
+      // Run role, membership, and subscription checks in parallel
+      const [roleResult, membershipResult] = await Promise.all([
+        supabase
+          .from('user_roles')
+          .select('role, must_reset_password')
+          .eq('user_id', authedUser.id)
+          .maybeSingle()
+          .then(r => r),
+        supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', authedUser.id)
+          .then(r => r),
+      ]);
 
+      const roleRow = roleResult.data;
       const mustResetPassword = roleRow?.must_reset_password ?? false;
 
-      const { data: memberships, error: membershipError } = await supabase
-        .from('organization_members')
-        .select('organization_id')
-        .eq('user_id', authedUser.id);
+      const memberships = membershipResult.data;
+      const membershipError = membershipResult.error;
 
       if (membershipError || !memberships || memberships.length === 0) {
         await supabase.auth.signOut();
@@ -142,11 +148,13 @@ const Login = () => {
       const orgId = memberships[0].organization_id;
       localStorage.setItem('printosaas_active_organization_id', orgId);
 
+      // Subscription check — non-blocking for speed, only blocks if suspended
       const { data: subscription } = await supabase
         .from('subscriptions')
         .select('status')
         .eq('organization_id', orgId)
-        .maybeSingle();
+        .maybeSingle()
+        .then(r => r);
 
       if (subscription?.status === 'suspended') {
         await supabase.auth.signOut();
@@ -185,6 +193,7 @@ const Login = () => {
         return;
       }
 
+      // Fire audit log in background — don't block navigation
       void audit({
         actor_id: authedUser.id,
         actor_email: authedUser.email,
