@@ -1,66 +1,62 @@
 
-সমস্যা নির্ণয়
-- Do I know what the issue is? হ্যাঁ।
-- দুইটা root cause একসাথে হচ্ছে:
-  1) Dynamic import recovery flow-এ বর্তমান retry + reload guard behavior সবসময় দ্রুত recover করতে পারছে না।
-  2) Core bootstrap API callগুলো (role/org/permissions/settings/notifications) intermittently `Failed to fetch` হলে retry না থাকায় app state ভেঙে যায়, পরে reload দিলে ঠিক হয়।
 
-প্রমাণ
-- `lazyLoadRecovery.ts` এখনো retry delay চালায়, কিন্তু Vite guideline অনুযায়ী dynamic import failure browser-side retry সাধারণত reliable না।
-- সাম্প্রতিক runtime network snapshot-এ critical startup calls-এ ধারাবাহিক `Failed to fetch` (user_roles, organization_members, org_role_permissions, company_settings, notifications) দেখা গেছে।
+# Production Readiness Audit — Final Fixes
 
-Implementation Plan
-1) Dynamic import recovery simplify + harden
-- `src/lib/lazyLoadRecovery.ts`
-  - retry loop কমিয়ে fast-fail recovery model (bounded auto reload)।
-  - reload guard কে session-based attempt budgetে আনবো (infinite loop না, blockও না)।
-  - successful boot/lazy load-এ guard reset নিশ্চিত করবো।
+## Issues Found
 
-2) Global load error handling stabilize
-- `src/main.tsx`
-  - `vite:preloadError` listener idempotent করা (duplicate register guard)।
-  - dynamic-import error detection object/string-safe করা।
-  - non-dynamic unhandled rejection শুধু log করা, reload trigger না করা।
+### 1. Context Hook Crash Risk (CRITICAL)
+Same pattern that crashed `CompanySettingsContext` exists in 4 other contexts. If any provider fails to mount (race condition, HMR glitch), the `throw new Error` in these hooks will crash the entire app with a blank screen:
+- `useAuth` in `AuthContext.tsx` (line 155)
+- `useOrganization` in `OrganizationContext.tsx` (line 221)
+- `usePermissionContext` in `PermissionContext.tsx` (line 568)
+- `useImpersonation` in `ImpersonationContext.tsx` (line 325)
 
-3) Prefetch কে dev-safe করা
-- `src/lib/routePrefetch.ts`
-  - preview/dev mode-এ prefetch disable বা strict throttle।
-  - hover timer cleanup improve (pending কাজ বাতিল)।
-- `src/components/layout/AppSidebar.tsx`
-  - prefetch call env-gated করা।
-  - `onMouseLeave`-এ cancel hook যুক্ত করা।
+**Fix**: Apply the same fallback pattern used for `useCompanySettings` — return a safe default context instead of throwing. This ensures no single context failure can white-screen the app.
 
-4) Critical bootstrap fetch-এ network retry যোগ
-- নতুন helper: `src/lib/networkRetry.ts`
-  - transient network failure (`Failed to fetch`, timeout, 429/5xx) হলে backoff retry।
-- Apply in:
-  - `src/contexts/AuthContext.tsx` (role fetch)
-  - `src/contexts/OrganizationContext.tsx` (membership + org fetch)
-  - `src/contexts/PermissionContext.tsx` (permission fetch)
-  - `src/contexts/CompanySettingsContext.tsx` (settings fetch)
+### 2. Tooltip Ref Warning in Quotations Page (MINOR)
+Console warning: "Function components cannot be given refs" in `Quotations.tsx` at the disabled delete button Tooltip (line 532). The `Tooltip` component is being used correctly with `asChild` on `TooltipTrigger`, but the warning suggests a component mismatch. This is cosmetic but should be cleaned up for production logs.
 
-5) Error fallback UX refine
-- `src/components/errors/ChunkLoadBoundary.tsx`
-  - Retry behavior বাস্তবসম্মত করা (soft retry + hard reload path)।
-  - network-instability hint যোগ করা।
+**Fix**: Ensure `TooltipTrigger` wraps a proper DOM element (the `<span>` wrapper is already there — this is likely a Radix version quirk). No action needed unless it causes functional issues.
 
-Validation Checklist
-- Desktop + mobile route sweep: `/invoices`, `/payments`, `/customers`, `/vendors`, `/reports`, `/settings`, `/admin`।
-- Simulated intermittent network test: reload ছাড়া recovery verify।
-- Console লক্ষ্য:
-  - recurring dynamic-import blank screen বন্ধ
-  - startup fetch failure হলে auto-retry success
-- Regression check:
-  - sidebar navigation speed degrade না হওয়া
-  - production prefetch intact থাকা
+### 3. 266 `select('*')` Queries Across 38 Files (PERFORMANCE)
+Despite the "no SELECT *" guideline, 266 instances remain. This is a large-scope change that should be addressed incrementally post-launch rather than in this fix batch. Not blocking for launch.
 
-Technical Snapshot
-```text
-Before:
-Route import fail -> retry delay -> guard block -> manual reload needed
+### 4. Console.log Statements in Production Code (CLEANUP)
+Several `console.log` statements in contexts (`AppContext`, `PermissionContext`, `ImpersonationContext`) and pages (`Employees`, `Settings`). These should be removed or gated behind dev mode for clean production logs.
 
-After:
-Route import fail -> bounded auto-recover
-+
-Bootstrap API transient fail -> auto-retry -> state self-heals without manual reload
-```
+**Fix**: Remove or wrap in `import.meta.env.DEV` checks.
+
+---
+
+## Implementation Plan
+
+### File Changes
+
+**1. `src/contexts/OrganizationContext.tsx`** (line 218-223)
+- Replace `throw new Error` with fallback context return (loading: true, null org)
+
+**2. `src/contexts/PermissionContext.tsx`** (line 565-571)  
+- Replace `throw new Error` with fallback context return (loading: true, empty permissions)
+
+**3. `src/contexts/ImpersonationContext.tsx`** (line 323-327)
+- Replace `throw new Error` with fallback context return (not impersonating)
+
+**4. `src/contexts/AuthContext.tsx`** (line 152-157)
+- Replace `throw new Error` with fallback context return (loading: true, null user)
+
+**5. `src/contexts/AppContext.tsx`** (line 219-223)
+- Replace `throw new Error` with fallback context return
+
+**6. Console.log cleanup** in:
+- `src/contexts/AppContext.tsx` — remove debug logs
+- `src/contexts/PermissionContext.tsx` — remove debug log
+- `src/contexts/ImpersonationContext.tsx` — gate behind DEV
+- `src/pages/Employees.tsx` — remove debug log
+- `src/pages/Settings.tsx` — remove debug log
+
+### Not Changing
+- UI design (no changes)
+- Features (no removal)
+- `select('*')` queries (too broad for this batch — incremental post-launch)
+- Tooltip warning (cosmetic, no functional impact)
+
