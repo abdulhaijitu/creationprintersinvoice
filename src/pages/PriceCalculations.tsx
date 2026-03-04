@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/hooks/useQueryConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrgScopedQuery } from '@/hooks/useOrgScopedQuery';
 import { usePermissions } from '@/lib/permissions/hooks';
@@ -43,49 +45,34 @@ const PriceCalculations = () => {
   const navigate = useNavigate();
   const { canPerform, showCreate, showDelete } = usePermissions();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
-  const [calculations, setCalculations] = useState<PriceCalculation[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [calculationToDelete, setCalculationToDelete] = useState<PriceCalculation | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const { sortKey, sortDirection, handleSort, sortData } = useSortableTable<PriceCalculation>('created_at', 'desc');
-
   const hasViewAccess = canPerform('price_calculations', 'view');
   const hasCreateAccess = showCreate('price_calculations');
   const hasDeleteAccess = showDelete('price_calculations');
 
-  useEffect(() => {
-    if (hasOrgContext && organizationId) {
-      fetchCalculations();
-    } else {
-      setCalculations([]);
-      setLoading(false);
-    }
-  }, [organizationId, hasOrgContext]);
+  const queryClient = useQueryClient();
+  const cacheKey = ['price-calculations', organizationId] as const;
 
-  const fetchCalculations = async () => {
-    if (!organizationId) {
-      setLoading(false);
-      return;
-    }
-
-    try {
+  const { data: calculations = [], isLoading: loading } = useQuery({
+    queryKey: cacheKey,
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('price_calculations')
         .select('id, job_description, costing_total, margin_percent, final_price, created_at, quotation_id, invoice_id, customers(name)')
-        .eq('organization_id', organizationId)
+        .eq('organization_id', organizationId!)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
-      setCalculations(data || []);
-    } catch (error) {
-      console.error('Error fetching calculations:', error);
-      toast.error('Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (data || []) as PriceCalculation[];
+    },
+    enabled: hasOrgContext && !!organizationId,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
+
+  const invalidateCalcs = () => queryClient.invalidateQueries({ queryKey: cacheKey });
 
   const canBeDeleted = (calc: PriceCalculation) => {
     return !calc.quotation_id && !calc.invoice_id;
@@ -121,7 +108,7 @@ const PriceCalculations = () => {
       toast.success('Price calculation deleted');
       setDeleteId(null);
       setCalculationToDelete(null);
-      fetchCalculations();
+      invalidateCalcs();
     } catch (error) {
       console.error('Error deleting calculation:', error);
       toast.error('Failed to delete calculation');

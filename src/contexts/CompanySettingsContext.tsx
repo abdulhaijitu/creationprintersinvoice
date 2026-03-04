@@ -100,14 +100,14 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
     fetchSettings();
   }, [user, authLoading, fetchSettings]);
 
-  // Set up Supabase Realtime subscription for live sync
+  // Realtime subscription — only when user is authenticated
   useEffect(() => {
+    if (!user) return;
+
     // Clean up existing channel
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
     }
-
-    
 
     const channel = supabase
       .channel('company-settings-changes')
@@ -119,14 +119,10 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
           table: 'company_settings',
         },
         (payload) => {
-          
-          
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newData = payload.new as CompanySettings;
             setSettings(newData);
-            // Invalidate react-query cache
             queryClient.invalidateQueries({ queryKey: ['company-settings'] });
-            
           } else if (payload.eventType === 'DELETE') {
             setSettings(null);
             queryClient.invalidateQueries({ queryKey: ['company-settings'] });
@@ -143,7 +139,7 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
         channelRef.current = null;
       }
     };
-  }, [queryClient]);
+  }, [user, queryClient]);
 
   const value: CompanySettingsContextType = {
     settings,

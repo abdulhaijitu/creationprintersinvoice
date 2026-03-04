@@ -16,9 +16,11 @@ import AppLayout from "@/components/layout/AppLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { lazyRetry } from "@/lib/lazyLoadRecovery";
 
-// Eagerly loaded (critical path)
+// Eagerly loaded (critical path — Login only)
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
+
+// Dashboard lazy loaded like all other pages
+const Dashboard = lazy(() => lazyRetry(() => import("./pages/Dashboard")));
 
 // Lazy loaded pages — all use centralized lazyRetry for chunk error recovery
 const Register = lazy(() => lazyRetry(() => import("./pages/Register")));
@@ -100,8 +102,8 @@ const App = () => (
 
                   {/* App routes - all lazy loaded with Suspense */}
                   <Route element={<AppLayout />}>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
+                    <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
                     <Route path="/customers" element={<Suspense fallback={<PageLoader />}><Customers /></Suspense>} />
                     <Route path="/customers/:id" element={<Suspense fallback={<PageLoader />}><CustomerDetail /></Suspense>} />
                     <Route path="/invoices" element={<Suspense fallback={<PageLoader />}><Invoices /></Suspense>} />
