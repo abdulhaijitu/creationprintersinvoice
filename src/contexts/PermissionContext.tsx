@@ -11,6 +11,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { retrySupabaseQuery } from '@/lib/networkRetry';
 import { useAuth } from './AuthContext';
 import { useOrganization } from './OrganizationContext';
 import { toast } from 'sonner';
@@ -218,16 +219,22 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       // Fetch BOTH tables in parallel
       const [globalRes, orgRes] = await Promise.all([
-        supabase
-          .from('org_role_permissions')
-          .select('permission_key, is_enabled')
-          .eq('role', orgRole)
-          .eq('is_enabled', true),
-        supabase
-          .from('org_specific_permissions')
-          .select('permission_key, is_enabled')
-          .eq('organization_id', organization.id)
-          .eq('role', orgRole),
+        retrySupabaseQuery(async () =>
+          supabase
+            .from('org_role_permissions')
+            .select('permission_key, is_enabled')
+            .eq('role', orgRole)
+            .eq('is_enabled', true)
+            .then(r => r)
+        ),
+        retrySupabaseQuery(async () =>
+          supabase
+            .from('org_specific_permissions')
+            .select('permission_key, is_enabled')
+            .eq('organization_id', organization.id)
+            .eq('role', orgRole)
+            .then(r => r)
+        ),
       ]);
 
       if (globalRes.error) throw globalRes.error;

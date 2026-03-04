@@ -22,15 +22,24 @@ const routeImportMap: Record<string, () => Promise<unknown>> = {
 const prefetched = new Set<string>();
 let hoverTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** Check if we're in dev/preview mode where prefetch can cause HMR issues */
+const isDevMode = (): boolean => {
+  return import.meta.env.DEV || window.location.hostname.includes('lovableproject.com');
+};
+
 /**
  * Prefetch a route's JS chunk on hover-intent (150ms debounce).
+ * Disabled in dev/preview mode to avoid HMR cache poisoning.
  * Failures are silently swallowed so the Set stays clean for retry.
  */
 export function prefetchRoute(path: string) {
+  // Skip prefetch in dev/preview to prevent HMR-related chunk errors
+  if (isDevMode()) return;
+
   if (prefetched.has(path)) return;
 
   // Cancel any pending prefetch from a previous hover
-  if (hoverTimer) clearTimeout(hoverTimer);
+  cancelPrefetch();
 
   hoverTimer = setTimeout(() => {
     const importFn = routeImportMap[path];

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { retrySupabaseQuery } from '@/lib/networkRetry';
 import { useAuth } from './AuthContext';
 import { OrgRole } from '@/lib/permissions/constants';
 
@@ -82,11 +83,14 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     try {
       // Get the user's organization membership
-      const { data: membershipRows, error: membershipError } = await supabase
-        .from('organization_members')
-        .select('id, organization_id, user_id, role')
-        .eq('user_id', user.id)
-        .limit(1);
+      const { data: membershipRows, error: membershipError } = await retrySupabaseQuery(async () =>
+        supabase
+          .from('organization_members')
+          .select('id, organization_id, user_id, role')
+          .eq('user_id', user.id)
+          .limit(1)
+          .then(r => r)
+      );
 
       if (membershipError) {
         console.error('Error fetching membership:', membershipError);
@@ -103,11 +107,14 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setMembership(selectedMembership);
 
       // Get the organization details
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .select('id, name, slug, logo_url, address, phone, email, website, tax_rate, invoice_prefix, quotation_prefix, challan_prefix, invoice_terms, invoice_footer, bank_name, bank_account_name, bank_account_number, bank_branch, bank_routing_number, mobile_banking, owner_id')
-        .eq('id', selectedMembership.organization_id)
-        .single();
+      const { data: orgData, error: orgError } = await retrySupabaseQuery(async () =>
+        supabase
+          .from('organizations')
+          .select('id, name, slug, logo_url, address, phone, email, website, tax_rate, invoice_prefix, quotation_prefix, challan_prefix, invoice_terms, invoice_footer, bank_name, bank_account_name, bank_account_number, bank_branch, bank_routing_number, mobile_banking, owner_id')
+          .eq('id', selectedMembership.organization_id)
+          .single()
+          .then(r => r)
+      );
 
       if (orgError) {
         console.error('Error fetching organization:', orgError);

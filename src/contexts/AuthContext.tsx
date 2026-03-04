@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { retrySupabaseQuery } from '@/lib/networkRetry';
 
 // System-level role for platform administration
 // Note: Organization roles are defined in src/lib/permissions/constants.ts as OrgRole
@@ -34,11 +35,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserRole = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
+      const { data, error } = await retrySupabaseQuery(async () =>
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .single()
+          .then(r => r)
+      );
 
       if (error) {
         console.error('Error fetching role:', error);

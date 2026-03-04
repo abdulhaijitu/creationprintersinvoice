@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { retrySupabaseQuery } from '@/lib/networkRetry';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -49,11 +50,14 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
       if (!settings) setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from('company_settings')
-        .select('id, company_name, company_name_bn, address, address_bn, phone, email, website, logo_url, bank_name, bank_account_name, bank_account_number, bank_branch, bank_routing_number, mobile_banking, invoice_prefix, quotation_prefix, invoice_footer, invoice_terms')
-        .limit(1)
-        .maybeSingle();
+      const { data, error: fetchError } = await retrySupabaseQuery(async () =>
+        supabase
+          .from('company_settings')
+          .select('id, company_name, company_name_bn, address, address_bn, phone, email, website, logo_url, bank_name, bank_account_name, bank_account_number, bank_branch, bank_routing_number, mobile_banking, invoice_prefix, quotation_prefix, invoice_footer, invoice_terms')
+          .limit(1)
+          .maybeSingle()
+          .then(r => r)
+      );
 
       if (fetchError) {
         setError(fetchError.message);
