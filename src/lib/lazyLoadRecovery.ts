@@ -4,20 +4,21 @@
  * Handles stale HMR / deployment cache errors that produce
  * "Failed to fetch dynamically imported module" or similar TypeError.
  *
- * Features:
- * - isDynamicImportError() detector
- * - retry with exponential back-off
- * - guarded hard-reload with timestamp-based cooldown (prevents infinite loops)
- * - clears reload guard on successful load
+ * Strategy: fast-fail with bounded auto-reload budget per session.
+ * - Max 3 auto-reloads per session (prevents infinite loops).
+ * - Successful page load clears the budget.
+ * - After budget exhausted, ChunkLoadBoundary shows manual retry UI.
  */
 
-const RELOAD_KEY = 'chunkReloadTs';
-const RELOAD_COOLDOWN_MS = 10_000; // min 10 s between auto-reloads
+const RELOAD_COUNT_KEY = 'chunkReloadCount';
+const RELOAD_TS_KEY = 'chunkReloadTs';
+const MAX_AUTO_RELOADS = 3;
+const RELOAD_WINDOW_MS = 60_000; // reset counter after 60s of stability
 
 /** Detect dynamic-import / chunk-load errors reliably */
 export function isDynamicImportError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const msg = error.message.toLowerCase();
+  if (!error) return false;
+  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
   return (
     msg.includes('failed to fetch dynamically imported module') ||
     msg.includes('importing a module script failed') ||
@@ -28,53 +29,62 @@ export function isDynamicImportError(error: unknown): boolean {
   );
 }
 
-/** Guarded page reload — won't loop faster than RELOAD_COOLDOWN_MS */
+/** Get current reload count within the active window */
+function getReloadBudget(): { count: number; withinWindow: boolean } {
+  const count = Number(sessionStorage.getItem(RELOAD_COUNT_KEY) || '0');
+  const lastTs = Number(sessionStorage.getItem(RELOAD_TS_KEY) || '0');
+  const withinWindow = Date.now() - lastTs < RELOAD_WINDOW_MS;
+  return { count: withinWindow ? count : 0, withinWindow };
+}
+
+/** Guarded page reload — uses a session budget to prevent infinite loops */
 export function guardedReload(): void {
-  const now = Date.now();
-  const last = Number(sessionStorage.getItem(RELOAD_KEY) || '0');
-  if (now - last < RELOAD_COOLDOWN_MS) {
-    // Too recent — don't reload again; let error boundary show UI.
+  const { count } = getReloadBudget();
+
+  if (count >= MAX_AUTO_RELOADS) {
+    // Budget exhausted — let error boundary show UI
     return;
   }
-  sessionStorage.setItem(RELOAD_KEY, String(now));
+
+  sessionStorage.setItem(RELOAD_COUNT_KEY, String(count + 1));
+  sessionStorage.setItem(RELOAD_TS_KEY, String(Date.now()));
   window.location.reload();
 }
 
-/** Clear the reload guard — call on any successful lazy load */
+/** Clear the reload budget — call on successful app boot / lazy load */
 export function clearReloadGuard(): void {
-  sessionStorage.removeItem(RELOAD_KEY);
+  sessionStorage.removeItem(RELOAD_COUNT_KEY);
+  sessionStorage.removeItem(RELOAD_TS_KEY);
 }
 
 /**
- * Retry a dynamic import with back-off, then optionally trigger a guarded
- * hard-reload as a last resort.
- *
- * @param importFn  () => import('./SomePage')
- * @param retries   number of retries before giving up (default 2)
+ * Wrap a dynamic import with one fast retry, then guarded reload as fallback.
+ * Keeps retry minimal — browser-side retries of chunk URLs are unreliable,
+ * so we prefer a fast hard-reload instead.
  */
 export function lazyRetry(
   importFn: () => Promise<any>,
-  retries = 2,
 ): Promise<any> {
   return importFn()
     .then((mod) => {
-      // Success — clear any previous reload guard
       clearReloadGuard();
       return mod;
     })
     .catch((err) => {
-      if (retries > 0 && isDynamicImportError(err)) {
-        const delay = (3 - retries) * 500; // 500, 1000
-        return new Promise((r) => setTimeout(r, delay)).then(() =>
-          lazyRetry(importFn, retries - 1),
-        );
-      }
-
-      // All retries exhausted — attempt guarded reload for chunk errors
       if (isDynamicImportError(err)) {
-        guardedReload();
+        // One fast retry (no delay) — handles transient glitches
+        return importFn()
+          .then((mod) => {
+            clearReloadGuard();
+            return mod;
+          })
+          .catch((retryErr) => {
+            if (isDynamicImportError(retryErr)) {
+              guardedReload();
+            }
+            throw retryErr;
+          });
       }
-
       throw err;
     });
 }

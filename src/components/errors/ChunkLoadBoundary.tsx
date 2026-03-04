@@ -37,7 +37,8 @@ export class ChunkLoadBoundary extends React.Component<Props, State> {
   };
 
   handleReload = () => {
-    guardedReload();
+    // Force reload bypassing the budget check
+    window.location.reload();
   };
 
   render() {
@@ -65,8 +66,8 @@ export class ChunkLoadBoundary extends React.Component<Props, State> {
             পেজ লোড করতে সমস্যা হয়েছে
           </h2>
           <p className="max-w-sm text-sm text-muted-foreground">
-            ইন্টারনেট সংযোগ বা ক্যাশ সমস্যার কারণে পেজটি লোড হয়নি। নিচের
-            বাটনে ক্লিক করে আবার চেষ্টা করুন।
+            ইন্টারনেট সংযোগ অস্থিতিশীল থাকলে বা ক্যাশ সমস্যার কারণে পেজটি লোড হয়নি। 
+            নিচের বাটনে ক্লিক করে আবার চেষ্টা করুন।
           </p>
 
           <div className="flex gap-3">

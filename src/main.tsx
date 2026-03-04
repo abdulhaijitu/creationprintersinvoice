@@ -5,13 +5,14 @@ import { isDynamicImportError, guardedReload } from "./lib/lazyLoadRecovery";
 
 // Global handler for Vite preload/chunk errors (fires BEFORE React.lazy catches them)
 window.addEventListener('vite:preloadError', (event: any) => {
-  event.preventDefault(); // prevent default console error
+  event.preventDefault();
   guardedReload();
 });
 
 // Fallback: catch any unhandled dynamic-import errors at window level
 window.addEventListener('unhandledrejection', (event) => {
-  if (isDynamicImportError(event.reason)) {
+  // Guard against non-Error reasons (strings, objects, undefined)
+  if (event.reason && isDynamicImportError(event.reason)) {
     event.preventDefault();
     guardedReload();
   }
