@@ -180,6 +180,7 @@ const Invoices = () => {
       }).eq('id', invoice.id);
       toast.success('Invoice marked as paid');
       invalidateInvoices();
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
     } catch (error) {
       console.error('Error marking invoice as paid:', error);
       toast.error('Failed to mark as paid');

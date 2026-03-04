@@ -4,7 +4,7 @@ import { sanitizeHtml } from '@/lib/sanitize';
 import { EntityAttachmentsSection } from '@/components/shared/EntityAttachmentsSection';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -101,6 +101,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 const InvoiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const costingPermissions = useCostingPermissions();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
@@ -616,7 +617,11 @@ const InvoiceDetail = () => {
         }}
         open={paymentDialogOpen}
         onOpenChange={setPaymentDialogOpen}
-        onPaymentAdded={fetchInvoice}
+        onPaymentAdded={() => {
+          fetchInvoice();
+          queryClient.invalidateQueries({ queryKey: ['invoices'] });
+          queryClient.invalidateQueries({ queryKey: ['payments'] });
+        }}
       />
     </>
   );
