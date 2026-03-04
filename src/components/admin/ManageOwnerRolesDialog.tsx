@@ -74,11 +74,9 @@ export const ManageOwnerRolesDialog = ({
       // Fetch profiles for each member
       const membersWithProfiles = await Promise.all(
         (memberData || []).map(async (member) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', member.user_id)
-            .single();
+          const { data: profileRows } = await supabase
+            .rpc('get_basic_profile', { _target_user_id: member.user_id });
+          const profile = profileRows?.[0] || null;
           
           // Get email from auth if this is the owner
           let email = '';

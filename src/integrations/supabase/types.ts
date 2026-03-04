@@ -5065,6 +5065,17 @@ export type Database = {
       }
       generate_payment_receipt_number: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
+      get_basic_profile: {
+        Args: { _target_user_id: string }
+        Returns: {
+          avatar_url: string
+          department: string
+          designation: string
+          full_name: string
+          id: string
+          phone: string
+        }[]
+      }
       get_mrr_trend: {
         Args: { days_back?: number }
         Returns: {
@@ -5081,6 +5092,18 @@ export type Database = {
       get_next_quotation_number_preview: {
         Args: { p_org_id: string }
         Returns: string
+      }
+      get_org_member_profiles: {
+        Args: { _org_id: string }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          department: string
+          designation: string
+          full_name: string
+          id: string
+          phone: string
+        }[]
       }
       get_org_usage_percentage: {
         Args: { org_id: string }

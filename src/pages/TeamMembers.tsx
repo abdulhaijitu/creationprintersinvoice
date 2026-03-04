@@ -369,14 +369,16 @@ const TeamMembers = () => {
       let profileMap = new Map<string, Profile>();
       if (membersData.length > 0) {
         const userIds = [...new Set(membersData.map(m => m.user_id))];
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', userIds);
-        
-        if (profilesData) {
-          profilesData.forEach(p => profileMap.set(p.id, p));
-        }
+        // Use RPC to get basic profile info (respects data privacy)
+        const profileResults = await Promise.all(
+          userIds.map(uid => supabase.rpc('get_basic_profile', { _target_user_id: uid }))
+        );
+        profileResults.forEach(result => {
+          if (result.data && result.data.length > 0) {
+            const p = result.data[0];
+            profileMap.set(p.id, p);
+          }
+        });
       }
       
       // Combine members with profiles

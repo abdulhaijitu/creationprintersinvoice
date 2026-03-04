@@ -138,12 +138,9 @@ const QuotationDetail = () => {
     queryFn: async () => {
       if (!quotation?.converted_by) return null;
       const { data, error } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', quotation.converted_by)
-        .single();
-      if (error) return null;
-      return data;
+        .rpc('get_basic_profile', { _target_user_id: quotation.converted_by });
+      if (error || !data?.length) return null;
+      return data[0];
     },
     enabled: !!quotation?.converted_by,
   });

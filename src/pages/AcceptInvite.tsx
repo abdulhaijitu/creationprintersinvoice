@@ -140,12 +140,9 @@ const AcceptInvite = () => {
         // Get inviter name if available
         let inviterName: string | undefined;
         if (invite.invited_by) {
-          const { data: inviterProfile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', invite.invited_by)
-            .maybeSingle();
-          inviterName = inviterProfile?.full_name || undefined;
+          const { data: inviterRows } = await supabase
+            .rpc('get_basic_profile', { _target_user_id: invite.invited_by });
+          inviterName = inviterRows?.[0]?.full_name || undefined;
         }
 
         setInviteData({

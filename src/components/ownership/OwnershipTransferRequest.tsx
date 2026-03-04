@@ -46,11 +46,9 @@ export const OwnershipTransferRequest = () => {
       // Fetch profiles for each member
       const enrichedMembers = await Promise.all(
         (members || []).map(async (member) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', member.user_id)
-            .single();
+          const { data: profileRows } = await supabase
+            .rpc('get_basic_profile', { _target_user_id: member.user_id });
+          const profile = profileRows?.[0] || null;
           
           return { ...member, profile } as TeamMember;
         })
