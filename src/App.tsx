@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ImpersonationProvider } from "@/contexts/ImpersonationContext";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
@@ -11,30 +11,16 @@ import { PermissionProvider } from "@/contexts/PermissionContext";
 import { CompanySettingsProvider } from "@/contexts/CompanySettingsContext";
 import { createQueryClient } from "@/hooks/useQueryConfig";
 import { PWAUpdateNotifier } from "@/components/pwa/PWAUpdateNotifier";
+import { ChunkLoadBoundary } from "@/components/errors/ChunkLoadBoundary";
 import AppLayout from "@/components/layout/AppLayout";
 import { Skeleton } from "@/components/ui/skeleton";
+import { lazyRetry } from "@/lib/lazyLoadRecovery";
 
 // Eagerly loaded (critical path)
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 
-// Retry wrapper for lazy imports — handles stale HMR/deployment cache errors
-const lazyRetry = (importFn: () => Promise<any>, retries = 2): Promise<any> =>
-  importFn().catch((err) => {
-    if (retries > 0) {
-      return new Promise((resolve) => setTimeout(resolve, 500)).then(() =>
-        lazyRetry(importFn, retries - 1)
-      );
-    }
-    // All retries exhausted — force full page reload to clear stale cache
-    if (!sessionStorage.getItem('lazyRetryReload')) {
-      sessionStorage.setItem('lazyRetryReload', '1');
-      window.location.reload();
-    }
-    throw err;
-  });
-
-// Lazy loaded pages with retry
+// Lazy loaded pages — all use centralized lazyRetry for chunk error recovery
 const Register = lazy(() => lazyRetry(() => import("./pages/Register")));
 const ResetPassword = lazy(() => lazyRetry(() => import("./pages/ResetPassword")));
 const Customers = lazy(() => lazyRetry(() => import("./pages/Customers")));
@@ -99,6 +85,7 @@ const App = () => (
             <OrganizationProvider>
               <PermissionProvider>
                 <CompanySettingsProvider>
+                <ChunkLoadBoundary>
                 <Routes>
                   {/* Public routes */}
                   <Route path="/login" element={<Login />} />
@@ -152,6 +139,7 @@ const App = () => (
                   {/* Catch-all */}
                   <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />
                 </Routes>
+                </ChunkLoadBoundary>
                 </CompanySettingsProvider>
               </PermissionProvider>
             </OrganizationProvider>

@@ -2,24 +2,25 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { hasAdminAccess, getAdminRole, canAccessSection } from '@/lib/adminPermissions';
+import { hasAdminAccess } from '@/lib/adminPermissions';
 import { AdminSidebar, SIDEBAR_STORAGE_KEY_EXPORT } from '@/components/admin/AdminSidebar';
 import { AdminMobileTiles } from '@/components/admin/AdminMobileTiles';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import logo from '@/assets/logo.png';
+import { lazyRetry } from '@/lib/lazyLoadRecovery';
 
-// Lazy-load heavy admin section components
-const AdminDashboardOverview = lazy(() => import('@/components/admin/AdminDashboardOverview').then(m => ({ default: m.AdminDashboardOverview })));
-const AdminUsersTable = lazy(() => import('@/components/admin/AdminUsersTable').then(m => ({ default: m.AdminUsersTable })));
-const OrgRolePermissionsManager = lazy(() => import('@/components/admin/OrgRolePermissionsManager'));
-const PlanPermissionPresetsManager = lazy(() => import('@/components/admin/PlanPermissionPresetsManager'));
-const UpgradeRequestsManager = lazy(() => import('@/components/admin/UpgradeRequestsManager').then(m => ({ default: m.UpgradeRequestsManager })));
-const BusinessAnalyticsDashboard = lazy(() => import('@/components/analytics/BusinessAnalyticsDashboard').then(m => ({ default: m.BusinessAnalyticsDashboard })));
-const AdminNotificationLogs = lazy(() => import('@/components/admin/AdminNotificationLogs').then(m => ({ default: m.AdminNotificationLogs })));
-const EnhancedAuditLogsTable = lazy(() => import('@/components/admin/EnhancedAuditLogsTable'));
-const InvestorDashboard = lazy(() => import('@/components/admin/InvestorDashboard').then(m => ({ default: m.InvestorDashboard })));
+// Lazy-load heavy admin section components — using centralized recovery
+const AdminDashboardOverview = lazy(() => lazyRetry(() => import('@/components/admin/AdminDashboardOverview').then(m => ({ default: m.AdminDashboardOverview }))));
+const AdminUsersTable = lazy(() => lazyRetry(() => import('@/components/admin/AdminUsersTable').then(m => ({ default: m.AdminUsersTable }))));
+const OrgRolePermissionsManager = lazy(() => lazyRetry(() => import('@/components/admin/OrgRolePermissionsManager')));
+const PlanPermissionPresetsManager = lazy(() => lazyRetry(() => import('@/components/admin/PlanPermissionPresetsManager')));
+const UpgradeRequestsManager = lazy(() => lazyRetry(() => import('@/components/admin/UpgradeRequestsManager').then(m => ({ default: m.UpgradeRequestsManager }))));
+const BusinessAnalyticsDashboard = lazy(() => lazyRetry(() => import('@/components/analytics/BusinessAnalyticsDashboard').then(m => ({ default: m.BusinessAnalyticsDashboard }))));
+const AdminNotificationLogs = lazy(() => lazyRetry(() => import('@/components/admin/AdminNotificationLogs').then(m => ({ default: m.AdminNotificationLogs }))));
+const EnhancedAuditLogsTable = lazy(() => lazyRetry(() => import('@/components/admin/EnhancedAuditLogsTable')));
+const InvestorDashboard = lazy(() => lazyRetry(() => import('@/components/admin/InvestorDashboard').then(m => ({ default: m.InvestorDashboard }))));
 
 // Section label map for topbar
 const sectionLabels: Record<string, string> = {
@@ -44,7 +45,6 @@ const SectionFallback = () => (
 );
 
 const AdminSectionContent = ({ section }: { section: string }) => {
-  // Placeholder stats for dashboard
   const defaultStats = {
     totalOrgs: 0, activeOrgs: 0, trialOrgs: 0, expiredOrgs: 0, totalUsers: 0, monthlySignups: 0,
   };
@@ -91,14 +91,12 @@ const Admin = () => {
     } catch { return false; }
   });
 
-  // On mobile, reset to tiles home when first entering
   useEffect(() => {
     if (isMobile) {
       setActiveSection(null);
     }
   }, [isMobile]);
 
-  // Redirect non-admin users
   useEffect(() => {
     if (!authLoading && !hasAdminAccess(role)) {
       navigate('/', { replace: true });
@@ -112,17 +110,13 @@ const Admin = () => {
     navigate('/login');
   };
 
-  // ─── MOBILE VIEW ─────────────────────────────────────────
   if (isMobile) {
-    // Tiles home screen
     if (activeSection === null) {
       return <AdminMobileTiles onSelect={setActiveSection} onSignOut={handleSignOut} />;
     }
 
-    // Section content with back button
     return (
       <div className="flex h-dvh flex-col bg-background">
-        {/* Topbar */}
         <header className="flex h-14 items-center gap-3 border-b px-4 shrink-0">
           <Button
             variant="ghost"
@@ -136,8 +130,6 @@ const Admin = () => {
             {sectionLabels[activeSection] ?? activeSection}
           </h1>
         </header>
-
-        {/* Content */}
         <ScrollArea className="flex-1">
           <div className="p-4">
             <AdminSectionContent section={activeSection} />
@@ -147,7 +139,6 @@ const Admin = () => {
     );
   }
 
-  // ─── DESKTOP VIEW ────────────────────────────────────────
   return (
     <div className="flex min-h-screen bg-background">
       <AdminSidebar
@@ -157,7 +148,6 @@ const Admin = () => {
         collapsed={sidebarCollapsed}
         onCollapsedChange={setSidebarCollapsed}
       />
-
       <main
         className="flex-1 transition-all duration-300"
         style={{ marginLeft: sidebarCollapsed ? 64 : 256 }}
