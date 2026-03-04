@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys, STALE_TIMES } from '@/hooks/useQueryConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
@@ -86,8 +88,35 @@ const Customers = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { organization, orgRole } = useOrganization();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data: customers = [], isLoading: loading } = useQuery({
+    queryKey: queryKeys.customers(organization?.id || ''),
+    queryFn: async () => {
+      const [customersResult, invoicesResult] = await Promise.all([
+        supabase
+          .from('customers')
+          .select('id, name, phone, email, address, company_name, notes, default_notes, default_terms, created_at')
+          .eq('organization_id', organization!.id)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('invoices')
+          .select('customer_id, total, paid_amount')
+          .eq('organization_id', organization!.id),
+      ]);
+      if (customersResult.error) throw customersResult.error;
+      const invoicesData = invoicesResult.data;
+      return (customersResult.data || []).map(customer => {
+        const customerInvoices = invoicesData?.filter(inv => inv.customer_id === customer.id) || [];
+        const total_invoiced = customerInvoices.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+        const total_paid = customerInvoices.reduce((sum, inv) => sum + (Number(inv.paid_amount) || 0), 0);
+        return { ...customer, total_invoiced, total_paid, total_due: total_invoiced - total_paid };
+      });
+    },
+    enabled: !!organization?.id,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -129,56 +158,7 @@ const Customers = () => {
     selectedItems,
   } = useBulkSelection(customers);
 
-  useEffect(() => {
-    if (organization?.id) {
-      fetchCustomers();
-    }
-  }, [organization?.id]);
-
-  const fetchCustomers = async () => {
-    if (!organization?.id) return;
-    
-    try {
-      // Parallel fetch customers and invoices
-      const [customersResult, invoicesResult] = await Promise.all([
-        supabase
-          .from('customers')
-          .select('id, name, phone, email, address, company_name, notes, default_notes, default_terms, created_at')
-          .eq('organization_id', organization.id)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('invoices')
-          .select('customer_id, total, paid_amount')
-          .eq('organization_id', organization.id),
-      ]);
-
-      const { data: customersData, error } = customersResult;
-      if (error) throw error;
-      const invoicesData = invoicesResult.data;
-
-      const customerWithLedger = (customersData || []).map(customer => {
-        const customerInvoices = invoicesData?.filter(inv => inv.customer_id === customer.id) || [];
-        const total_invoiced = customerInvoices.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
-        const total_paid = customerInvoices.reduce((sum, inv) => sum + (Number(inv.paid_amount) || 0), 0);
-        const total_due = total_invoiced - total_paid;
-
-        return {
-          ...customer,
-          total_invoiced,
-          total_paid,
-          total_due,
-        };
-      });
-
-      setCustomers(customerWithLedger);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-      toast.error('Failed to load customer list');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const invalidateCustomers = () => queryClient.invalidateQueries({ queryKey: queryKeys.customers(organization?.id || '') });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,7 +208,7 @@ const Customers = () => {
 
       setIsDialogOpen(false);
       resetForm();
-      fetchCustomers();
+      invalidateCustomers();
     } catch (error: any) {
       console.error('Error saving customer:', error);
       toast.error(error.message || 'An error occurred');
@@ -266,7 +246,7 @@ const Customers = () => {
       if (error) throw error;
       toast.success('Customer archived');
       setDeleteId(null);
-      fetchCustomers();
+      invalidateCustomers();
     } catch (error: any) {
       console.error('Error deleting customer:', error);
       toast.error(error.message || 'Failed to delete');
@@ -307,7 +287,7 @@ const Customers = () => {
       
       clearSelection();
       setBulkDeleteOpen(false);
-      fetchCustomers();
+      invalidateCustomers();
     } catch (error: any) {
       console.error('Error bulk deleting:', error);
       toast.error(error.message || 'Failed to delete customers');
@@ -520,7 +500,7 @@ const Customers = () => {
     }
 
     if (success > 0) {
-      fetchCustomers();
+      invalidateCustomers();
     }
 
     return { success, failed, errors, duplicates };

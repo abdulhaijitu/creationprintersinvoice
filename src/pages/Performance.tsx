@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/hooks/useQueryConfig';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrgScopedQuery } from "@/hooks/useOrgScopedQuery";
@@ -52,9 +54,6 @@ interface Employee {
 const Performance = () => {
   const { isAdmin, user } = useAuth();
   const { organizationId, hasOrgContext } = useOrgScopedQuery();
-  const [notes, setNotes] = useState<PerformanceNote[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -65,58 +64,56 @@ const Performance = () => {
     rating: "3",
   });
 
-  useEffect(() => {
-    if (hasOrgContext && organizationId) {
-      fetchData();
-    }
-  }, [selectedEmployee, isAdmin, organizationId, hasOrgContext]);
+  const queryClient = useQueryClient();
+  const perfCacheKey = ['performance-notes', organizationId, selectedEmployee, isAdmin] as const;
 
-  const fetchData = async () => {
-    if (!organizationId) return;
-    
-    setLoading(true);
-    try {
-      // Fetch employees from employees table
-      const { data: employeesData } = await supabase
+  const { data: perfData, isLoading: loading } = useQuery({
+    queryKey: perfCacheKey,
+    queryFn: async () => {
+      // Fetch employees and notes in parallel
+      const employeesPromise = supabase
         .from("employees")
         .select("id, full_name")
-        .eq("organization_id", organizationId)
+        .eq("organization_id", organizationId!)
         .eq("is_active", true)
         .order("full_name");
-      setEmployees(employeesData || []);
 
-      let query = supabase
+      let notesQuery = supabase
         .from("performance_notes")
         .select("id, user_id, note, rating, created_at, created_by")
-        .eq("organization_id", organizationId)
+        .eq("organization_id", organizationId!)
         .order("created_at", { ascending: false });
 
       if (!isAdmin) {
-        query = query.eq("user_id", user?.id);
+        notesQuery = notesQuery.eq("user_id", user?.id);
       } else if (selectedEmployee !== "all") {
-        query = query.eq("user_id", selectedEmployee);
+        notesQuery = notesQuery.eq("user_id", selectedEmployee);
       }
 
-      const { data: notesData } = await query;
+      const [empRes, notesRes] = await Promise.all([employeesPromise, notesQuery]);
+      const employeesData = empRes.data || [];
+      const notesData = notesRes.data || [];
 
-      if (notesData && employeesData) {
-        const notesWithEmployees = notesData.map((note) => {
-          const employee = employeesData.find((e) => e.id === note.user_id);
-          const creator = employeesData.find((e) => e.id === note.created_by);
-          return {
-            ...note,
-            employee: employee ? { full_name: employee.full_name } : null,
-            creator: creator ? { full_name: creator.full_name } : null,
-          };
-        });
-        setNotes(notesWithEmployees);
-      }
-    } catch (error) {
-      console.error("Error fetching performance data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const notesWithEmployees = notesData.map((note) => {
+        const employee = employeesData.find((e) => e.id === note.user_id);
+        const creator = employeesData.find((e) => e.id === note.created_by);
+        return {
+          ...note,
+          employee: employee ? { full_name: employee.full_name } : null,
+          creator: creator ? { full_name: creator.full_name } : null,
+        };
+      });
+
+      return { employees: employeesData, notes: notesWithEmployees };
+    },
+    enabled: hasOrgContext && !!organizationId,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
+
+  const employees = perfData?.employees || [];
+  const notes = perfData?.notes || [];
+
+  const invalidatePerf = () => queryClient.invalidateQueries({ queryKey: ['performance-notes', organizationId] });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,7 +137,7 @@ const Performance = () => {
       toast.success("Performance note saved");
       setIsDialogOpen(false);
       resetForm();
-      fetchData();
+      invalidatePerf();
     } catch (error) {
       console.error("Error saving performance note:", error);
       toast.error("Failed to save note");
@@ -164,7 +161,7 @@ const Performance = () => {
       
       toast.success('Performance note deleted');
       setDeleteId(null);
-      fetchData();
+      invalidatePerf();
     } catch (error) {
       console.error('Error deleting performance note:', error);
       toast.error('Failed to delete performance note');

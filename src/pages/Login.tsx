@@ -105,8 +105,8 @@ const Login = () => {
         return;
       }
 
-      // Run role, membership, and subscription checks in parallel
-      const [roleResult, membershipResult] = await Promise.all([
+      // Run role, membership, and subscription checks ALL in parallel
+      const [roleResult, membershipResult, subscriptionResult] = await Promise.all([
         supabase
           .from('user_roles')
           .select('role, must_reset_password')
@@ -117,7 +117,23 @@ const Login = () => {
           .from('organization_members')
           .select('organization_id')
           .eq('user_id', authedUser.id)
+          .limit(1)
           .then(r => r),
+        // Pre-fetch subscription status alongside to avoid sequential wait
+        supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', authedUser.id)
+          .limit(1)
+          .then(async (memRes) => {
+            if (!memRes.data?.[0]?.organization_id) return { data: null };
+            return supabase
+              .from('subscriptions')
+              .select('status')
+              .eq('organization_id', memRes.data[0].organization_id)
+              .maybeSingle()
+              .then(r => r);
+          }),
       ]);
 
       const roleRow = roleResult.data;
@@ -148,13 +164,8 @@ const Login = () => {
       const orgId = memberships[0].organization_id;
       localStorage.setItem('printosaas_active_organization_id', orgId);
 
-      // Subscription check — non-blocking for speed, only blocks if suspended
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('status')
-        .eq('organization_id', orgId)
-        .maybeSingle()
-        .then(r => r);
+      // Use pre-fetched subscription result
+      const subscription = subscriptionResult?.data;
 
       if (subscription?.status === 'suspended') {
         await supabase.auth.signOut();
