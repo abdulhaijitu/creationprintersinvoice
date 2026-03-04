@@ -215,10 +215,19 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
 };
 
+const orgFallback: OrganizationContextType = {
+  organization: null,
+  membership: null,
+  loading: true,
+  isOrgOwner: false,
+  isOrgManager: false,
+  isOrgAdmin: false,
+  orgRole: null,
+  refetchOrganization: async () => {},
+  createOrganization: async () => ({ error: new Error('OrganizationProvider not mounted'), organization: null }),
+};
+
 export const useOrganization = () => {
   const context = useContext(OrganizationContext);
-  if (context === undefined) {
-    throw new Error('useOrganization must be used within an OrganizationProvider');
-  }
-  return context;
+  return context ?? orgFallback;
 };

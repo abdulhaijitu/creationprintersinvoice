@@ -128,7 +128,7 @@ export default function Settings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<CompanySettings>) => {
-      console.log('[Settings] Save initiated');
+      // Settings save initiated
 
       if (!settings?.id) {
         throw new Error('Company settings not loaded');

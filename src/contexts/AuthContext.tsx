@@ -149,10 +149,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+const authFallback: AuthContextType = {
+  user: null,
+  session: null,
+  loading: true,
+  role: null,
+  isAdmin: false,
+  isSuperAdmin: false,
+  isManager: false,
+  isAccounts: false,
+  isSalesStaff: false,
+  isDesigner: false,
+  hasPrivilegedAccess: false,
+  signIn: async () => ({ error: new Error('AuthProvider not mounted') }),
+  signUp: async () => ({ error: new Error('AuthProvider not mounted') }),
+  signOut: async () => {},
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return context ?? authFallback;
 };

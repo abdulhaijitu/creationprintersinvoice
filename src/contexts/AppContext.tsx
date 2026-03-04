@@ -112,7 +112,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     queryClient.clear();
     
     // Clear any component-level caches
-    console.log('[AppContext] Cleared all cached data for context switch');
+    if (import.meta.env.DEV) console.log('[AppContext] Cleared all cached data for context switch');
   }, [queryClient]);
   
   // Validate that fetched data belongs to current organization
@@ -151,7 +151,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const contextSwitched = prevContextRef.current !== null && prevContextRef.current !== newAppContext;
     
     if (contextSwitched) {
-      console.log('[AppContext] Context switch detected:', prevContextRef.current, '->', newAppContext);
+      if (import.meta.env.DEV) console.log('[AppContext] Context switch detected:', prevContextRef.current, '->', newAppContext);
       // CRITICAL: Clear all cached data on context switch
       clearAllCachedData();
     }
@@ -215,12 +215,18 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   );
 };
 
+const appContextFallback: AppContextState = {
+  appContext: 'user',
+  sessionContext: { appContext: 'user', organizationId: null, userId: null, role: null, isImpersonating: false },
+  isSuperAdminMode: false,
+  shouldBlockBusinessData: false,
+  clearAllCachedData: () => {},
+  validateDataContext: () => true,
+};
+
 export const useAppContext = () => {
   const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error('useAppContext must be used within an AppContextProvider');
-  }
-  return context;
+  return context ?? appContextFallback;
 };
 
 /**
