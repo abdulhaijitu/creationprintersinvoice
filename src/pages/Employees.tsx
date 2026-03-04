@@ -213,7 +213,7 @@ const Employees = () => {
   const handleOpenAddDialog = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log("[Employees] New Employee button clicked");
+    // Employee add dialog opened
     resetAddForm();
     setIsAddDialogOpen(true);
   };

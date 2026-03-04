@@ -531,7 +531,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
    * Refresh permissions manually
    */
   const refreshPermissions = useCallback(async () => {
-    console.log('[PermissionContext] Manual refresh triggered');
+    if (import.meta.env.DEV) console.log('[PermissionContext] Manual refresh triggered');
     await fetchPermissions();
   }, [fetchPermissions]);
 
@@ -562,12 +562,29 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   );
 };
 
+const permissionFallback: PermissionContextType = {
+  hasPermission: () => false,
+  hasModuleAccess: () => false,
+  hasAnyPermission: false,
+  canView: () => false,
+  canCreate: () => false,
+  canEdit: () => false,
+  canDelete: () => false,
+  canManage: () => false,
+  loading: true,
+  permissionsReady: false,
+  lastUpdated: 0,
+  refreshPermissions: async () => {},
+  getEnabledModules: () => [],
+  getAllPermissions: () => new Map(),
+  orgRole: null,
+  isOrgOwner: false,
+  isSuperAdmin: false,
+};
+
 export const usePermissionContext = () => {
   const context = useContext(PermissionContext);
-  if (context === undefined) {
-    throw new Error('usePermissionContext must be used within a PermissionProvider');
-  }
-  return context;
+  return context ?? permissionFallback;
 };
 
 // Re-export for convenience

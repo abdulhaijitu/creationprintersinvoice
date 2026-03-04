@@ -112,7 +112,7 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
     if (state.isImpersonating) {
       // Clear if user logged out
       if (!user) {
-        console.log('Clearing impersonation: user logged out');
+        if (import.meta.env.DEV) console.log('Clearing impersonation: user logged out');
         setState({
           isImpersonating: false,
           target: null,
@@ -125,7 +125,7 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
       
       // Clear if user is no longer super admin
       if (!isSuperAdmin) {
-        console.log('Clearing impersonation: user is no longer super admin');
+        if (import.meta.env.DEV) console.log('Clearing impersonation: user is no longer super admin');
         setState({
           isImpersonating: false,
           target: null,
@@ -146,7 +146,7 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
       const startedAt = new Date(state.startedAt!).getTime();
       const now = Date.now();
       if (now - startedAt > MAX_IMPERSONATION_DURATION_MS) {
-        console.log('Impersonation session expired');
+        if (import.meta.env.DEV) console.log('Impersonation session expired');
         toast.warning('Impersonation session has expired');
         setState({
           isImpersonating: false,
@@ -319,10 +319,18 @@ export const ImpersonationProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
+const impersonationFallback: ImpersonationContextType = {
+  isImpersonating: false,
+  impersonationTarget: null,
+  originalAdminId: null,
+  isStarting: false,
+  isEnding: false,
+  startImpersonation: async () => false,
+  endImpersonation: async () => {},
+  canImpersonate: () => ({ allowed: false, reason: 'ImpersonationProvider not mounted' }),
+};
+
 export const useImpersonation = () => {
   const context = useContext(ImpersonationContext);
-  if (context === undefined) {
-    throw new Error('useImpersonation must be used within an ImpersonationProvider');
-  }
-  return context;
+  return context ?? impersonationFallback;
 };
