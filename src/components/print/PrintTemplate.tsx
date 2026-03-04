@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateInvoiceStatus } from '@/lib/invoiceUtils';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface PrintTemplateProps {
   type: 'invoice' | 'quotation';
@@ -623,7 +624,7 @@ export const PrintTemplate = ({
                       wordBreak: 'break-word',
                       lineHeight: '1.5',
                     }}
-                    dangerouslySetInnerHTML={{ __html: item.description }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }}
                   />
                   <td style={{ padding: '10px 8px', textAlign: 'center', color: '#374151' }}>
                     {item.quantity}
@@ -861,7 +862,7 @@ export const PrintTemplate = ({
                 <div 
                   className="pdf-paragraph"
                   style={{ fontSize: '8pt', color: '#4b5563', lineHeight: 1.6 }}
-                  dangerouslySetInnerHTML={{ __html: notes }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(notes) }}
                 />
               </div>
             )}
@@ -887,7 +888,7 @@ export const PrintTemplate = ({
                 <div 
                   className="pdf-paragraph"
                   style={{ fontSize: '8pt', color: '#4b5563', lineHeight: 1.6 }}
-                  dangerouslySetInnerHTML={{ __html: terms || invoiceTerms }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(terms || invoiceTerms) }}
                 />
               </div>
             )}
@@ -924,7 +925,7 @@ export const PrintTemplate = ({
                   fontWeight: '600',
                   marginBottom: '4px',
                 }}
-                dangerouslySetInnerHTML={{ __html: invoiceFooter }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(invoiceFooter) }}
               />
               {companyPhone && (
                 <p style={{ fontSize: '7pt', color: '#9ca3af', margin: 0 }}>

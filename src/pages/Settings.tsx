@@ -16,6 +16,7 @@ import { useSettingsTabPermissions, SettingsTabKey } from '@/hooks/useSettingsTa
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { UnsavedChangesWarning } from '@/components/settings/UnsavedChangesWarning';
 import { Loader2, Upload, Building2, Landmark, FileText, Image, ShieldAlert, Eye, Lock, Calendar, Wrench, Settings as SettingsIcon, Save } from 'lucide-react';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { Badge } from '@/components/ui/badge';
 import { WeeklyHolidaySettings } from '@/components/settings/WeeklyHolidaySettings';
 import { DataExportSection } from '@/components/settings/DataExportSection';
@@ -778,7 +779,7 @@ export default function Settings() {
                         <FormItem>
                           <FormLabel>Invoice Footer</FormLabel>
                           {tabPermissions.invoice.isReadOnly ? (
-                            <div className="border border-input rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: field.value || '<span class="text-muted-foreground">No footer set</span>' }} />
+                            <div className="border border-input rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(field.value || '<span class="text-muted-foreground">No footer set</span>') }} />
                           ) : (
                             <FormControl>
                               <RichTextEditor
@@ -801,7 +802,7 @@ export default function Settings() {
                         <FormItem>
                           <FormLabel>Terms & Conditions</FormLabel>
                           {tabPermissions.invoice.isReadOnly ? (
-                            <div className="border border-input rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: field.value || '<span class="text-muted-foreground">No terms set</span>' }} />
+                            <div className="border border-input rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(field.value || '<span class="text-muted-foreground">No terms set</span>') }} />
                           ) : (
                             <FormControl>
                               <RichTextEditor

@@ -9,6 +9,7 @@
 
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 // ============================================
 // TYPES
@@ -484,7 +485,7 @@ export function InvoicePDFTemplate({ data }: { data: InvoicePDFData }) {
           {data.items.map((item, index) => (
             <tr key={index} className="pdf-paragraph">
               <td style={styles.td}>{index + 1}</td>
-              <td style={{...styles.td, lineHeight: '1.6'}} dangerouslySetInnerHTML={{ __html: item.description }} />
+              <td style={{...styles.td, lineHeight: '1.6'}} dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }} />
               <td style={{ ...styles.td, ...styles.tdCenter }}>
                 {item.quantity}{item.unit ? ` ${item.unit}` : ''}
               </td>
@@ -560,7 +561,7 @@ export function InvoicePDFTemplate({ data }: { data: InvoicePDFData }) {
             <div 
               style={styles.notesContent}
               className="pdf-paragraph"
-              dangerouslySetInnerHTML={{ __html: data.notes }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.notes) }}
             />
           </div>
         )}
@@ -572,13 +573,13 @@ export function InvoicePDFTemplate({ data }: { data: InvoicePDFData }) {
             <div 
               style={styles.notesContent}
               className="pdf-paragraph"
-              dangerouslySetInnerHTML={{ __html: data.terms }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.terms) }}
             />
           </div>
         )}
         
         {data.footer && (
-          <div style={styles.footerText} className="pdf-paragraph" dangerouslySetInnerHTML={{ __html: data.footer }} />
+          <div style={styles.footerText} className="pdf-paragraph" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.footer) }} />
         )}
       </footer>
     </div>

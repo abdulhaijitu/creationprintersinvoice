@@ -8,6 +8,7 @@
  */
 
 import { format } from 'date-fns';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 // ============================================
 // TYPES
@@ -546,7 +547,7 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
             {data.items.map((item, index) => (
               <tr key={index} className="pdf-paragraph">
                 <td style={styles.td}>{index + 1}</td>
-                <td style={{...styles.td, lineHeight: '1.6'}} dangerouslySetInnerHTML={{ __html: item.description }} />
+                <td style={{...styles.td, lineHeight: '1.6'}} dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }} />
                 <td style={{ ...styles.td, ...styles.tdCenter }}>{item.quantity}</td>
                 <td style={{ ...styles.td, ...styles.tdCenter }}>{item.unit || '-'}</td>
                 <td style={{ ...styles.td, ...styles.tdRight }}>
@@ -604,7 +605,7 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
                 <div 
                   style={styles.notesContent}
                   className="pdf-paragraph"
-                  dangerouslySetInnerHTML={{ __html: data.notes }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.notes) }}
                 />
               </div>
             )}
@@ -616,7 +617,7 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
                 <div 
                   style={styles.notesContent}
                   className="pdf-paragraph"
-                  dangerouslySetInnerHTML={{ __html: data.terms }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.terms) }}
                 />
               </div>
             )}
@@ -645,7 +646,7 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
                 color: '#374151',
                 fontSize: '10pt',
               }}
-                dangerouslySetInnerHTML={{ __html: data.footer || 'Thank you for your interest!' }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.footer || 'Thank you for your interest!') }}
               />
             </div>
             

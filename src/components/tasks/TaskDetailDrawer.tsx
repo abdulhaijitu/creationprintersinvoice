@@ -28,6 +28,7 @@ import { TaskAttachments } from './TaskAttachments';
 import { TaskPriorityBadge } from './TaskPriorityBadge';
 import { TaskSlaIndicator } from './TaskSlaIndicator';
 import { Task, TaskVisibility } from '@/hooks/useTasks';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { ArrowRight, Calendar, User, AlertCircle, Lock, Link, History, Info, MessageSquare, Paperclip, Globe, Building2 } from 'lucide-react';
 
 interface TaskDetailDrawerProps {
@@ -210,7 +211,7 @@ export function TaskDetailDrawer({
                   <h3 className="text-sm font-medium text-muted-foreground">Notes / Instructions</h3>
                   <div 
                     className="text-sm bg-muted/50 p-3 rounded-lg prose prose-sm max-w-none [&_p]:my-0 [&_ul]:my-1 [&_ol]:my-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
-                    dangerouslySetInnerHTML={{ __html: task.description }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.description) }}
                   />
                 </div>
               )}
