@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import "@/components/print/printStyles.css";
 import { format, parseISO } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -197,7 +198,7 @@ export const CustomerStatementPDF = ({
       {/* Print-only statement */}
       <div
         ref={printRef}
-        className="hidden print:block bg-white text-black"
+        className="hidden print:block print-content bg-white text-black"
         style={{
           fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
           fontSize: "9pt",
