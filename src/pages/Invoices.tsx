@@ -61,7 +61,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { format, isPast, parseISO } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 import { calculateInvoiceStatus, type InvoiceDisplayStatus } from '@/lib/invoiceUtils';
 import CSVImportDialog from '@/components/import/CSVImportDialog';
@@ -91,24 +91,48 @@ const PAGE_SIZE = 25;
 
 const Invoices = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin } = useAuth();
   const { organization } = useOrganization();
   
   const invoicePerms = useActionPermission('invoices');
   
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+  // URL-persisted filter states
+  const statusFilter = (searchParams.get('status') as StatusFilter) || 'all';
+  const searchQuery = searchParams.get('q') || '';
+  const sortKey = searchParams.get('sort') || 'invoice_date';
+  const sortDirection = (searchParams.get('dir') as SortDirection) || 'desc';
+  const currentPage = Number(searchParams.get('page')) || 1;
+
+  const updateParam = (key: string, value: string | null) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (!value || value === '') {
+        next.delete(key);
+      } else {
+        next.set(key, value);
+      }
+      // Reset page when filters change (except page itself)
+      if (key !== 'page') next.delete('page');
+      return next;
+    }, { replace: true });
+  };
+
+  const setStatusFilter = (v: StatusFilter) => updateParam('status', v === 'all' ? null : v);
+  const setSearchQuery = (v: string) => updateParam('q', v || null);
+  const setSortKey = (v: string | null) => updateParam('sort', v === 'invoice_date' ? null : v);
+  const setSortDirection = (v: SortDirection) => updateParam('dir', v === 'desc' ? null : v);
+  const setCurrentPage = (v: number) => updateParam('page', v <= 1 ? null : String(v));
+
   const [importOpen, setImportOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [singleDeleteId, setSingleDeleteId] = useState<string | null>(null);
   const [singleDeleteLoading, setSingleDeleteLoading] = useState(false);
   const [bulkAction, setBulkAction] = useState<'delete' | 'markPaid' | null>(null);
   const [deleteProgress, setDeleteProgress] = useState<{ current: number; total: number } | null>(null);
-  const [sortKey, setSortKey] = useState<string | null>('invoice_date');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showStats, setShowStats] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
 
   const { data: invoices = [], isLoading: loading } = useQuery({
     queryKey: queryKeys.invoices(organization?.id || ''),
@@ -139,10 +163,6 @@ const Invoices = () => {
 
   const invalidateInvoices = () => queryClient.invalidateQueries({ queryKey: queryKeys.invoices(organization?.id || '') });
 
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, statusFilter]);
 
   const handleDeleteConfirm = async () => {
     if (!singleDeleteId) return;
@@ -1027,7 +1047,7 @@ const Invoices = () => {
                     size="icon"
                     className="h-8 w-8"
                     disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(p => p - 1)}
+                    onClick={() => setCurrentPage(currentPage - 1)}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -1039,7 +1059,7 @@ const Invoices = () => {
                     size="icon"
                     className="h-8 w-8"
                     disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(p => p + 1)}
+                    onClick={() => setCurrentPage(currentPage + 1)}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
