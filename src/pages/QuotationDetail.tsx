@@ -371,7 +371,8 @@ const QuotationDetail = () => {
   const isRejected = quotation?.status === 'rejected';
 
   const handlePrint = () => {
-    window.print();
+    if (!quotation) return;
+    downloadAsPDF('quotation', quotation.quotation_number);
   };
 
   const handleDownloadPDF = () => {

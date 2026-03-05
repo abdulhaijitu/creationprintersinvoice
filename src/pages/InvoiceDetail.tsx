@@ -195,7 +195,8 @@ const InvoiceDetail = () => {
   };
 
   const handlePrint = () => {
-    window.print();
+    if (!invoice) return;
+    downloadAsPDF('invoice', invoice.invoice_number);
   };
 
   const handleDownloadPDF = () => {
