@@ -1,54 +1,41 @@
 
+# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-# Print Statement PDF ফাইলনেম ফিক্স
+## যেসব সমস্যা পাওয়া গেছে
 
-## সমস্যা
-PDF সেভ করলে নাম আসে "Creation Invoicing - Lovable.pdf"। কোডে `document.title` সেট করা আছে কিন্তু Lovable preview iframe-এর ভেতরে `document.title` পরিবর্তন করলে ব্রাউজার parent frame-এর title ব্যবহার করে PDF filename হিসেবে।
+অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
 
-## বিশ্লেষণ
-- `CustomerStatementPDF.tsx` লাইন 164-187-এ `document.title = filename` সেট করা হচ্ছে
-- কিন্তু Lovable preview iframe-এ এটি কাজ করে না কারণ ব্রাউজার top-level document-এর title নেয়
-- Published URL-এ (`creationbms.lovable.app`) এটি সঠিকভাবে কাজ করার কথা
-- তবে নিশ্চিত করতে কোড আরো robust করা দরকার
+| কম্পোনেন্ট | সমস্যা |
+|---|---|
+| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
+| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
+| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
+| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
 
-## সমাধান: `src/components/customer/CustomerStatementPDF.tsx`
+**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
 
-### ১. `onClose` dependency সমস্যা ফিক্স
-`useEffect`-এর dependency array-তে `onClose` আছে। যেহেতু `onClose` হলো `() => setShowStatement(false)` — এটি প্রতি রেন্ডারে নতুন reference তৈরি করে, ফলে effect re-run হয় এবং title restore হয়ে যেতে পারে print dialog দেখানোর আগেই।
+---
 
-**ফিক্স:** `onClose`-কে `useRef`-এ রাখা এবং dependency থেকে সরানো:
+## সমাধান
 
-```tsx
-const onCloseRef = useRef(onClose);
-onCloseRef.current = onClose;
+### ১. `src/components/vendor/VendorStatementPDF.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
+- dependency থেকে `onClose` সরানো
 
-useEffect(() => {
-  const customerNameSafe = sanitizeFilename(customer.name);
-  const periodStr = format(new Date(), "yyyy-MM");
-  const filename = `Customer-Statement-${customerNameSafe}-${periodStr}`;
+### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
+- `onCloseRef` pattern ব্যবহার
+- dependency থেকে `onClose` সরানো
 
-  const originalTitle = document.title;
-  document.title = filename;
+### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
+- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
 
-  const timer = setTimeout(() => {
-    window.print();
-  }, 500);
+### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
+- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
 
-  const handleAfterPrint = () => {
-    document.title = originalTitle;
-    onCloseRef.current();
-  };
-  window.addEventListener("afterprint", handleAfterPrint);
-
-  return () => {
-    clearTimeout(timer);
-    document.title = originalTitle;
-    window.removeEventListener("afterprint", handleAfterPrint);
-  };
-}, [customer.name]); // onClose সরানো হলো
-```
-
-**মোট পরিবর্তন: ১টি ফাইলে ছোট পরিবর্তন।**
-
-> **দ্রষ্টব্য:** Preview mode-এ (iframe-এর ভেতরে) ব্রাউজার parent page-এর title ব্যবহার করতে পারে — এটি Lovable preview-এর limitation। Published সাইটে (`creationbms.lovable.app`) সঠিক filename আসবে।
-
+**মোট পরিবর্তন: ৫টি ফাইল।**
