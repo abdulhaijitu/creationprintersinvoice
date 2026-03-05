@@ -840,7 +840,14 @@ const Invoices = () => {
                                 {invoice.invoice_number}
                               </TableCell>
                               <TableCell className="text-foreground truncate max-w-[120px] lg:max-w-[180px]">
-                                {invoice.customers?.name || '—'}
+                                {invoice.customer_id ? (
+                                  <span
+                                    className="hover:underline hover:text-primary cursor-pointer"
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/customers/${invoice.customer_id}`); }}
+                                  >
+                                    {invoice.customers?.name || '—'}
+                                  </span>
+                                ) : (invoice.customers?.name || '—')}
                               </TableCell>
                               <TableCell className="text-right font-medium text-foreground tabular-nums">
                                 {formatCurrency(Number(invoice.total))}
@@ -945,7 +952,14 @@ const Invoices = () => {
                               {getStatusBadge(invoice)}
                             </div>
                             <p className="text-sm text-muted-foreground truncate mt-1">
-                              {invoice.customers?.name || 'No Customer'}
+                              {invoice.customer_id ? (
+                                <span
+                                  className="hover:underline hover:text-primary cursor-pointer"
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/customers/${invoice.customer_id}`); }}
+                                >
+                                  {invoice.customers?.name || 'No Customer'}
+                                </span>
+                              ) : (invoice.customers?.name || 'No Customer')}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
                               {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
