@@ -66,6 +66,8 @@ export const CustomerStatementPDF = ({
   onClose,
 }: CustomerStatementPDFProps) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const { data: settings } = useQuery({
     queryKey: ["company-settings-customer-statement"],
@@ -175,7 +177,7 @@ export const CustomerStatementPDF = ({
 
     const handleAfterPrint = () => {
       document.title = originalTitle;
-      onClose();
+      onCloseRef.current();
     };
     window.addEventListener("afterprint", handleAfterPrint);
 
@@ -184,7 +186,7 @@ export const CustomerStatementPDF = ({
       document.title = originalTitle;
       window.removeEventListener("afterprint", handleAfterPrint);
     };
-  }, [customer.name, onClose]);
+  }, [customer.name]);
 
   const companyName = settings?.company_name || "Company Name";
   const companyAddress = settings?.address || "";
