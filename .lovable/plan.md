@@ -1,25 +1,22 @@
 
-# ইনভয়েস টেবিলে কাস্টমার নাম ক্লিকেবল করা
 
-## পরিবর্তন: `src/pages/Invoices.tsx`
+# কাস্টমার স্টেটমেন্ট প্রিন্ট ফিক্স
 
-### ডেস্কটপ টেবিল (লাইন ~842-844)
-কাস্টমার নামকে একটি ক্লিকেবল লিংকে রূপান্তর করা হবে। `customer_id` থাকলে `/customers/:id` এ নেভিগেট করবে, `stopPropagation` দিয়ে রো-ক্লিক (ইনভয়েস ডিটেইল) ব্লক করবে।
+## সমস্যা
+`CustomerStatementPDF` কম্পোনেন্ট `hidden print:block` ব্যবহার করে, কিন্তু বাকি পেজের এলিমেন্ট (কার্ড, সাইডবার, হেডার ইত্যাদি) প্রিন্টে হাইড হচ্ছে না। `printStyles.css` এর `body * { visibility: hidden }` ও `.print-content { visibility: visible }` সিস্টেম আছে, কিন্তু স্টেটমেন্ট কম্পোনেন্ট `.print-content` ক্লাস ব্যবহার করে না।
 
-```tsx
-<TableCell className="text-foreground truncate max-w-[120px] lg:max-w-[180px]">
-  {invoice.customer_id ? (
-    <span
-      className="hover:underline hover:text-primary cursor-pointer"
-      onClick={(e) => { e.stopPropagation(); navigate(`/customers/${invoice.customer_id}`); }}
-    >
-      {invoice.customers?.name || '—'}
-    </span>
-  ) : (invoice.customers?.name || '—')}
-</TableCell>
-```
+## সমাধান: `src/components/customer/CustomerStatementPDF.tsx`
 
-### মোবাইল কার্ড (লাইন ~947-949)
-একইভাবে কাস্টমার নামকে ক্লিকেবল করা হবে, `stopPropagation` সহ।
+স্টেটমেন্টের প্রিন্ট `div`-এ `print-content` ক্লাস যোগ করো এবং `printStyles.css` ইম্পোর্ট করো:
 
-**মোট পরিবর্তন: ১টি ফাইলে ২ জায়গায় ছোট পরিবর্তন।**
+1. ফাইলের উপরে `import "@/components/print/printStyles.css"` যোগ করো
+2. প্রিন্ট `div`-এ ক্লাস পরিবর্তন:
+   ```tsx
+   // আগে:
+   className="hidden print:block bg-white text-black"
+   // পরে:
+   className="hidden print:block print-content bg-white text-black"
+   ```
+
+**মোট পরিবর্তন: ১টি ফাইলে ২ লাইন।**
+
