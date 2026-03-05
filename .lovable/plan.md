@@ -1,36 +1,23 @@
 
 
-# Invoice পেমেন্ট রিয়েলটাইম আপডেট ফিক্স
+# ইনভয়েস ফিল্টার পারসিস্টেন্স ফিক্স
 
 ## সমস্যা
-
-পেমেন্ট এন্ট্রি দেওয়ার পর InvoiceDetail ও Invoices লিস্ট পেজে স্ট্যাটাস আপডেট হচ্ছে না। কারণ:
-
-1. **InvoiceDetail** পেজ ম্যানুয়াল `useState` দিয়ে ডেটা ম্যানেজ করছে — React Query ক্যাশের সাথে সিঙ্ক নেই
-2. `AddPaymentDialog` এর `onPaymentAdded` কলব্যাক `fetchInvoice` কল করে, কিন্তু Invoices লিস্টের React Query ক্যাশ **invalidate করে না**
-3. ফলে লিস্টে ফিরে গেলে পুরানো ক্যাশড ডেটা দেখায়
+`Invoices` পেজের সব ফিল্টার (`statusFilter`, `searchQuery`, `sortKey`, `sortDirection`, `currentPage`) `useState` দিয়ে ম্যানেজ হচ্ছে। ইনভয়েস ডিটেইলে গিয়ে ব্যাক করলে কম্পোনেন্ট রিমাউন্ট হয়ে সব ফিল্টার রিসেট হয়ে যায়।
 
 ## সমাধান
+URL search params (`useSearchParams`) ব্যবহার করে ফিল্টার স্টেট URL-এ রাখা হবে। এতে ব্যাক বাটনে ফিল্টার অটো রিস্টোর হবে।
 
-### ফাইল ১: `src/pages/InvoiceDetail.tsx`
-- `useQueryClient` ইম্পোর্ট করো
-- `onPaymentAdded` কলব্যাকে `fetchInvoice()` এর সাথে সাথে Invoices লিস্ট ও Payments কুয়েরি **invalidate** করো:
-  ```typescript
-  const queryClient = useQueryClient();
-  const handlePaymentAdded = () => {
-    fetchInvoice(); // রিফেচ ইনভয়েস ডিটেইল
-    queryClient.invalidateQueries({ queryKey: ['invoices'] }); // লিস্ট ক্যাশ ক্লিয়ার
-    queryClient.invalidateQueries({ queryKey: ['payments'] }); // পেমেন্ট ক্যাশ ক্লিয়ার
-  };
-  ```
-- `onPaymentAdded={handlePaymentAdded}` সেট করো
+### পরিবর্তন: `src/pages/Invoices.tsx`
+- `useSearchParams` ইম্পোর্ট করো (`react-router-dom` থেকে)
+- নিচের state গুলো URL params থেকে initialize করো এবং পরিবর্তনে URL আপডেট করো:
+  - `statusFilter` → `?status=due`
+  - `searchQuery` → `?q=searchterm`
+  - `sortKey` → `?sort=total`
+  - `sortDirection` → `?dir=asc`
+  - `currentPage` → `?page=2`
+- `useState` এর বদলে একটি হেল্পার দিয়ে URL params read/write করা হবে
+- ইনভয়েস ক্লিক করলে URL params সহ navigate হবে, ব্যাক করলে ব্রাউজার হিস্ট্রি থেকে ফিল্টার ফিরে আসবে
 
-### ফাইল ২: `src/pages/Invoices.tsx`
-- `handleMarkSinglePaid` ফাংশনে পেমেন্ট ক্যাশও invalidate করো:
-  ```typescript
-  invalidateInvoices();
-  queryClient.invalidateQueries({ queryKey: ['payments'] });
-  ```
-
-**মোট পরিবর্তন: ২টি ফাইলে ছোট কোড যোগ। UI/ডিজাইনে কোনো পরিবর্তন নেই।**
+**মোট পরিবর্তন: ১টি ফাইল। UI/ডিজাইনে কোনো পরিবর্তন নেই।**
 
