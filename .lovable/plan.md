@@ -1,32 +1,54 @@
 
 
-# Print Statement ফিক্স — ১ম পেজ ফাঁকা সমস্যা
+# Print Statement PDF ফাইলনেম ফিক্স
 
-## মূল কারণ
-`printStyles.css`-এ `body * { visibility: hidden }` ব্যবহার হচ্ছে। `visibility: hidden` এলিমেন্ট হাইড করে কিন্তু **জায়গা দখল করে রাখে**। CustomerDetail পেজের কার্ড, সাইডবার, হেডার ইত্যাদি invisible কিন্তু তাদের space এখনও আছে — ফলে `.print-content` দ্বিতীয় পেজে চলে যাচ্ছে, প্রথম পেজ ফাঁকা।
+## সমস্যা
+PDF সেভ করলে নাম আসে "Creation Invoicing - Lovable.pdf"। কোডে `document.title` সেট করা আছে কিন্তু Lovable preview iframe-এর ভেতরে `document.title` পরিবর্তন করলে ব্রাউজার parent frame-এর title ব্যবহার করে PDF filename হিসেবে।
 
-## সমাধান
+## বিশ্লেষণ
+- `CustomerStatementPDF.tsx` লাইন 164-187-এ `document.title = filename` সেট করা হচ্ছে
+- কিন্তু Lovable preview iframe-এ এটি কাজ করে না কারণ ব্রাউজার top-level document-এর title নেয়
+- Published URL-এ (`creationbms.lovable.app`) এটি সঠিকভাবে কাজ করার কথা
+- তবে নিশ্চিত করতে কোড আরো robust করা দরকার
 
-### ১. `src/components/print/printStyles.css` (লাইন 22-33)
-`.print-content`-কে `position: absolute; top: 0; left: 0;` করা হবে যাতে hidden elements-এর জায়গা ignore করে পেজের শুরু থেকে রেন্ডার হয়:
+## সমাধান: `src/components/customer/CustomerStatementPDF.tsx`
 
-```css
-.print-content {
-    position: absolute !important;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: auto !important;
-    min-height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-    padding: 0;
-    margin: 0;
-}
+### ১. `onClose` dependency সমস্যা ফিক্স
+`useEffect`-এর dependency array-তে `onClose` আছে। যেহেতু `onClose` হলো `() => setShowStatement(false)` — এটি প্রতি রেন্ডারে নতুন reference তৈরি করে, ফলে effect re-run হয় এবং title restore হয়ে যেতে পারে print dialog দেখানোর আগেই।
+
+**ফিক্স:** `onClose`-কে `useRef`-এ রাখা এবং dependency থেকে সরানো:
+
+```tsx
+const onCloseRef = useRef(onClose);
+onCloseRef.current = onClose;
+
+useEffect(() => {
+  const customerNameSafe = sanitizeFilename(customer.name);
+  const periodStr = format(new Date(), "yyyy-MM");
+  const filename = `Customer-Statement-${customerNameSafe}-${periodStr}`;
+
+  const originalTitle = document.title;
+  document.title = filename;
+
+  const timer = setTimeout(() => {
+    window.print();
+  }, 500);
+
+  const handleAfterPrint = () => {
+    document.title = originalTitle;
+    onCloseRef.current();
+  };
+  window.addEventListener("afterprint", handleAfterPrint);
+
+  return () => {
+    clearTimeout(timer);
+    document.title = originalTitle;
+    window.removeEventListener("afterprint", handleAfterPrint);
+  };
+}, [customer.name]); // onClose সরানো হলো
 ```
 
-### ২. `src/components/customer/CustomerStatementPDF.tsx` (লাইন 202-209)
-Inline `padding: 15mm` রিমুভ করা হবে — `@page { margin: 12mm 15mm }` ইতিমধ্যে মার্জিন দিচ্ছে, ডাবল প্যাডিং দরকার নেই।
+**মোট পরিবর্তন: ১টি ফাইলে ছোট পরিবর্তন।**
 
-**মোট পরিবর্তন: ২টি ফাইলে ছোট পরিবর্তন।**
+> **দ্রষ্টব্য:** Preview mode-এ (iframe-এর ভেতরে) ব্রাউজার parent page-এর title ব্যবহার করতে পারে — এটি Lovable preview-এর limitation। Published সাইটে (`creationbms.lovable.app`) সঠিক filename আসবে।
 
