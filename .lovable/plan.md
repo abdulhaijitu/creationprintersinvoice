@@ -1,22 +1,32 @@
 
 
-# কাস্টমার স্টেটমেন্ট প্রিন্ট ফিক্স
+# Print Statement ফিক্স — ১ম পেজ ফাঁকা সমস্যা
 
-## সমস্যা
-`CustomerStatementPDF` কম্পোনেন্ট `hidden print:block` ব্যবহার করে, কিন্তু বাকি পেজের এলিমেন্ট (কার্ড, সাইডবার, হেডার ইত্যাদি) প্রিন্টে হাইড হচ্ছে না। `printStyles.css` এর `body * { visibility: hidden }` ও `.print-content { visibility: visible }` সিস্টেম আছে, কিন্তু স্টেটমেন্ট কম্পোনেন্ট `.print-content` ক্লাস ব্যবহার করে না।
+## মূল কারণ
+`printStyles.css`-এ `body * { visibility: hidden }` ব্যবহার হচ্ছে। `visibility: hidden` এলিমেন্ট হাইড করে কিন্তু **জায়গা দখল করে রাখে**। CustomerDetail পেজের কার্ড, সাইডবার, হেডার ইত্যাদি invisible কিন্তু তাদের space এখনও আছে — ফলে `.print-content` দ্বিতীয় পেজে চলে যাচ্ছে, প্রথম পেজ ফাঁকা।
 
-## সমাধান: `src/components/customer/CustomerStatementPDF.tsx`
+## সমাধান
 
-স্টেটমেন্টের প্রিন্ট `div`-এ `print-content` ক্লাস যোগ করো এবং `printStyles.css` ইম্পোর্ট করো:
+### ১. `src/components/print/printStyles.css` (লাইন 22-33)
+`.print-content`-কে `position: absolute; top: 0; left: 0;` করা হবে যাতে hidden elements-এর জায়গা ignore করে পেজের শুরু থেকে রেন্ডার হয়:
 
-1. ফাইলের উপরে `import "@/components/print/printStyles.css"` যোগ করো
-2. প্রিন্ট `div`-এ ক্লাস পরিবর্তন:
-   ```tsx
-   // আগে:
-   className="hidden print:block bg-white text-black"
-   // পরে:
-   className="hidden print:block print-content bg-white text-black"
-   ```
+```css
+.print-content {
+    position: absolute !important;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0;
+    margin: 0;
+}
+```
 
-**মোট পরিবর্তন: ১টি ফাইলে ২ লাইন।**
+### ২. `src/components/customer/CustomerStatementPDF.tsx` (লাইন 202-209)
+Inline `padding: 15mm` রিমুভ করা হবে — `@page { margin: 12mm 15mm }` ইতিমধ্যে মার্জিন দিচ্ছে, ডাবল প্যাডিং দরকার নেই।
+
+**মোট পরিবর্তন: ২টি ফাইলে ছোট পরিবর্তন।**
 
