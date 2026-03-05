@@ -3,6 +3,7 @@ import { format, parseISO } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeFilename } from "@/lib/pdfUtils";
+import "@/components/print/printStyles.css";
 
 interface Bill {
   id: string;
@@ -69,6 +70,8 @@ export const VendorStatementPDF = ({
   onClose,
 }: VendorStatementPDFProps) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const [pdfTitle, setPdfTitle] = useState<string>("");
 
   const { data: settings } = useQuery({
@@ -230,7 +233,7 @@ export const VendorStatementPDF = ({
 
     const handleAfterPrint = () => {
       document.title = originalTitle;
-      onClose();
+      onCloseRef.current();
     };
     window.addEventListener("afterprint", handleAfterPrint);
 
@@ -239,7 +242,7 @@ export const VendorStatementPDF = ({
       document.title = originalTitle;
       window.removeEventListener("afterprint", handleAfterPrint);
     };
-  }, [vendor.name, toDate, onClose]);
+  }, [vendor.name, toDate]);
 
   const companyName = settings?.company_name || "Company Name";
   const companyAddress = settings?.address || "";
@@ -253,7 +256,7 @@ export const VendorStatementPDF = ({
       {/* Print-only statement */}
       <div
         ref={printRef}
-        className="hidden print:block bg-white text-black"
+        className="print-content hidden print:block bg-white text-black"
         style={{
           fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
           fontSize: "9pt",

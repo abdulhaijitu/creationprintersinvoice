@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeFilename } from "@/lib/pdfUtils";
+import "@/components/print/printStyles.css";
 
 interface Payment {
   id: string;
@@ -75,6 +77,8 @@ export const VendorPaymentReceipt = ({
   onClose,
 }: VendorPaymentReceiptProps) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const { data: settings } = useQuery({
     queryKey: ["company-settings-receipt"],
@@ -114,6 +118,13 @@ export const VendorPaymentReceipt = ({
   });
 
   useEffect(() => {
+    const vendorNameSafe = sanitizeFilename(vendor.name);
+    const dateStr = format(new Date(payment.payment_date), "yyyy-MM-dd");
+    const filename = `Vendor-Payment-Receipt-${vendorNameSafe}-${dateStr}`;
+    
+    const originalTitle = document.title;
+    document.title = filename;
+
     // Trigger print after a short delay to allow content to render
     const timer = setTimeout(() => {
       window.print();
@@ -121,15 +132,17 @@ export const VendorPaymentReceipt = ({
     
     // Listen for after print to close
     const handleAfterPrint = () => {
-      onClose();
+      document.title = originalTitle;
+      onCloseRef.current();
     };
     window.addEventListener("afterprint", handleAfterPrint);
     
     return () => {
       clearTimeout(timer);
+      document.title = originalTitle;
       window.removeEventListener("afterprint", handleAfterPrint);
     };
-  }, [onClose]);
+  }, [vendor.name, payment.payment_date]);
 
   const companyName = settings?.company_name || "Company Name";
   const companyAddress = settings?.address || "";
@@ -146,7 +159,7 @@ export const VendorPaymentReceipt = ({
       {/* Print-only receipt */}
       <div
         ref={printRef}
-        className="hidden print:block bg-white text-black"
+        className="print-content hidden print:block bg-white text-black"
         style={{
           fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
           fontSize: "10pt",

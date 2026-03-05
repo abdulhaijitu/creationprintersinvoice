@@ -51,15 +51,16 @@ export function downloadAsPDF(
   // Set document title to desired PDF filename (without .pdf extension for cleaner display)
   document.title = pdfFilename.replace('.pdf', '');
   
+  // Use afterprint event for reliable title restoration
+  const handleAfterPrint = () => {
+    document.title = originalTitle;
+    window.removeEventListener("afterprint", handleAfterPrint);
+    onPrintTriggered?.();
+  };
+  window.addEventListener("afterprint", handleAfterPrint);
+  
   // Trigger print dialog
   window.print();
-  
-  // Restore original title after a short delay
-  // The delay ensures the print dialog has captured the title
-  setTimeout(() => {
-    document.title = originalTitle;
-    onPrintTriggered?.();
-  }, 100);
 }
 
 /**
