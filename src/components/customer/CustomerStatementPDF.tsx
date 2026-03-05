@@ -203,7 +203,6 @@ export const CustomerStatementPDF = ({
           fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
           fontSize: "9pt",
           lineHeight: "1.4",
-          padding: "15mm 15mm 20mm 15mm",
           maxWidth: "210mm",
           margin: "0 auto",
         }}
