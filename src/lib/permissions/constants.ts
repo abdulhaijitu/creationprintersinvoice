@@ -211,10 +211,10 @@ export const PERMISSION_MATRIX: Record<PermissionModule, Partial<Record<Permissi
     view: ['owner', 'manager', 'accounts', 'sales_staff', 'designer', 'employee'],
   },
   customers: {
-    view: ['owner', 'manager', 'accounts', 'sales_staff', 'employee'],
+    view: ['owner', 'manager', 'accounts', 'sales_staff', 'employee', 'designer'],
     manage: ['owner', 'manager', 'sales_staff'],
-    create: ['owner', 'manager', 'sales_staff'],
-    edit: ['owner', 'manager', 'sales_staff'],
+    create: ['owner', 'manager', 'sales_staff', 'designer'],
+    edit: ['owner', 'manager', 'sales_staff', 'designer'],
     delete: ['owner', 'manager'],
     bulk: ['owner', 'manager'],
     import: ['owner', 'manager'],
