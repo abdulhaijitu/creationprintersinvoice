@@ -1889,7 +1889,7 @@ const Expenses = () => {
           {/* Mobile: Expense Card Layout */}
           <div className="block md:hidden space-y-3">
             {loading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+              <CardSkeleton count={3} className="grid-cols-1" />
             ) : filteredExpenses.length === 0 ? (
               <EmptyState
                 illustration="expense"
