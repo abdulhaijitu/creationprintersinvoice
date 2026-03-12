@@ -1295,8 +1295,8 @@ const Expenses = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      Loading...
+                    <TableCell colSpan={6} className="p-4">
+                      <TableSkeleton rows={5} columns={6} />
                     </TableCell>
                   </TableRow>
                 ) : filteredVendors.length === 0 ? (
