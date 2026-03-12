@@ -1,45 +1,41 @@
 
+# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-# Skeleton Loading ইস্যু অডিট ও ফিক্স
+## যেসব সমস্যা পাওয়া গেছে
 
-## সমস্যা
+অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
 
-অনেক পেইজে লোডিং স্টেটে প্রফেশনাল skeleton এর বদলে প্লেইন **"Loading..."** টেক্সট দেখায়। এটি UX-এ খারাপ দেখায় এবং প্রজেক্টের loading experience standard (staggered skeleton reveal) মেনে চলে না।
+| কম্পোনেন্ট | সমস্যা |
+|---|---|
+| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
+| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
+| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
+| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
 
-## পেইজ-ভিত্তিক ইস্যু ম্যাপ
+**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
 
-| পেইজ | ডেস্কটপ টেবিল | মোবাইল কার্ড | মন্তব্য |
-|-------|---------------|-------------|---------|
-| **Invoices** | ✅ ইনলাইন skeleton আছে | ✅ | ঠিক আছে |
-| **Quotations** | ✅ `TableSkeleton` | ✅ | ঠিক আছে |
-| **DeliveryChallans** | ✅ `TableSkeleton` | ✅ | ঠিক আছে |
-| **PriceCalculations** | ✅ `TableSkeleton` | ✅ | ঠিক আছে |
-| **Tasks** | ✅ `TableSkeleton` | ✅ | ঠিক আছে |
-| **Salary** | ❌ "Loading..." (৩ জায়গা) | ❌ "Loading..." | Salary টেবিল + Advances টেবিল + মোবাইল |
-| **Leave** | ❌ "Loading..." | ❌ "Loading..." | ডেস্কটপ + মোবাইল |
-| **Performance** | ❌ "Loading..." | ❌ "Loading..." | ডেস্কটপ + মোবাইল |
-| **Employees** | ❌ "Loading..." | ❌ "Loading..." | ডেস্কটপ + মোবাইল |
-| **Expenses** | ❌ "Loading..." (৪ জায়গা) | ❌ "Loading..." | Vendors টেবিল + Expenses টেবিল + মোবাইল ×2 |
-| **Customers** | ✅ | ✅ | ঠিক আছে (চেক করা হয়নি কিন্তু TableSkeleton ইম্পোর্ট নেই — আবার দেখতে হবে কোডে) |
+---
 
 ## সমাধান
 
-প্রতিটি "Loading..." কে `TableSkeleton` (ডেস্কটপ) ও `CardSkeleton` / ইনলাইন skeleton (মোবাইল) দিয়ে রিপ্লেস করা হবে। `@/components/shared` থেকে ইম্পোর্ট ব্যবহার করা হবে।
+### ১. `src/components/vendor/VendorStatementPDF.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
+- dependency থেকে `onClose` সরানো
 
-## পরিবর্তনের তালিকা
+### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
+- `onCloseRef` pattern ব্যবহার
+- dependency থেকে `onClose` সরানো
 
-| ফাইল | পরিবর্তন |
-|-------|----------|
-| `src/pages/Salary.tsx` | ৩টি "Loading..." → `TableSkeleton` (salary table, advances table) + মোবাইলে `CardSkeleton` |
-| `src/pages/Leave.tsx` | ২টি "Loading..." → `TableSkeleton` + মোবাইলে skeleton cards |
-| `src/pages/Performance.tsx` | ২টি "Loading..." → `TableSkeleton` + মোবাইলে skeleton cards |
-| `src/pages/Employees.tsx` | ২টি "Loading..." → `TableSkeleton` + মোবাইলে skeleton cards |
-| `src/pages/Expenses.tsx` | ৪টি "Loading..." → `TableSkeleton` (vendors + expenses tables) + মোবাইলে skeleton cards |
+### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
+- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
 
-**প্রতিটি ফাইলে:**
-1. `TableSkeleton` ইম্পোর্ট যোগ
-2. ডেস্কটপ: `<TableCell>Loading...</TableCell>` → সম্পূর্ণ `<TableSkeleton rows={5} columns={N} />` দিয়ে রিপ্লেস
-3. মোবাইল: `"Loading..."` টেক্সট → `Skeleton` কার্ড (3-4টি rows, staggered animation delay সহ)
+### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
+- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
 
-**মোট: ৫টি ফাইলে ~১৩টি "Loading..." রিপ্লেসমেন্ট। কোনো ফিচার বা লজিক পরিবর্তন হবে না।**
-
+**মোট পরিবর্তন: ৫টি ফাইল।**

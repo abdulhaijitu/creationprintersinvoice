@@ -49,6 +49,7 @@ import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 import { safeParseFloat, parseValidatedFloat } from "@/lib/validation";
 import { formatCurrency } from "@/lib/formatters";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -1479,7 +1480,9 @@ const Salary = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
+                <TableCell colSpan={8} className="p-4">
+                  <TableSkeleton rows={5} columns={8} />
+                </TableCell>
               </TableRow>
             ) : salaryRecords.length === 0 ? (
               <TableRow>
@@ -1530,7 +1533,7 @@ const Salary = () => {
       {/* Mobile: Salary Card Layout */}
       <div className="block md:hidden space-y-3">
         {loading ? (
-          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+          <CardSkeleton count={3} className="grid-cols-1" />
         ) : salaryRecords.length === 0 ? (
           <EmptyState
             icon={Banknote}
@@ -1592,8 +1595,8 @@ const Salary = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      Loading...
+                    <TableCell colSpan={8} className="p-4">
+                      <TableSkeleton rows={5} columns={8} />
                     </TableCell>
                   </TableRow>
                 ) : advances.length === 0 ? (

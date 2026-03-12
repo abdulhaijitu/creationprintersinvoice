@@ -34,6 +34,7 @@ import { Plus, Star, TrendingUp, User, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 
 interface PerformanceNote {
   id: string;
@@ -339,7 +340,7 @@ const Performance = () => {
       {/* Mobile Card View */}
       <div className="block md:hidden space-y-3">
         {loading ? (
-          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+          <CardSkeleton count={3} className="grid-cols-1" />
         ) : paginatedNotes.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">No notes</div>
         ) : (
@@ -383,8 +384,8 @@ const Performance = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 6 : 3} className="text-center py-8">
-                  Loading...
+                <TableCell colSpan={isAdmin ? 6 : 3} className="p-4">
+                  <TableSkeleton rows={5} columns={isAdmin ? 6 : 3} />
                 </TableCell>
               </TableRow>
             ) : paginatedNotes.length === 0 ? (

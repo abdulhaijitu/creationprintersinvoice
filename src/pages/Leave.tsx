@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Database } from "@/integrations/supabase/types";
 import { createNotification } from "@/hooks/useNotifications";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type LeaveType = Database["public"]["Enums"]["leave_type"];
@@ -499,7 +500,7 @@ const Leave = () => {
       {/* Mobile Card View */}
       <div className="block md:hidden space-y-3">
         {loading ? (
-          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+          <CardSkeleton count={3} className="grid-cols-1" />
         ) : leaveRequests.length === 0 ? (
           <EmptyState
             icon={Calendar}
@@ -584,8 +585,8 @@ const Leave = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 5} className="text-center py-8">
-                  Loading...
+                <TableCell colSpan={isAdmin ? 7 : 5} className="p-4">
+                  <TableSkeleton rows={5} columns={isAdmin ? 7 : 5} />
                 </TableCell>
               </TableRow>
             ) : leaveRequests.length === 0 ? (

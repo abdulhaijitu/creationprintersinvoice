@@ -28,7 +28,7 @@ import { Search, Users, Phone, Briefcase, Edit2, UserPlus, Trash2, ShieldAlert }
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { TableSkeleton } from "@/components/shared/TableSkeleton";
+import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { formatCurrency, getInitials } from "@/lib/formatters";
@@ -757,7 +757,7 @@ const Employees = () => {
       {/* Mobile Card View */}
       <div className="block md:hidden space-y-3">
         {loading ? (
-          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+          <CardSkeleton count={4} className="grid-cols-1" />
         ) : paginatedEmployees.length === 0 ? (
           <EmptyState
             icon={Users}
@@ -817,8 +817,8 @@ const Employees = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
-                  Loading...
+                <TableCell colSpan={7} className="p-4">
+                  <TableSkeleton rows={5} columns={7} />
                 </TableCell>
               </TableRow>
             ) : filteredEmployees.length === 0 ? (

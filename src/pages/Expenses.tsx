@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { VendorSelect } from "@/components/shared/VendorSelect";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -1294,8 +1295,8 @@ const Expenses = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      Loading...
+                    <TableCell colSpan={6} className="p-4">
+                      <TableSkeleton rows={5} columns={6} />
                     </TableCell>
                   </TableRow>
                 ) : filteredVendors.length === 0 ? (
@@ -1414,7 +1415,7 @@ const Expenses = () => {
           {/* Mobile: Vendor Card Layout */}
           <div className="block md:hidden space-y-3">
             {loading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+              <CardSkeleton count={3} className="grid-cols-1" />
             ) : filteredVendors.length === 0 ? (
               <EmptyState
                 icon={Building2}
@@ -1795,8 +1796,8 @@ const Expenses = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={(canEditExpenses || canDeleteExpenses) ? 7 : 6} className="text-center py-8">
-                      Loading...
+                    <TableCell colSpan={(canEditExpenses || canDeleteExpenses) ? 7 : 6} className="p-4">
+                      <TableSkeleton rows={5} columns={(canEditExpenses || canDeleteExpenses) ? 7 : 6} />
                     </TableCell>
                   </TableRow>
                 ) : filteredExpenses.length === 0 ? (
@@ -1888,7 +1889,7 @@ const Expenses = () => {
           {/* Mobile: Expense Card Layout */}
           <div className="block md:hidden space-y-3">
             {loading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+              <CardSkeleton count={3} className="grid-cols-1" />
             ) : filteredExpenses.length === 0 ? (
               <EmptyState
                 illustration="expense"
@@ -2069,9 +2070,7 @@ const Expenses = () => {
           {/* Categories Grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {loading ? (
-              <div className="col-span-full text-center py-8 text-muted-foreground">
-                Loading...
-              </div>
+              <CardSkeleton count={3} className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" />
             ) : categories.length === 0 ? (
               <div className="col-span-full">
                 <EmptyState
