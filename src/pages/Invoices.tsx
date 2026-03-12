@@ -64,7 +64,8 @@ import { format, isPast, parseISO } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 import { calculateInvoiceStatus, type InvoiceDisplayStatus } from '@/lib/invoiceUtils';
-import CSVImportDialog from '@/components/import/CSVImportDialog';
+import { lazy, Suspense } from 'react';
+const CSVImportDialog = lazy(() => import('@/components/import/CSVImportDialog'));
 import { ImportResult } from '@/lib/importUtils';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { BulkActionsBar } from '@/components/shared/BulkActionsBar';
@@ -325,18 +326,19 @@ const Invoices = () => {
     return badges[displayStatus];
   };
 
-  const filteredInvoices = invoices.filter((invoice) => {
-    const matchesSearch =
-      invoice.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredInvoices = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return invoices.filter((invoice) => {
+      const matchesSearch =
+        invoice.invoice_number.toLowerCase().includes(query) ||
+        invoice.customers?.name?.toLowerCase().includes(query);
 
-    if (!matchesSearch) return false;
+      if (!matchesSearch) return false;
+      if (statusFilter === 'all') return true;
 
-    if (statusFilter === 'all') return true;
-    
-    const displayStatus = getDisplayStatus(invoice);
-    return displayStatus === statusFilter;
-  });
+      return getDisplayStatus(invoice) === statusFilter;
+    });
+  }, [invoices, searchQuery, statusFilter]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -575,12 +577,17 @@ const Invoices = () => {
     return { success, failed, errors, duplicates };
   };
 
-  // Stats
-  const totalInvoices = invoices.length;
-  const paidCount = invoices.filter(i => getDisplayStatus(i) === 'paid').length;
-  const dueCount = invoices.filter(i => getDisplayStatus(i) === 'due').length;
-  const partialCount = invoices.filter(i => getDisplayStatus(i) === 'partial').length;
-  const totalDueAmount = invoices.reduce((sum, inv) => sum + getInvoiceStatusInfo(inv).dueAmount, 0);
+  // Stats — single pass, memoized
+  const { totalInvoices, paidCount, dueCount, partialCount, totalDueAmount } = useMemo(() => {
+    let paid = 0, due = 0, partial = 0, dueAmt = 0;
+    for (const inv of invoices) {
+      const info = getInvoiceStatusInfo(inv);
+      if (info.displayStatus === 'paid') paid++;
+      else if (info.displayStatus === 'due') { due++; dueAmt += info.dueAmount; }
+      else if (info.displayStatus === 'partial') { partial++; dueAmt += info.dueAmount; }
+    }
+    return { totalInvoices: invoices.length, paidCount: paid, dueCount: due, partialCount: partial, totalDueAmount: dueAmt };
+  }, [invoices]);
 
   const bulkActions = [
     ...(invoicePerms.canEdit ? [{
@@ -1083,16 +1090,20 @@ const Invoices = () => {
           )}
         </div>
 
-        <CSVImportDialog
-          open={importOpen}
-          onOpenChange={setImportOpen}
-          title="Import Invoices"
-          description="Upload a CSV file to import invoices. The system will automatically find or create customers."
-          requiredFields={invoiceImportFields}
-          fieldMapping={invoiceFieldMapping}
-          onImport={handleImport}
-          templateFilename="invoices"
-        />
+        {importOpen && (
+          <Suspense fallback={null}>
+            <CSVImportDialog
+              open={importOpen}
+              onOpenChange={setImportOpen}
+              title="Import Invoices"
+              description="Upload a CSV file to import invoices. The system will automatically find or create customers."
+              requiredFields={invoiceImportFields}
+              fieldMapping={invoiceFieldMapping}
+              onImport={handleImport}
+              templateFilename="invoices"
+            />
+          </Suspense>
+        )}
 
         {/* Bulk Actions Bar */}
         <BulkActionsBar
