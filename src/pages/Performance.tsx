@@ -34,6 +34,7 @@ import { Plus, Star, TrendingUp, User, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 
 interface PerformanceNote {
   id: string;
