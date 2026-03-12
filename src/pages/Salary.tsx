@@ -1006,6 +1006,7 @@ const Salary = () => {
   
   // Pending salary = net payable that hasn't been paid yet
   const totalPendingSalary = totalNetPayable - totalSalaryPaid;
+  const unpaidCount = useMemo(() => salaryRecords.filter(r => r.status !== "paid").length, [salaryRecords]);
   
   // Pending advances = advances not yet recovered from salary
   const totalPendingAdvances = advances
