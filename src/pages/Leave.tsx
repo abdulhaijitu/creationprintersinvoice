@@ -585,8 +585,8 @@ const Leave = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 5} className="text-center py-8">
-                  Loading...
+                <TableCell colSpan={isAdmin ? 7 : 5} className="p-4">
+                  <TableSkeleton rows={5} columns={isAdmin ? 7 : 5} />
                 </TableCell>
               </TableRow>
             ) : leaveRequests.length === 0 ? (

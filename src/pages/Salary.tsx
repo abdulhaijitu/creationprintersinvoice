@@ -1595,8 +1595,8 @@ const Salary = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      Loading...
+                    <TableCell colSpan={8} className="p-4">
+                      <TableSkeleton rows={5} columns={8} />
                     </TableCell>
                   </TableRow>
                 ) : advances.length === 0 ? (

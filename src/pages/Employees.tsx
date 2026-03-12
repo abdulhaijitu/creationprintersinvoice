@@ -817,8 +817,8 @@ const Employees = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
-                  Loading...
+                <TableCell colSpan={7} className="p-4">
+                  <TableSkeleton rows={5} columns={7} />
                 </TableCell>
               </TableRow>
             ) : filteredEmployees.length === 0 ? (

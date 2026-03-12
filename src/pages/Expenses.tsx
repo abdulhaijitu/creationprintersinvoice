@@ -2070,9 +2070,7 @@ const Expenses = () => {
           {/* Categories Grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {loading ? (
-              <div className="col-span-full text-center py-8 text-muted-foreground">
-                Loading...
-              </div>
+              <CardSkeleton count={3} className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" />
             ) : categories.length === 0 ? (
               <div className="col-span-full">
                 <EmptyState

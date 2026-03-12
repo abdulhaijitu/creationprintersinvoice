@@ -384,8 +384,8 @@ const Performance = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 6 : 3} className="text-center py-8">
-                  Loading...
+                <TableCell colSpan={isAdmin ? 6 : 3} className="p-4">
+                  <TableSkeleton rows={5} columns={isAdmin ? 6 : 3} />
                 </TableCell>
               </TableRow>
             ) : paginatedNotes.length === 0 ? (
