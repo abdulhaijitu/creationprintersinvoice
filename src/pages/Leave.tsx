@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Database } from "@/integrations/supabase/types";
 import { createNotification } from "@/hooks/useNotifications";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type LeaveType = Database["public"]["Enums"]["leave_type"];
