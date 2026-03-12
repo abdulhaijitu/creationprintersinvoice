@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { User, FileText, Receipt, Activity, Ban, Save, KeyRound, Loader2, AlertTriangle, UserCheck, AlertCircle, Shield, Crown, RefreshCw } from 'lucide-react';
 import { OrgSpecificPermissionsManager } from './OrgSpecificPermissionsManager';
-import { UsageLimitCard } from './UsageLimitCard';
+
 import { toast } from 'sonner';
 import { useAdminAudit } from '@/hooks/useAdminAudit';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
