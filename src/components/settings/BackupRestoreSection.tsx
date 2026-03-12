@@ -200,7 +200,7 @@ export function BackupRestoreSection() {
                     </p>
                     <p className="text-muted-foreground">
                       <CheckCircle className="h-3 w-3 inline mr-1" />
-                      মোট রেকর্ড: {Object.values(restoreFile.data.record_counts || {}).reduce((a: number, b: any) => a + (b as number), 0)}
+                      মোট রেকর্ড: {Object.values(restoreFile.data.record_counts || {}).reduce((a: number, b: unknown) => a + (Number(b) || 0), 0)}
                     </p>
                   </div>
                 )}
