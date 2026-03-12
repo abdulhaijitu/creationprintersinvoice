@@ -58,7 +58,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
-import CSVImportDialog from '@/components/import/CSVImportDialog';
+import { lazy, Suspense } from 'react';
+const CSVImportDialog = lazy(() => import('@/components/import/CSVImportDialog'));
 import { ImportResult } from '@/lib/importUtils';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BulkActionsBar } from '@/components/shared/BulkActionsBar';

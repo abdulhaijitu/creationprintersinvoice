@@ -1402,7 +1402,7 @@ const Salary = () => {
               {formatCurrency(totalPendingSalary)}
             </p>
             <p className="text-xs text-muted-foreground">
-              {salaryRecords.filter(r => r.status !== "paid").length} unpaid records
+              {unpaidCount} unpaid records
             </p>
           </CardContent>
         </Card>

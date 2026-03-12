@@ -446,10 +446,20 @@ const Attendance = () => {
     }
   };
 
-  const presentCount = attendance.filter((a) => a.status === "present").length;
-  const absentCount = attendance.filter((a) => a.status === "absent").length;
-  const lateCount = attendance.filter((a) => a.status === "late").length;
-  const attendanceRate = attendance.length > 0 ? Math.round((presentCount / attendance.length) * 100) : 0;
+  const { presentCount, absentCount, lateCount, attendanceRate } = useMemo(() => {
+    let present = 0, absent = 0, late = 0;
+    for (const a of attendance) {
+      if (a.status === "present") present++;
+      else if (a.status === "absent") absent++;
+      else if (a.status === "late") late++;
+    }
+    return {
+      presentCount: present,
+      absentCount: absent,
+      lateCount: late,
+      attendanceRate: attendance.length > 0 ? Math.round((present / attendance.length) * 100) : 0,
+    };
+  }, [attendance]);
 
   useEffect(() => {
     if (newAttendance.check_in || newAttendance.check_out) {

@@ -241,7 +241,7 @@ const Tasks = () => {
     return counts;
   }, [activeTasks]);
 
-  const activeCount = activeTasks.filter(t => !isDelivered(t.status) && !isArchived(t.status)).length;
+  const activeCount = useMemo(() => activeTasks.filter(t => !isDelivered(t.status) && !isArchived(t.status)).length, [activeTasks]);
   const deliveredCount = statusCounts['delivered'] || 0;
   const archivedCount = archivedTasks.length;
 
