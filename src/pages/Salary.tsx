@@ -49,6 +49,7 @@ import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 import { safeParseFloat, parseValidatedFloat } from "@/lib/validation";
 import { formatCurrency } from "@/lib/formatters";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
