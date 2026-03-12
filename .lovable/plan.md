@@ -1,51 +1,41 @@
 
+# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-# অন্যান্য পেইজ পারফরম্যান্স অডিট — ফলাফল ও সমাধান
+## যেসব সমস্যা পাওয়া গেছে
 
-## বিশ্লেষণ সারাংশ
+অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
 
-| পেইজ | লাইন | সমস্যা | তীব্রতা |
-|-------|-------|--------|---------|
-| **Expenses** | 2211 | সবচেয়ে বড় ফাইল, কিন্তু stats useMemo দিয়ে আছে | মাঝারি |
-| **Salary** | 1934 | JSX-এর ভিতরে `.filter().length` কল (লাইন 1405) | মাঝারি |
-| **Employees** | 1104 | `useMemo` নেই — তবে stats কম্পিউটেশন সাধারণত ছোট | নিম্ন |
-| **Attendance** | 825 | **৩টি আলাদা `.filter()` কল** মেমোাইজ ছাড়া (লাইন 449-452) | মাঝারি |
-| **Tasks** | 775 | `statusCounts` মেমোাইজ আছে, তবে `activeCount` (লাইন 244) নেই | নিম্ন |
-| **Customers** | 1091 | `CSVImportDialog` eagerly loaded | নিম্ন |
-| **Vendors** | 687 | `CSVImportDialog` eagerly loaded | নিম্ন |
-| **Quotations** | 607 | তুলনামূলক ভালো | নিম্ন |
+| কম্পোনেন্ট | সমস্যা |
+|---|---|
+| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
+| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
+| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
+| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
 
-## প্রধান সমস্যা ও সমাধান
+**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
 
-### ১. Attendance — Stats মেমোাইজ করা (তীব্র)
-```
-// বর্তমান (প্রতি রেন্ডারে ৩x লুপ):
-const presentCount = attendance.filter(a => a.status === "present").length;
-const absentCount = attendance.filter(a => a.status === "absent").length;
-const lateCount = attendance.filter(a => a.status === "late").length;
-```
-**সমাধান:** `useMemo` দিয়ে একবার লুপে সব গণনা।
+---
 
-### ২. Salary — JSX-এ ফিল্টার সরানো
-লাইন 1405: `salaryRecords.filter(r => r.status !== "paid").length` সরাসরি JSX-এ — প্রতি রেন্ডারে চলে।
+## সমাধান
 
-**সমাধান:** মেমোাইজড ভেরিয়েবলে সরানো।
+### ১. `src/components/vendor/VendorStatementPDF.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
+- dependency থেকে `onClose` সরানো
 
-### ৩. Tasks — `activeCount` মেমোাইজ
-লাইন 244 মেমোাইজ ছাড়া আছে — `useMemo`-এ নেওয়া।
+### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
+- `onCloseRef` pattern ব্যবহার
+- dependency থেকে `onClose` সরানো
 
-### ৪. Customers ও Vendors — CSVImportDialog lazy load
-`CSVImportDialog` eagerly import হচ্ছে — `React.lazy` দিয়ে dynamic import করা (Invoices-এর মতো)।
+### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
+- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
 
-## পরিবর্তনের তালিকা
+### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
+- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
 
-| ফাইল | পরিবর্তন |
-|-------|----------|
-| `src/pages/Attendance.tsx` | Stats ৩x `.filter()` → একটি `useMemo` লুপ |
-| `src/pages/Salary.tsx` | JSX-এ `.filter().length` → মেমোাইজড ভেরিয়েবল |
-| `src/pages/Tasks.tsx` | `activeCount` → `useMemo`-এ যুক্ত |
-| `src/pages/Customers.tsx` | `CSVImportDialog` → `React.lazy` |
-| `src/pages/Vendors.tsx` | `CSVImportDialog` → `React.lazy` |
-
-**মোট: ৫টি ফাইলে ছোট পরিবর্তন।** কোনো ফিচার বা UI পরিবর্তন হবে না — শুধু রেন্ডার পারফরম্যান্স উন্নত হবে।
-
+**মোট পরিবর্তন: ৫টি ফাইল।**

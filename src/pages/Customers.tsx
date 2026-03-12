@@ -58,7 +58,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
-import CSVImportDialog from '@/components/import/CSVImportDialog';
+import { lazy, Suspense } from 'react';
+const CSVImportDialog = lazy(() => import('@/components/import/CSVImportDialog'));
 import { ImportResult } from '@/lib/importUtils';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { BulkActionsBar } from '@/components/shared/BulkActionsBar';
@@ -1024,16 +1025,20 @@ const Customers = () => {
         )}
       </div>
 
-      <CSVImportDialog
-        open={isImportOpen}
-        onOpenChange={setIsImportOpen}
-        title="Import Customers"
-        description="Import customer list from CSV file"
-        requiredFields={['name']}
-        fieldMapping={customerHeaders}
-        onImport={handleImport}
-        templateFilename="customers"
-      />
+      {isImportOpen && (
+        <Suspense fallback={null}>
+          <CSVImportDialog
+            open={isImportOpen}
+            onOpenChange={setIsImportOpen}
+            title="Import Customers"
+            description="Import customer list from CSV file"
+            requiredFields={['name']}
+            fieldMapping={customerHeaders}
+            onImport={handleImport}
+            templateFilename="customers"
+          />
+        </Suspense>
+      )}
 
       <ConfirmDialog
         open={!!deleteId}
