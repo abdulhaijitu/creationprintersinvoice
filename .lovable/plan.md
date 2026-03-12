@@ -1,41 +1,50 @@
 
-# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-## যেসব সমস্যা পাওয়া গেছে
+# Invoices পেইজ স্লো লোডিং — বিশ্লেষণ ও সমাধান
 
-অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
+## সমস্যা চিহ্নিত
 
-| কম্পোনেন্ট | সমস্যা |
-|---|---|
-| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
-| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
-| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
-| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
+Invoices পেইজ (`src/pages/Invoices.tsx`) — **1133 লাইনের** বড় কম্পোনেন্ট। নিচের কারণে স্লো হচ্ছে:
 
-**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
+### ১. Stats কম্পিউটেশন মেমোাইজ করা নেই (লাইন 579-583)
+প্রতিটি রেন্ডারে **সব ইনভয়েস** ৪+ বার লুপ করে `getDisplayStatus()` এবং `getInvoiceStatusInfo()` কল করছে — এগুলো `useMemo` ছাড়া সরাসরি কম্পোনেন্ট বডিতে আছে।
 
----
+### ২. বড় JS Bundle
+1133 লাইনের কম্পোনেন্ট + অনেক ইম্পোর্ট (date-fns, xlsx, recharts, etc.) — lazy-loaded চাঙ্ক সাইজ বড়।
+
+### ৩. Mobile Card কম্পোনেন্ট ইনলাইন
+মোবাইল ভিউর কার্ড রেন্ডারিং একই ফাইলে — অপ্রয়োজনীয় কোড ডেস্কটপে লোড হচ্ছে।
 
 ## সমাধান
 
-### ১. `src/components/vendor/VendorStatementPDF.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
-- dependency থেকে `onClose` সরানো
+### ফাইল: `src/pages/Invoices.tsx`
 
-### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
-- `onCloseRef` pattern ব্যবহার
-- dependency থেকে `onClose` সরানো
+**A. Stats মেমোাইজ করা:**
+```typescript
+// আগে (লাইন 579-583) — প্রতি রেন্ডারে 4x লুপ
+const totalInvoices = invoices.length;
+const paidCount = invoices.filter(i => getDisplayStatus(i) === 'paid').length;
+...
 
-### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
-- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
+// পরে — একবার লুপ, useMemo দিয়ে ক্যাশ
+const { totalInvoices, paidCount, dueCount, partialCount, totalDueAmount } = useMemo(() => {
+  let paid = 0, due = 0, partial = 0, dueAmt = 0;
+  for (const inv of invoices) {
+    const info = getInvoiceStatusInfo(inv);
+    if (info.displayStatus === 'paid') paid++;
+    else if (info.displayStatus === 'due') due++;
+    else if (info.displayStatus === 'partial') partial++;
+    dueAmt += info.dueAmount;
+  }
+  return { totalInvoices: invoices.length, paidCount: paid, dueCount: due, partialCount: partial, totalDueAmount: dueAmt };
+}, [invoices]);
+```
 
-### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
-- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
+**B. `filteredInvoices`-এ ক্যাশড status ব্যবহার:**
+`getDisplayStatus()` কে `filteredInvoices` এবং `sortedInvoices` দুটোতেই বারবার কল হচ্ছে — একবার ক্যাশ করে ব্যবহার করা।
 
-**মোট পরিবর্তন: ৫টি ফাইল।**
+**C. Import ডায়নামিক করা:**
+`CSVImportDialog` শুধু বাটন ক্লিক করলে দরকার — `React.lazy` দিয়ে ডায়নামিক ইম্পোর্ট করা।
+
+**মোট পরিবর্তন: ১টি ফাইলে ~30 লাইন পরিবর্তন।**
+
