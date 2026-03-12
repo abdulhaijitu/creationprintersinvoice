@@ -11,16 +11,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import logo from '@/assets/logo.png';
 import { lazyRetry } from '@/lib/lazyLoadRecovery';
 
-// Lazy-load heavy admin section components — using centralized recovery
+// Lazy-load heavy admin section components
 const AdminDashboardOverview = lazy(() => lazyRetry(() => import('@/components/admin/AdminDashboardOverview').then(m => ({ default: m.AdminDashboardOverview }))));
 const AdminUsersTable = lazy(() => lazyRetry(() => import('@/components/admin/AdminUsersTable').then(m => ({ default: m.AdminUsersTable }))));
 const OrgRolePermissionsManager = lazy(() => lazyRetry(() => import('@/components/admin/OrgRolePermissionsManager')));
-const PlanPermissionPresetsManager = lazy(() => lazyRetry(() => import('@/components/admin/PlanPermissionPresetsManager')));
-const UpgradeRequestsManager = lazy(() => lazyRetry(() => import('@/components/admin/UpgradeRequestsManager').then(m => ({ default: m.UpgradeRequestsManager }))));
 const BusinessAnalyticsDashboard = lazy(() => lazyRetry(() => import('@/components/analytics/BusinessAnalyticsDashboard').then(m => ({ default: m.BusinessAnalyticsDashboard }))));
 const AdminNotificationLogs = lazy(() => lazyRetry(() => import('@/components/admin/AdminNotificationLogs').then(m => ({ default: m.AdminNotificationLogs }))));
 const EnhancedAuditLogsTable = lazy(() => lazyRetry(() => import('@/components/admin/EnhancedAuditLogsTable')));
-const InvestorDashboard = lazy(() => lazyRetry(() => import('@/components/admin/InvestorDashboard').then(m => ({ default: m.InvestorDashboard }))));
 
 // Section label map for topbar
 const sectionLabels: Record<string, string> = {
@@ -29,13 +26,8 @@ const sectionLabels: Record<string, string> = {
   organizations: 'Organizations',
   users: 'Users',
   'role-permissions': 'Role Permissions',
-  'plan-presets': 'Plan Presets',
-  'plan-limits': 'Plan Limits',
-  'upgrade-requests': 'Upgrade Requests',
-  billing: 'Billing',
   notifications: 'Notifications',
   audit: 'Audit Logs',
-  investor: 'Investor',
 };
 
 const SectionFallback = () => (
@@ -60,20 +52,10 @@ const AdminSectionContent = ({ section }: { section: string }) => {
       return <Suspense fallback={<SectionFallback />}><AdminUsersTable /></Suspense>;
     case 'role-permissions':
       return <Suspense fallback={<SectionFallback />}><OrgRolePermissionsManager /></Suspense>;
-    case 'plan-presets':
-      return <Suspense fallback={<SectionFallback />}><PlanPermissionPresetsManager /></Suspense>;
-    case 'plan-limits':
-      return <div className="p-4 text-muted-foreground">Plan limits management</div>;
-    case 'upgrade-requests':
-      return <Suspense fallback={<SectionFallback />}><UpgradeRequestsManager /></Suspense>;
-    case 'billing':
-      return <div className="p-4 text-muted-foreground">Billing management</div>;
     case 'notifications':
       return <Suspense fallback={<SectionFallback />}><AdminNotificationLogs /></Suspense>;
     case 'audit':
       return <Suspense fallback={<SectionFallback />}><EnhancedAuditLogsTable /></Suspense>;
-    case 'investor':
-      return <Suspense fallback={<SectionFallback />}><InvestorDashboard /></Suspense>;
     default:
       return <div className="p-4 text-muted-foreground">Unknown section</div>;
   }

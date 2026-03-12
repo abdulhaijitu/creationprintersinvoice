@@ -77,17 +77,6 @@ const navGroups: NavGroup[] = [
       { id: 'organizations', label: 'Organizations', icon: Building2 },
       { id: 'users', label: 'Users', icon: Users },
       { id: 'role-permissions', label: 'Role Permissions', icon: Shield },
-      { id: 'plan-presets', label: 'Plan Presets', icon: Layers },
-      { id: 'plan-limits', label: 'Plan Limits', icon: Users },
-    ],
-  },
-  {
-    id: 'billing-growth',
-    label: 'Billing & Growth',
-    defaultOpen: false,
-    items: [
-      { id: 'upgrade-requests', label: 'Upgrade Requests', icon: ArrowUp },
-      { id: 'billing', label: 'Billing', icon: CreditCard },
     ],
   },
   {
@@ -95,7 +84,6 @@ const navGroups: NavGroup[] = [
     label: 'Platform Settings',
     defaultOpen: false,
     items: [
-      
       { id: 'notifications', label: 'Notifications', icon: Bell },
       { id: 'audit', label: 'Audit Logs', icon: FileText },
     ],

@@ -98,42 +98,6 @@ export const useEnhancedAudit = () => {
     after_state: afterState,
   }), [logAuditEvent]);
 
-  const logSubscriptionAction = useCallback((
-    action: 'create' | 'update' | 'configure',
-    orgId: string,
-    orgName: string,
-    details: { plan?: string; status?: string; [key: string]: unknown },
-    beforeState?: Record<string, unknown>,
-    afterState?: Record<string, unknown>
-  ) => logAuditEvent({
-    action_type: action,
-    action_label: `Subscription ${action}d for ${orgName}`,
-    entity_type: 'subscription',
-    entity_id: orgId,
-    entity_name: `${orgName} Subscription`,
-    organization_id: orgId,
-    organization_name: orgName,
-    metadata: details,
-    before_state: beforeState,
-    after_state: afterState,
-  }), [logAuditEvent]);
-
-  const logBillingAction = useCallback((
-    action: 'create' | 'update',
-    invoiceId: string,
-    orgId: string,
-    orgName: string,
-    details: Record<string, unknown>
-  ) => logAuditEvent({
-    action_type: action,
-    action_label: `Billing invoice ${action}d for ${orgName}`,
-    entity_type: 'billing',
-    entity_id: invoiceId,
-    entity_name: `Invoice ${invoiceId}`,
-    organization_id: orgId,
-    organization_name: orgName,
-    metadata: details,
-  }), [logAuditEvent]);
 
   const logRoleChange = useCallback((
     userId: string,
@@ -194,8 +158,6 @@ export const useEnhancedAudit = () => {
     logLogin,
     logLogout,
     logOrganizationAction,
-    logSubscriptionAction,
-    logBillingAction,
     logRoleChange,
     logWhiteLabelChange,
     logConfigChange,
