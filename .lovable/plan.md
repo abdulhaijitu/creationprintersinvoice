@@ -1,41 +1,55 @@
 
-# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-## যেসব সমস্যা পাওয়া গেছে
+# SaaS ফিচার রিমুভ — পরিকল্পনা
 
-অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
+## যা রিমুভ হবে
 
-| কম্পোনেন্ট | সমস্যা |
-|---|---|
-| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
-| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
-| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
-| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
+### Admin Panel থেকে সেকশন রিমুভ:
+- **Plan Presets** — `plan-presets` সেকশন ও `PlanPermissionPresetsManager` কম্পোনেন্ট
+- **Plan Limits** — `plan-limits` সেকশন
+- **Upgrade Requests** — `upgrade-requests` সেকশন ও `UpgradeRequestsManager` কম্পোনেন্ট
+- **Billing** — `billing` সেকশন
+- **Investor Metrics** — `investor` সেকশন ও `InvestorDashboard` কম্পোনেন্ট
 
-**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
+### কম্পোনেন্ট রিমুভ/ক্লিন:
+- `src/components/admin/InvestorDashboard.tsx` — ডিলিট
+- `src/components/admin/UpgradeRequestsManager.tsx` — ডিলিট
+- `src/components/admin/PlanPermissionPresetsManager.tsx` — ডিলিট
+- `src/components/admin/UsageLimitCard.tsx` — ডিলিট
+- `src/components/billing/UnpaidInvoiceBanner.tsx` — ডিলিট
+- `src/components/billing/GenerateInvoiceDialog.tsx` — ডিলিট
+- `src/components/billing/MarkPaidDialog.tsx` — ডিলিট
+- `src/components/invoice/PayNowButton.tsx` — ডিলিট (UddoktaPay SaaS payment)
 
----
+### Hooks রিমুভ:
+- `src/hooks/useInvestorMetrics.ts` — ডিলিট
+- `src/hooks/useUpgradeRequests.ts` — ডিলিট
+- `src/hooks/useBillingInvoices.ts` — ডিলিট
+- `src/hooks/useUddoktaPay.ts` — ডিলিট
 
-## সমাধান
+### Edge Functions রিমুভ:
+- `supabase/functions/change-organization-plan/` — ডিলিট
+- `supabase/functions/request-plan-upgrade/` — ডিলিট
+- `supabase/functions/handle-upgrade-request/` — ডিলিট
+- `supabase/functions/uddoktapay-initiate/` — ডিলিট
+- `supabase/functions/uddoktapay-verify/` — ডিলিট
+- `supabase/functions/uddoktapay-webhook/` — ডিলিট
 
-### ১. `src/components/vendor/VendorStatementPDF.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
-- dependency থেকে `onClose` সরানো
+### ফাইল এডিট (রেফারেন্স ক্লিন):
+| ফাইল | পরিবর্তন |
+|-------|----------|
+| `src/pages/Admin.tsx` | SaaS সেকশন ও lazy imports রিমুভ |
+| `src/components/admin/AdminSidebar.tsx` | plan-presets, plan-limits, billing, upgrade-requests, investor nav items রিমুভ |
+| `src/components/admin/AdminMobileTiles.tsx` | একই nav items রিমুভ |
+| `src/components/admin/AdminCommandPalette.tsx` | investor command রিমুভ |
+| `src/lib/adminPermissions.ts` | SaaS সেকশন রেফারেন্স রিমুভ |
+| `src/components/admin/OrganizationDetailsDrawer.tsx` | UsageLimitCard রেফারেন্স রিমুভ |
+| `src/hooks/useEnhancedAudit.ts` | `logSubscriptionAction` ও `logBillingAction` রিমুভ |
 
-### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
-- `onCloseRef` pattern ব্যবহার
-- dependency থেকে `onClose` সরানো
+## যা থাকবে (SaaS নয়)
+- Organizations, Users, Role Permissions — এগুলো multi-tenancy ম্যানেজমেন্ট, SaaS billing নয়
+- Subscriptions টেবিল ডাটাবেসে থাকবে (ডাটা হারানো এড়াতে) তবে UI থেকে SaaS ফিচার সরানো হবে
+- Admin Dashboard, Analytics, Notifications, Audit Logs — এগুলো প্ল্যাটফর্ম ম্যানেজমেন্ট
 
-### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
-- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
+## মোট: ~18টি ফাইল ডিলিট, ~7টি ফাইল এডিট
 
-### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
-- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
-
-**মোট পরিবর্তন: ৫টি ফাইল।**
