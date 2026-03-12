@@ -1025,16 +1025,20 @@ const Customers = () => {
         )}
       </div>
 
-      <CSVImportDialog
-        open={isImportOpen}
-        onOpenChange={setIsImportOpen}
-        title="Import Customers"
-        description="Import customer list from CSV file"
-        requiredFields={['name']}
-        fieldMapping={customerHeaders}
-        onImport={handleImport}
-        templateFilename="customers"
-      />
+      {isImportOpen && (
+        <Suspense fallback={null}>
+          <CSVImportDialog
+            open={isImportOpen}
+            onOpenChange={setIsImportOpen}
+            title="Import Customers"
+            description="Import customer list from CSV file"
+            requiredFields={['name']}
+            fieldMapping={customerHeaders}
+            onImport={handleImport}
+            templateFilename="customers"
+          />
+        </Suspense>
+      )}
 
       <ConfirmDialog
         open={!!deleteId}

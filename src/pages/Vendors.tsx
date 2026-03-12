@@ -661,16 +661,20 @@ const Vendors = () => {
         </div>
       )}
 
-      <CSVImportDialog
-        open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
-        title="Import Vendors"
-        description="Upload a CSV file to import vendors. Required field: name"
-        requiredFields={vendorImportFields}
-        fieldMapping={vendorExportHeaders}
-        onImport={handleImport}
-        templateFilename="vendors"
-      />
+      {importDialogOpen && (
+        <Suspense fallback={null}>
+          <CSVImportDialog
+            open={importDialogOpen}
+            onOpenChange={setImportDialogOpen}
+            title="Import Vendors"
+            description="Upload a CSV file to import vendors. Required field: name"
+            requiredFields={vendorImportFields}
+            fieldMapping={vendorExportHeaders}
+            onImport={handleImport}
+            templateFilename="vendors"
+          />
+        </Suspense>
+      )}
 
       <ConfirmDialog
         open={!!deleteVendorId}
