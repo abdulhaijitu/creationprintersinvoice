@@ -576,12 +576,17 @@ const Invoices = () => {
     return { success, failed, errors, duplicates };
   };
 
-  // Stats
-  const totalInvoices = invoices.length;
-  const paidCount = invoices.filter(i => getDisplayStatus(i) === 'paid').length;
-  const dueCount = invoices.filter(i => getDisplayStatus(i) === 'due').length;
-  const partialCount = invoices.filter(i => getDisplayStatus(i) === 'partial').length;
-  const totalDueAmount = invoices.reduce((sum, inv) => sum + getInvoiceStatusInfo(inv).dueAmount, 0);
+  // Stats — single pass, memoized
+  const { totalInvoices, paidCount, dueCount, partialCount, totalDueAmount } = useMemo(() => {
+    let paid = 0, due = 0, partial = 0, dueAmt = 0;
+    for (const inv of invoices) {
+      const info = getInvoiceStatusInfo(inv);
+      if (info.displayStatus === 'paid') paid++;
+      else if (info.displayStatus === 'due') { due++; dueAmt += info.dueAmount; }
+      else if (info.displayStatus === 'partial') { partial++; dueAmt += info.dueAmount; }
+    }
+    return { totalInvoices: invoices.length, paidCount: paid, dueCount: due, partialCount: partial, totalDueAmount: dueAmt };
+  }, [invoices]);
 
   const bulkActions = [
     ...(invoicePerms.canEdit ? [{
