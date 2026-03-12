@@ -2,13 +2,10 @@ import {
   LayoutDashboard,
   Building2,
   BarChart3,
-  CreditCard,
   Bell,
   FileText,
   Users,
-  ArrowUp,
   Shield,
-  Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.png';
@@ -45,16 +42,6 @@ const navGroups: NavGroup[] = [
       { id: 'organizations', label: 'Organizations', icon: Building2 },
       { id: 'users', label: 'Users', icon: Users },
       { id: 'role-permissions', label: 'Role Permissions', icon: Shield },
-      { id: 'plan-presets', label: 'Plan Presets', icon: Layers },
-      { id: 'plan-limits', label: 'Plan Limits', icon: Users },
-    ],
-  },
-  {
-    id: 'billing-growth',
-    label: 'Billing & Growth',
-    items: [
-      { id: 'upgrade-requests', label: 'Upgrade Requests', icon: ArrowUp },
-      { id: 'billing', label: 'Billing', icon: CreditCard },
     ],
   },
   {

@@ -77,22 +77,6 @@ const allNavigationCommands: CommandItemData[] = [
     keywords: ["reports", "charts", "data", "insights"],
   },
   {
-    id: "billing",
-    label: "Billing",
-    description: "Invoices and payments",
-    icon: CreditCard,
-    page: "billing",
-    keywords: ["invoices", "payments", "subscriptions", "revenue"],
-  },
-  {
-    id: "whitelabel",
-    label: "White-Label",
-    description: "Branding and customization",
-    icon: Palette,
-    page: "whitelabel",
-    keywords: ["branding", "customization", "themes", "domains"],
-  },
-  {
     id: "notifications",
     label: "Notifications",
     description: "Notification logs and settings",
@@ -107,14 +91,6 @@ const allNavigationCommands: CommandItemData[] = [
     icon: ScrollText,
     page: "audit",
     keywords: ["logs", "activity", "security", "history", "tracking"],
-  },
-  {
-    id: "investor",
-    label: "Investor Metrics",
-    description: "SaaS metrics for investors",
-    icon: BarChart3,
-    page: "investor",
-    keywords: ["mrr", "arr", "churn", "saas", "revenue", "metrics"],
   },
 ];
 
