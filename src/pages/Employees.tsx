@@ -28,7 +28,7 @@ import { Search, Users, Phone, Briefcase, Edit2, UserPlus, Trash2, ShieldAlert }
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { TableSkeleton } from "@/components/shared/TableSkeleton";
+import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { formatCurrency, getInitials } from "@/lib/formatters";
