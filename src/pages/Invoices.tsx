@@ -326,18 +326,19 @@ const Invoices = () => {
     return badges[displayStatus];
   };
 
-  const filteredInvoices = invoices.filter((invoice) => {
-    const matchesSearch =
-      invoice.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredInvoices = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return invoices.filter((invoice) => {
+      const matchesSearch =
+        invoice.invoice_number.toLowerCase().includes(query) ||
+        invoice.customers?.name?.toLowerCase().includes(query);
 
-    if (!matchesSearch) return false;
+      if (!matchesSearch) return false;
+      if (statusFilter === 'all') return true;
 
-    if (statusFilter === 'all') return true;
-    
-    const displayStatus = getDisplayStatus(invoice);
-    return displayStatus === statusFilter;
-  });
+      return getDisplayStatus(invoice) === statusFilter;
+    });
+  }, [invoices, searchQuery, statusFilter]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
