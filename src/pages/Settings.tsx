@@ -833,6 +833,7 @@ export default function Settings() {
               <TabsContent value="tools">
                 <div className="space-y-6">
                   <SmsNotificationSettings isReadOnly={tabPermissions.tools.isReadOnly} />
+                  <BackupRestoreSection />
                   <DataExportSection />
                 </div>
               </TabsContent>
