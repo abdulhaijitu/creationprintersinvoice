@@ -1796,8 +1796,8 @@ const Expenses = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={(canEditExpenses || canDeleteExpenses) ? 7 : 6} className="text-center py-8">
-                      Loading...
+                    <TableCell colSpan={(canEditExpenses || canDeleteExpenses) ? 7 : 6} className="p-4">
+                      <TableSkeleton rows={5} columns={(canEditExpenses || canDeleteExpenses) ? 7 : 6} />
                     </TableCell>
                   </TableRow>
                 ) : filteredExpenses.length === 0 ? (
