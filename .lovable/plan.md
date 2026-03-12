@@ -1,26 +1,41 @@
 
+# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-# Invoices পেইজ — Skeleton Loading ও কলাম ফিক্স
+## যেসব সমস্যা পাওয়া গেছে
 
-## সমস্যা
+অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
 
-1. **Skeleton কম্পোনেন্ট ব্যবহার হয়নি** — raw `div` + `animate-pulse` ব্যবহার করা হয়েছে `Skeleton` কম্পোনেন্টের বদলে
-2. **মোবাইলে আলাদা skeleton নেই** — ডেস্কটপ স্টাইলের skeleton মোবাইলে ভাঙা দেখায়
-3. **Responsive কলাম ম্যাচ হয় না** — টেবিলে Paid কলাম `hidden xl:table-cell` এবং Status `hidden lg:table-cell`, কিন্তু skeleton-এ সব কলাম সবসময় দেখায়
-4. **Staggered animation নেই** — প্রজেক্ট স্ট্যান্ডার্ড অনুযায়ী ১৫০-২০০ms delay দিয়ে reveal হওয়া উচিত
+| কম্পোনেন্ট | সমস্যা |
+|---|---|
+| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
+| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
+| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
+| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
+
+**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
+
+---
 
 ## সমাধান
 
-**ফাইল: `src/pages/Invoices.tsx`** — Lines 737-756 রিপ্লেস
+### ১. `src/components/vendor/VendorStatementPDF.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
+- dependency থেকে `onClose` সরানো
 
-### ডেস্কটপ Skeleton (hidden md:block):
-- `Skeleton` কম্পোনেন্ট ইম্পোর্ট করে ব্যবহার
-- Paid কলাম `hidden xl:block`, Status কলাম `hidden lg:block` — টেবিল হেডারের সাথে ম্যাচ
-- Staggered delay: প্রতি row-তে `animationDelay: ${i * 150}ms`
+### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
+- `onCloseRef` pattern ব্যবহার
+- dependency থেকে `onClose` সরানো
 
-### মোবাইল Skeleton (block md:hidden):
-- ৩টি কার্ড skeleton — বর্তমান মোবাইল কার্ড লেআউটের সাথে ম্যাচ
-- প্রতিটিতে invoice number, customer, date, total placeholders
+### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
+- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
 
-**মোট: ১টি ফাইলে ১টি সেকশন রিপ্লেস + ১টি ইম্পোর্ট যোগ।**
+### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
+- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
 
+**মোট পরিবর্তন: ৫টি ফাইল।**
