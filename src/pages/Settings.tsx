@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { WeeklyHolidaySettings } from '@/components/settings/WeeklyHolidaySettings';
 import { DataExportSection } from '@/components/settings/DataExportSection';
 import { SmsNotificationSettings } from '@/components/settings/SmsNotificationSettings';
+import { BackupRestoreSection } from '@/components/settings/BackupRestoreSection';
 
 export default function Settings() {
   const { toast } = useToast();
