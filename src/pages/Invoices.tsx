@@ -736,25 +736,62 @@ const Invoices = () => {
           {/* Table */}
           <div className="border-t border-border/50">
             {loading ? (
-              <div className="p-4 space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <div 
-                    key={i} 
-                    className="flex items-center gap-4 p-3 rounded-lg"
-                    style={{ opacity: 1 - i * 0.1 }}
-                  >
-                    <div className="h-4 w-4 rounded bg-muted animate-pulse" />
-                    <div className="h-4 bg-muted rounded animate-pulse" style={{ width: '80px' }} />
-                    <div className="h-4 bg-muted rounded animate-pulse flex-1" style={{ maxWidth: '120px' }} />
-                    <div className="h-4 w-20 bg-muted rounded animate-pulse hidden md:block" />
-                    <div className="h-4 w-16 bg-muted rounded animate-pulse text-right" />
-                    <div className="h-4 w-16 bg-muted rounded animate-pulse text-right hidden md:block" />
-                    <div className="h-4 w-14 bg-muted rounded animate-pulse text-right" />
-                    <div className="h-6 w-16 bg-muted rounded-full animate-pulse" />
-                    <div className="h-8 w-8 bg-muted rounded animate-pulse" />
-                  </div>
-                ))}
-              </div>
+              <>
+                {/* Desktop Skeleton */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="w-[40px]"><Skeleton className="h-4 w-4" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-16" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-20" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-24" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-16 ml-auto" /></TableHead>
+                        <TableHead className="hidden xl:table-cell"><Skeleton className="h-4 w-14 ml-auto" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-14 ml-auto" /></TableHead>
+                        <TableHead className="hidden lg:table-cell"><Skeleton className="h-4 w-16" /></TableHead>
+                        <TableHead className="w-[120px]"><Skeleton className="h-4 w-14 mx-auto" /></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <TableRow key={i} interactive={false} style={{ animationDelay: `${i * 150}ms` }}>
+                          <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                          <TableCell className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
+                          <TableCell className="hidden xl:table-cell text-right"><Skeleton className="h-4 w-18 ml-auto" /></TableCell>
+                          <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                          <TableCell className="hidden lg:table-cell"><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                          <TableCell className="text-center"><Skeleton className="h-8 w-8 mx-auto" /></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile Skeleton */}
+                <div className="block md:hidden p-3 space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="rounded-lg border bg-card p-4 space-y-3 animate-pulse" style={{ animationDelay: `${i * 150}ms` }}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-5 w-14 rounded-full" />
+                        </div>
+                        <Skeleton className="h-8 w-8 rounded" />
+                      </div>
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-20" />
+                      <div className="flex items-center gap-4">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : filteredInvoices.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-4">
                 <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
