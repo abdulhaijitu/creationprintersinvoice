@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { VendorSelect } from "@/components/shared/VendorSelect";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
