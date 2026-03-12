@@ -158,8 +158,6 @@ export const useEnhancedAudit = () => {
     logLogin,
     logLogout,
     logOrganizationAction,
-    logSubscriptionAction,
-    logBillingAction,
     logRoleChange,
     logWhiteLabelChange,
     logConfigChange,
