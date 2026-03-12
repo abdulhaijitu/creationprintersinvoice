@@ -1090,16 +1090,20 @@ const Invoices = () => {
           )}
         </div>
 
-        <CSVImportDialog
-          open={importOpen}
-          onOpenChange={setImportOpen}
-          title="Import Invoices"
-          description="Upload a CSV file to import invoices. The system will automatically find or create customers."
-          requiredFields={invoiceImportFields}
-          fieldMapping={invoiceFieldMapping}
-          onImport={handleImport}
-          templateFilename="invoices"
-        />
+        {importOpen && (
+          <Suspense fallback={null}>
+            <CSVImportDialog
+              open={importOpen}
+              onOpenChange={setImportOpen}
+              title="Import Invoices"
+              description="Upload a CSV file to import invoices. The system will automatically find or create customers."
+              requiredFields={invoiceImportFields}
+              fieldMapping={invoiceFieldMapping}
+              onImport={handleImport}
+              templateFilename="invoices"
+            />
+          </Suspense>
+        )}
 
         {/* Bulk Actions Bar */}
         <BulkActionsBar
