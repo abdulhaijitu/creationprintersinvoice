@@ -171,14 +171,16 @@ export function AddPaymentDialog({
         throw new Error(result.error || 'Failed to record payment');
       }
 
+      // Invalidate queries immediately so data is fresh
+      onPaymentAdded();
+
       // Show success state
       setShowSuccess(true);
       toast.success('Payment recorded successfully');
 
-      // Close dialog after brief delay
+      // Close dialog after brief delay (UI only)
       setTimeout(() => {
         onOpenChange(false);
-        onPaymentAdded();
       }, 1500);
     } catch (error: any) {
       console.error('Error adding payment:', error);

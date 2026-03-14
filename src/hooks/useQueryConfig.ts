@@ -38,8 +38,8 @@ export function createQueryClient(): QueryClient {
       queries: {
         // Only refetch on window focus if data is stale
         refetchOnWindowFocus: false,
-        // Don't refetch when component remounts with fresh data
-        refetchOnMount: false,
+        // Refetch on mount if data is stale
+        refetchOnMount: true,
         // Retry failed requests once
         retry: 1,
         retryDelay: 1000,
