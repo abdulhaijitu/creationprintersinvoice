@@ -622,6 +622,7 @@ const InvoiceDetail = () => {
           fetchInvoice();
           queryClient.invalidateQueries({ queryKey: ['invoices'] });
           queryClient.invalidateQueries({ queryKey: ['payments'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
         }}
       />
     </>
