@@ -1,41 +1,36 @@
 
-# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-## যেসব সমস্যা পাওয়া গেছে
+# পেমেন্ট দেওয়ার পর ইনভয়েস লিস্ট আপডেট না হওয়ার সমস্যা — ফিক্স
 
-অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
+## Root Cause (মূল কারণ)
 
-| কম্পোনেন্ট | সমস্যা |
-|---|---|
-| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
-| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
-| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
-| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
+দুটি সমস্যা একসাথে কাজ করছে:
 
-**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
+### ১. `onPaymentAdded` কলব্যাক ১.৫ সেকেন্ড দেরিতে চলে
+`AddPaymentDialog.tsx` এ পেমেন্ট সফল হওয়ার পর `onPaymentAdded()` একটি `setTimeout` এর ভিতরে চলে (1500ms delay)। ইউজার যদি এর আগে রিফ্রেশ দেয় বা ব্যাক করে, তাহলে **query invalidation কখনোই হয় না**।
 
----
+```typescript
+// সমস্যাযুক্ত কোড (AddPaymentDialog.tsx:179-182)
+setTimeout(() => {
+  onOpenChange(false);
+  onPaymentAdded();  // ← এটি ১.৫ সেকেন্ড পরে চলে!
+}, 1500);
+```
+
+### ২. React Query কনফিগ — `refetchOnMount: false`
+`useQueryConfig.ts` এ `refetchOnMount: false` সেট করা আছে। তাই ইউজার যখন ইনভয়েস লিস্টে ফিরে আসে, React Query পুরনো ক্যাশড ডেটা দেখায়, নতুন করে ফেচ করে না।
 
 ## সমাধান
 
-### ১. `src/components/vendor/VendorStatementPDF.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
-- dependency থেকে `onClose` সরানো
+### ফাইল ১: `src/components/invoice/AddPaymentDialog.tsx`
+- পেমেন্ট সফল হওয়ার সাথে সাথেই `onPaymentAdded()` কল করবে (delay ছাড়া)
+- শুধু UI বন্ধ হওয়াটা delayed থাকবে
 
-### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
-- `onCloseRef` pattern ব্যবহার
-- dependency থেকে `onClose` সরানো
+### ফাইল ২: `src/hooks/useQueryConfig.ts`
+- `refetchOnMount: false` → `refetchOnMount: true` করা হবে যাতে stale ডেটা থাকলে mount-এ refetch হয়
 
-### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
-- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
+### ফাইল ৩: `src/pages/InvoiceDetail.tsx`
+- `queryKey: ['invoices']` → `queryKeys.invoices(...)` ব্যবহার করে consistent key নিশ্চিত করা
 
-### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
-- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
+**মোট: ৩টি ফাইলে ছোট পরিবর্তন।**
 
-**মোট পরিবর্তন: ৫টি ফাইল।**
