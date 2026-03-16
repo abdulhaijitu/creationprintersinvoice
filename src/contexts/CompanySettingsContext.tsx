@@ -112,6 +112,18 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
     fetchSettings();
   }, [user, authLoading, fetchSettings]);
 
+  // Re-fetch settings when token is refreshed (fixes hard-reload race condition)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === 'TOKEN_REFRESHED' && !settings && user) {
+          fetchSettings();
+        }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, [user, settings, fetchSettings]);
+
   // Realtime subscription — only when user is authenticated
   useEffect(() => {
     if (!user) return;
