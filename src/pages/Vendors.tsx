@@ -24,7 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload, Pencil, ChevronLeft, ChevronRight, MoreHorizontal, DollarSign } from "lucide-react";
+import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload, Pencil, ChevronLeft, ChevronRight, MoreHorizontal, DollarSign, CalendarIcon, X } from "lucide-react";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 import { ImportResult } from "@/lib/importUtils";
 import { lazy, Suspense } from "react";
@@ -39,12 +39,54 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys, STALE_TIMES } from '@/hooks/useQueryConfig';
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+
+interface DateRange {
+  from?: Date;
+  to?: Date;
+}
+
+// Generate last 12 months for the month selector
+function getMonthOptions() {
+  const options = [{ value: 'all', label: 'All Time' }];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = subMonths(now, i);
+    const val = format(d, 'yyyy-MM');
+    const label = format(d, 'MMMM yyyy');
+    options.push({ value: val, label });
+  }
+  return options;
+}
+
+function getDateRangeFromMonth(monthKey: string): { from: string; to: string } | null {
+  if (monthKey === 'all') return null;
+  const [year, month] = monthKey.split('-').map(Number);
+  const d = new Date(year, month - 1, 1);
+  return {
+    from: format(startOfMonth(d), 'yyyy-MM-dd'),
+    to: format(endOfMonth(d), 'yyyy-MM-dd'),
+  };
+}
 
 const PAGE_SIZE = 25;
 
@@ -90,9 +132,44 @@ const Vendors = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortKey, setSortKey] = useState<string | null>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [dateRange, setDateRange] = useState<DateRange>({});
+  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
+  const monthOptions = useMemo(() => getMonthOptions(), []);
+
+  // Compute effective date filter
+  const effectiveDateFilter = useMemo(() => {
+    if (dateRange.from) {
+      return {
+        from: format(dateRange.from, 'yyyy-MM-dd'),
+        to: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : format(dateRange.from, 'yyyy-MM-dd'),
+      };
+    }
+    return getDateRangeFromMonth(selectedMonth);
+  }, [selectedMonth, dateRange]);
+
+  const filterLabel = useMemo(() => {
+    if (dateRange.from) {
+      return dateRange.to
+        ? `${format(dateRange.from, 'MMM d')} - ${format(dateRange.to, 'MMM d, yyyy')}`
+        : format(dateRange.from, 'MMM d, yyyy');
+    }
+    if (selectedMonth !== 'all') {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      return format(new Date(y, m - 1, 1), 'MMMM yyyy');
+    }
+    return null;
+  }, [selectedMonth, dateRange]);
+
+  const isFilterActive = selectedMonth !== 'all' || !!dateRange.from;
+
+  const clearDateFilters = () => {
+    setSelectedMonth('all');
+    setDateRange({});
+  };
 
   const { data: vendors = [], isLoading: loading } = useQuery({
-    queryKey: queryKeys.vendors(organization?.id || ''),
+    queryKey: [...queryKeys.vendors(organization?.id || ''), effectiveDateFilter?.from, effectiveDateFilter?.to],
     queryFn: async () => {
       const { data: vendorsData } = await supabase
         .from("vendors")
@@ -100,10 +177,17 @@ const Vendors = () => {
         .eq("organization_id", organization!.id)
         .order("name");
       if (!vendorsData) return [] as Vendor[];
-      const [allBillsRes, allPaymentsRes] = await Promise.all([
-        supabase.from("vendor_bills").select("vendor_id, net_amount, amount, discount").eq("organization_id", organization!.id),
-        supabase.from("vendor_payments").select("vendor_id, amount").eq("organization_id", organization!.id),
-      ]);
+
+      // Build bills query with optional date filter
+      let billsQuery = supabase.from("vendor_bills").select("vendor_id, net_amount, amount, discount").eq("organization_id", organization!.id);
+      let paymentsQuery = supabase.from("vendor_payments").select("vendor_id, amount").eq("organization_id", organization!.id);
+
+      if (effectiveDateFilter) {
+        billsQuery = billsQuery.gte("bill_date", effectiveDateFilter.from).lte("bill_date", effectiveDateFilter.to);
+        paymentsQuery = paymentsQuery.gte("payment_date", effectiveDateFilter.from).lte("payment_date", effectiveDateFilter.to);
+      }
+
+      const [allBillsRes, allPaymentsRes] = await Promise.all([billsQuery, paymentsQuery]);
       const allBills = allBillsRes.data || [];
       const allPayments = allPaymentsRes.data || [];
       const billsByVendor = new Map<string, number>();
@@ -418,7 +502,9 @@ const Vendors = () => {
         </Card>
         <Card>
           <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Total Bills</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
+              Total Bills {filterLabel && <span className="text-xs font-normal">({filterLabel})</span>}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
             <p className="text-xl md:text-2xl font-bold">{formatCurrency(totalBills)}</p>
@@ -428,7 +514,7 @@ const Vendors = () => {
           <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
             <CardTitle className="text-xs md:text-sm font-medium text-success flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
-              Total Paid
+              Total Paid {filterLabel && <span className="text-xs font-normal">({filterLabel})</span>}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
@@ -439,7 +525,7 @@ const Vendors = () => {
           <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
             <CardTitle className="text-xs md:text-sm font-medium text-destructive flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
-              Total Due
+              Total Due {filterLabel && <span className="text-xs font-normal">({filterLabel})</span>}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
@@ -448,10 +534,82 @@ const Vendors = () => {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative min-w-0">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input placeholder="Search vendors..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-full md:max-w-md" />
+      {/* Search & Date Filters */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="relative flex-1 min-w-0 w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input placeholder="Search vendors..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-full" />
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Month Select */}
+          <Select
+            value={dateRange.from ? 'custom' : selectedMonth}
+            onValueChange={(val) => {
+              if (val === 'custom') return;
+              setSelectedMonth(val);
+              setDateRange({});
+            }}
+          >
+            <SelectTrigger className="w-[160px] h-10 bg-background/50 border-border/50">
+              <SelectValue placeholder="Select month" />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Date Range Popover */}
+          <Popover open={isDateRangeOpen} onOpenChange={setIsDateRangeOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  'h-10 gap-2 border-border/50 bg-background/50',
+                  dateRange.from && 'text-foreground border-primary/50'
+                )}
+              >
+                <CalendarIcon className="h-4 w-4" />
+                {dateRange.from ? (
+                  dateRange.to ? (
+                    <span className="text-xs">
+                      {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}
+                    </span>
+                  ) : (
+                    <span className="text-xs">{format(dateRange.from, 'MMM d')}</span>
+                  )
+                ) : (
+                  <span className="hidden sm:inline text-xs">Date Range</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                selected={dateRange.from ? { from: dateRange.from, to: dateRange.to } : undefined}
+                onSelect={(range) => {
+                  setDateRange(range as DateRange || {});
+                  if (range?.from) setSelectedMonth('all');
+                  if (range?.to) setIsDateRangeOpen(false);
+                }}
+                numberOfMonths={2}
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+
+          {/* Clear filter */}
+          {isFilterActive && (
+            <Button variant="ghost" size="sm" className="h-10 gap-1.5 text-muted-foreground" onClick={clearDateFilters}>
+              <X className="h-4 w-4" />
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Mobile Card View */}

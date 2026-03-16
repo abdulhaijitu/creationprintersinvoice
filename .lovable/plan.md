@@ -1,42 +1,41 @@
 
+# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-# Vendors পেইজে মাসিক ও ডেট রেঞ্জ ফিল্টার যোগ
+## যেসব সমস্যা পাওয়া গেছে
 
-## বর্তমান সমস্যা
-Vendors পেইজে সব সময়ের বিল/পেমেন্ট একসাথে দেখায়। কোনো নির্দিষ্ট মাসে কোন ভেন্ডরের কত বিল হয়েছে তা ফিল্টার করার উপায় নেই।
+অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
+
+| কম্পোনেন্ট | সমস্যা |
+|---|---|
+| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
+| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
+| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
+| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
+
+**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
+
+---
 
 ## সমাধান
 
-**ফাইল: `src/pages/Vendors.tsx`** — একটি ফাইলে সব পরিবর্তন।
+### ১. `src/components/vendor/VendorStatementPDF.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
+- dependency থেকে `onClose` সরানো
 
-### ১. নতুন ফিল্টার UI (সার্চ বারের পাশে)
-- **মাসিক ফিল্টার**: Month/Year সিলেক্ট (যেমন "March 2026", "February 2026") — ডিফল্ট: বর্তমান মাস
-- **ডেট রেঞ্জ**: Calendar popover দিয়ে কাস্টম from-to ডেট সিলেক্ট
-- **"All Time"** অপশন — সব ফিল্টার ক্লিয়ার করে পুরনো behavior ফিরিয়ে আনে
-- মাসিক সিলেক্ট করলে ডেট রেঞ্জ ক্লিয়ার হবে, ডেট রেঞ্জ সিলেক্ট করলে মাসিক ক্লিয়ার হবে
+### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
+- `onCloseRef` pattern ব্যবহার
+- dependency থেকে `onClose` সরানো
 
-### ২. কোয়েরি পরিবর্তন
-- `vendor_bills` ও `vendor_payments` ফেচ করার সময় `bill_date` / `payment_date` এ `.gte()` ও `.lte()` ফিল্টার যোগ
-- ফিল্টার state কে `queryKey`-তে যোগ করা যাতে ফিল্টার বদলালে নতুন করে ফেচ হয়
-- Summary কার্ডগুলো (Total Bills, Total Paid, Total Due) ফিল্টার অনুযায়ী আপডেট হবে
+### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
+- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
 
-### ৩. UI লেআউট
-```text
-┌─────────────────────────────────────────────────────────┐
-│ [Search...        ] [This Month ▾] [Date Range 📅] [×] │
-└─────────────────────────────────────────────────────────┘
-```
-- ফিল্টার অ্যাক্টিভ থাকলে কার্ড হেডারে "(March 2026)" বা "(Mar 1 - Mar 15)" দেখাবে
-- Clear বাটন দিয়ে All Time-এ ফেরা যাবে
+### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
+- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
 
-### পরিবর্তনের সারসংক্ষেপ
-| কী | বিবরণ |
-|----|--------|
-| State যোগ | `selectedMonth`, `dateRange` (from/to) |
-| Query key | `queryKeys.vendors(orgId)` → `['vendors', orgId, monthKey, dateRange]` |
-| DB filter | `vendor_bills.bill_date` ও `vendor_payments.payment_date` এ gte/lte |
-| UI | সার্চ বারের পাশে Select + Calendar Popover |
-| Summary কার্ড | ফিল্টার অনুযায়ী টোটাল পরিবর্তন হবে |
-
-**মোট: ১টি ফাইলে পরিবর্তন। কোনো DB মাইগ্রেশন লাগবে না।**
-
+**মোট পরিবর্তন: ৫টি ফাইল।**
