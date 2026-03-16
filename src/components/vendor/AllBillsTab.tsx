@@ -223,7 +223,7 @@ export function AllBillsTab() {
     }
   };
 
-  const activeFilterCount = (statusFilter !== "all" ? 1 : 0) + (filterMode === "range" && dateRange?.from ? 1 : 0);
+  const activeFilterCount = (statusFilter !== "all" ? 1 : 0) + (vendorFilter !== "all" ? 1 : 0) + (filterMode === "range" && dateRange?.from ? 1 : 0);
 
   return (
     <div className="space-y-4">
