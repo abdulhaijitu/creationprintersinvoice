@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+
 import { supabase } from '@/integrations/supabase/client';
 import { retrySupabaseQuery } from '@/lib/networkRetry';
 import { useQueryClient } from '@tanstack/react-query';
