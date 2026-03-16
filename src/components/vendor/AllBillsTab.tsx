@@ -296,6 +296,19 @@ export function AllBillsTab() {
             </PopoverContent>
           </Popover>
 
+          {/* Vendor Filter */}
+          <Select value={vendorFilter} onValueChange={setVendorFilter}>
+            <SelectTrigger className="w-[160px] h-10 bg-background/50 border-border/50">
+              <SelectValue placeholder="All Vendors" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Vendors</SelectItem>
+              {vendors.map((v) => (
+                <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           {/* Status Filter */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[120px] h-10 bg-background/50 border-border/50">
