@@ -66,6 +66,16 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
         return;
       }
 
+      if (!data && user) {
+        // Settings not found — may be due to expired token, retry once
+        if (!retryScheduled.current) {
+          retryScheduled.current = true;
+          setTimeout(() => {
+            retryScheduled.current = false;
+            fetchSettings();
+          }, 1500);
+        }
+      }
 
       setSettings(data as CompanySettings | null);
     } catch (err) {
