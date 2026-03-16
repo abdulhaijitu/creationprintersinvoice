@@ -61,8 +61,15 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { format, isPast, parseISO } from 'date-fns';
+import { format, isPast, parseISO, startOfMonth, endOfMonth, parse } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 import { calculateInvoiceStatus, type InvoiceDisplayStatus } from '@/lib/invoiceUtils';
 import { lazy, Suspense } from 'react';
