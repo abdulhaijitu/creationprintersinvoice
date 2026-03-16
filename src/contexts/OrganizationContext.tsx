@@ -200,6 +200,18 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, authLoading]);
 
+  // Re-fetch organization when token is refreshed (fixes hard-reload race condition)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === 'TOKEN_REFRESHED' && !organization && user) {
+          fetchOrganization(true);
+        }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, [user, organization, fetchOrganization]);
+
   const orgRole = membership?.role || null;
   const isOrgOwner = orgRole === 'owner';
   const isOrgManager = orgRole === 'manager';
