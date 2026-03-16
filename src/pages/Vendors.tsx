@@ -502,7 +502,9 @@ const Vendors = () => {
         </Card>
         <Card>
           <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Total Bills</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
+              Total Bills {filterLabel && <span className="text-xs font-normal">({filterLabel})</span>}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
             <p className="text-xl md:text-2xl font-bold">{formatCurrency(totalBills)}</p>
@@ -512,7 +514,7 @@ const Vendors = () => {
           <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
             <CardTitle className="text-xs md:text-sm font-medium text-success flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
-              Total Paid
+              Total Paid {filterLabel && <span className="text-xs font-normal">({filterLabel})</span>}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
@@ -523,7 +525,7 @@ const Vendors = () => {
           <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
             <CardTitle className="text-xs md:text-sm font-medium text-destructive flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
-              Total Due
+              Total Due {filterLabel && <span className="text-xs font-normal">({filterLabel})</span>}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
@@ -532,10 +534,82 @@ const Vendors = () => {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative min-w-0">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input placeholder="Search vendors..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-full md:max-w-md" />
+      {/* Search & Date Filters */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="relative flex-1 min-w-0 w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input placeholder="Search vendors..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-full" />
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Month Select */}
+          <Select
+            value={dateRange.from ? 'custom' : selectedMonth}
+            onValueChange={(val) => {
+              if (val === 'custom') return;
+              setSelectedMonth(val);
+              setDateRange({});
+            }}
+          >
+            <SelectTrigger className="w-[160px] h-10 bg-background/50 border-border/50">
+              <SelectValue placeholder="Select month" />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Date Range Popover */}
+          <Popover open={isDateRangeOpen} onOpenChange={setIsDateRangeOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  'h-10 gap-2 border-border/50 bg-background/50',
+                  dateRange.from && 'text-foreground border-primary/50'
+                )}
+              >
+                <CalendarIcon className="h-4 w-4" />
+                {dateRange.from ? (
+                  dateRange.to ? (
+                    <span className="text-xs">
+                      {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}
+                    </span>
+                  ) : (
+                    <span className="text-xs">{format(dateRange.from, 'MMM d')}</span>
+                  )
+                ) : (
+                  <span className="hidden sm:inline text-xs">Date Range</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                selected={dateRange.from ? { from: dateRange.from, to: dateRange.to } : undefined}
+                onSelect={(range) => {
+                  setDateRange(range as DateRange || {});
+                  if (range?.from) setSelectedMonth('all');
+                  if (range?.to) setIsDateRangeOpen(false);
+                }}
+                numberOfMonths={2}
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+
+          {/* Clear filter */}
+          {isFilterActive && (
+            <Button variant="ghost" size="sm" className="h-10 gap-1.5 text-muted-foreground" onClick={clearDateFilters}>
+              <X className="h-4 w-4" />
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Mobile Card View */}
