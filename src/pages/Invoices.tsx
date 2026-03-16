@@ -765,68 +765,21 @@ const Invoices = () => {
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Controls */}
+        {/* Controls — single row, horizontal scroll on mobile */}
         <div className="bg-card rounded-xl shadow-sm border border-border/50">
-          <div className="p-3 sm:p-4 flex flex-col gap-2 sm:gap-3">
-            {/* Row 1: Search + Actions */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <div className="p-3 sm:p-4">
+            <div className="flex overflow-x-auto items-center gap-2 no-scrollbar">
               {/* Search */}
-              <div className="relative flex-1 min-w-0">
+              <div className="relative min-w-[180px] max-w-[250px] shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search invoices..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-background/50 border-border/50 h-10 w-full"
+                  className="pl-10 bg-background/50 border-border/50 h-9 w-full text-sm"
                 />
               </div>
 
-              <div className="flex items-center gap-2 sm:justify-end">
-                {invoicePerms.canCreate && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="h-10 gap-1.5 sm:gap-2 border-border/50 flex-1 sm:flex-none touch-target" 
-                    onClick={() => setImportOpen(true)}
-                  >
-                    <Upload className="h-4 w-4" />
-                    <span className="hidden sm:inline">Import</span>
-                  </Button>
-                )}
-                
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-10 gap-1.5 sm:gap-2 border-border/50 flex-1 sm:flex-none touch-target">
-                      <Download className="h-4 w-4" />
-                      <span className="hidden sm:inline">Export</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-popover">
-                    <DropdownMenuItem onClick={() => handleExport('csv')}>
-                      Download CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExport('excel')}>
-                      Download Excel
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {invoicePerms.canCreate && (
-                  <Button 
-                    size="sm"
-                    className="h-10 gap-1.5 sm:gap-2 shadow-sm flex-1 sm:flex-none touch-target" 
-                    onClick={() => navigate('/invoices/new')}
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span className="hidden xs:inline sm:hidden lg:inline">New Invoice</span>
-                    <span className="xs:hidden sm:inline lg:hidden">New</span>
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Row 2: Filters - horizontal scroll on mobile */}
-            <div className="flex overflow-x-auto pb-2 sm:pb-0 sm:flex-wrap items-center gap-2 no-scrollbar">
               {/* Status Filter */}
               <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
                 <SelectTrigger className="w-[130px] shrink-0 bg-background/50 border-border/50 h-9 text-sm">
@@ -892,13 +845,13 @@ const Invoices = () => {
                 </PopoverContent>
               </Popover>
 
-              {/* Client Filter */}
+              {/* Customer Filter */}
               <Select value={clientFilter} onValueChange={setClientFilter}>
                 <SelectTrigger className="w-[160px] shrink-0 bg-background/50 border-border/50 h-9 text-sm">
-                  <SelectValue placeholder="Client" />
+                  <SelectValue placeholder="Customer" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Clients</SelectItem>
+                  <SelectItem value="all">All Customers</SelectItem>
                   {uniqueClients.map(([id, name]) => (
                     <SelectItem key={id} value={id}>{name}</SelectItem>
                   ))}
@@ -918,6 +871,51 @@ const Invoices = () => {
                   <Badge variant="secondary" className="ml-1 px-1.5 text-xs">
                     {activeFilterCount}
                   </Badge>
+                </Button>
+              )}
+
+              {/* Spacer to push actions right on desktop */}
+              <div className="flex-1 min-w-[8px]" />
+
+              {/* Action Buttons */}
+              {invoicePerms.canCreate && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="h-9 gap-1.5 border-border/50 shrink-0" 
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload className="h-4 w-4" />
+                  <span className="hidden sm:inline">Import</span>
+                </Button>
+              )}
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 gap-1.5 border-border/50 shrink-0">
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">Export</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover">
+                  <DropdownMenuItem onClick={() => handleExport('csv')}>
+                    Download CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('excel')}>
+                    Download Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {invoicePerms.canCreate && (
+                <Button 
+                  size="sm"
+                  className="h-9 gap-1.5 shadow-sm shrink-0" 
+                  onClick={() => navigate('/invoices/new')}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden lg:inline">New Invoice</span>
+                  <span className="lg:hidden">New</span>
                 </Button>
               )}
             </div>
