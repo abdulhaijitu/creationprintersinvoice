@@ -125,6 +125,7 @@ export function AllBillsTab() {
       if (dateFrom) query = query.gte("bill_date", dateFrom);
       if (dateTo) query = query.lte("bill_date", dateTo);
       if (statusFilter !== "all") query = query.eq("status", statusFilter);
+      if (vendorFilter !== "all") query = query.eq("vendor_id", vendorFilter);
 
       const { data, error } = await query;
       if (error) throw error;
