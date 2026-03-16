@@ -1,18 +1,41 @@
-# Invoices — ফিল্টার বার একই রো-তে রাখা
 
-## বর্তমান অবস্থা
+# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-- Customer ফিল্টার ইতিমধ্যে আছে ("Client" নামে) — Row 2 তে
-- Row 1: Search + Import/Export/New Invoice
-- Row 2: Status, Month, Date Range, Client, Clear
+## যেসব সমস্যা পাওয়া গেছে
 
-## পরিবর্তন (ফাইল: `src/pages/Invoices.tsx`)
+অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
 
-### সব কন্ট্রোল একটি রো-তে
+| কম্পোনেন্ট | সমস্যা |
+|---|---|
+| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
+| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
+| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
+| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
 
-- Row 1 ও Row 2 মার্জ করে একটি horizontal-scroll row বানানো
-- ক্রম: Search → Status → Month → Date Range → Customer → Clear | Import → Export → +New Invoice
-- `overflow-x-auto` + `no-scrollbar` + `flex-nowrap` মোবাইলে স্ক্রল করবে
-- Search input width: `min-w-[180px] max-w-[250px]` (ডেস্কটপে সুন্দর, মোবাইলে ওভারফ্লো হবে না)
+**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
 
-কোনো DB পরিবর্তন নেই।
+---
+
+## সমাধান
+
+### ১. `src/components/vendor/VendorStatementPDF.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
+- dependency থেকে `onClose` সরানো
+
+### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
+- `onCloseRef` pattern ব্যবহার
+- dependency থেকে `onClose` সরানো
+
+### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
+- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
+
+### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
+- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
+
+**মোট পরিবর্তন: ৫টি ফাইল।**
