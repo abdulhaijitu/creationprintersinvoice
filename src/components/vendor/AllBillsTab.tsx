@@ -114,7 +114,7 @@ export function AllBillsTab() {
     : dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
 
   const { data: bills = [], isLoading } = useQuery({
-    queryKey: ["all-vendor-bills", organization?.id, dateFrom, dateTo, statusFilter],
+    queryKey: ["all-vendor-bills", organization?.id, dateFrom, dateTo, statusFilter, vendorFilter],
     queryFn: async () => {
       let query = supabase
         .from("vendor_bills")
