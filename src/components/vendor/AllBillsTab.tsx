@@ -327,7 +327,7 @@ export function AllBillsTab() {
               variant="ghost"
               size="sm"
               className="h-10 gap-1.5 text-muted-foreground"
-              onClick={() => { setStatusFilter("all"); clearDateRange(); }}
+              onClick={() => { setStatusFilter("all"); setVendorFilter("all"); clearDateRange(); }}
             >
               <X className="h-4 w-4" />Clear
               <Badge variant="secondary" className="ml-1 px-1.5">{activeFilterCount}</Badge>
