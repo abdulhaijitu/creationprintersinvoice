@@ -24,7 +24,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload, Pencil, ChevronLeft, ChevronRight, MoreHorizontal, DollarSign } from "lucide-react";
+import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload, Pencil, ChevronLeft, ChevronRight, MoreHorizontal, DollarSign, Receipt } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AllBillsTab } from "@/components/vendor/AllBillsTab";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 import { ImportResult } from "@/lib/importUtils";
 import { lazy, Suspense } from "react";
@@ -406,6 +408,20 @@ const Vendors = () => {
         </div>
       </div>
 
+      <Tabs defaultValue="vendors" className="w-full">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="vendors" className="gap-2">
+            <Building2 className="h-4 w-4" />
+            <span>Vendors</span>
+          </TabsTrigger>
+          <TabsTrigger value="bills" className="gap-2">
+            <Receipt className="h-4 w-4" />
+            <span>All Bills</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="vendors" className="mt-4 space-y-4">
+
       {/* Summary Cards — 4 col with Total Paid */}
       <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -685,6 +701,13 @@ const Vendors = () => {
         variant="destructive"
         onConfirm={handleDeleteConfirmed}
       />
+
+        </TabsContent>
+
+        <TabsContent value="bills" className="mt-4">
+          <AllBillsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

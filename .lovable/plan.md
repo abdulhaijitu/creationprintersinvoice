@@ -1,56 +1,41 @@
 
+# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-# Vendors পেইজে "All Bills" ট্যাব যোগ — সব বিল এক জায়গায়
+## যেসব সমস্যা পাওয়া গেছে
 
-## বর্তমান অবস্থা
-Vendors পেইজে শুধু ভেন্ডর লিস্ট দেখায়। পৃথক বিল দেখতে প্রতিটি ভেন্ডরের ডিটেইলে যেতে হয়। সব ভেন্ডরের বিল একসাথে দেখার কোনো উপায় নেই।
+অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
+
+| কম্পোনেন্ট | সমস্যা |
+|---|---|
+| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
+| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
+| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
+| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
+
+**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
+
+---
 
 ## সমাধান
 
-Vendors পেইজে Tabs যোগ করা হবে: **"Vendors"** (বর্তমান ভিউ) এবং **"All Bills"** (নতুন)।
+### ১. `src/components/vendor/VendorStatementPDF.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
+- dependency থেকে `onClose` সরানো
 
-### All Bills ট্যাব ফিচার:
-1. **টেবিল কলাম**: Date, Vendor, Description, Amount, Discount, Net Amount, Paid, Due, Status
-2. **ফিল্টার**:
-   - **মাসিক**: Month/Year সিলেক্ট (ডিফল্ট: বর্তমান মাস)
-   - **ডেট রেঞ্জ**: Calendar popover দিয়ে কাস্টম from-to
-   - **স্ট্যাটাস**: All / Paid / Partial / Unpaid (Due)
-   - মাসিক সিলেক্ট করলে ডেট রেঞ্জ ক্লিয়ার হবে এবং উল্টো
-3. **সামারি কার্ড**: ফিল্টার অনুযায়ী Total Bills, Total Paid, Total Due দেখাবে
-4. **মোবাইল**: কার্ড ভিউ
+### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
+- `onCloseRef` pattern ব্যবহার
+- dependency থেকে `onClose` সরানো
 
-### UI লেআউট
-```text
-┌────────────────────────────────────────────────┐
-│ Vendors                                        │
-│ ┌──────────┬───────────┐                       │
-│ │ Vendors  │ All Bills │  (Tabs)               │
-│ └──────────┴───────────┘                       │
-│                                                │
-│ [This Month ▾] [Date Range 📅] [Status ▾] [×] │
-│                                                │
-│ ┌─────────┬─────────┬──────────┐               │
-│ │Total    │Paid     │Due       │  (Summary)    │
-│ └─────────┴─────────┴──────────┘               │
-│                                                │
-│ ┌──────────────────────────────────────────┐   │
-│ │ Date │ Vendor │ Desc │ Net │ Paid │ Stat │   │
-│ │ ...  │ ...    │ ...  │ ... │ ...  │ ...  │   │
-│ └──────────────────────────────────────────┘   │
-└────────────────────────────────────────────────┘
-```
+### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
+- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
 
-### টেকনিক্যাল ডিটেইলস
+### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
+- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
 
-**ফাইল: `src/pages/Vendors.tsx`** — একটি ফাইলে সব পরিবর্তন
-
-- বর্তমান vendor list কে `TabsContent value="vendors"` এ wrap করা
-- নতুন `TabsContent value="bills"` যোগ করা
-- All Bills ট্যাবের জন্য আলাদা `useQuery` — `vendor_bills` টেবিল থেকে `vendors(name)` join সহ ফেচ
-- ফিল্টার state: `billMonth` (string), `billDateRange` ({from, to}), `billStatus` (all/paid/partial/unpaid)
-- DB query তে `bill_date` এ `.gte()` `.lte()` এবং `status` ফিল্টার
-- Summary কার্ড ফিল্টারড ডেটা থেকে calculate হবে
-- Pagination আলাদা থাকবে
-
-**কোনো DB মাইগ্রেশন লাগবে না।** `vendor_bills` টেবিলে সব দরকারি কলাম (`bill_date`, `status`, `net_amount`, `paid_amount`, `vendor_id`) ইতিমধ্যে আছে।
-
+**মোট পরিবর্তন: ৫টি ফাইল।**
