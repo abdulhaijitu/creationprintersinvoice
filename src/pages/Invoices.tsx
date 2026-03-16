@@ -413,11 +413,23 @@ const Invoices = () => {
         invoice.customers?.name?.toLowerCase().includes(query);
 
       if (!matchesSearch) return false;
-      if (statusFilter === 'all') return true;
+      if (statusFilter !== 'all' && getDisplayStatus(invoice) !== statusFilter) return false;
 
-      return getDisplayStatus(invoice) === statusFilter;
+      // Month filter
+      if (monthFilter !== 'all' && !invoice.invoice_date.startsWith(monthFilter)) return false;
+
+      // Date range filter
+      if (dateFrom && dateTo) {
+        const invDate = invoice.invoice_date;
+        if (invDate < dateFrom || invDate > dateTo) return false;
+      }
+
+      // Client filter
+      if (clientFilter !== 'all' && invoice.customer_id !== clientFilter) return false;
+
+      return true;
     });
-  }, [invoices, searchQuery, statusFilter]);
+  }, [invoices, searchQuery, statusFilter, monthFilter, dateFrom, dateTo, clientFilter]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
