@@ -60,6 +60,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   
   const fetchInProgress = useRef(false);
   const lastFetchUserId = useRef<string | null>(null);
+  const retryScheduled = useRef(false);
 
   const fetchOrganization = useCallback(async (forceRefresh = false) => {
     if (fetchInProgress.current && !forceRefresh) {
@@ -100,6 +101,14 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       if (!membershipRows || membershipRows.length === 0) {
         setLoading(false);
+        // Retry once after delay — token may still be refreshing on hard reload
+        if (!retryScheduled.current && user) {
+          retryScheduled.current = true;
+          setTimeout(() => {
+            retryScheduled.current = false;
+            fetchOrganization(true);
+          }, 1500);
+        }
         return;
       }
 
@@ -190,6 +199,18 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, authLoading]);
+
+  // Re-fetch organization when token is refreshed (fixes hard-reload race condition)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === 'TOKEN_REFRESHED' && !organization && user) {
+          fetchOrganization(true);
+        }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, [user, organization, fetchOrganization]);
 
   const orgRole = membership?.role || null;
   const isOrgOwner = orgRole === 'owner';
