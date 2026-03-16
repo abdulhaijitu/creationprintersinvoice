@@ -1,41 +1,33 @@
 
-# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-## যেসব সমস্যা পাওয়া গেছে
+# হার্ড রিলোডে Skeleton আটকে যাওয়ার সমস্যা — সব Context-এ ফিক্স
 
-অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
+## বিশ্লেষণ
 
-| কম্পোনেন্ট | সমস্যা |
-|---|---|
-| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
-| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
-| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
-| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
+OrganizationContext-এ ইতিমধ্যে TOKEN_REFRESHED ফিক্স করা হয়েছে। যেহেতু **সব পেইজ** (Invoices, Customers, Vendors, Expenses, Employees, Salary, Quotations, Dashboard, Reports, CalendarView, PriceCalculations, Attendance, Leave, Performance, Tasks) `!!organization?.id` এর উপর নির্ভর করে, তাই OrganizationContext ফিক্স হওয়ায় এই পেইজগুলো ইতিমধ্যে কভার হয়ে গেছে।
 
-**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
+তবে **CompanySettingsContext** একই সমস্যায় আক্রান্ত — এটি `user` পাওয়া মাত্র `company_settings` টেবিল ফেচ করে, কিন্তু expired token-এ RLS ব্লক করলে ডেটা আসে না এবং কোনো retry নেই।
 
----
+## পরিবর্তন
 
-## সমাধান
+### ফাইল: `src/contexts/CompanySettingsContext.tsx`
 
-### ১. `src/components/vendor/VendorStatementPDF.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
-- dependency থেকে `onClose` সরানো
+1. **TOKEN_REFRESHED listener যোগ** — token refresh হলে settings নেই এমন অবস্থায় আবার ফেচ
+2. **Empty result retry** — authenticated user-এর জন্য settings null আসলে ১.৫ সেকেন্ড পর একবার retry
 
-### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
-- `onCloseRef` pattern ব্যবহার
-- dependency থেকে `onClose` সরানো
+```text
+// নতুন useEffect যোগ
+useEffect(() => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (event) => {
+      if (event === 'TOKEN_REFRESHED' && !settings && user) {
+        fetchSettings();
+      }
+    }
+  );
+  return () => subscription.unsubscribe();
+}, [user, settings, fetchSettings]);
+```
 
-### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
-- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
+**মোট: ১টি ফাইলে ১টি useEffect যোগ। বাকি সব পেইজ OrganizationContext ফিক্সে ইতিমধ্যে কভার হয়ে গেছে।**
 
-### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
-- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
-
-**মোট পরিবর্তন: ৫টি ফাইল।**
