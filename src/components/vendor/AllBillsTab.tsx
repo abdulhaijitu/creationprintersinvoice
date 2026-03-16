@@ -148,7 +148,7 @@ export function AllBillsTab() {
   });
 
   // Reset page on filter change
-  useEffect(() => { setCurrentPage(1); }, [dateFrom, dateTo, statusFilter]);
+  useEffect(() => { setCurrentPage(1); }, [dateFrom, dateTo, statusFilter, vendorFilter]);
 
   // Summary
   const summary = useMemo(() => {
