@@ -24,7 +24,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload, Pencil, ChevronLeft, ChevronRight, MoreHorizontal, DollarSign } from "lucide-react";
+import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload, Pencil, ChevronLeft, ChevronRight, MoreHorizontal, DollarSign, Receipt } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AllBillsTab } from "@/components/vendor/AllBillsTab";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 import { ImportResult } from "@/lib/importUtils";
 import { lazy, Suspense } from "react";
