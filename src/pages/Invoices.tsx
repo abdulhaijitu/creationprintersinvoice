@@ -825,11 +825,11 @@ const Invoices = () => {
               </div>
             </div>
 
-            {/* Row 2: Filters */}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Row 2: Filters - horizontal scroll on mobile */}
+            <div className="flex overflow-x-auto pb-2 sm:pb-0 sm:flex-wrap items-center gap-2 no-scrollbar">
               {/* Status Filter */}
               <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                <SelectTrigger className="w-[130px] bg-background/50 border-border/50 h-9 text-sm">
+                <SelectTrigger className="w-[130px] shrink-0 bg-background/50 border-border/50 h-9 text-sm">
                   <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -843,7 +843,7 @@ const Invoices = () => {
 
               {/* Month Filter */}
               <Select value={monthFilter} onValueChange={setMonthFilter}>
-                <SelectTrigger className="w-[150px] bg-background/50 border-border/50 h-9 text-sm">
+                <SelectTrigger className="w-[150px] shrink-0 bg-background/50 border-border/50 h-9 text-sm">
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -863,7 +863,7 @@ const Invoices = () => {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      'h-9 gap-1.5 border-border/50 bg-background/50 text-sm',
+                      'h-9 gap-1.5 border-border/50 bg-background/50 text-sm shrink-0',
                       dateFrom && dateTo && 'text-foreground'
                     )}
                   >
@@ -886,7 +886,7 @@ const Invoices = () => {
                       setDateRange(range?.from, range?.to);
                       if (range?.to) setIsDateRangeOpen(false);
                     }}
-                    numberOfMonths={2}
+                    numberOfMonths={isMobile ? 1 : 2}
                     className="pointer-events-auto"
                   />
                 </PopoverContent>
@@ -894,7 +894,7 @@ const Invoices = () => {
 
               {/* Client Filter */}
               <Select value={clientFilter} onValueChange={setClientFilter}>
-                <SelectTrigger className="w-[160px] bg-background/50 border-border/50 h-9 text-sm">
+                <SelectTrigger className="w-[160px] shrink-0 bg-background/50 border-border/50 h-9 text-sm">
                   <SelectValue placeholder="Client" />
                 </SelectTrigger>
                 <SelectContent>
@@ -910,7 +910,7 @@ const Invoices = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-9 gap-1.5 text-muted-foreground"
+                  className="h-9 gap-1.5 text-muted-foreground shrink-0"
                   onClick={clearAllFilters}
                 >
                   <X className="h-3.5 w-3.5" />
