@@ -58,6 +58,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Calendar as CalendarIcon,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
