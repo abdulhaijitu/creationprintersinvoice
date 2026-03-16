@@ -44,6 +44,7 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
   const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const retryScheduled = useRef(false);
 
   const fetchSettings = useCallback(async () => {
     try {
