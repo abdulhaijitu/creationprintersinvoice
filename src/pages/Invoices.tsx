@@ -114,6 +114,10 @@ const Invoices = () => {
   const sortKey = searchParams.get('sort') || 'invoice_date';
   const sortDirection = (searchParams.get('dir') as SortDirection) || 'desc';
   const currentPage = Number(searchParams.get('page')) || 1;
+  const monthFilter = searchParams.get('month') || 'all';
+  const clientFilter = searchParams.get('client') || 'all';
+  const dateFrom = searchParams.get('from') || '';
+  const dateTo = searchParams.get('to') || '';
 
   const updateParam = (key: string, value: string | null) => {
     setSearchParams(prev => {
@@ -129,11 +133,75 @@ const Invoices = () => {
     }, { replace: true });
   };
 
+  const updateMultipleParams = (params: Record<string, string | null>) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(params).forEach(([key, value]) => {
+        if (!value || value === '') next.delete(key);
+        else next.set(key, value);
+      });
+      next.delete('page');
+      return next;
+    }, { replace: true });
+  };
+
   const setStatusFilter = (v: StatusFilter) => updateParam('status', v === 'all' ? null : v);
   const setSearchQuery = (v: string) => updateParam('q', v || null);
   const setSortKey = (v: string | null) => updateParam('sort', v === 'invoice_date' ? null : v);
   const setSortDirection = (v: SortDirection) => updateParam('dir', v === 'desc' ? null : v);
   const setCurrentPage = (v: number) => updateParam('page', v <= 1 ? null : String(v));
+  const setMonthFilter = (v: string) => {
+    // Clear date range when month is set
+    if (v !== 'all') {
+      updateMultipleParams({ month: v, from: null, to: null });
+    } else {
+      updateParam('month', null);
+    }
+  };
+  const setClientFilter = (v: string) => updateParam('client', v === 'all' ? null : v);
+  const setDateRange = (from: Date | undefined, to: Date | undefined) => {
+    // Clear month when date range is set
+    updateMultipleParams({
+      from: from ? format(from, 'yyyy-MM-dd') : null,
+      to: to ? format(to, 'yyyy-MM-dd') : null,
+      month: null,
+    });
+  };
+
+  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
+
+  // Derive unique months and clients from invoices
+  const uniqueMonths = useMemo(() => {
+    const months = new Set<string>();
+    invoices.forEach(inv => {
+      if (inv.invoice_date) months.add(inv.invoice_date.substring(0, 7));
+    });
+    return Array.from(months).sort().reverse();
+  }, [invoices]);
+
+  const uniqueClients = useMemo(() => {
+    const map = new Map<string, string>();
+    invoices.forEach(inv => {
+      if (inv.customer_id && inv.customers?.name) {
+        map.set(inv.customer_id, inv.customers.name);
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [invoices]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== 'all') count++;
+    if (monthFilter !== 'all') count++;
+    if (clientFilter !== 'all') count++;
+    if (dateFrom && dateTo) count++;
+    if (searchQuery) count++;
+    return count;
+  }, [statusFilter, monthFilter, clientFilter, dateFrom, dateTo, searchQuery]);
+
+  const clearAllFilters = () => {
+    updateMultipleParams({ status: null, q: null, month: null, client: null, from: null, to: null });
+  };
 
   const [importOpen, setImportOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
