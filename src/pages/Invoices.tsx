@@ -717,6 +717,8 @@ const Invoices = () => {
     }] : []),
   ];
 
+  const isMobile = useIsMobile();
+
   return (
     <TooltipProvider>
       <div className="space-y-3 sm:space-y-4 md:space-y-6 w-full min-w-0 animate-fade-in">
