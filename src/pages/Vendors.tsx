@@ -24,7 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload, Pencil, ChevronLeft, ChevronRight, MoreHorizontal, DollarSign } from "lucide-react";
+import { Plus, Search, Eye, Phone, Mail, Building2, AlertCircle, Trash2, Download, Upload, Pencil, ChevronLeft, ChevronRight, MoreHorizontal, DollarSign, CalendarIcon, X } from "lucide-react";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 import { ImportResult } from "@/lib/importUtils";
 import { lazy, Suspense } from "react";
@@ -39,12 +39,54 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys, STALE_TIMES } from '@/hooks/useQueryConfig';
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+
+interface DateRange {
+  from?: Date;
+  to?: Date;
+}
+
+// Generate last 12 months for the month selector
+function getMonthOptions() {
+  const options = [{ value: 'all', label: 'All Time' }];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = subMonths(now, i);
+    const val = format(d, 'yyyy-MM');
+    const label = format(d, 'MMMM yyyy');
+    options.push({ value: val, label });
+  }
+  return options;
+}
+
+function getDateRangeFromMonth(monthKey: string): { from: string; to: string } | null {
+  if (monthKey === 'all') return null;
+  const [year, month] = monthKey.split('-').map(Number);
+  const d = new Date(year, month - 1, 1);
+  return {
+    from: format(startOfMonth(d), 'yyyy-MM-dd'),
+    to: format(endOfMonth(d), 'yyyy-MM-dd'),
+  };
+}
 
 const PAGE_SIZE = 25;
 
