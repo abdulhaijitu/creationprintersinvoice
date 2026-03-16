@@ -1,41 +1,40 @@
 
-# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-## যেসব সমস্যা পাওয়া গেছে
+# Invoices পেইজ UI/UX অডিট ও ফিক্স
 
-অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
+## চিহ্নিত সমস্যা ও সমাধান
 
-| কম্পোনেন্ট | সমস্যা |
-|---|---|
-| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
-| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
-| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
-| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
+### 1. Empty State — নতুন ফিল্টার চেক করে না
+- শুধু `searchQuery` ও `statusFilter` চেক করে, কিন্তু month/client/dateRange ফিল্টার একটিভ থাকলেও "Create your first invoice" দেখায়
+- **ফিক্স**: `activeFilterCount > 0` দিয়ে সব ফিল্টারের জন্য সঠিক মেসেজ দেখাবে
 
-**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
+### 2. মোবাইলে Date Range Calendar — 2 মাস overflow করে
+- `numberOfMonths={2}` মোবাইলে স্ক্রিনের বাইরে চলে যায়
+- **ফিক্স**: `useIsMobile()` ব্যবহার করে মোবাইলে `numberOfMonths={1}` সেট
 
----
+### 3. মোবাইল কার্ডে অতিরিক্ত বাটন — কমপ্যাক্ট করা দরকার
+- View, Edit, Delete — ৩টা আলাদা বাটন জায়গা নষ্ট করছে
+- **ফিক্স**: View বাটন রেখে বাকিগুলো একটি `MoreHorizontal` DropdownMenu-তে নিয়ে যাওয়া (ডেস্কটপ প্যাটার্নের মতো)
 
-## সমাধান
+### 4. Table Row — alternating color ও status color সংঘর্ষ
+- `index % 2` striping + `due` bg-destructive/5 মিক্স হচ্ছে — ভিজ্যুয়ালি confusing
+- **ফিক্স**: alternating stripe রিমুভ, শুধু hover state রাখা (ডিজাইন সিস্টেম অনুযায়ী `hover:bg-muted/50`)
 
-### ১. `src/components/vendor/VendorStatementPDF.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
-- dependency থেকে `onClose` সরানো
+### 5. Overdue ইন্ডিকেটর নেই
+- `isOverdue` ক্যালকুলেট হয় কিন্তু কোথাও দেখানো হয় না
+- **ফিক্স**: Due ব্যাজে overdue হলে "OVERDUE" টেক্সট দেখানো, ডেস্কটপে due date কলামে ছোট overdue ইন্ডিকেটর
 
-### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
-- `onCloseRef` pattern ব্যবহার
-- dependency থেকে `onClose` সরানো
+### 6. ফিল্টার সিলেক্টের fixed width — মোবাইলে সমস্যা
+- `w-[130px]`, `w-[150px]`, `w-[160px]` ছোট স্ক্রিনে কাটা যায়
+- **ফিক্স**: মোবাইলে `w-full`, ডেস্কটপে fixed width — responsive class ব্যবহার
 
-### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
-- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
+### 7. মোবাইলে ফিল্টার বার — অনেক ফিল্টার একসাথে
+- ৫টি ফিল্টার wrap হয়ে ৩-৪ লাইন নিচ্ছে
+- **ফিক্স**: মোবাইলে ফিল্টারগুলো horizontal scroll বারে রাখা (`overflow-x-auto flex-nowrap`)
 
-### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
-- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
+## পরিবর্তন
 
-**মোট পরিবর্তন: ৫টি ফাইল।**
+**ফাইল: `src/pages/Invoices.tsx`** — একটি ফাইলে সব ফিক্স
+
+কোনো DB মাইগ্রেশন লাগবে না।
+
