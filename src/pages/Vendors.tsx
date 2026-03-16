@@ -132,6 +132,41 @@ const Vendors = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortKey, setSortKey] = useState<string | null>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [dateRange, setDateRange] = useState<DateRange>({});
+  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
+  const monthOptions = useMemo(() => getMonthOptions(), []);
+
+  // Compute effective date filter
+  const effectiveDateFilter = useMemo(() => {
+    if (dateRange.from) {
+      return {
+        from: format(dateRange.from, 'yyyy-MM-dd'),
+        to: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : format(dateRange.from, 'yyyy-MM-dd'),
+      };
+    }
+    return getDateRangeFromMonth(selectedMonth);
+  }, [selectedMonth, dateRange]);
+
+  const filterLabel = useMemo(() => {
+    if (dateRange.from) {
+      return dateRange.to
+        ? `${format(dateRange.from, 'MMM d')} - ${format(dateRange.to, 'MMM d, yyyy')}`
+        : format(dateRange.from, 'MMM d, yyyy');
+    }
+    if (selectedMonth !== 'all') {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      return format(new Date(y, m - 1, 1), 'MMMM yyyy');
+    }
+    return null;
+  }, [selectedMonth, dateRange]);
+
+  const isFilterActive = selectedMonth !== 'all' || !!dateRange.from;
+
+  const clearDateFilters = () => {
+    setSelectedMonth('all');
+    setDateRange({});
+  };
 
   const { data: vendors = [], isLoading: loading } = useQuery({
     queryKey: queryKeys.vendors(organization?.id || ''),
