@@ -382,8 +382,17 @@ const Invoices = () => {
 
   const getStatusBadge = (invoice: Invoice) => {
     const statusInfo = getInvoiceStatusInfo(invoice);
-    const { displayStatus } = statusInfo;
+    const { displayStatus, isOverdue } = statusInfo;
     
+    if (isOverdue && displayStatus !== 'paid') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
+          <AlertCircle className="w-3.5 h-3.5" />
+          OVERDUE
+        </span>
+      );
+    }
+
     const badges: Record<InvoiceDisplayStatus, JSX.Element> = {
       paid: (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
