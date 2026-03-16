@@ -989,11 +989,11 @@ const Invoices = () => {
                 </div>
                 <h3 className="text-base font-medium text-foreground mb-1">No invoices found</h3>
                 <p className="text-sm text-muted-foreground text-center max-w-sm">
-                  {searchQuery || statusFilter !== 'all' 
+                  {activeFilterCount > 0
                     ? 'Try adjusting your search or filter criteria'
                     : 'Create your first invoice to get started'}
                 </p>
-                {!searchQuery && statusFilter === 'all' && (
+                {activeFilterCount === 0 && (
                   <Button 
                     className="mt-4 gap-2" 
                     size="sm"
