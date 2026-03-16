@@ -169,7 +169,7 @@ const Vendors = () => {
   };
 
   const { data: vendors = [], isLoading: loading } = useQuery({
-    queryKey: queryKeys.vendors(organization?.id || ''),
+    queryKey: [...queryKeys.vendors(organization?.id || ''), effectiveDateFilter?.from, effectiveDateFilter?.to],
     queryFn: async () => {
       const { data: vendorsData } = await supabase
         .from("vendors")
@@ -177,10 +177,17 @@ const Vendors = () => {
         .eq("organization_id", organization!.id)
         .order("name");
       if (!vendorsData) return [] as Vendor[];
-      const [allBillsRes, allPaymentsRes] = await Promise.all([
-        supabase.from("vendor_bills").select("vendor_id, net_amount, amount, discount").eq("organization_id", organization!.id),
-        supabase.from("vendor_payments").select("vendor_id, amount").eq("organization_id", organization!.id),
-      ]);
+
+      // Build bills query with optional date filter
+      let billsQuery = supabase.from("vendor_bills").select("vendor_id, net_amount, amount, discount").eq("organization_id", organization!.id);
+      let paymentsQuery = supabase.from("vendor_payments").select("vendor_id, amount").eq("organization_id", organization!.id);
+
+      if (effectiveDateFilter) {
+        billsQuery = billsQuery.gte("bill_date", effectiveDateFilter.from).lte("bill_date", effectiveDateFilter.to);
+        paymentsQuery = paymentsQuery.gte("payment_date", effectiveDateFilter.from).lte("payment_date", effectiveDateFilter.to);
+      }
+
+      const [allBillsRes, allPaymentsRes] = await Promise.all([billsQuery, paymentsQuery]);
       const allBills = allBillsRes.data || [];
       const allPayments = allPaymentsRes.data || [];
       const billsByVendor = new Map<string, number>();
