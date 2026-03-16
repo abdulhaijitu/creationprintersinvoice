@@ -79,8 +79,25 @@ export function AllBillsTab() {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [vendorFilter, setVendorFilter] = useState("all");
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [filterMode, setFilterMode] = useState<"month" | "range">("month");
+
+  // Fetch vendors list
+  const { data: vendors = [] } = useQuery({
+    queryKey: ["vendors-list-filter", organization?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("id, name")
+        .eq("organization_id", organization!.id)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organization?.id,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
 
   // Pagination & sorting
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,7 +114,7 @@ export function AllBillsTab() {
     : dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
 
   const { data: bills = [], isLoading } = useQuery({
-    queryKey: ["all-vendor-bills", organization?.id, dateFrom, dateTo, statusFilter],
+    queryKey: ["all-vendor-bills", organization?.id, dateFrom, dateTo, statusFilter, vendorFilter],
     queryFn: async () => {
       let query = supabase
         .from("vendor_bills")
@@ -108,6 +125,7 @@ export function AllBillsTab() {
       if (dateFrom) query = query.gte("bill_date", dateFrom);
       if (dateTo) query = query.lte("bill_date", dateTo);
       if (statusFilter !== "all") query = query.eq("status", statusFilter);
+      if (vendorFilter !== "all") query = query.eq("vendor_id", vendorFilter);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -130,7 +148,7 @@ export function AllBillsTab() {
   });
 
   // Reset page on filter change
-  useEffect(() => { setCurrentPage(1); }, [dateFrom, dateTo, statusFilter]);
+  useEffect(() => { setCurrentPage(1); }, [dateFrom, dateTo, statusFilter, vendorFilter]);
 
   // Summary
   const summary = useMemo(() => {
@@ -205,7 +223,7 @@ export function AllBillsTab() {
     }
   };
 
-  const activeFilterCount = (statusFilter !== "all" ? 1 : 0) + (filterMode === "range" && dateRange?.from ? 1 : 0);
+  const activeFilterCount = (statusFilter !== "all" ? 1 : 0) + (vendorFilter !== "all" ? 1 : 0) + (filterMode === "range" && dateRange?.from ? 1 : 0);
 
   return (
     <div className="space-y-4">
@@ -278,6 +296,19 @@ export function AllBillsTab() {
             </PopoverContent>
           </Popover>
 
+          {/* Vendor Filter */}
+          <Select value={vendorFilter} onValueChange={setVendorFilter}>
+            <SelectTrigger className="w-[160px] h-10 bg-background/50 border-border/50">
+              <SelectValue placeholder="All Vendors" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Vendors</SelectItem>
+              {vendors.map((v) => (
+                <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           {/* Status Filter */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[120px] h-10 bg-background/50 border-border/50">
@@ -296,7 +327,7 @@ export function AllBillsTab() {
               variant="ghost"
               size="sm"
               className="h-10 gap-1.5 text-muted-foreground"
-              onClick={() => { setStatusFilter("all"); clearDateRange(); }}
+              onClick={() => { setStatusFilter("all"); setVendorFilter("all"); clearDateRange(); }}
             >
               <X className="h-4 w-4" />Clear
               <Badge variant="secondary" className="ml-1 px-1.5">{activeFilterCount}</Badge>
