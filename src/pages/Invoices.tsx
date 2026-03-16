@@ -195,7 +195,40 @@ const Invoices = () => {
     staleTime: STALE_TIMES.LIST_DATA,
   });
 
-  const {
+  // Derive unique months and clients from invoices
+  const uniqueMonths = useMemo(() => {
+    const months = new Set<string>();
+    invoices.forEach(inv => {
+      if (inv.invoice_date) months.add(inv.invoice_date.substring(0, 7));
+    });
+    return Array.from(months).sort().reverse();
+  }, [invoices]);
+
+  const uniqueClients = useMemo(() => {
+    const map = new Map<string, string>();
+    invoices.forEach(inv => {
+      if (inv.customer_id && inv.customers?.name) {
+        map.set(inv.customer_id, inv.customers.name);
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [invoices]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== 'all') count++;
+    if (monthFilter !== 'all') count++;
+    if (clientFilter !== 'all') count++;
+    if (dateFrom && dateTo) count++;
+    if (searchQuery) count++;
+    return count;
+  }, [statusFilter, monthFilter, clientFilter, dateFrom, dateTo, searchQuery]);
+
+  const clearAllFilters = () => {
+    updateMultipleParams({ status: null, q: null, month: null, client: null, from: null, to: null });
+  };
+
+
     selectedIds,
     selectedItems,
     selectedCount,
