@@ -79,8 +79,25 @@ export function AllBillsTab() {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [vendorFilter, setVendorFilter] = useState("all");
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [filterMode, setFilterMode] = useState<"month" | "range">("month");
+
+  // Fetch vendors list
+  const { data: vendors = [] } = useQuery({
+    queryKey: ["vendors-list-filter", organization?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("id, name")
+        .eq("organization_id", organization!.id)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organization?.id,
+    staleTime: STALE_TIMES.LIST_DATA,
+  });
 
   // Pagination & sorting
   const [currentPage, setCurrentPage] = useState(1);
