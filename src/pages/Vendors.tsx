@@ -701,6 +701,13 @@ const Vendors = () => {
         variant="destructive"
         onConfirm={handleDeleteConfirmed}
       />
+
+        </TabsContent>
+
+        <TabsContent value="bills" className="mt-4">
+          <AllBillsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
