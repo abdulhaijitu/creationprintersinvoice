@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { formatCurrency } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -381,8 +382,17 @@ const Invoices = () => {
 
   const getStatusBadge = (invoice: Invoice) => {
     const statusInfo = getInvoiceStatusInfo(invoice);
-    const { displayStatus } = statusInfo;
+    const { displayStatus, isOverdue } = statusInfo;
     
+    if (isOverdue && displayStatus !== 'paid') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
+          <AlertCircle className="w-3.5 h-3.5" />
+          OVERDUE
+        </span>
+      );
+    }
+
     const badges: Record<InvoiceDisplayStatus, JSX.Element> = {
       paid: (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
@@ -707,6 +717,8 @@ const Invoices = () => {
     }] : []),
   ];
 
+  const isMobile = useIsMobile();
+
   return (
     <TooltipProvider>
       <div className="space-y-3 sm:space-y-4 md:space-y-6 w-full min-w-0 animate-fade-in">
@@ -813,11 +825,11 @@ const Invoices = () => {
               </div>
             </div>
 
-            {/* Row 2: Filters */}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Row 2: Filters - horizontal scroll on mobile */}
+            <div className="flex overflow-x-auto pb-2 sm:pb-0 sm:flex-wrap items-center gap-2 no-scrollbar">
               {/* Status Filter */}
               <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                <SelectTrigger className="w-[130px] bg-background/50 border-border/50 h-9 text-sm">
+                <SelectTrigger className="w-[130px] shrink-0 bg-background/50 border-border/50 h-9 text-sm">
                   <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -831,7 +843,7 @@ const Invoices = () => {
 
               {/* Month Filter */}
               <Select value={monthFilter} onValueChange={setMonthFilter}>
-                <SelectTrigger className="w-[150px] bg-background/50 border-border/50 h-9 text-sm">
+                <SelectTrigger className="w-[150px] shrink-0 bg-background/50 border-border/50 h-9 text-sm">
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -851,7 +863,7 @@ const Invoices = () => {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      'h-9 gap-1.5 border-border/50 bg-background/50 text-sm',
+                      'h-9 gap-1.5 border-border/50 bg-background/50 text-sm shrink-0',
                       dateFrom && dateTo && 'text-foreground'
                     )}
                   >
@@ -874,7 +886,7 @@ const Invoices = () => {
                       setDateRange(range?.from, range?.to);
                       if (range?.to) setIsDateRangeOpen(false);
                     }}
-                    numberOfMonths={2}
+                    numberOfMonths={isMobile ? 1 : 2}
                     className="pointer-events-auto"
                   />
                 </PopoverContent>
@@ -882,7 +894,7 @@ const Invoices = () => {
 
               {/* Client Filter */}
               <Select value={clientFilter} onValueChange={setClientFilter}>
-                <SelectTrigger className="w-[160px] bg-background/50 border-border/50 h-9 text-sm">
+                <SelectTrigger className="w-[160px] shrink-0 bg-background/50 border-border/50 h-9 text-sm">
                   <SelectValue placeholder="Client" />
                 </SelectTrigger>
                 <SelectContent>
@@ -898,7 +910,7 @@ const Invoices = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-9 gap-1.5 text-muted-foreground"
+                  className="h-9 gap-1.5 text-muted-foreground shrink-0"
                   onClick={clearAllFilters}
                 >
                   <X className="h-3.5 w-3.5" />
@@ -977,11 +989,11 @@ const Invoices = () => {
                 </div>
                 <h3 className="text-base font-medium text-foreground mb-1">No invoices found</h3>
                 <p className="text-sm text-muted-foreground text-center max-w-sm">
-                  {searchQuery || statusFilter !== 'all' 
+                  {activeFilterCount > 0
                     ? 'Try adjusting your search or filter criteria'
                     : 'Create your first invoice to get started'}
                 </p>
-                {!searchQuery && statusFilter === 'all' && (
+                {activeFilterCount === 0 && (
                   <Button 
                     className="mt-4 gap-2" 
                     size="sm"
@@ -1041,12 +1053,7 @@ const Invoices = () => {
                           return (
                             <TableRow 
                               key={invoice.id}
-                              className={`
-                                transition-colors duration-150 cursor-pointer
-                                ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
-                                ${displayStatus === 'due' ? 'bg-destructive/5' : ''}
-                                hover:bg-primary/5
-                              `}
+                              className="transition-colors duration-150 cursor-pointer hover:bg-muted/50"
                               onClick={() => navigate(`/invoices/${invoice.id}`)}
                             >
                             <TableCell onClick={(e) => e.stopPropagation()}>
@@ -1218,26 +1225,40 @@ const Invoices = () => {
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          {invoicePerms.canEdit && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                              onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </Button>
-                          )}
-                          {invoicePerms.canDelete && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => setSingleDeleteId(invoice.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                          {(invoicePerms.canEdit || invoicePerms.canDelete) && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="px-2">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {invoicePerms.canEdit && (
+                                  <DropdownMenuItem onClick={() => navigate(`/invoices/${invoice.id}/edit`)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Invoice
+                                  </DropdownMenuItem>
+                                )}
+                                {invoicePerms.canEdit && statusInfo.dueAmount > 0 && (
+                                  <DropdownMenuItem onClick={() => handleMarkSinglePaid(invoice)}>
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Mark as Paid
+                                  </DropdownMenuItem>
+                                )}
+                                {invoicePerms.canDelete && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => setSingleDeleteId(invoice.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           )}
                         </div>
                       </div>
