@@ -58,11 +58,20 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Calendar as CalendarIcon,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { format, isPast, parseISO } from 'date-fns';
+import { format, isPast, parseISO, startOfMonth, endOfMonth, parse } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 import { calculateInvoiceStatus, type InvoiceDisplayStatus } from '@/lib/invoiceUtils';
 import { lazy, Suspense } from 'react';
@@ -107,6 +116,10 @@ const Invoices = () => {
   const sortKey = searchParams.get('sort') || 'invoice_date';
   const sortDirection = (searchParams.get('dir') as SortDirection) || 'desc';
   const currentPage = Number(searchParams.get('page')) || 1;
+  const monthFilter = searchParams.get('month') || 'all';
+  const clientFilter = searchParams.get('client') || 'all';
+  const dateFrom = searchParams.get('from') || '';
+  const dateTo = searchParams.get('to') || '';
 
   const updateParam = (key: string, value: string | null) => {
     setSearchParams(prev => {
@@ -122,11 +135,44 @@ const Invoices = () => {
     }, { replace: true });
   };
 
+  const updateMultipleParams = (params: Record<string, string | null>) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(params).forEach(([key, value]) => {
+        if (!value || value === '') next.delete(key);
+        else next.set(key, value);
+      });
+      next.delete('page');
+      return next;
+    }, { replace: true });
+  };
+
   const setStatusFilter = (v: StatusFilter) => updateParam('status', v === 'all' ? null : v);
   const setSearchQuery = (v: string) => updateParam('q', v || null);
   const setSortKey = (v: string | null) => updateParam('sort', v === 'invoice_date' ? null : v);
   const setSortDirection = (v: SortDirection) => updateParam('dir', v === 'desc' ? null : v);
   const setCurrentPage = (v: number) => updateParam('page', v <= 1 ? null : String(v));
+  const setMonthFilter = (v: string) => {
+    // Clear date range when month is set
+    if (v !== 'all') {
+      updateMultipleParams({ month: v, from: null, to: null });
+    } else {
+      updateParam('month', null);
+    }
+  };
+  const setClientFilter = (v: string) => updateParam('client', v === 'all' ? null : v);
+  const setDateRange = (from: Date | undefined, to: Date | undefined) => {
+    // Clear month when date range is set
+    updateMultipleParams({
+      from: from ? format(from, 'yyyy-MM-dd') : null,
+      to: to ? format(to, 'yyyy-MM-dd') : null,
+      month: null,
+    });
+  };
+
+  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
+
+
 
   const [importOpen, setImportOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -150,6 +196,40 @@ const Invoices = () => {
     enabled: !!organization?.id,
     staleTime: STALE_TIMES.LIST_DATA,
   });
+
+  // Derive unique months and clients from invoices
+  const uniqueMonths = useMemo(() => {
+    const months = new Set<string>();
+    invoices.forEach(inv => {
+      if (inv.invoice_date) months.add(inv.invoice_date.substring(0, 7));
+    });
+    return Array.from(months).sort().reverse();
+  }, [invoices]);
+
+  const uniqueClients = useMemo(() => {
+    const map = new Map<string, string>();
+    invoices.forEach(inv => {
+      if (inv.customer_id && inv.customers?.name) {
+        map.set(inv.customer_id, inv.customers.name);
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [invoices]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== 'all') count++;
+    if (monthFilter !== 'all') count++;
+    if (clientFilter !== 'all') count++;
+    if (dateFrom && dateTo) count++;
+    if (searchQuery) count++;
+    return count;
+  }, [statusFilter, monthFilter, clientFilter, dateFrom, dateTo, searchQuery]);
+
+  const clearAllFilters = () => {
+    updateMultipleParams({ status: null, q: null, month: null, client: null, from: null, to: null });
+  };
+
 
   const {
     selectedIds,
@@ -335,11 +415,23 @@ const Invoices = () => {
         invoice.customers?.name?.toLowerCase().includes(query);
 
       if (!matchesSearch) return false;
-      if (statusFilter === 'all') return true;
+      if (statusFilter !== 'all' && getDisplayStatus(invoice) !== statusFilter) return false;
 
-      return getDisplayStatus(invoice) === statusFilter;
+      // Month filter
+      if (monthFilter !== 'all' && !invoice.invoice_date.startsWith(monthFilter)) return false;
+
+      // Date range filter
+      if (dateFrom && dateTo) {
+        const invDate = invoice.invoice_date;
+        if (invDate < dateFrom || invDate > dateTo) return false;
+      }
+
+      // Client filter
+      if (clientFilter !== 'all' && invoice.customer_id !== clientFilter) return false;
+
+      return true;
     });
-  }, [invoices, searchQuery, statusFilter]);
+  }, [invoices, searchQuery, statusFilter, monthFilter, dateFrom, dateTo, clientFilter]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -663,71 +755,157 @@ const Invoices = () => {
 
         {/* Controls */}
         <div className="bg-card rounded-xl shadow-sm border border-border/50">
-          <div className="p-3 sm:p-4 grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto]">
-            {/* Search */}
-            <div className="relative min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search invoices..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-background/50 border-border/50 h-10 w-full"
-              />
+          <div className="p-3 sm:p-4 flex flex-col gap-2 sm:gap-3">
+            {/* Row 1: Search + Actions */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              {/* Search */}
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search invoices..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-background/50 border-border/50 h-10 w-full"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 sm:justify-end">
+                {invoicePerms.canCreate && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="h-10 gap-1.5 sm:gap-2 border-border/50 flex-1 sm:flex-none touch-target" 
+                    onClick={() => setImportOpen(true)}
+                  >
+                    <Upload className="h-4 w-4" />
+                    <span className="hidden sm:inline">Import</span>
+                  </Button>
+                )}
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-10 gap-1.5 sm:gap-2 border-border/50 flex-1 sm:flex-none touch-target">
+                      <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline">Export</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-popover">
+                    <DropdownMenuItem onClick={() => handleExport('csv')}>
+                      Download CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport('excel')}>
+                      Download Excel
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {invoicePerms.canCreate && (
+                  <Button 
+                    size="sm"
+                    className="h-10 gap-1.5 sm:gap-2 shadow-sm flex-1 sm:flex-none touch-target" 
+                    onClick={() => navigate('/invoices/new')}
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden xs:inline sm:hidden lg:inline">New Invoice</span>
+                    <span className="xs:hidden sm:inline lg:hidden">New</span>
+                  </Button>
+                )}
+              </div>
             </div>
 
-            {/* Filter */}
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-              <SelectTrigger className="w-full lg:w-[140px] bg-background/50 border-border/50 h-10">
-                <Filter className="h-4 w-4 mr-2 text-muted-foreground shrink-0" />
-                <SelectValue placeholder="Filter" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="due">Due</SelectItem>
-                <SelectItem value="partial">Partial</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Row 2: Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Status Filter */}
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                <SelectTrigger className="w-[130px] bg-background/50 border-border/50 h-9 text-sm">
+                  <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="due">Due</SelectItem>
+                  <SelectItem value="partial">Partial</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <div className="flex items-center gap-2 sm:justify-end col-span-1 sm:col-span-2 lg:col-span-1">
-              {invoicePerms.canCreate && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="h-10 gap-1.5 sm:gap-2 border-border/50 flex-1 sm:flex-none touch-target" 
-                  onClick={() => setImportOpen(true)}
-                >
-                  <Upload className="h-4 w-4" />
-                  <span className="hidden sm:inline">Import</span>
-                </Button>
-              )}
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-10 gap-1.5 sm:gap-2 border-border/50 flex-1 sm:flex-none touch-target">
-                    <Download className="h-4 w-4" />
-                    <span className="hidden sm:inline">Export</span>
+              {/* Month Filter */}
+              <Select value={monthFilter} onValueChange={setMonthFilter}>
+                <SelectTrigger className="w-[150px] bg-background/50 border-border/50 h-9 text-sm">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Months</SelectItem>
+                  {uniqueMonths.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {format(parse(m, 'yyyy-MM', new Date()), 'MMMM yyyy')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Date Range Filter */}
+              <Popover open={isDateRangeOpen} onOpenChange={setIsDateRangeOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'h-9 gap-1.5 border-border/50 bg-background/50 text-sm',
+                      dateFrom && dateTo && 'text-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {dateFrom && dateTo ? (
+                      <span className="text-xs">
+                        {format(parseISO(dateFrom), 'dd MMM')} – {format(parseISO(dateTo), 'dd MMM')}
+                      </span>
+                    ) : (
+                      <span>Date Range</span>
+                    )}
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover">
-                  <DropdownMenuItem onClick={() => handleExport('csv')}>
-                    Download CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('excel')}>
-                    Download Excel
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    selected={dateFrom && dateTo ? { from: parseISO(dateFrom), to: parseISO(dateTo) } : undefined}
+                    onSelect={(range) => {
+                      setDateRange(range?.from, range?.to);
+                      if (range?.to) setIsDateRangeOpen(false);
+                    }}
+                    numberOfMonths={2}
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
 
-              {invoicePerms.canCreate && (
-                <Button 
+              {/* Client Filter */}
+              <Select value={clientFilter} onValueChange={setClientFilter}>
+                <SelectTrigger className="w-[160px] bg-background/50 border-border/50 h-9 text-sm">
+                  <SelectValue placeholder="Client" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Clients</SelectItem>
+                  {uniqueClients.map(([id, name]) => (
+                    <SelectItem key={id} value={id}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Clear Filters */}
+              {activeFilterCount > 0 && (
+                <Button
+                  variant="ghost"
                   size="sm"
-                  className="h-10 gap-1.5 sm:gap-2 shadow-sm flex-1 sm:flex-none touch-target" 
-                  onClick={() => navigate('/invoices/new')}
+                  className="h-9 gap-1.5 text-muted-foreground"
+                  onClick={clearAllFilters}
                 >
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden xs:inline sm:hidden lg:inline">New Invoice</span>
-                  <span className="xs:hidden sm:inline lg:hidden">New</span>
+                  <X className="h-3.5 w-3.5" />
+                  Clear
+                  <Badge variant="secondary" className="ml-1 px-1.5 text-xs">
+                    {activeFilterCount}
+                  </Badge>
                 </Button>
               )}
             </div>

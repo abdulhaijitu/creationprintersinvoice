@@ -1,31 +1,41 @@
 
+# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-# Invoices পেইজে Month, Date Range ও Client ফিল্টার যোগ
+## যেসব সমস্যা পাওয়া গেছে
 
-## বর্তমান অবস্থা
-Invoices পেইজে শুধু **Search** ও **Status** ফিল্টার আছে। Month, Date Range বা Client অনুযায়ী ফিল্টার করার সুবিধা নেই।
+অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
 
-## পরিবর্তন
+| কম্পোনেন্ট | সমস্যা |
+|---|---|
+| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
+| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
+| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
+| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
 
-**ফাইল: `src/pages/Invoices.tsx`** — একটি ফাইলে সব পরিবর্তন
+**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
 
-### নতুন ফিল্টার:
+---
 
-1. **Monthly ফিল্টার** — Month/Year সিলেক্ট (ডিফল্ট: "All Months")। URL param: `month` (format: `YYYY-MM`)
-2. **Date Range ফিল্টার** — Calendar popover দিয়ে from-to সিলেক্ট। URL param: `from`, `to`। মাসিক সিলেক্ট করলে ডেট রেঞ্জ ক্লিয়ার হবে এবং উল্টো
-3. **Client ফিল্টার** — ড্রপডাউন সিলেক্ট, সব কাস্টমারের লিস্ট। URL param: `client`
+## সমাধান
 
-### লজিক:
-- সব ফিল্টার client-side `useMemo` এ `filteredInvoices` এর মধ্যে প্রয়োগ হবে (বর্তমান প্যাটার্ন অনুসরণ)
-- Month ফিল্টার `invoice_date` এর year-month ম্যাচ করবে
-- Date Range ফিল্টার `invoice_date` এ from/to চেক করবে
-- Client ফিল্টার `customer_id` ম্যাচ করবে
-- Unique customer list `invoices` ডেটা থেকেই বের করা হবে (আলাদা query লাগবে না)
-- Clear Filters বাটন — সব ফিল্টার রিসেট করবে, active filter count দেখাবে
-- সব ফিল্টার URL params এ persist হবে (বর্তমান `updateParam` প্যাটার্ন ব্যবহার)
+### ১. `src/components/vendor/VendorStatementPDF.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
+- dependency থেকে `onClose` সরানো
 
-### UI:
-Controls সেকশনের grid layout আপডেট — Search, Status, Month, Date Range, Client ও Actions একসাথে থাকবে। মোবাইলে wrap হবে।
+### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
+- `import "@/components/print/printStyles.css"` যোগ
+- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
+- প্রিন্ট container-এ `print-content` ক্লাস যোগ
+- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
+- `onCloseRef` pattern ব্যবহার
+- dependency থেকে `onClose` সরানো
 
-কোনো DB মাইগ্রেশন লাগবে না।
+### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
+- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
 
+### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
+- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
+
+**মোট পরিবর্তন: ৫টি ফাইল।**
