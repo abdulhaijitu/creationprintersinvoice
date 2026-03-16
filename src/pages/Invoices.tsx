@@ -1225,26 +1225,40 @@ const Invoices = () => {
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          {invoicePerms.canEdit && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                              onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </Button>
-                          )}
-                          {invoicePerms.canDelete && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => setSingleDeleteId(invoice.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                          {(invoicePerms.canEdit || invoicePerms.canDelete) && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="px-2">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {invoicePerms.canEdit && (
+                                  <DropdownMenuItem onClick={() => navigate(`/invoices/${invoice.id}/edit`)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Invoice
+                                  </DropdownMenuItem>
+                                )}
+                                {invoicePerms.canEdit && statusInfo.dueAmount > 0 && (
+                                  <DropdownMenuItem onClick={() => handleMarkSinglePaid(invoice)}>
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Mark as Paid
+                                  </DropdownMenuItem>
+                                )}
+                                {invoicePerms.canDelete && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => setSingleDeleteId(invoice.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           )}
                         </div>
                       </div>
