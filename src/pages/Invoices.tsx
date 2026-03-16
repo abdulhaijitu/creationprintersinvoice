@@ -765,12 +765,12 @@ const Invoices = () => {
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Controls — single row, horizontal scroll on mobile */}
+        {/* Controls — compact, no scroll */}
         <div className="bg-card rounded-xl shadow-sm border border-border/50">
           <div className="p-3 sm:p-4">
-            <div className="flex overflow-x-auto items-center gap-2 no-scrollbar">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Search */}
-              <div className="relative min-w-[180px] max-w-[250px] shrink-0">
+              <div className="relative flex-1 min-w-[160px] max-w-[280px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search invoices..."
@@ -780,109 +780,139 @@ const Invoices = () => {
                 />
               </div>
 
-              {/* Status Filter */}
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                <SelectTrigger className="w-[130px] shrink-0 bg-background/50 border-border/50 h-9 text-sm">
-                  <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="due">Due</SelectItem>
-                  <SelectItem value="partial">Partial</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Month Filter */}
-              <Select value={monthFilter} onValueChange={setMonthFilter}>
-                <SelectTrigger className="w-[150px] shrink-0 bg-background/50 border-border/50 h-9 text-sm">
-                  <SelectValue placeholder="Month" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Months</SelectItem>
-                  {uniqueMonths.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {format(parse(m, 'yyyy-MM', new Date()), 'MMMM yyyy')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Date Range Filter */}
-              <Popover open={isDateRangeOpen} onOpenChange={setIsDateRangeOpen}>
+              {/* Filter Popover */}
+              <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    className={cn(
-                      'h-9 gap-1.5 border-border/50 bg-background/50 text-sm shrink-0',
-                      dateFrom && dateTo && 'text-foreground'
-                    )}
+                    className="h-9 gap-1.5 border-border/50 bg-background/50 text-sm"
                   >
-                    <CalendarIcon className="h-3.5 w-3.5" />
-                    {dateFrom && dateTo ? (
-                      <span className="text-xs">
-                        {format(parseISO(dateFrom), 'dd MMM')} – {format(parseISO(dateTo), 'dd MMM')}
-                      </span>
-                    ) : (
-                      <span>Date Range</span>
+                    <Filter className="h-3.5 w-3.5" />
+                    <span>Filters</span>
+                    {activeFilterCount > 0 && (
+                      <Badge variant="default" size="sm" className="ml-0.5 px-1.5 min-w-[18px] h-[18px] text-[10px]">
+                        {activeFilterCount}
+                      </Badge>
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    selected={dateFrom && dateTo ? { from: parseISO(dateFrom), to: parseISO(dateTo) } : undefined}
-                    onSelect={(range) => {
-                      setDateRange(range?.from, range?.to);
-                      if (range?.to) setIsDateRangeOpen(false);
-                    }}
-                    numberOfMonths={isMobile ? 1 : 2}
-                    className="pointer-events-auto"
-                  />
+                <PopoverContent className="w-72 sm:w-80 p-4" align="start">
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-foreground">Filter Invoices</p>
+
+                    {/* Status */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Status</label>
+                      <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                        <SelectTrigger className="w-full bg-background border-border/50 h-9 text-sm">
+                          <SelectValue placeholder="All Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="paid">Paid</SelectItem>
+                          <SelectItem value="due">Due</SelectItem>
+                          <SelectItem value="partial">Partial</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Month */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Month</label>
+                      <Select value={monthFilter} onValueChange={setMonthFilter}>
+                        <SelectTrigger className="w-full bg-background border-border/50 h-9 text-sm">
+                          <SelectValue placeholder="All Months" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Months</SelectItem>
+                          {uniqueMonths.map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {format(parse(m, 'yyyy-MM', new Date()), 'MMMM yyyy')}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Customer */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Customer</label>
+                      <Select value={clientFilter} onValueChange={setClientFilter}>
+                        <SelectTrigger className="w-full bg-background border-border/50 h-9 text-sm">
+                          <SelectValue placeholder="All Customers" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Customers</SelectItem>
+                          {uniqueClients.map(([id, name]) => (
+                            <SelectItem key={id} value={id}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Date Range */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Date Range</label>
+                      <Popover open={isDateRangeOpen} onOpenChange={setIsDateRangeOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              'w-full h-9 justify-start gap-1.5 border-border/50 bg-background text-sm font-normal',
+                              !(dateFrom && dateTo) && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="h-3.5 w-3.5" />
+                            {dateFrom && dateTo ? (
+                              <span>{format(parseISO(dateFrom), 'dd MMM yyyy')} – {format(parseISO(dateTo), 'dd MMM yyyy')}</span>
+                            ) : (
+                              <span>Select date range</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start" side="bottom">
+                          <Calendar
+                            initialFocus
+                            mode="range"
+                            selected={dateFrom && dateTo ? { from: parseISO(dateFrom), to: parseISO(dateTo) } : undefined}
+                            onSelect={(range) => {
+                              setDateRange(range?.from, range?.to);
+                              if (range?.to) setIsDateRangeOpen(false);
+                            }}
+                            numberOfMonths={isMobile ? 1 : 2}
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Clear All */}
+                    {activeFilterCount > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full h-8 text-xs text-muted-foreground"
+                        onClick={clearAllFilters}
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Clear All Filters ({activeFilterCount})
+                      </Button>
+                    )}
+                  </div>
                 </PopoverContent>
               </Popover>
 
-              {/* Customer Filter */}
-              <Select value={clientFilter} onValueChange={setClientFilter}>
-                <SelectTrigger className="w-[160px] shrink-0 bg-background/50 border-border/50 h-9 text-sm">
-                  <SelectValue placeholder="Customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Customers</SelectItem>
-                  {uniqueClients.map(([id, name]) => (
-                    <SelectItem key={id} value={id}>{name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Clear Filters */}
-              {activeFilterCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 gap-1.5 text-muted-foreground shrink-0"
-                  onClick={clearAllFilters}
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Clear
-                  <Badge variant="secondary" className="ml-1 px-1.5 text-xs">
-                    {activeFilterCount}
-                  </Badge>
-                </Button>
-              )}
-
-              {/* Spacer to push actions right on desktop */}
-              <div className="flex-1 min-w-[8px]" />
+              {/* Spacer */}
+              <div className="flex-1" />
 
               {/* Action Buttons */}
               {invoicePerms.canCreate && (
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="h-9 gap-1.5 border-border/50 shrink-0" 
+                  className="h-9 gap-1.5 border-border/50" 
                   onClick={() => setImportOpen(true)}
                 >
                   <Upload className="h-4 w-4" />
@@ -892,7 +922,7 @@ const Invoices = () => {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 gap-1.5 border-border/50 shrink-0">
+                  <Button variant="outline" size="sm" className="h-9 gap-1.5 border-border/50">
                     <Download className="h-4 w-4" />
                     <span className="hidden sm:inline">Export</span>
                   </Button>
@@ -910,12 +940,12 @@ const Invoices = () => {
               {invoicePerms.canCreate && (
                 <Button 
                   size="sm"
-                  className="h-9 gap-1.5 shadow-sm shrink-0" 
+                  className="h-9 gap-1.5 shadow-sm" 
                   onClick={() => navigate('/invoices/new')}
                 >
                   <Plus className="h-4 w-4" />
-                  <span className="hidden lg:inline">New Invoice</span>
-                  <span className="lg:hidden">New</span>
+                  <span className="hidden sm:inline">New Invoice</span>
+                  <span className="sm:hidden">New</span>
                 </Button>
               )}
             </div>
