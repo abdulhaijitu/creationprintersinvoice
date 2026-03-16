@@ -101,6 +101,14 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       if (!membershipRows || membershipRows.length === 0) {
         setLoading(false);
+        // Retry once after delay — token may still be refreshing on hard reload
+        if (!retryScheduled.current && user) {
+          retryScheduled.current = true;
+          setTimeout(() => {
+            retryScheduled.current = false;
+            fetchOrganization(true);
+          }, 1500);
+        }
         return;
       }
 
