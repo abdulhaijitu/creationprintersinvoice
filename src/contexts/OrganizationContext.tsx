@@ -60,6 +60,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   
   const fetchInProgress = useRef(false);
   const lastFetchUserId = useRef<string | null>(null);
+  const retryScheduled = useRef(false);
 
   const fetchOrganization = useCallback(async (forceRefresh = false) => {
     if (fetchInProgress.current && !forceRefresh) {
