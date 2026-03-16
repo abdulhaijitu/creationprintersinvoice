@@ -1,41 +1,62 @@
 
-# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-## যেসব সমস্যা পাওয়া গেছে
+# Vendor পেইজ রিলোডে Skeleton আটকে যাওয়ার সমস্যা — ফিক্স
 
-অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
+## Root Cause
 
-| কম্পোনেন্ট | সমস্যা |
-|---|---|
-| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
-| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
-| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
-| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
+হার্ড রিলোডে এই sequence ঘটে:
 
-**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
+1. **AuthContext**: `getSession()` localStorage থেকে ক্যাশড (সম্ভবত expired) JWT পায় → `user` সেট করে → `loading=false`
+2. **OrganizationContext**: `!authLoading && user` true হওয়ায় `fetchOrganization()` কল করে
+3. **Supabase RLS**: এই সময় JWT expired/not-yet-refreshed থাকে → `auth.uid()` null → `organization_members` query empty ফেরত দেয়
+4. **OrganizationContext** (line 101-104): `membershipRows.length === 0` → `loading=false` করে, কিন্তু `organization` null থাকে
+5. **Token refresh** ঘটে (`onAuthStateChange` → `TOKEN_REFRESHED`) কিন্তু `user.id` একই থাকে → OrgContext এর effect **আবার fire হয় না**
+6. **Vendors page**: `enabled: !!organization?.id` → false → query disabled → skeleton আটকে থাকে
 
----
+দ্বিতীয় রিফ্রেশে token ইতিমধ্যে refreshed থাকে, তাই কাজ করে।
 
 ## সমাধান
 
-### ১. `src/components/vendor/VendorStatementPDF.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
-- dependency থেকে `onClose` সরানো
+**ফাইল: `src/contexts/OrganizationContext.tsx`**
 
-### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
-- `onCloseRef` pattern ব্যবহার
-- dependency থেকে `onClose` সরানো
+OrganizationContext-এ দুটি পরিবর্তন:
 
-### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
-- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
+### ১. Auth state change listener যোগ
+`onAuthStateChange` subscribe করে `TOKEN_REFRESHED` event-এ `fetchOrganization(true)` কল করা — যাতে token refresh হওয়ার পর organization আবার fetch হয়।
 
-### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
-- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
+### ২. Empty membership-তে retry
+যখন authenticated user-এর জন্য membership empty আসে, একটি delayed retry (1 সেকেন্ড পর) schedule করা — যাতে token refresh-এর পর আবার চেষ্টা হয়।
 
-**মোট পরিবর্তন: ৫টি ফাইল।**
+### পরিবর্তনের সারসংক্ষেপ
+
+```text
+useEffect(() => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (event) => {
+      if (event === 'TOKEN_REFRESHED' && !organization && user) {
+        fetchOrganization(true);
+      }
+    }
+  );
+  return () => subscription.unsubscribe();
+}, [user, organization, fetchOrganization]);
+```
+
+এবং `fetchOrganization` এর মধ্যে empty membership পাওয়ার পরে:
+```text
+if (!membershipRows || membershipRows.length === 0) {
+  setLoading(false);
+  // Retry once after delay — token may still be refreshing
+  if (!retryScheduled.current) {
+    retryScheduled.current = true;
+    setTimeout(() => {
+      retryScheduled.current = false;
+      fetchOrganization(true);
+    }, 1500);
+  }
+  return;
+}
+```
+
+**মোট: ১টি ফাইলে পরিবর্তন। কোনো DB মাইগ্রেশন লাগবে না।**
+
