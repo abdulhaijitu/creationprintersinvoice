@@ -1053,12 +1053,7 @@ const Invoices = () => {
                           return (
                             <TableRow 
                               key={invoice.id}
-                              className={`
-                                transition-colors duration-150 cursor-pointer
-                                ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
-                                ${displayStatus === 'due' ? 'bg-destructive/5' : ''}
-                                hover:bg-primary/5
-                              `}
+                              className="transition-colors duration-150 cursor-pointer hover:bg-muted/50"
                               onClick={() => navigate(`/invoices/${invoice.id}`)}
                             >
                             <TableCell onClick={(e) => e.stopPropagation()}>
