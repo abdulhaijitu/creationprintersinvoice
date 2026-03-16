@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+
 import { supabase } from '@/integrations/supabase/client';
 import { retrySupabaseQuery } from '@/lib/networkRetry';
 import { useQueryClient } from '@tanstack/react-query';
@@ -43,6 +44,7 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
   const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const retryScheduled = useRef(false);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -64,6 +66,16 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
         return;
       }
 
+      if (!data && user) {
+        // Settings not found — may be due to expired token, retry once
+        if (!retryScheduled.current) {
+          retryScheduled.current = true;
+          setTimeout(() => {
+            retryScheduled.current = false;
+            fetchSettings();
+          }, 1500);
+        }
+      }
 
       setSettings(data as CompanySettings | null);
     } catch (err) {
@@ -99,6 +111,18 @@ export const CompanySettingsProvider: React.FC<{ children: React.ReactNode }> = 
     }
     fetchSettings();
   }, [user, authLoading, fetchSettings]);
+
+  // Re-fetch settings when token is refreshed (fixes hard-reload race condition)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === 'TOKEN_REFRESHED' && !settings && user) {
+          fetchSettings();
+        }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, [user, settings, fetchSettings]);
 
   // Realtime subscription — only when user is authenticated
   useEffect(() => {
