@@ -1,41 +1,43 @@
 
-# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-## যেসব সমস্যা পাওয়া গেছে
+# Invoices কন্ট্রোল বার — স্ক্রল ছাড়া কম্প্যাক্ট ডিজাইন
 
-অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
-
-| কম্পোনেন্ট | সমস্যা |
-|---|---|
-| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
-| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
-| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
-| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
-
-**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
-
----
+## সমস্যা
+বর্তমানে ৮+ আইটেম একই রো-তে থাকায় `overflow-x-auto` স্ক্রল হচ্ছে, বিশেষ করে ছোট স্ক্রিনে।
 
 ## সমাধান
+ফিল্টারগুলোকে একটি **Filter Popover** এর ভেতরে নিয়ে যাওয়া। মূল রো-তে শুধু:
 
-### ১. `src/components/vendor/VendorStatementPDF.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
-- dependency থেকে `onClose` সরানো
+```text
+[ 🔍 Search...              ] [⚙ Filter (2)] [↑Import] [↓Export] [+ New Invoice]
+```
 
-### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
-- `onCloseRef` pattern ব্যবহার
-- dependency থেকে `onClose` সরানো
+- **Search**: `flex-1` দিয়ে বাকি জায়গা নেবে
+- **Filter বাটন**: ক্লিক করলে Popover খুলবে — ভেতরে Status, Month, Date Range, Customer ফিল্টার থাকবে (2-column grid)
+- **Active filter count** badge দিয়ে দেখাবে কয়টি ফিল্টার চালু
+- **Import/Export/New**: আইকন-only মোবাইলে, টেক্সটসহ ডেস্কটপে
+- `overflow-x-auto` ও `flex-nowrap` সরিয়ে দেওয়া হবে
 
-### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
-- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
+### Filter Popover ভেতরের লেআউট:
+```text
+┌─────────────────────────────────┐
+│  Status: [All Status     ▼]    │
+│  Month:  [All Months     ▼]    │
+│  Customer: [All Customers ▼]   │
+│  Date Range: [📅 Select...]    │
+│                                 │
+│  [Clear All Filters]           │
+└─────────────────────────────────┘
+```
 
-### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
-- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
+## পরিবর্তন
+**ফাইল: `src/pages/Invoices.tsx`** — একটি ফাইলে সব পরিবর্তন
 
-**মোট পরিবর্তন: ৫টি ফাইল।**
+- `overflow-x-auto`, `flex-nowrap`, `no-scrollbar` ক্লাস রিমুভ
+- Status, Month, Date Range, Customer সিলেক্ট গুলো একটি `Popover` কম্পোনেন্টের ভেতরে মুভ
+- Filter বাটনে active count badge
+- মূল রো: `flex flex-wrap gap-2 items-center`
+- মোবাইলে Search `w-full` প্রথম লাইনে, বাটনগুলো দ্বিতীয় লাইনে wrap হবে
+
+কোনো DB পরিবর্তন নেই।
+
