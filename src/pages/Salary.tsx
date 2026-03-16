@@ -50,6 +50,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { safeParseFloat, parseValidatedFloat } from "@/lib/validation";
 import { formatCurrency } from "@/lib/formatters";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -1031,8 +1032,33 @@ const Salary = () => {
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+          <Skeleton className="h-10 w-36" />
+        </div>
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-card rounded-xl p-4 border border-border/50">
+              <Skeleton className="h-3 w-20 mb-2" />
+              <Skeleton className="h-7 w-24" />
+            </div>
+          ))}
+        </div>
+        <div className="bg-card rounded-xl border border-border/50 p-4 space-y-3">
+          <Skeleton className="h-10 w-64" />
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-9 w-32" />
+              <Skeleton className="h-9 flex-1" />
+              <Skeleton className="h-9 w-20" />
+              <Skeleton className="h-9 w-20" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
