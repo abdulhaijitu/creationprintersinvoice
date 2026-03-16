@@ -511,8 +511,33 @@ const VendorDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p>Loading...</p>
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-10 rounded" />
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-card rounded-xl p-4 border border-border/50">
+              <Skeleton className="h-3 w-20 mb-2" />
+              <Skeleton className="h-7 w-24" />
+            </div>
+          ))}
+        </div>
+        <div className="bg-card rounded-xl border border-border/50 p-4 space-y-3">
+          <Skeleton className="h-10 w-64" />
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-9 w-24" />
+              <Skeleton className="h-9 flex-1" />
+              <Skeleton className="h-9 w-20" />
+              <Skeleton className="h-9 w-20" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
