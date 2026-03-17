@@ -210,15 +210,20 @@ const Vendors = () => {
     }
   };
 
-  const filteredVendors = vendors.filter(
-    (vendor) =>
+  const filteredVendors = vendors.filter((vendor) => {
+    const matchesSearch =
       vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vendor.phone?.includes(searchTerm) ||
-      vendor.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      vendor.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesPayment =
+      paymentFilter === 'all' ? true :
+      paymentFilter === 'paid' ? (vendor.due_amount || 0) <= 0 :
+      (vendor.due_amount || 0) > 0;
+    return matchesSearch && matchesPayment;
+  });
 
-  // Reset page on search
-  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+  // Reset page on search or filter change
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, paymentFilter]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
