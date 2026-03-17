@@ -470,10 +470,30 @@ const Vendors = () => {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative min-w-0">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input placeholder="Search vendors..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-full md:max-w-md" />
+      {/* Search + Filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-0 flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input placeholder="Search vendors..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-full" />
+        </div>
+        <div className="flex items-center gap-1 rounded-md border border-input p-0.5">
+          {(['all', 'due', 'paid'] as const).map((filter) => (
+            <Button
+              key={filter}
+              variant={paymentFilter === filter ? 'default' : 'ghost'}
+              size="sm"
+              className={cn("h-8 px-3 text-xs", paymentFilter !== filter && "text-muted-foreground")}
+              onClick={() => setPaymentFilter(filter)}
+            >
+              {filter === 'all' ? 'All' : filter === 'due' ? 'Due' : 'Paid'}
+              {filter === 'due' && vendors.filter(v => (v.due_amount || 0) > 0).length > 0 && (
+                <Badge variant="destructive" size="sm" className="ml-1.5 h-4 min-w-4 px-1">
+                  {vendors.filter(v => (v.due_amount || 0) > 0).length}
+                </Badge>
+              )}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Mobile Card View */}
