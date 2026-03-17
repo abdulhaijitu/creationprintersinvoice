@@ -92,6 +92,7 @@ const Vendors = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortKey, setSortKey] = useState<string | null>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'due' | 'paid'>('all');
 
   const { data: vendors = [], isLoading: loading } = useQuery({
     queryKey: queryKeys.vendors(organization?.id || ''),
