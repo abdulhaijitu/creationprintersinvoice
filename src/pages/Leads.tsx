@@ -209,7 +209,7 @@ export default function Leads() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Leads" description="Track and manage your sales leads">
+      <PageHeader title="Leads" description="Track and manage your sales leads" actions={
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4 mr-1" /> Add Lead
         </Button>

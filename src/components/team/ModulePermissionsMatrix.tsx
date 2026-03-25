@@ -146,12 +146,14 @@ const MODULE_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
 
 const CATEGORY_ICONS: Record<PermissionCategory, React.ComponentType<{ className?: string }>> = {
   main: LayoutDashboard,
-  business: Briefcase,
+  invoices: Briefcase,
+  marketing: Briefcase,
+  vendors: Briefcase,
   hr_ops: Users,
   system: Settings,
 };
 
-const CATEGORY_ORDER: PermissionCategory[] = ['main', 'business', 'hr_ops', 'system'];
+const CATEGORY_ORDER: PermissionCategory[] = ['main', 'invoices', 'marketing', 'vendors', 'hr_ops', 'system'];
 
 // Build permission key for storage: module.action
 const buildPermissionKey = (moduleKey: string, action: PermissionAction): string => {
