@@ -1,29 +1,17 @@
 /**
  * MODULE-BASED PERMISSION SYSTEM - SINGLE SOURCE OF TRUTH
- * 
- * This file defines all permission modules controlled by Super Admin.
- * When a module is disabled, it MUST be completely hidden and inaccessible.
- * 
- * ARCHITECTURE:
- * - Super Admin can enable/disable any module for any role
- * - Super Admin always has all modules enabled (locked ON)
- * - Owner role within organization has all modules enabled
- * - Other roles (staff) have module access controlled by org-specific permissions
  */
 
-// ============= MODULE PERMISSION KEYS =============
-// Format: category.module (e.g., main.dashboard, business.customers)
-
-export type PermissionCategory = 'main' | 'business' | 'hr_ops' | 'system';
+export type PermissionCategory = 'main' | 'invoices' | 'marketing' | 'vendors' | 'hr_ops' | 'system';
 
 export interface ModulePermission {
-  key: string;                    // Unique key: "category.module"
-  module: string;                 // Module identifier
-  category: PermissionCategory;   // Category for grouping
-  label: string;                  // Display label
-  description: string;            // Description of what this controls
-  route: string;                  // Primary route for this module
-  isCritical?: boolean;           // If true, requires confirmation to disable
+  key: string;
+  module: string;
+  category: PermissionCategory;
+  label: string;
+  description: string;
+  route: string;
+  isCritical?: boolean;
 }
 
 // ============= MAIN CATEGORY =============
@@ -36,10 +24,22 @@ export const MAIN_PERMISSIONS: ModulePermission[] = [
     description: 'Access to the main dashboard with widgets based on other permissions',
     route: '/',
   },
+];
+
+// ============= INVOICES CATEGORY =============
+export const INVOICES_PERMISSIONS: ModulePermission[] = [
+  {
+    key: 'business.customers',
+    module: 'customers',
+    category: 'invoices',
+    label: 'Customers',
+    description: 'View and manage customers',
+    route: '/customers',
+  },
   {
     key: 'main.invoices',
     module: 'invoices',
-    category: 'main',
+    category: 'invoices',
     label: 'Invoices',
     description: 'View and manage invoices',
     route: '/invoices',
@@ -47,51 +47,55 @@ export const MAIN_PERMISSIONS: ModulePermission[] = [
   {
     key: 'main.payments',
     module: 'payments',
-    category: 'main',
+    category: 'invoices',
     label: 'Payments',
     description: 'View and manage payments',
     route: '/payments',
   },
   {
-    key: 'main.quotations',
-    module: 'quotations',
-    category: 'main',
-    label: 'Quotations',
-    description: 'View and manage quotations',
-    route: '/quotations',
-  },
-  {
-    key: 'main.price_calculation',
-    module: 'price_calculations',
-    category: 'main',
-    label: 'Price Calculation',
-    description: 'Access to price calculation tool',
-    route: '/price-calculation',
-  },
-  {
     key: 'main.challan',
     module: 'delivery_challans',
-    category: 'main',
+    category: 'invoices',
     label: 'Delivery Challans',
     description: 'View and manage delivery challans',
     route: '/delivery-challans',
   },
 ];
 
-// ============= BUSINESS CATEGORY =============
-export const BUSINESS_PERMISSIONS: ModulePermission[] = [
+// ============= MARKETING CATEGORY =============
+export const MARKETING_PERMISSIONS: ModulePermission[] = [
   {
-    key: 'business.customers',
-    module: 'customers',
-    category: 'business',
-    label: 'Customers',
-    description: 'View and manage customers',
-    route: '/customers',
+    key: 'marketing.leads',
+    module: 'leads',
+    category: 'marketing',
+    label: 'Leads',
+    description: 'View and manage leads',
+    route: '/leads',
   },
+  {
+    key: 'main.price_calculation',
+    module: 'price_calculations',
+    category: 'marketing',
+    label: 'Price Calculation',
+    description: 'Access to price calculation tool',
+    route: '/price-calculation',
+  },
+  {
+    key: 'main.quotations',
+    module: 'quotations',
+    category: 'marketing',
+    label: 'Quotations',
+    description: 'View and manage quotations',
+    route: '/quotations',
+  },
+];
+
+// ============= VENDORS CATEGORY =============
+export const VENDORS_PERMISSIONS: ModulePermission[] = [
   {
     key: 'business.vendors',
     module: 'vendors',
-    category: 'business',
+    category: 'vendors',
     label: 'Vendors',
     description: 'View and manage vendors',
     route: '/vendors',
@@ -99,7 +103,7 @@ export const BUSINESS_PERMISSIONS: ModulePermission[] = [
   {
     key: 'business.expenses',
     module: 'expenses',
-    category: 'business',
+    category: 'vendors',
     label: 'Expenses',
     description: 'View and manage expenses',
     route: '/expenses',
@@ -187,86 +191,74 @@ export const SYSTEM_PERMISSIONS: ModulePermission[] = [
   },
 ];
 
+// Keep old exports for backward compatibility
+export const BUSINESS_PERMISSIONS = [...INVOICES_PERMISSIONS.filter(p => p.key.startsWith('business.')), ...VENDORS_PERMISSIONS];
+
 // ============= ALL PERMISSIONS COMBINED =============
 export const ALL_MODULE_PERMISSIONS: ModulePermission[] = [
   ...MAIN_PERMISSIONS,
-  ...BUSINESS_PERMISSIONS,
+  ...INVOICES_PERMISSIONS,
+  ...MARKETING_PERMISSIONS,
+  ...VENDORS_PERMISSIONS,
   ...HR_OPS_PERMISSIONS,
   ...SYSTEM_PERMISSIONS,
 ];
 
 // ============= PERMISSION LOOKUP MAPS =============
 
-// Get permission by key
 export const PERMISSION_BY_KEY = new Map<string, ModulePermission>(
   ALL_MODULE_PERMISSIONS.map(p => [p.key, p])
 );
 
-// Get permissions by category
 export const PERMISSIONS_BY_CATEGORY: Record<PermissionCategory, ModulePermission[]> = {
   main: MAIN_PERMISSIONS,
-  business: BUSINESS_PERMISSIONS,
+  invoices: INVOICES_PERMISSIONS,
+  marketing: MARKETING_PERMISSIONS,
+  vendors: VENDORS_PERMISSIONS,
   hr_ops: HR_OPS_PERMISSIONS,
   system: SYSTEM_PERMISSIONS,
 };
 
-// Get permission by route
 export const PERMISSION_BY_ROUTE = new Map<string, ModulePermission>(
   ALL_MODULE_PERMISSIONS.map(p => [p.route, p])
 );
 
 // ============= CATEGORY DISPLAY INFO =============
+
 export const CATEGORY_DISPLAY: Record<PermissionCategory, { label: string; order: number }> = {
   main: { label: 'Main', order: 1 },
-  business: { label: 'Business', order: 2 },
-  hr_ops: { label: 'HR & Operations', order: 3 },
-  system: { label: 'System', order: 4 },
+  invoices: { label: 'Invoices', order: 2 },
+  marketing: { label: 'Marketing', order: 3 },
+  vendors: { label: 'Vendors', order: 4 },
+  hr_ops: { label: 'Human Resource', order: 5 },
+  system: { label: 'System', order: 6 },
 };
 
 // ============= HELPER FUNCTIONS =============
 
-/**
- * Get all permission keys
- */
 export function getAllPermissionKeys(): string[] {
   return ALL_MODULE_PERMISSIONS.map(p => p.key);
 }
 
-/**
- * Get permission for a specific route
- */
 export function getPermissionForRoute(route: string): ModulePermission | undefined {
-  // Try exact match first
   const exactMatch = PERMISSION_BY_ROUTE.get(route);
   if (exactMatch) return exactMatch;
-  
-  // Try prefix match for nested routes
   for (const [routeKey, permission] of PERMISSION_BY_ROUTE.entries()) {
     if (routeKey !== '/' && route.startsWith(routeKey)) {
       return permission;
     }
   }
-  
   return undefined;
 }
 
-/**
- * Check if a permission key is valid
- */
 export function isValidPermissionKey(key: string): boolean {
   return PERMISSION_BY_KEY.has(key);
 }
 
-/**
- * Get permission label by key
- */
 export function getPermissionLabel(key: string): string {
   return PERMISSION_BY_KEY.get(key)?.label ?? key;
 }
 
-/**
- * Get all critical permissions
- */
 export function getCriticalPermissions(): ModulePermission[] {
   return ALL_MODULE_PERMISSIONS.filter(p => p.isCritical);
 }

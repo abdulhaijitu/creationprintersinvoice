@@ -250,7 +250,9 @@ export function useModulePermissions() {
   }[]> => {
     const result: Record<PermissionCategory, { key: string; label: string; permissions: Record<PermissionAction, boolean> }[]> = {
       main: [],
-      business: [],
+      invoices: [],
+      marketing: [],
+      vendors: [],
       hr_ops: [],
       system: [],
     };
