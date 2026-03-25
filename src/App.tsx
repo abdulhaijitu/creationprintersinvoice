@@ -49,6 +49,7 @@ const Reports = lazy(() => lazyRetry(() => import("./pages/Reports")));
 const Settings = lazy(() => lazyRetry(() => import("./pages/Settings")));
 const TeamMembers = lazy(() => lazyRetry(() => import("./pages/TeamMembers")));
 const DeliveryChallans = lazy(() => lazyRetry(() => import("./pages/DeliveryChallans")));
+const Leads = lazy(() => lazyRetry(() => import("./pages/Leads")));
 const ChallanPrintTemplate = lazy(() => lazyRetry(() => import("./components/delivery-challan/ChallanPrintTemplate")));
 const CostingItemTemplates = lazy(() => lazyRetry(() => import("./pages/CostingItemTemplates")));
 const Admin = lazy(() => lazyRetry(() => import("./pages/Admin")));
