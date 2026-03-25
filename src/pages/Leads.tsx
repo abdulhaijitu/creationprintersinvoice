@@ -213,7 +213,7 @@ export default function Leads() {
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4 mr-1" /> Add Lead
         </Button>
-      </PageHeader>
+      } />
 
       <Card>
         <CardContent className="p-4 space-y-4">
