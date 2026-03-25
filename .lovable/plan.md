@@ -1,41 +1,53 @@
 
-# প্রিন্ট সিস্টেম অডিট — সব পেজে আপডেট
 
-## যেসব সমস্যা পাওয়া গেছে
+# সাইডবার রিঅর্ডার + নতুন "Leads" মডিউল তৈরি
 
-অডিটে **৪টি কম্পোনেন্ট**-এ সমস্যা পাওয়া গেছে:
+## সারাংশ
+সাইডবারের গ্রুপ ও আইটেম সিরিয়াল পরিবর্তন করা হবে এবং একটি নতুন **Leads** পেইজ ও পারমিশন মডিউল যোগ করা হবে।
 
-| কম্পোনেন্ট | সমস্যা |
-|---|---|
-| **VendorStatementPDF** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, `onClose` dependency bug আছে |
-| **VendorPaymentReceipt** | `print-content` ক্লাস নেই, `printStyles.css` ইম্পোর্ট নেই, PDF filename সেট হচ্ছে না, `onClose` dependency bug |
-| **pdfUtils.ts `downloadAsPDF()`** | `setTimeout` দিয়ে title restore — `afterprint` event ব্যবহার করা উচিত (reliable) |
-| **Reports.tsx print** | নতুন উইন্ডোতে প্রিন্ট — এটি ঠিকই আছে, কিন্তু inline `handlePrint()` এ filename সেট নেই |
+## নতুন গ্রুপ স্ট্রাকচার
+```text
+MAIN         → Dashboard
+INVOICES     → Customers, Invoices, Payments, Challans
+MARKETING    → Leads (নতুন), Price Calculation, Quotations
+VENDORS      → Vendors, Expense
+HR           → Employee, Attendance, Salary, Leave, Performance, Tasks
+SYSTEM       → Reports, Team, Settings
+```
 
-**Invoice ও Quotation Detail** পেজ ইতিমধ্যে `print-content` ক্লাস এবং `downloadAsPDF()` ব্যবহার করছে — সেগুলো ঠিক আছে।
+## পরিবর্তনসমূহ
 
----
+### 1. DB: `leads` টেবিল তৈরি (Migration)
+- `id`, `organization_id`, `name`, `email`, `phone`, `company_name`, `source` (enum: website, referral, social, cold_call, other), `status` (enum: new, contacted, qualified, proposal, won, lost), `notes`, `assigned_to`, `created_by`, `created_at`, `updated_at`
+- RLS: org-scoped read/write for authenticated users
 
-## সমাধান
+### 2. Permission System আপডেট
+**`src/lib/permissions/modulePermissions.ts`**:
+- নতুন category: `marketing` যোগ (`PermissionCategory` type-এ)
+- `MARKETING_PERMISSIONS` array: `marketing.leads`, `marketing.price_calculation`, `marketing.quotations`
+- `MAIN_PERMISSIONS` থেকে quotations, price_calculation, challan সরানো
+- `BUSINESS_PERMISSIONS` থেকে expenses → vendors group-এ
+- `CATEGORY_DISPLAY`, `PERMISSIONS_BY_CATEGORY`, `ALL_MODULE_PERMISSIONS` আপডেট
 
-### ১. `src/components/vendor/VendorStatementPDF.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `onCloseRef` pattern ব্যবহার (CustomerStatementPDF-এর মতো)
-- dependency থেকে `onClose` সরানো
+### 3. Sidebar Config আপডেট
+**`src/lib/permissions/sidebarConfig.ts`**:
+- ৬টি গ্রুপে ভাগ: Main, Invoices, Marketing, Vendors, Human Resource, System
+- Leads আইটেম যোগ (`/leads`, `Target` icon)
+- আইটেম অর্ডার ইউজারের দেওয়া সিরিয়াল অনুযায়ী
 
-### ২. `src/components/vendor/VendorPaymentReceipt.tsx`
-- `import "@/components/print/printStyles.css"` যোগ
-- `import { sanitizeFilename } from "@/lib/pdfUtils"` যোগ
-- প্রিন্ট container-এ `print-content` ক্লাস যোগ
-- `document.title` সেট করা: `Vendor-Payment-Receipt-VendorName-Date`
-- `onCloseRef` pattern ব্যবহার
-- dependency থেকে `onClose` সরানো
+### 4. Leads পেইজ তৈরি
+**`src/pages/Leads.tsx`**:
+- Leads টেবিল: Name, Company, Source, Status, Assigned To, Created
+- Status badge (color-coded), Source filter, Status filter
+- Add Lead dialog, Edit, Delete
+- org-scoped data fetch
 
-### ৩. `src/lib/pdfUtils.ts` — `downloadAsPDF()`
-- `setTimeout` এর বদলে `afterprint` event ব্যবহার করে title restore করা (বেশি reliable)
+### 5. Route যোগ
+**`src/App.tsx`**:
+- `/leads` route যোগ
 
-### ৪. `src/pages/InvoiceDetail.tsx` ও `src/pages/QuotationDetail.tsx`
-- `handlePrint()` ফাংশনে `downloadAsPDF()` কল করা (সরাসরি `window.print()` না করে) — এতে Print বাটনেও সঠিক filename আসবে
+### 6. Mobile Sidebar আপডেট
+**`src/components/layout/MobileSidebarTiles.tsx`** (যদি সাইডবার config থেকে generate হয় তাহলে স্বয়ংক্রিয়)
 
-**মোট পরিবর্তন: ৫টি ফাইল।**
+কোনো existing ফিচার ভাঙবে না — শুধু রিঅর্ডার + নতুন মডিউল।
+
