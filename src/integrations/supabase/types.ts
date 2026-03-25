@@ -1845,6 +1845,62 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          assigned_to: string | null
+          company_name: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          organization_id: string
+          phone: string | null
+          source: Database["public"]["Enums"]["lead_source"]
+          status: Database["public"]["Enums"]["lead_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          organization_id: string
+          phone?: string | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          phone?: string | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_balances: {
         Row: {
           annual_total: number | null
@@ -5299,6 +5355,14 @@ export type Database = {
       audit_source: "ui" | "api" | "system" | "edge_function" | "webhook"
       correction_request_status: "pending" | "approved" | "rejected"
       invoice_status: "unpaid" | "partial" | "paid"
+      lead_source: "website" | "referral" | "social" | "cold_call" | "other"
+      lead_status:
+        | "new"
+        | "contacted"
+        | "qualified"
+        | "proposal"
+        | "won"
+        | "lost"
       leave_status: "pending" | "approved" | "rejected"
       leave_type: "casual" | "sick" | "annual" | "other"
       notification_channel: "email" | "sms" | "whatsapp"
@@ -5528,6 +5592,8 @@ export const Constants = {
       audit_source: ["ui", "api", "system", "edge_function", "webhook"],
       correction_request_status: ["pending", "approved", "rejected"],
       invoice_status: ["unpaid", "partial", "paid"],
+      lead_source: ["website", "referral", "social", "cold_call", "other"],
+      lead_status: ["new", "contacted", "qualified", "proposal", "won", "lost"],
       leave_status: ["pending", "approved", "rejected"],
       leave_type: ["casual", "sick", "annual", "other"],
       notification_channel: ["email", "sms", "whatsapp"],
