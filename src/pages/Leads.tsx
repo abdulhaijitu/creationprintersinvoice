@@ -254,7 +254,7 @@ export default function Leads() {
 
           {/* Table */}
           {isLoading ? (
-            <DataTableSkeleton columnCount={6} rowCount={5} />
+            <DataTableSkeleton columns={6} rows={5} />
           ) : filtered.length === 0 ? (
             <EmptyState
               title="No leads found"
