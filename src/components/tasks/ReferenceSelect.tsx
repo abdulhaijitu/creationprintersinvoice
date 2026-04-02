@@ -216,7 +216,12 @@ export function ReferenceSelect({
               <CommandInput placeholder={`Search ${getTypeLabel(referenceType).toLowerCase()}...`} />
               <CommandList>
                 <CommandEmpty>
-                  {loading ? 'Loading...' : `No ${getTypeLabel(referenceType).toLowerCase()} found.`}
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Searching...</span>
+                    </div>
+                  ) : `No ${getTypeLabel(referenceType).toLowerCase()} found.`}
                 </CommandEmpty>
                 <CommandGroup>
                   {items.map((item) => (
