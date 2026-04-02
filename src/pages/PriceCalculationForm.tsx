@@ -258,6 +258,7 @@ interface FormData {
 const PriceCalculationForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { organization } = useOrganization();
   const { canPerform, showCreate, showDelete } = usePermissions();
