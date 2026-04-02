@@ -15,7 +15,7 @@ import {
   FileText,
   Printer
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface InvoicePaymentSummaryProps {
@@ -62,7 +62,7 @@ export function InvoicePaymentSummary({
 }: InvoicePaymentSummaryProps) {
   const dueAmount = Number(invoice.total) - Number(invoice.paid_amount || 0);
   const isPaid = dueAmount <= 0;
-  const isOverdue = !isPaid && invoice.due_date && new Date(invoice.due_date) < new Date();
+  const isOverdue = !isPaid && invoice.due_date && parseISO(invoice.due_date) < new Date();
   const isPartial = !isPaid && Number(invoice.paid_amount || 0) > 0;
 
   const getStatusConfig = () => {
@@ -150,7 +150,7 @@ export function InvoicePaymentSummary({
                 'text-sm font-medium',
                 isOverdue && 'text-destructive'
               )}>
-                {format(new Date(invoice.due_date), 'MMMM d, yyyy')}
+                {format(parseISO(invoice.due_date), 'dd/MM/yyyy')}
               </p>
             </div>
           </div>
@@ -236,7 +236,7 @@ export function InvoicePaymentSummary({
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {format(new Date(payment.payment_date), 'dd/MM/yyyy')}
+                    {format(parseISO(payment.payment_date), 'dd/MM/yyyy')}
                   </span>
                 </div>
               ))}

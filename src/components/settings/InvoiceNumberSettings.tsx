@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { format, parseISO } from 'date-fns';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -266,7 +267,7 @@ export const InvoiceNumberSettings = () => {
                   </p>
                   {sequence.last_migration_at && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Last migrated: {new Date(sequence.last_migration_at).toLocaleDateString()}
+                      Last migrated: {format(parseISO(sequence.last_migration_at), 'dd/MM/yyyy')}
                     </p>
                   )}
                 </div>
