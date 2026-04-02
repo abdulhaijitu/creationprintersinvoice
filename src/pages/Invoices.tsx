@@ -463,8 +463,8 @@ const Invoices = () => {
 
       switch (sortKey) {
         case 'invoice_date':
-          aVal = new Date(a.invoice_date).getTime();
-          bVal = new Date(b.invoice_date).getTime();
+          aVal = parseISO(a.invoice_date).getTime();
+          bVal = parseISO(b.invoice_date).getTime();
           break;
         case 'invoice_number':
           aVal = a.invoice_number;
