@@ -150,7 +150,7 @@ export function InvoicePaymentSummary({
                 'text-sm font-medium',
                 isOverdue && 'text-destructive'
               )}>
-                {format(new Date(invoice.due_date), 'MMMM d, yyyy')}
+                {format(parseISO(invoice.due_date), 'dd/MM/yyyy')}
               </p>
             </div>
           </div>
