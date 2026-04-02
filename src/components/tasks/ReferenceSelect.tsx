@@ -14,7 +14,8 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { Check, ChevronsUpDown, FileText, Truck, X } from 'lucide-react';
+import { Check, ChevronsUpDown, FileText, Truck, X, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -216,7 +217,12 @@ export function ReferenceSelect({
               <CommandInput placeholder={`Search ${getTypeLabel(referenceType).toLowerCase()}...`} />
               <CommandList>
                 <CommandEmpty>
-                  {loading ? 'Loading...' : `No ${getTypeLabel(referenceType).toLowerCase()} found.`}
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Searching...</span>
+                    </div>
+                  ) : `No ${getTypeLabel(referenceType).toLowerCase()} found.`}
                 </CommandEmpty>
                 <CommandGroup>
                   {items.map((item) => (
@@ -328,7 +334,7 @@ export function ReferenceLink({
   }, [referenceType, referenceId]);
 
   if (loading) {
-    return <span className="text-sm text-muted-foreground">Loading...</span>;
+    return <Skeleton className="h-4 w-24 inline-block" />;
   }
 
   if (!reference) {

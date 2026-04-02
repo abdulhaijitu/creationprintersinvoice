@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -140,7 +141,7 @@ export function ChallanDetailDrawer({
                 </div>
                 <div className="min-w-0">
                   <SheetTitle className="text-base md:text-lg font-semibold truncate">
-                    {loading ? 'Loading...' : 'Delivery Challan'}
+                    {loading ? <Skeleton className="h-5 w-32" /> : 'Delivery Challan'}
                   </SheetTitle>
                   {!loading && challan && (
                     <p className="text-sm text-muted-foreground font-mono">
