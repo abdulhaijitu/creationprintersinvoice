@@ -657,6 +657,8 @@ const PriceCalculationForm = () => {
             .eq('id', id);
         }
 
+        queryClient.invalidateQueries({ queryKey: ['quotations'] });
+        queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
         toast.success('Quotation created');
         navigate(`/quotations/${quotation.id}`);
       } else {
