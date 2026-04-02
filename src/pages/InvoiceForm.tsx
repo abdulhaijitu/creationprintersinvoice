@@ -281,8 +281,47 @@ const InvoiceForm = () => {
       });
     }
   }, [isEditing, companySettings]);
+  const handleCustomerChange = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    setFormData(prev => {
+      const updates: typeof prev = { ...prev, customer_id: customerId };
+      if (customer?.default_notes && (!prev.notes || notesFromDefault)) {
+        updates.notes = customer.default_notes;
+        setNotesFromDefault(true);
+      }
+      if (customer?.default_terms && (!prev.terms || termsFromDefault || termsFromCompany)) {
+        updates.terms = customer.default_terms;
+        setTermsFromDefault(true);
+        setTermsFromCompany(false);
+      }
+      return updates;
+    });
+  };
+  
+  const resetNotesToDefault = () => {
+    const customer = customers.find(c => c.id === formData.customer_id);
+    if (customer?.default_notes) {
+      setFormData(prev => ({ ...prev, notes: customer.default_notes || '' }));
+      setNotesFromDefault(true);
+    }
+  };
+  
+  const resetTermsToDefault = () => {
+    const customer = customers.find(c => c.id === formData.customer_id);
+    if (customer?.default_terms) {
+      setFormData(prev => ({ ...prev, terms: customer.default_terms || '' }));
+      setTermsFromDefault(true);
+      setTermsFromCompany(false);
+    }
+  };
 
-
+  const resetTermsToCompanyDefault = () => {
+    if (companySettings?.invoice_terms) {
+      setFormData(prev => ({ ...prev, terms: companySettings.invoice_terms || '' }));
+      setTermsFromCompany(true);
+      setTermsFromDefault(false);
+    }
+  };
 
 
   const updateItem = useCallback((id: string, field: keyof InvoiceItem, value: string | number) => {
