@@ -327,6 +327,7 @@ const QuotationForm = () => {
         const { error: itemsError } = await supabase.from('quotation_items').insert(quotationItems);
         if (itemsError) throw itemsError;
 
+        queryClient.invalidateQueries({ queryKey: ['quotations'] });
         toast.success('Quotation updated');
         navigate(`/quotations/${id}`);
       } else {
