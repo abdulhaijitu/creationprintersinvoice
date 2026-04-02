@@ -144,7 +144,7 @@ const InvoiceForm = () => {
 
   const [formData, setFormData] = useState({
     customer_id: '',
-    invoice_date: format(new Date(), 'yyyy-MM-dd'),
+    invoice_date: '',
     due_date: '',
     subject: '',
     notes: '',
