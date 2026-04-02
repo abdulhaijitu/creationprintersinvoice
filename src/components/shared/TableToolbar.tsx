@@ -156,6 +156,7 @@ export function TableToolbar({
                 <Calendar
                   initialFocus
                   mode="range"
+                  defaultMonth={dateRange?.from}
                   selected={dateRange?.from ? { from: dateRange.from, to: dateRange.to } : undefined}
                   onSelect={(range) => {
                     onDateRangeChange(range as DateRange | undefined);
