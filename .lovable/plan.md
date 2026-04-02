@@ -1,31 +1,54 @@
 
 
-# সব ডেট পিকারে সাল জাম্প (Month/Year Select) যোগ
+# ফর্ম সেভের পর টেবিল/লিস্ট ক্যাশ ইনভ্যালিডেশন ফিক্স
 
-## পরিকল্পনা
-অ্যাপে ইতিমধ্যে `CalendarWithJumps` কম্পোনেন্ট আছে যেটাতে month ও year dropdown select আছে। এখন যেসব জায়গায় সাধারণ `Calendar` ব্যবহার হচ্ছে সেখানে `CalendarWithJumps` দিয়ে replace করতে হবে।
+## সমস্যা
+InvoiceForm, QuotationForm, PriceCalculationForm — এই ফর্মগুলো সেভ/আপডেটের পর `navigate()` করে কিন্তু React Query ক্যাশ invalidate করে না। ফলে লিস্ট পেইজে পুরানো (stale) ডেটা দেখায়।
 
-## পরিবর্তন (4টি ফাইল)
+## চিহ্নিত সমস্যা (3টি ফাইল)
 
-### 1. `src/components/ui/date-input.tsx`
-- Import `CalendarWithJumps` instead of `Calendar`
-- Line 184: `<Calendar>` → `<CalendarWithJumps fromYear={2020} toYear={2035}>`
+| ফাইল | সমস্যা |
+|---|---|
+| `InvoiceForm.tsx` | Edit/Create-এর পর `queryKeys.invoices` invalidate হয় না |
+| `QuotationForm.tsx` | Edit/Create-এর পর `queryKeys.quotations` invalidate হয় না |
+| `PriceCalculationForm.tsx` | Save-এর পর price-calculations cache invalidate হয় না; Invoice/Quotation create-এর পরও সংশ্লিষ্ট cache invalidate হয় না |
 
-### 2. `src/components/ui/date-picker.tsx`
-- Import `CalendarWithJumps` instead of `Calendar`
-- Line 81: `<Calendar>` → `<CalendarWithJumps fromYear={2020} toYear={2035}>`
+## ফিক্স
 
-### 3. `src/components/shared/TableToolbar.tsx`
-- Import `CalendarWithJumps` instead of `Calendar`
-- Line 156: `<Calendar>` → `<CalendarWithJumps fromYear={2020} toYear={2035}>`
+### 1. `src/pages/InvoiceForm.tsx`
+- `useQueryClient` import যোগ
+- `navigate()` এর আগে cache invalidate:
+```typescript
+const queryClient = useQueryClient();
 
-### 4. `src/components/vendor/AllBillsTab.tsx`
-- Import `CalendarWithJumps` instead of `Calendar`
-- Line 288: `<Calendar>` → `<CalendarWithJumps fromYear={2020} toYear={2035}>`
+// Edit path (line ~482):
+queryClient.invalidateQueries({ queryKey: ['invoices'] });
+toast.success('Invoice updated');
+navigate(`/invoices/${id}`);
 
-## ইতিমধ্যে ঠিক আছে
-- `AddBillDialog.tsx` ও `EditBillDialog.tsx` — আগে থেকেই `CalendarWithJumps` ব্যবহার করছে ✓
+// Create path (line ~569):
+queryClient.invalidateQueries({ queryKey: ['invoices'] });
+toast.success('Invoice created');
+navigate(`/invoices/${invoice.id}`);
+```
 
-## ফলাফল
-সব ডেট পিকারে month ও year dropdown select থাকবে — সরাসরি যেকোনো সালে জাম্প করা যাবে।
+### 2. `src/pages/QuotationForm.tsx`
+- `useQueryClient` import যোগ
+- Edit ও Create path-এ cache invalidate:
+```typescript
+queryClient.invalidateQueries({ queryKey: ['quotations'] });
+```
+
+### 3. `src/pages/PriceCalculationForm.tsx`
+- `useQueryClient` import যোগ
+- Save, Convert-to-Invoice, Convert-to-Quotation path-এ সংশ্লিষ্ট cache invalidate:
+```typescript
+queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
+// এবং invoice/quotation create করলে সেগুলোর cache-ও
+queryClient.invalidateQueries({ queryKey: ['invoices'] });
+queryClient.invalidateQueries({ queryKey: ['quotations'] });
+```
+
+## মোট পরিবর্তন: 3টি ফাইল
+প্রতিটিতে `useQueryClient` import এবং `navigate()` এর আগে `invalidateQueries()` কল যোগ।
 
