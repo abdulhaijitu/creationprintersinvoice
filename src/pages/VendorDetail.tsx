@@ -669,10 +669,9 @@ const VendorDetail = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">From Date</Label>
-                      <Input
-                        type="date"
+                      <DateInput
                         value={format(statementFromDate, "yyyy-MM-dd")}
-                        onChange={(e) => setStatementFromDate(new Date(e.target.value))}
+                        onChange={(val) => setStatementFromDate(new Date(val))}
                         className="h-9"
                       />
                     </div>
