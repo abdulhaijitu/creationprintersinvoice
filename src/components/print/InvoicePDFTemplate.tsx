@@ -414,7 +414,7 @@ export function InvoicePDFTemplate({ data }: { data: InvoicePDFData }) {
               <tr>
                 <td style={{ color: '#6b7280', padding: '2px 0' }}>Date:</td>
                 <td style={{ fontWeight: '500', textAlign: 'right' }}>
-                  {format(new Date(data.invoice.date), 'dd/MM/yyyy')}
+                  {format(parseISO(data.invoice.date), 'dd/MM/yyyy')}
                 </td>
               </tr>
               {data.invoice.dueDate && (
