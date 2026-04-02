@@ -360,8 +360,8 @@ const CustomerDetail = () => {
                               {getStatusBadge(invoice.status || "unpaid")}
                             </div>
                             <div className="flex justify-between text-sm text-muted-foreground">
-                              <span>{format(new Date(invoice.invoice_date), "dd/MM/yyyy")}</span>
-                              <span>Due: {invoice.due_date ? format(new Date(invoice.due_date), "dd/MM/yyyy") : "-"}</span>
+                              <span>{format(parseISO(invoice.invoice_date), "dd/MM/yyyy")}</span>
+                              <span>Due: {invoice.due_date ? format(parseISO(invoice.due_date), "dd/MM/yyyy") : "-"}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span>Total: <span className="font-medium">{formatCurrency(invoice.total)}</span></span>
