@@ -11,7 +11,7 @@ import {
 import {
   DollarSign, TrendingUp, AlertCircle, Users, FileText, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 
 interface AnalyticsData {
   totalRevenue: number;
@@ -75,7 +75,7 @@ export function BusinessAnalyticsDashboard() {
         const overdueInvoices = invoices.filter(inv => {
           if (inv.status === 'paid') return false;
           if (!inv.due_date) return false;
-          return new Date(inv.due_date) < today;
+          return parseISO(inv.due_date) < today;
         });
         const overdueAmount = overdueInvoices.reduce(
           (sum, inv) => sum + (Number(inv.total) - Number(inv.paid_amount)), 0
@@ -126,7 +126,7 @@ export function BusinessAnalyticsDashboard() {
         };
 
         invoices.forEach(inv => {
-          const isOverdue = inv.status !== 'paid' && inv.due_date && new Date(inv.due_date) < today;
+          const isOverdue = inv.status !== 'paid' && inv.due_date && parseISO(inv.due_date) < today;
           const status = isOverdue ? 'overdue' : (inv.status as string);
           if (statusCounts[status]) {
             statusCounts[status].count++;

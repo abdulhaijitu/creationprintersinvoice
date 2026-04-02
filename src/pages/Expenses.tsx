@@ -53,7 +53,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -836,7 +836,7 @@ const Expenses = () => {
     }
     
     const exportData = filteredExpenses.map(exp => ({
-      date: format(new Date(exp.date), 'dd/MM/yyyy'),
+      date: format(parseISO(exp.date), 'dd/MM/yyyy'),
       description: exp.description,
       category: exp.category?.name || '',
       vendor: exp.vendor?.name || '',
@@ -1821,7 +1821,7 @@ const Expenses = () => {
                   paginatedExpenses.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell>
-                        {format(new Date(expense.date), "dd/MM/yyyy")}
+                        {format(parseISO(expense.date), "dd/MM/yyyy")}
                       </TableCell>
                       <TableCell className="max-w-[150px] lg:max-w-[200px] truncate">
                         {expense.description}
@@ -1922,7 +1922,7 @@ const Expenses = () => {
                           {formatCurrency(expense.amount)}
                         </p>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
-                          <span>{format(new Date(expense.date), 'dd/MM/yyyy')}</span>
+                          <span>{format(parseISO(expense.date), 'dd/MM/yyyy')}</span>
                           {expense.payment_method && (
                             <span className="capitalize flex items-center gap-1">
                               {getPaymentMethodIcon(expense.payment_method)}

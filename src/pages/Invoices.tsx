@@ -463,8 +463,8 @@ const Invoices = () => {
 
       switch (sortKey) {
         case 'invoice_date':
-          aVal = new Date(a.invoice_date).getTime();
-          bVal = new Date(b.invoice_date).getTime();
+          aVal = parseISO(a.invoice_date).getTime();
+          bVal = parseISO(b.invoice_date).getTime();
           break;
         case 'invoice_number':
           aVal = a.invoice_number;
@@ -545,7 +545,7 @@ const Invoices = () => {
       return {
         invoice_number: inv.invoice_number,
         customer_name: inv.customers?.name || '',
-        invoice_date: format(new Date(inv.invoice_date), 'dd/MM/yyyy'),
+        invoice_date: format(parseISO(inv.invoice_date), 'dd/MM/yyyy'),
         total: inv.total,
         paid_amount: inv.paid_amount,
         due_amount: statusInfo.dueAmount,
@@ -1092,7 +1092,7 @@ const Invoices = () => {
                                 />
                               </TableCell>
                               <TableCell className="text-muted-foreground whitespace-nowrap">
-                                {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
+                                {format(parseISO(invoice.invoice_date), 'dd/MM/yyyy')}
                               </TableCell>
                               <TableCell className="font-semibold text-foreground">
                                 {invoice.invoice_number}
@@ -1220,7 +1220,7 @@ const Invoices = () => {
                               ) : (invoice.customers?.name || 'No Customer')}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
+                              {format(parseISO(invoice.invoice_date), 'dd/MM/yyyy')}
                             </p>
                           </div>
                           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>

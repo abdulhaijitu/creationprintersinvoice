@@ -7,7 +7,7 @@
  * Optimized for A4 print. No UI-only elements.
  */
 
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { sanitizeHtml } from '@/lib/sanitize';
 
 // ============================================
@@ -473,14 +473,14 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
                 <tr>
                   <td style={{ color: '#6b7280', padding: '2px 0' }}>Date:</td>
                   <td style={{ fontWeight: '500', textAlign: 'right' }}>
-                    {format(new Date(data.quotation.date), 'dd/MM/yyyy')}
+                    {format(parseISO(data.quotation.date), 'dd/MM/yyyy')}
                   </td>
                 </tr>
                 {data.quotation.validUntil && (
                   <tr>
                     <td style={{ color: '#6b7280', padding: '2px 0' }}>Valid Until:</td>
                     <td style={{ fontWeight: '500', textAlign: 'right' }}>
-                      {format(new Date(data.quotation.validUntil), 'dd/MM/yyyy')}
+                      {format(parseISO(data.quotation.validUntil), 'dd/MM/yyyy')}
                     </td>
                   </tr>
                 )}

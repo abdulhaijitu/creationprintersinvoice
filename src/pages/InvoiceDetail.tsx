@@ -36,7 +36,7 @@ import {
   Truck,
   User,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import PrintTemplate from '@/components/print/PrintTemplate';
 import '@/components/print/printStyles.css';
 import { CreateChallanDialog } from '@/components/delivery-challan/CreateChallanDialog';
@@ -306,7 +306,7 @@ const InvoiceDetail = () => {
             <div>
               <h1 className="text-3xl font-bold">Invoice #{invoice.invoice_number}</h1>
               <p className="text-muted-foreground">
-                {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
+                {format(parseISO(invoice.invoice_date), 'dd/MM/yyyy')}
               </p>
             </div>
           </div>
@@ -419,12 +419,12 @@ const InvoiceDetail = () => {
                       </p>
                       <p className="text-sm">
                         <span className="text-muted-foreground">Date:</span>{' '}
-                        {format(new Date(invoice.invoice_date), 'dd MMM yyyy')}
+                        {format(parseISO(invoice.invoice_date), 'dd MMM yyyy')}
                       </p>
                       {invoice.due_date && (
                         <p className="text-sm">
                           <span className="text-muted-foreground">Due:</span>{' '}
-                          {format(new Date(invoice.due_date), 'dd MMM yyyy')}
+                          {format(parseISO(invoice.due_date), 'dd MMM yyyy')}
                         </p>
                       )}
                     </div>

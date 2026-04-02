@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, User, Mail, Phone, MapPin, Building2, FileText, CreditCard, AlertCircle, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { CustomerStatementPDF } from "@/components/customer/CustomerStatementPDF";
 
 interface Customer {
@@ -360,8 +360,8 @@ const CustomerDetail = () => {
                               {getStatusBadge(invoice.status || "unpaid")}
                             </div>
                             <div className="flex justify-between text-sm text-muted-foreground">
-                              <span>{format(new Date(invoice.invoice_date), "dd/MM/yyyy")}</span>
-                              <span>Due: {invoice.due_date ? format(new Date(invoice.due_date), "dd/MM/yyyy") : "-"}</span>
+                              <span>{format(parseISO(invoice.invoice_date), "dd/MM/yyyy")}</span>
+                              <span>Due: {invoice.due_date ? format(parseISO(invoice.due_date), "dd/MM/yyyy") : "-"}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span>Total: <span className="font-medium">{formatCurrency(invoice.total)}</span></span>
@@ -393,10 +393,10 @@ const CustomerDetail = () => {
                               onClick={() => navigate(`/invoices/${invoice.id}`)}
                             >
                               <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                              <TableCell>{format(new Date(invoice.invoice_date), "dd/MM/yyyy")}</TableCell>
+                              <TableCell>{format(parseISO(invoice.invoice_date), "dd/MM/yyyy")}</TableCell>
                               <TableCell>
                                 {invoice.due_date
-                                  ? format(new Date(invoice.due_date), "dd/MM/yyyy")
+                                  ? format(parseISO(invoice.due_date), "dd/MM/yyyy")
                                   : "-"}
                               </TableCell>
                               <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>

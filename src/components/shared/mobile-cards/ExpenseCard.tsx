@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Eye, Edit2, Trash2, MoreHorizontal, Tag, Building2 } from 'lucide-react';
@@ -54,7 +54,7 @@ export const ExpenseCard = ({
 
             {/* Date + payment method */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span>{format(new Date(expense.date), 'dd/MM/yyyy')}</span>
+              <span>{format(parseISO(expense.date), 'dd/MM/yyyy')}</span>
               {expense.payment_method && (
                 <span className="capitalize">• {expense.payment_method}</span>
               )}
