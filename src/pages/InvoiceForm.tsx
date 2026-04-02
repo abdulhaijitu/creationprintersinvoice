@@ -359,6 +359,11 @@ const InvoiceForm = () => {
       return;
     }
 
+    if (!formData.invoice_date) {
+      toast.error('Please select an invoice date');
+      return;
+    }
+
     if (items.some((item) => !item.description)) {
       toast.error('Please provide description for all items');
       return;
@@ -412,14 +417,18 @@ const InvoiceForm = () => {
         const itemsToDelete = existingItemIds.filter(existingId => !currentItemIds.includes(existingId));
         
         if (itemsToDelete.length > 0) {
+          // Delete related costing items first (ignore errors for safety)
           for (const itemId of itemsToDelete) {
-            await supabase.from('invoice_costing_items' as any).delete().eq('invoice_item_id', itemId);
+            try {
+              await supabase.from('invoice_costing_items' as any).delete().eq('invoice_item_id', itemId);
+            } catch { /* ignore costing delete errors */ }
           }
-          await supabase.from('invoice_items').delete().in('id', itemsToDelete);
+          const { error: deleteError } = await supabase.from('invoice_items').delete().in('id', itemsToDelete);
+          if (deleteError) throw deleteError;
         }
         
         for (const { id: itemId, item } of itemsToUpdate) {
-          await supabase.from('invoice_items').update({
+          const { error: updateError } = await supabase.from('invoice_items').update({
             description: item.description,
             quantity: item.quantity,
             unit: item.unit || null,
@@ -427,6 +436,7 @@ const InvoiceForm = () => {
             discount: 0,
             total: item.total,
           }).eq('id', itemId);
+          if (updateError) throw updateError;
         }
         
         if (itemsToInsert.length > 0) {
@@ -443,6 +453,30 @@ const InvoiceForm = () => {
           }));
           const { error: itemsError } = await supabase.from('invoice_items').insert(newInvoiceItems);
           if (itemsError) throw itemsError;
+        }
+
+        // Save costing items in edit path
+        if (costingPermissions.canSave && costingItems.length > 0) {
+          const validCostingItems = costingItems.filter(item => item.item_type && item.invoice_item_id);
+          if (validCostingItems.length > 0) {
+            // Delete existing costing items for this invoice first
+            try {
+              await supabase.from('invoice_costing_items' as any).delete().eq('invoice_id', id);
+            } catch { /* ignore */ }
+            
+            const costingData = validCostingItems.map((item, index) => ({
+              invoice_id: id,
+              invoice_item_id: item.invoice_item_id,
+              item_no: item.item_no,
+              organization_id: organization?.id,
+              item_type: item.item_type,
+              description: item.description || null,
+              quantity: item.quantity,
+              price: item.price,
+              sort_order: index,
+            }));
+            await supabase.from('invoice_costing_items' as any).insert(costingData);
+          }
         }
 
         toast.success('Invoice updated');
