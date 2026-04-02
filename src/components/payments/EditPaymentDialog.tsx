@@ -234,7 +234,7 @@ export function EditPaymentDialog({
             id="payment_date"
             value={formData.payment_date}
             onChange={(val) => setFormData((prev) => ({ ...prev, payment_date: val }))}
-            max={format(new Date(), 'yyyy-MM-dd')}
+            maxDate={format(new Date(), 'yyyy-MM-dd')}
           />
         </div>
 
