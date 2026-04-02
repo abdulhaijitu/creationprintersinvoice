@@ -36,7 +36,7 @@ import {
   Truck,
   User,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import PrintTemplate from '@/components/print/PrintTemplate';
 import '@/components/print/printStyles.css';
 import { CreateChallanDialog } from '@/components/delivery-challan/CreateChallanDialog';
