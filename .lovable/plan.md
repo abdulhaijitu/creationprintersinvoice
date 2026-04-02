@@ -1,49 +1,59 @@
 
 
-# ডেট পিকার `defaultMonth` অডিট ও ফিক্স
+# Edit Invoice "Saving..." স্টাক ইস্যু ফিক্স
 
-## সমস্যা
-কিছু Calendar কম্পোনেন্টে `defaultMonth` prop নেই, ফলে ক্যালেন্ডার সবসময় আজকের মাসে ওপেন হয় — সিলেক্টেড ডেটের মাসে নয়।
+## সমস্যা বিশ্লেষণ
 
-## চিহ্নিত সমস্যা (4টি)
+Edit Invoice-এ Save করলে "Saving..." দেখায় এবং আটকে যায়। কোড বিশ্লেষণে কয়েকটি সমস্যা পাওয়া গেছে:
 
-| ফাইল | লাইন | ধরন | সমস্যা |
-|---|---|---|---|
-| `date-picker.tsx` | 81 | single | `defaultMonth` নেই |
-| `Invoices.tsx` | 876 | range | `defaultMonth` নেই |
-| `AllBillsTab.tsx` | 288 | range | `defaultMonth` নেই |
-| `TableToolbar.tsx` | 156 | range | `defaultMonth` নেই |
+1. **Error handling অসম্পূর্ণ**: `for` loop-এর ভেতরে individual item update/delete-এ error check নেই। কোনো operation fail করলে error silently swallow হয়ে পরের operation-এ আটকে যেতে পারে।
+2. **`invoice_costing_items as any` delete**: Type cast-এর কারণে runtime error হতে পারে যা catch হচ্ছে না।
+3. **Empty `invoice_date` guard নেই**: যদি DateInput থেকে empty string আসে, DB update fail হবে।
 
-## ইতিমধ্যে ঠিক আছে (পরিবর্তন দরকার নেই)
-- `date-input.tsx` — আগেই ফিক্স করা হয়েছে ✓
-- `CalendarWithJumps` (vendor bill dialogs) — নিজে `displayMonth` state manage করে ✓
-- `WeeklyHolidaySettings.tsx` — শুধু display, selection নেই ✓
+## ফিক্স — `src/pages/InvoiceForm.tsx`
 
-## ফিক্স
-
-### 1. `src/components/ui/date-picker.tsx` (line 81)
-```tsx
-// যোগ করতে হবে:
-defaultMonth={value}
+### 1. Invoice date validation যোগ (line ~357)
+```typescript
+if (!formData.invoice_date) {
+  toast.error('Please select an invoice date');
+  return;
+}
 ```
 
-### 2. `src/pages/Invoices.tsx` (line 876)
-```tsx
-// যোগ করতে হবে:
-defaultMonth={dateFrom ? parseISO(dateFrom) : undefined}
+### 2. Delete loop-এ error checking (lines 414-419)
+```typescript
+if (itemsToDelete.length > 0) {
+  // Costing items delete - ignore errors (table may not exist)
+  for (const itemId of itemsToDelete) {
+    try {
+      await supabase.from('invoice_costing_items' as any).delete().eq('invoice_item_id', itemId);
+    } catch {}
+  }
+  const { error: deleteError } = await supabase.from('invoice_items').delete().in('id', itemsToDelete);
+  if (deleteError) throw deleteError;
+}
 ```
 
-### 3. `src/components/vendor/AllBillsTab.tsx` (line 288)
-```tsx
-// যোগ করতে হবে:
-defaultMonth={dateRange?.from}
+### 3. Update loop-এ error checking (lines 421-429)
+```typescript
+for (const { id: itemId, item } of itemsToUpdate) {
+  const { error: updateError } = await supabase.from('invoice_items').update({
+    description: item.description,
+    quantity: item.quantity,
+    unit: item.unit || null,
+    unit_price: item.unit_price,
+    discount: 0,
+    total: item.total,
+  }).eq('id', itemId);
+  if (updateError) throw updateError;
+}
 ```
 
-### 4. `src/components/shared/TableToolbar.tsx` (line 156)
-```tsx
-// যোগ করতে হবে:
-defaultMonth={dateRange?.from}
-```
+### 4. Costing items save — edit path-এ missing (line 446 এর পরে)
+Create path-এ costing items save আছে (line 517-533) কিন্তু edit path-এ নেই। Edit path-এও costing items save যোগ করা হবে।
 
-## মোট পরিবর্তন: 4টি ফাইল, প্রতিটিতে 1 লাইন যোগ
+## মোট পরিবর্তন: ১টি ফাইল
+- Invoice date empty validation
+- Error checking সব DB operation-এ
+- Edit path-এ costing items save logic
 
