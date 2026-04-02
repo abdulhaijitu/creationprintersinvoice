@@ -655,7 +655,10 @@ const InvoiceForm = () => {
                       value={formData.customer_id}
                       onValueChange={handleCustomerChange}
                       customers={customers}
-                      onCustomerAdded={fetchCustomers}
+                      onCustomerAdded={async () => {
+                        const { data } = await supabase.from('customers').select('id, name, default_notes, default_terms').order('name');
+                        if (data) setCustomers(data);
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
