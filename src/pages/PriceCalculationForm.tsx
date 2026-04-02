@@ -697,8 +697,8 @@ const PriceCalculationForm = () => {
             .eq('id', id);
         }
 
-        queryClient.invalidateQueries({ queryKey: ['invoices'] });
-        queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
+        await queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        await queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
         toast.success('Invoice created');
         navigate(`/invoices/${invoice.id}`);
       }
