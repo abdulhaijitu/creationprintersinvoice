@@ -1036,11 +1036,10 @@ const Expenses = () => {
 
                       <div className="space-y-2">
                         <Label>Due Date</Label>
-                        <Input
-                          type="date"
+                        <DateInput
                           value={billFormData.due_date}
-                          onChange={(e) =>
-                            setBillFormData({ ...billFormData, due_date: e.target.value })
+                          onChange={(val) =>
+                            setBillFormData({ ...billFormData, due_date: val })
                           }
                         />
                       </div>
