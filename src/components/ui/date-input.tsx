@@ -184,6 +184,7 @@ const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
             <Calendar
               mode="single"
               selected={calendarSelected}
+              defaultMonth={calendarSelected}
               onSelect={handleCalendarSelect}
               disabled={disabledDays}
               initialFocus
