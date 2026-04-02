@@ -481,7 +481,7 @@ const InvoiceForm = () => {
           }
         }
 
-        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        await queryClient.invalidateQueries({ queryKey: ['invoices'] });
         toast.success('Invoice updated');
         navigate(`/invoices/${id}`);
       } else {
