@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { CalendarWithJumps } from '@/components/ui/calendar-with-jumps';
 import { Search, Filter, X, CalendarIcon, Download, Upload, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';

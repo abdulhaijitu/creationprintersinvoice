@@ -3,7 +3,7 @@ import { format, parse, isValid, parseISO } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
-import { Calendar } from "./calendar";
+import { CalendarWithJumps } from "./calendar-with-jumps";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Input } from "./input";
 
