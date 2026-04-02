@@ -587,7 +587,7 @@ const PriceCalculationForm = () => {
           .select()
           .single();
         if (error) throw error;
-        queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
+        await queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
         toast.success('Calculation saved');
         navigate(`/price-calculation/${data.id}`);
       }
@@ -657,8 +657,8 @@ const PriceCalculationForm = () => {
             .eq('id', id);
         }
 
-        queryClient.invalidateQueries({ queryKey: ['quotations'] });
-        queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
+        await queryClient.invalidateQueries({ queryKey: ['quotations'] });
+        await queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
         toast.success('Quotation created');
         navigate(`/quotations/${quotation.id}`);
       } else {
@@ -697,8 +697,8 @@ const PriceCalculationForm = () => {
             .eq('id', id);
         }
 
-        queryClient.invalidateQueries({ queryKey: ['invoices'] });
-        queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
+        await queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        await queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
         toast.success('Invoice created');
         navigate(`/invoices/${invoice.id}`);
       }
