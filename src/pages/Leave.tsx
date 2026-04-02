@@ -7,6 +7,7 @@ import { queryKeys, STALE_TIMES } from "@/hooks/useQueryConfig";
 import { useWeeklyHolidays } from "@/hooks/useWeeklyHolidays";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
