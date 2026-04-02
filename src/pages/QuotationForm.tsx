@@ -174,19 +174,8 @@ const QuotationForm = () => {
     }
   }, [isEditing, companySettings]);
 
-  const fetchCustomers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('id, name, default_notes, default_terms')
-        .order('name');
 
-      if (error) throw error;
-      setCustomers(data || []);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-    }
-  };
+
   
   // Handle customer selection - auto-fill defaults
   const handleCustomerChange = (customerId: string) => {
