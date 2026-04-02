@@ -633,7 +633,7 @@ const InvoiceDetail = () => {
                           <div className="flex items-center gap-1 text-xs text-muted-foreground pt-1 border-t border-border/50">
                             <User className="h-3 w-3" />
                             <span>
-                              Recorded {format(new Date(payment.created_at), 'dd/MM/yyyy HH:mm')}
+                              Recorded {format(parseISO(payment.created_at), 'dd/MM/yyyy HH:mm')}
                             </span>
                           </div>
                         </div>
