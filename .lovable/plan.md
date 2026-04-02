@@ -1,25 +1,78 @@
 
 
-# ক্যাশ ইনভ্যালিডেশন কী মিসম্যাচ ফিক্স
+# এডিট/ডিটেইল পেইজে SPA নেভিগেশনে লোডিং আটকে যাওয়া ফিক্স
 
 ## সমস্যা
-ফর্মে `invalidateQueries({ queryKey: ['invoices'] })` কল হচ্ছে, কিন্তু লিস্ট পেইজে কুয়েরি কী `['invoices', orgId]`। React Query partial key matching-এ `['invoices']` দিয়ে `['invoices', orgId]` ম্যাচ হওয়া উচিত — কিন্তু `invalidateQueries` exact prefix match করে, তাই এটি কাজ করছে।
+ইনভয়েস এডিট, কোটেশন এডিট, ইনভয়েস ডিটেইল, কোটেশন ডিটেইল, কাস্টমার ডিটেইল, ভেন্ডর ডিটেইল — এই পেইজগুলো `useEffect` + manual async fetch ব্যবহার করে। SPA নেভিগেশনে (ক্লিক করে যাওয়া) এই fetch হ্যাং হয়ে যায়, কিন্তু রিফ্রেশ দিলে কাজ করে। লিস্ট পেইজগুলো React Query ব্যবহার করে বলে সেগুলোতে এই সমস্যা নেই।
 
-আসলে সমস্যা হচ্ছে `invalidateQueries` async — এটি `await` ছাড়া কল হচ্ছে, তারপর সাথে সাথে `navigate()` হচ্ছে। Navigate হলে component unmount হয়ে যায় এবং invalidation আর refetch সম্পূর্ণ হওয়ার আগেই নতুন পেইজ পুরনো cache থেকে ডেটা দেখায়।
+## মূল কারণ
+- manual `useEffect` fetch-এ কোনো AbortController নেই — কম্পোনেন্ট unmount/remount হলে পুরানো request cancel হয় না
+- Auth token refresh চলাকালীন supabase request queue হয়ে আটকে যায়
+- `finally` block-এ `setFetching(false)` execute হয় না যদি request resolve না হয়
 
-## ফিক্স — `await` যোগ করা
+## ফিক্স — AbortController যোগ করা (6টি ফাইল)
+
+প্রতিটি ফাইলে `useEffect` এর মধ্যে `AbortController` যোগ করা হবে যাতে নেভিগেশনে পুরানো request cancel হয় এবং timeout-এ আটকে না থাকে।
 
 ### 1. `src/pages/InvoiceForm.tsx`
-- Line ~484: `queryClient.invalidateQueries(...)` → `await queryClient.invalidateQueries(...)`
-- Line ~572: Same
+- `fetchInvoice` ও `fetchCustomers` কে `useEffect` এর ভিতরে নিয়ে আসা
+- AbortController দিয়ে cleanup
+- Timeout safety net (10 সেকেন্ড)
+
+```typescript
+useEffect(() => {
+  const controller = new AbortController();
+  
+  const loadData = async () => {
+    try {
+      // fetchCustomers inline
+      const { data } = await supabase
+        .from('customers').select('...').order('name')
+        .abortSignal(controller.signal);
+      if (!controller.signal.aborted) setCustomers(data || []);
+    } catch {}
+    
+    if (isEditing && !controller.signal.aborted) {
+      setFetching(true);
+      try {
+        // fetch invoice, items, costing — same logic
+        // pass controller.signal to each query
+      } catch (e) {
+        if (!controller.signal.aborted) toast.error('Failed to load');
+      } finally {
+        if (!controller.signal.aborted) setFetching(false);
+      }
+    } else if (!isEditing) {
+      setItems([{ id: crypto.randomUUID(), ... }]);
+    }
+  };
+  
+  loadData();
+  return () => controller.abort();
+}, [id, isEditing]);
+```
 
 ### 2. `src/pages/QuotationForm.tsx`
-- Line ~330: `await` যোগ
-- Line ~389: `await` যোগ
+- একই প্যাটার্ন — `fetchCustomers` ও `fetchQuotation` কে AbortController দিয়ে wrap
 
-### 3. `src/pages/PriceCalculationForm.tsx`
-- Line ~590, ~660-661, ~700-701: সব `invalidateQueries` কলে `await` যোগ
+### 3. `src/pages/InvoiceDetail.tsx`
+- `fetchInvoice` এ AbortController + cleanup
 
-## মোট পরিবর্তন: 3টি ফাইল
-প্রতিটিতে `invalidateQueries()` কলের আগে `await` যোগ করা হবে যাতে ক্যাশ রিফ্রেশ সম্পূর্ণ হওয়ার পরেই navigate হয়।
+### 4. `src/pages/QuotationDetail.tsx`
+- `fetchQuotation` এ AbortController + cleanup
+
+### 5. `src/pages/CustomerDetail.tsx`
+- `fetchCustomerData` এ AbortController + cleanup
+
+### 6. `src/pages/VendorDetail.tsx`
+- `fetchVendorData` এ AbortController + cleanup
+
+## প্রতিটি ফাইলে যা পরিবর্তন হবে
+1. `useEffect` এর ভিতরে `AbortController` তৈরি
+2. Supabase query-তে `.abortSignal(controller.signal)` যোগ
+3. State update-এর আগে `!controller.signal.aborted` চেক
+4. `useEffect` cleanup-এ `controller.abort()` কল
+5. Error handler-এ AbortError ignore করা
+
+## মোট পরিবর্তন: 6টি ফাইল
 
