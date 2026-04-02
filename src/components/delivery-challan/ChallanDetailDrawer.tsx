@@ -140,7 +140,7 @@ export function ChallanDetailDrawer({
                 </div>
                 <div className="min-w-0">
                   <SheetTitle className="text-base md:text-lg font-semibold truncate">
-                    {loading ? 'Loading...' : 'Delivery Challan'}
+                    {loading ? <Skeleton className="h-5 w-32" /> : 'Delivery Challan'}
                   </SheetTitle>
                   {!loading && challan && (
                     <p className="text-sm text-muted-foreground font-mono">

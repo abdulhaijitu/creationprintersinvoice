@@ -333,7 +333,7 @@ export function ReferenceLink({
   }, [referenceType, referenceId]);
 
   if (loading) {
-    return <span className="text-sm text-muted-foreground">Loading...</span>;
+    return <Skeleton className="h-4 w-24 inline-block" />;
   }
 
   if (!reference) {

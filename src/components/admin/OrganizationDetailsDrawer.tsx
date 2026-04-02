@@ -680,7 +680,7 @@ const OrganizationDetailsDrawer = ({
                 <CardContent>
                   {loading ? (
                     <div className="flex justify-center py-8">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     </div>
                   ) : (
                     <Table>

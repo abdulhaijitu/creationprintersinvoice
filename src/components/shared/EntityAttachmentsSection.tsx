@@ -84,7 +84,17 @@ export function EntityAttachmentsSection({ entityType, entityId, canUpload = tru
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30" style={{ animationDelay: `${i * 150}ms` }}>
+                <Skeleton className="h-4 w-4 rounded flex-shrink-0" />
+                <div className="flex-1 space-y-1">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : attachments.length === 0 ? (
           <p className="text-sm text-muted-foreground">No attachments yet</p>
         ) : (

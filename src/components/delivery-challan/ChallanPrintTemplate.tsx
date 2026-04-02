@@ -88,12 +88,16 @@ export default function ChallanPrintTemplate() {
     return (
       <div style={{ 
         display: 'flex', 
+        flexDirection: 'column',
         alignItems: 'center', 
         justifyContent: 'center', 
         height: '100vh',
         fontFamily: "'Inter', sans-serif",
+        gap: '12px',
       }}>
-        <p style={{ color: '#6b7280' }}>Loading...</p>
+        <div style={{ width: 32, height: 32, border: '3px solid #e5e7eb', borderTopColor: 'hsl(var(--primary))', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <p style={{ color: '#6b7280', fontSize: '14px' }}>Preparing print...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }

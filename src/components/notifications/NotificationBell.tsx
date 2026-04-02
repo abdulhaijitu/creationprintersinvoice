@@ -131,7 +131,7 @@ export const NotificationBell = () => {
         <ScrollArea className="h-[300px]">
           {loading ? (
             <div className="flex items-center justify-center h-20">
-              <span className="text-sm text-muted-foreground">Loading...</span>
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-20 text-muted-foreground">
