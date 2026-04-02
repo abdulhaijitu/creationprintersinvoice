@@ -306,7 +306,7 @@ const InvoiceDetail = () => {
             <div>
               <h1 className="text-3xl font-bold">Invoice #{invoice.invoice_number}</h1>
               <p className="text-muted-foreground">
-                {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
+                {format(parseISO(invoice.invoice_date), 'dd/MM/yyyy')}
               </p>
             </div>
           </div>
