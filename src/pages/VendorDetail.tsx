@@ -7,6 +7,7 @@ import { useOrganization } from "@/contexts/OrganizationContext";
 import { useOrgRolePermissions } from "@/hooks/useOrgRolePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -668,19 +669,17 @@ const VendorDetail = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">From Date</Label>
-                      <Input
-                        type="date"
+                      <DateInput
                         value={format(statementFromDate, "yyyy-MM-dd")}
-                        onChange={(e) => setStatementFromDate(new Date(e.target.value))}
+                        onChange={(val) => setStatementFromDate(new Date(val))}
                         className="h-9"
                       />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">To Date</Label>
-                      <Input
-                        type="date"
+                      <DateInput
                         value={format(statementToDate, "yyyy-MM-dd")}
-                        onChange={(e) => setStatementToDate(new Date(e.target.value))}
+                        onChange={(val) => setStatementToDate(new Date(val))}
                         className="h-9"
                       />
                     </div>
@@ -775,11 +774,10 @@ const VendorDetail = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Date</Label>
-                        <Input
-                          type="date"
+                        <DateInput
                           value={paymentForm.payment_date}
-                          onChange={(e) =>
-                            setPaymentForm({ ...paymentForm, payment_date: e.target.value })
+                          onChange={(val) =>
+                            setPaymentForm({ ...paymentForm, payment_date: val })
                           }
                         />
                       </div>

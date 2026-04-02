@@ -8,6 +8,7 @@ import { useCostingPermissions } from '@/hooks/useCostingPermissions';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
@@ -610,21 +611,19 @@ const InvoiceForm = () => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-medium text-muted-foreground">Invoice Date</Label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={formData.invoice_date}
-                      onChange={(e) =>
-                        setFormData({ ...formData, invoice_date: e.target.value })
+                      onChange={(val) =>
+                        setFormData({ ...formData, invoice_date: val })
                       }
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-medium text-muted-foreground">Due Date</Label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={formData.due_date}
-                      onChange={(e) =>
-                        setFormData({ ...formData, due_date: e.target.value })
+                      onChange={(val) =>
+                        setFormData({ ...formData, due_date: val })
                       }
                     />
                   </div>

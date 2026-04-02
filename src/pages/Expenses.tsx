@@ -6,6 +6,7 @@ import { useOrganization } from "@/contexts/OrganizationContext";
 import { canRolePerform, OrgRole } from "@/lib/permissions/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -1002,11 +1003,10 @@ const Expenses = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Bill Date</Label>
-                          <Input
-                            type="date"
+                          <DateInput
                             value={billFormData.bill_date}
-                            onChange={(e) =>
-                              setBillFormData({ ...billFormData, bill_date: e.target.value })
+                            onChange={(val) =>
+                              setBillFormData({ ...billFormData, bill_date: val })
                             }
                           />
                         </div>
@@ -1036,11 +1036,10 @@ const Expenses = () => {
 
                       <div className="space-y-2">
                         <Label>Due Date</Label>
-                        <Input
-                          type="date"
+                        <DateInput
                           value={billFormData.due_date}
-                          onChange={(e) =>
-                            setBillFormData({ ...billFormData, due_date: e.target.value })
+                          onChange={(val) =>
+                            setBillFormData({ ...billFormData, due_date: val })
                           }
                         />
                       </div>
@@ -1096,11 +1095,10 @@ const Expenses = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Payment Date</Label>
-                          <Input
-                            type="date"
+                          <DateInput
                             value={paymentFormData.payment_date}
-                            onChange={(e) =>
-                              setPaymentFormData({ ...paymentFormData, payment_date: e.target.value })
+                            onChange={(val) =>
+                              setPaymentFormData({ ...paymentFormData, payment_date: val })
                             }
                           />
                         </div>
@@ -1651,12 +1649,11 @@ const Expenses = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="expense_date">Date</Label>
-                        <Input
+                        <DateInput
                           id="expense_date"
-                          type="date"
                           value={expenseFormData.date}
-                          onChange={(e) =>
-                            setExpenseFormData({ ...expenseFormData, date: e.target.value })
+                          onChange={(val) =>
+                            setExpenseFormData({ ...expenseFormData, date: val })
                           }
                         />
                       </div>

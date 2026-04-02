@@ -7,6 +7,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useCompanySettings } from '@/contexts/CompanySettingsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -463,21 +464,19 @@ const QuotationForm = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Quotation Date</Label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formData.quotation_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, quotation_date: e.target.value })
+                    onChange={(val) =>
+                      setFormData({ ...formData, quotation_date: val })
                     }
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Valid Until</Label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formData.valid_until}
-                    onChange={(e) =>
-                      setFormData({ ...formData, valid_until: e.target.value })
+                    onChange={(val) =>
+                      setFormData({ ...formData, valid_until: val })
                     }
                   />
                 </div>

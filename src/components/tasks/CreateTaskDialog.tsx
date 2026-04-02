@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -231,11 +232,10 @@ export function CreateTaskDialog({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Deadline</Label>
-          <Input
-            type="date"
+          <DateInput
             value={formData.deadline}
-            onChange={(e) =>
-              setFormData({ ...formData, deadline: e.target.value })
+            onChange={(val) =>
+              setFormData({ ...formData, deadline: val })
             }
           />
         </div>

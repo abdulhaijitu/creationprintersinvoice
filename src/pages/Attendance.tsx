@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys, STALE_TIMES } from "@/hooks/useQueryConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -647,7 +648,7 @@ const Attendance = () => {
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-[180px]" />
+                  <DateInput value={selectedDate} onChange={(val) => setSelectedDate(val)} className="w-[180px]" />
                 </div>
                 {(isAdmin || isSuperAdmin) && (
                   <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>

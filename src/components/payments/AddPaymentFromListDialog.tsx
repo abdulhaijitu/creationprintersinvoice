@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { processEdgeFunctionResponse } from '@/lib/edgeFunctionUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -322,12 +323,11 @@ export function AddPaymentFromListDialog({
                 {/* Payment Date */}
                 <div className="space-y-2">
                   <Label htmlFor="payment_date">Payment Date</Label>
-                  <Input
+                  <DateInput
                     id="payment_date"
-                    type="date"
                     value={formData.payment_date}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, payment_date: e.target.value }))}
-                    max={format(new Date(), 'yyyy-MM-dd')}
+                    onChange={(val) => setFormData((prev) => ({ ...prev, payment_date: val }))}
+                    maxDate={format(new Date(), 'yyyy-MM-dd')}
                   />
                 </div>
 

@@ -7,6 +7,7 @@ import { queryKeys, STALE_TIMES } from "@/hooks/useQueryConfig";
 import { useWeeklyHolidays } from "@/hooks/useWeeklyHolidays";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -402,18 +403,16 @@ const Leave = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Start Date</Label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    onChange={(val) => setFormData({ ...formData, start_date: val })}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>End Date</Label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formData.end_date}
-                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    onChange={(val) => setFormData({ ...formData, end_date: val })}
                   />
                 </div>
               </div>
