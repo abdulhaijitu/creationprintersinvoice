@@ -288,6 +288,7 @@ export function AllBillsTab() {
               <Calendar
                 initialFocus
                 mode="range"
+                defaultMonth={dateRange?.from}
                 selected={dateRange?.from ? { from: dateRange.from, to: dateRange.to } : undefined}
                 onSelect={(range) => handleDateRangeChange(range as DateRange | undefined)}
                 numberOfMonths={2}

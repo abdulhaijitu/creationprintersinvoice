@@ -876,6 +876,7 @@ const Invoices = () => {
                           <Calendar
                             initialFocus
                             mode="range"
+                            defaultMonth={dateFrom ? parseISO(dateFrom) : undefined}
                             selected={dateFrom && dateTo ? { from: parseISO(dateFrom), to: parseISO(dateTo) } : undefined}
                             onSelect={(range) => {
                               setDateRange(range?.from, range?.to);
