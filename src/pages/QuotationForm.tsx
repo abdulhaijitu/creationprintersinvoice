@@ -473,11 +473,10 @@ const QuotationForm = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Valid Until</Label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formData.valid_until}
-                    onChange={(e) =>
-                      setFormData({ ...formData, valid_until: e.target.value })
+                    onChange={(val) =>
+                      setFormData({ ...formData, valid_until: val })
                     }
                   />
                 </div>

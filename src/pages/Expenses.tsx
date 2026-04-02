@@ -1649,12 +1649,11 @@ const Expenses = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="expense_date">Date</Label>
-                        <Input
+                        <DateInput
                           id="expense_date"
-                          type="date"
                           value={expenseFormData.date}
-                          onChange={(e) =>
-                            setExpenseFormData({ ...expenseFormData, date: e.target.value })
+                          onChange={(val) =>
+                            setExpenseFormData({ ...expenseFormData, date: val })
                           }
                         />
                       </div>

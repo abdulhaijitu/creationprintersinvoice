@@ -774,11 +774,10 @@ const VendorDetail = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Date</Label>
-                        <Input
-                          type="date"
+                        <DateInput
                           value={paymentForm.payment_date}
-                          onChange={(e) =>
-                            setPaymentForm({ ...paymentForm, payment_date: e.target.value })
+                          onChange={(val) =>
+                            setPaymentForm({ ...paymentForm, payment_date: val })
                           }
                         />
                       </div>

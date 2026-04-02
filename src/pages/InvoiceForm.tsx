@@ -620,11 +620,10 @@ const InvoiceForm = () => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-medium text-muted-foreground">Due Date</Label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={formData.due_date}
-                      onChange={(e) =>
-                        setFormData({ ...formData, due_date: e.target.value })
+                      onChange={(val) =>
+                        setFormData({ ...formData, due_date: val })
                       }
                     />
                   </div>

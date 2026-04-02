@@ -230,10 +230,9 @@ export const PayVendorBillDialog = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Payment Date</Label>
-              <Input
-                type="date"
+              <DateInput
                 value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
+                onChange={(val) => setPaymentDate(val)}
               />
             </div>
             <div className="space-y-2">
