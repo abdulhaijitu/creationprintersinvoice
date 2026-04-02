@@ -62,7 +62,7 @@ export function InvoicePaymentSummary({
 }: InvoicePaymentSummaryProps) {
   const dueAmount = Number(invoice.total) - Number(invoice.paid_amount || 0);
   const isPaid = dueAmount <= 0;
-  const isOverdue = !isPaid && invoice.due_date && new Date(invoice.due_date) < new Date();
+  const isOverdue = !isPaid && invoice.due_date && parseISO(invoice.due_date) < new Date();
   const isPartial = !isPaid && Number(invoice.paid_amount || 0) > 0;
 
   const getStatusConfig = () => {
