@@ -403,10 +403,9 @@ const Leave = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Start Date</Label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    onChange={(val) => setFormData({ ...formData, start_date: val })}
                   />
                 </div>
                 <div className="space-y-2">
