@@ -428,7 +428,7 @@ const InvoiceForm = () => {
         }
         
         for (const { id: itemId, item } of itemsToUpdate) {
-          await supabase.from('invoice_items').update({
+          const { error: updateError } = await supabase.from('invoice_items').update({
             description: item.description,
             quantity: item.quantity,
             unit: item.unit || null,
@@ -436,6 +436,7 @@ const InvoiceForm = () => {
             discount: 0,
             total: item.total,
           }).eq('id', itemId);
+          if (updateError) throw updateError;
         }
         
         if (itemsToInsert.length > 0) {
