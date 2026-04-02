@@ -610,7 +610,7 @@ const InvoiceDetail = () => {
                                 {formatCurrency(Number(payment.amount))}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {format(new Date(payment.payment_date), 'dd MMM yyyy')}
+                                {format(parseISO(payment.payment_date), 'dd/MM/yyyy')}
                               </p>
                             </div>
                             <Badge variant="outline" className="text-xs">
