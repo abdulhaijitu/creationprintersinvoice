@@ -1,45 +1,43 @@
 
 
-# Invoice Date Problem — Audit & Fix Plan
+# সকল জায়গায় Date Format dd/MM/yyyy ফিক্স
 
-## সমস্যা (Problem)
-`new Date("2026-04-01")` JavaScript-এ **UTC midnight** হিসেবে parse হয়। `date-fns` এর `format()` **local timezone** ব্যবহার করে। ফলে UTC-এর পেছনের timezone-এ তারিখ ১ দিন পিছিয়ে দেখায়। এমনকি UTC+ timezone (যেমন Dhaka) এও এটি fragile এবং inconsistent।
+## সমস্যা
+Native `<input type="date">` ব্রাউজারের locale অনুযায়ী date দেখায় (কিছু ব্রাউজারে MM/DD/YYYY)। এটা আমাদের নিয়ন্ত্রণে নেই। ফলে ফর্মে এক ফরম্যাট আর টেবিলে অন্য ফরম্যাট দেখায়।
 
-**সমাধান:** সব জায়গায় `new Date(dateString)` এর বদলে `parseISO(dateString)` ব্যবহার করতে হবে। `date-fns` এর `parseISO` date-only string কে **local midnight** হিসেবে parse করে, ফলে timezone shift হয় না।
+## সমাধান
+সব জায়গায় native `<input type="date">` এর বদলে প্রজেক্টে existing `DateInput` কম্পোনেন্ট ব্যবহার করা হবে। `DateInput` ইতিমধ্যে `type="date"` ব্যবহার করে, তাই আমাদের এটাকে আপগ্রেড করতে হবে — একটি **custom text input + calendar popover** pattern এ, যেখানে display সবসময় `dd/MM/yyyy` থাকবে।
 
-## পরিবর্তন
+## পরিবর্তনসমূহ
 
-### 1. Invoice Table (Invoices.tsx)
-- Line 466-467, 548, 1095, 1223: `new Date(invoice.invoice_date)` → `parseISO(invoice.invoice_date)`
-- `parseISO` already imported
+### 1. `DateInput` কম্পোনেন্ট আপগ্রেড (`src/components/ui/date-input.tsx`)
+- Native `type="date"` বাদ দিয়ে text input + Calendar popover pattern ব্যবহার
+- Display সবসময় `dd/MM/yyyy` ফরম্যাটে
+- Value internally `yyyy-MM-dd` (DB compatible) রাখবে
+- Calendar icon click এ popover calendar ওপেন হবে
+- Manual typing support সহ (dd/MM/yyyy ফরম্যাটে)
 
-### 2. Invoice Form (InvoiceForm.tsx)
-- Edit mode-এ `invoice.invoice_date` সরাসরি `formData`-তে set হয় — এটা ঠিক আছে (native `<input type="date">` expects `yyyy-MM-dd`)
-- No changes needed here
+### 2. সকল ফর্মে `DateInput` ব্যবহার (16টি ফাইল)
+যেসব ফাইলে `<Input type="date">` আছে সেগুলোতে `DateInput` দিয়ে replace:
+- `InvoiceForm.tsx` — invoice_date, due_date
+- `QuotationForm.tsx` — quotation_date, valid_until
+- `Expenses.tsx` — bill_date
+- `Leave.tsx` — start_date, end_date
+- `Attendance.tsx` — selectedDate
+- `VendorDetail.tsx` — from/to date, payment_date
+- `CreateTaskDialog.tsx` — deadline
+- `EditPaymentDialog.tsx` — payment_date
+- `PayVendorBillDialog.tsx` — payment_date
+- `AddPaymentFromListDialog.tsx`, `AddBillDialog.tsx`, `EditBillDialog.tsx`
+- `EnhancedAuditLogsTable.tsx`, `OrgAuditLogViewer.tsx` — date filters
+- `CustomerDetail.tsx` — statement dates
+- `Payments.tsx` — date filters
 
-### 3. Invoice Detail (InvoiceDetail.tsx)
-- Line 309, 422: `new Date(invoice.invoice_date)` → `parseISO(invoice.invoice_date)`
-- Line 364, 396, 399: `due_date` formatting-ও fix
-- `parseISO` import যোগ
+### 3. টেবিল display — ইতিমধ্যে dd/MM/yyyy আছে
+টেবিলে `format(parseISO(...), 'dd/MM/yyyy')` ব্যবহার হচ্ছে যা সঠিক। কোনো পরিবর্তন দরকার নেই।
 
-### 4. Invoice Mobile Card (InvoiceCard.tsx)
-- Line 89: `new Date(invoice.invoice_date)` → `parseISO(invoice.invoice_date)`
-- `parseISO` import যোগ
-
-### 5. Customer Detail (CustomerDetail.tsx)
-- Line 363, 396, 399: invoice_date ও due_date fix
-- `parseISO` import যোগ
-
-### 6. PDF Templates
-- `InvoicePDFTemplate.tsx` line 417: fix
-- `QuotationPDFTemplate.tsx` line 476: fix
-
-### 7. Other affected pages (same pattern)
-- `Expenses.tsx`, `Quotations.tsx`, `Payments.tsx` — date display lines-এ same fix
-- `BusinessAnalyticsDashboard.tsx` — due_date comparison fix
-
-## কোনো Breaking Change নেই
-- `parseISO` already used in several files
-- শুধু `new Date(dateOnlyString)` → `parseISO(dateOnlyString)` replace
-- Sorting, filtering, form data — কোনো কিছু ভাঙবে না
+## ফলাফল
+- ফর্ম ও টেবিল সবখানে **dd/MM/yyyy** দেখাবে
+- Internal value সবসময় `yyyy-MM-dd` থাকবে (DB compatible)
+- কোনো existing functionality ভাঙবে না
 
