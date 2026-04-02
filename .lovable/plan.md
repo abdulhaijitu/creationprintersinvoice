@@ -1,43 +1,43 @@
 
 
-# সকল জায়গায় Date Format dd/MM/yyyy ফিক্স
+# Loading ইস্যু অডিট ও ফিক্স
 
-## সমস্যা
-Native `<input type="date">` ব্রাউজারের locale অনুযায়ী date দেখায় (কিছু ব্রাউজারে MM/DD/YYYY)। এটা আমাদের নিয়ন্ত্রণে নেই। ফলে ফর্মে এক ফরম্যাট আর টেবিলে অন্য ফরম্যাট দেখায়।
+## সমস্যা চিহ্নিত
+অ্যাপে ৩ ধরনের loading inconsistency আছে:
 
-## সমাধান
-সব জায়গায় native `<input type="date">` এর বদলে প্রজেক্টে existing `DateInput` কম্পোনেন্ট ব্যবহার করা হবে। `DateInput` ইতিমধ্যে `type="date"` ব্যবহার করে, তাই আমাদের এটাকে আপগ্রেড করতে হবে — একটি **custom text input + calendar popover** pattern এ, যেখানে display সবসময় `dd/MM/yyyy` থাকবে।
+1. **Plain "Loading..." text** — ৮টি কম্পোনেন্টে `<p>Loading...</p>` ব্যবহৃত (project standard: Skeleton/Spinner)
+2. **Raw CSS spinner** — ৪টি কম্পোনেন্টে `border-b-2 border-primary animate-spin` div (standard: `Loader2` icon বা Skeleton)
+3. **Missing Skeleton in drawers/panels** — কিছু drawer/panel content-এ loading state নেই বা plain text
 
-## পরিবর্তনসমূহ
+## ফিক্স তালিকা
 
-### 1. `DateInput` কম্পোনেন্ট আপগ্রেড (`src/components/ui/date-input.tsx`)
-- Native `type="date"` বাদ দিয়ে text input + Calendar popover pattern ব্যবহার
-- Display সবসময় `dd/MM/yyyy` ফরম্যাটে
-- Value internally `yyyy-MM-dd` (DB compatible) রাখবে
-- Calendar icon click এ popover calendar ওপেন হবে
-- Manual typing support সহ (dd/MM/yyyy ফরম্যাটে)
+### Group A: "Loading..." → Skeleton/Spinner (8 files)
 
-### 2. সকল ফর্মে `DateInput` ব্যবহার (16টি ফাইল)
-যেসব ফাইলে `<Input type="date">` আছে সেগুলোতে `DateInput` দিয়ে replace:
-- `InvoiceForm.tsx` — invoice_date, due_date
-- `QuotationForm.tsx` — quotation_date, valid_until
-- `Expenses.tsx` — bill_date
-- `Leave.tsx` — start_date, end_date
-- `Attendance.tsx` — selectedDate
-- `VendorDetail.tsx` — from/to date, payment_date
-- `CreateTaskDialog.tsx` — deadline
-- `EditPaymentDialog.tsx` — payment_date
-- `PayVendorBillDialog.tsx` — payment_date
-- `AddPaymentFromListDialog.tsx`, `AddBillDialog.tsx`, `EditBillDialog.tsx`
-- `EnhancedAuditLogsTable.tsx`, `OrgAuditLogViewer.tsx` — date filters
-- `CustomerDetail.tsx` — statement dates
-- `Payments.tsx` — date filters
+| ফাইল | বর্তমান | ফিক্স |
+|---|---|---|
+| `ApprovalsPanel.tsx` (ln 73) | `<p>Loading...</p>` | `<Skeleton>` bars (3 rows) |
+| `EntityAttachmentsSection.tsx` (ln 86) | `<p>Loading...</p>` | `<Skeleton>` bars (2 rows) |
+| `NotificationBell.tsx` (ln 134) | `<span>Loading...</span>` | `<Loader2 className="animate-spin">` centered |
+| `ChallanDetailDrawer.tsx` (ln 143) | `'Loading...'` text in title | `<Skeleton className="h-5 w-32">` |
+| `ChallanPrintTemplate.tsx` (ln 96) | `<p>Loading...</p>` | `<Loader2>` spinner (inline style context, keep simple) |
+| `ReferenceSelect.tsx` (ln 219) | `'Loading...'` in CommandEmpty | `<Loader2>` spinner + "Searching..." |
+| `ReferenceSelect.tsx` (ln 331) | `<span>Loading...</span>` | `<Skeleton className="h-4 w-24">` |
 
-### 3. টেবিল display — ইতিমধ্যে dd/MM/yyyy আছে
-টেবিলে `format(parseISO(...), 'dd/MM/yyyy')` ব্যবহার হচ্ছে যা সঠিক। কোনো পরিবর্তন দরকার নেই।
+### Group B: Raw CSS spinner → Loader2 icon (4 files)
 
-## ফলাফল
-- ফর্ম ও টেবিল সবখানে **dd/MM/yyyy** দেখাবে
-- Internal value সবসময় `yyyy-MM-dd` থাকবে (DB compatible)
-- কোনো existing functionality ভাঙবে না
+| ফাইল | ফিক্স |
+|---|---|
+| `AuditLogsTable.tsx` (ln 123) | `<Loader2 className="h-6 w-6 animate-spin text-primary">` |
+| `EnhancedAuditLogsTable.tsx` (ln 281) | `<Loader2 className="h-8 w-8 animate-spin text-primary">` |
+| `OrganizationDetailsDrawer.tsx` (ln 683) | `<Loader2 className="h-6 w-6 animate-spin text-primary">` |
+
+*(Print templates — CustomerStatementPDF, VendorStatementPDF, VendorPaymentReceipt — এগুলো print overlay, সেগুলো ঠিক আছে)*
+
+### Group C: Print overlays (3 files — ঠিক আছে, skip)
+`CustomerStatementPDF`, `VendorStatementPDF`, `VendorPaymentReceipt` — এগুলো full-screen print preparation overlay, spinner + descriptive text সঠিক।
+
+## মোট পরিবর্তন: ~10টি ফাইল
+- Plain `Loading...` → Skeleton বা Loader2 spinner
+- Raw CSS `div` spinner → `Loader2` icon component
+- কোনো logic বা data flow পরিবর্তন নেই
 
