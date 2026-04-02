@@ -464,11 +464,10 @@ const QuotationForm = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Quotation Date</Label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formData.quotation_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, quotation_date: e.target.value })
+                    onChange={(val) =>
+                      setFormData({ ...formData, quotation_date: val })
                     }
                   />
                 </div>
