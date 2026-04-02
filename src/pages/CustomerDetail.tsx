@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, User, Mail, Phone, MapPin, Building2, FileText, CreditCard, AlertCircle, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { CustomerStatementPDF } from "@/components/customer/CustomerStatementPDF";
 
 interface Customer {
