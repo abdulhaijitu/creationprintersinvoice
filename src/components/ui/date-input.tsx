@@ -3,7 +3,7 @@ import { format, parse, isValid, parseISO } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
-import { Calendar } from "./calendar";
+import { CalendarWithJumps } from "./calendar-with-jumps";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Input } from "./input";
 
@@ -181,14 +181,15 @@ const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
+            <CalendarWithJumps
               mode="single"
               selected={calendarSelected}
               defaultMonth={calendarSelected}
               onSelect={handleCalendarSelect}
               disabled={disabledDays}
               initialFocus
-              className="pointer-events-auto"
+              fromYear={2020}
+              toYear={2035}
             />
           </PopoverContent>
         </Popover>

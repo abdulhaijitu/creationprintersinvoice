@@ -19,7 +19,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { CalendarWithJumps } from "@/components/ui/calendar-with-jumps";
 import {
   Table,
   TableBody,
@@ -285,14 +285,15 @@ export function AllBillsTab() {
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
+              <CalendarWithJumps
                 initialFocus
                 mode="range"
                 defaultMonth={dateRange?.from}
                 selected={dateRange?.from ? { from: dateRange.from, to: dateRange.to } : undefined}
                 onSelect={(range) => handleDateRangeChange(range as DateRange | undefined)}
                 numberOfMonths={2}
-                className="p-3 pointer-events-auto"
+                fromYear={2020}
+                toYear={2035}
               />
             </PopoverContent>
           </Popover>

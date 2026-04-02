@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { CalendarWithJumps } from '@/components/ui/calendar-with-jumps';
 import { Search, Filter, X, CalendarIcon, Download, Upload, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -153,7 +153,7 @@ export function TableToolbar({
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
+                <CalendarWithJumps
                   initialFocus
                   mode="range"
                   defaultMonth={dateRange?.from}
@@ -163,6 +163,8 @@ export function TableToolbar({
                     if (range?.to) setIsDateOpen(false);
                   }}
                   numberOfMonths={2}
+                  fromYear={2020}
+                  toYear={2035}
                 />
               </PopoverContent>
             </Popover>
