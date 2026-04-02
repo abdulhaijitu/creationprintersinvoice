@@ -146,64 +146,62 @@ const VendorDetail = () => {
   });
 
   useEffect(() => {
-    if (id) {
-      fetchVendorData();
-    }
-  }, [id, organization?.id]);
+    if (!id) return;
+    const controller = new AbortController();
+    const signal = controller.signal;
 
-  const fetchVendorData = async () => {
-    setLoading(true);
-    try {
-      // Fetch vendor
-      const { data: vendorData } = await supabase
-        .from("vendors")
-        .select("id, name, phone, email, address, bank_info, notes")
-        .eq("id", id)
-        .single();
+    const fetchVendorData = async () => {
+      setLoading(true);
+      try {
+        const { data: vendorData } = await supabase
+          .from("vendors")
+          .select("id, name, phone, email, address, bank_info, notes")
+          .eq("id", id)
+          .abortSignal(signal)
+          .single();
+        if (signal.aborted) return;
+        if (vendorData) setVendor(vendorData);
 
-      if (vendorData) {
-        setVendor(vendorData);
-      }
+        const { data: billsData } = await supabase
+          .from("vendor_bills")
+          .select("id, bill_date, description, amount, discount, net_amount, paid_amount, due_date, status, reference_no")
+          .eq("vendor_id", id)
+          .order("bill_date", { ascending: false })
+          .abortSignal(signal);
+        if (signal.aborted) return;
+        setBills(billsData || []);
 
-      // Fetch bills
-      const { data: billsData } = await supabase
-        .from("vendor_bills")
-        .select("id, bill_date, description, amount, discount, net_amount, paid_amount, due_date, status, reference_no")
-        .eq("vendor_id", id)
-        .order("bill_date", { ascending: false });
+        const { data: paymentsData } = await supabase
+          .from("vendor_payments")
+          .select("id, payment_date, amount, payment_method, notes, bill_id, reference_no")
+          .eq("vendor_id", id)
+          .order("payment_date", { ascending: false })
+          .abortSignal(signal);
+        if (signal.aborted) return;
+        setPayments(paymentsData || []);
 
-      setBills(billsData || []);
-
-      // Fetch payments
-      const { data: paymentsData } = await supabase
-        .from("vendor_payments")
-        .select("id, payment_date, amount, payment_method, notes, bill_id, reference_no")
-        .eq("vendor_id", id)
-        .order("payment_date", { ascending: false });
-
-      setPayments(paymentsData || []);
-
-      // Fetch customers (for "Client's Job" selector in Add Bill form)
-      if (organization?.id) {
-        const { data: customersData, error: customersError } = await supabase
-          .from("customers")
-          .select("id,name,company_name")
-          .eq("organization_id", organization.id)
-          .eq("is_deleted", false)
-          .order("name", { ascending: true });
-
-        if (customersError) {
-          console.warn("Failed to fetch customers:", customersError);
-        } else {
-          setCustomers(customersData || []);
+        if (organization?.id) {
+          const { data: customersData, error: customersError } = await supabase
+            .from("customers")
+            .select("id,name,company_name")
+            .eq("organization_id", organization.id)
+            .eq("is_deleted", false)
+            .order("name", { ascending: true })
+            .abortSignal(signal);
+          if (signal.aborted) return;
+          if (!customersError) setCustomers(customersData || []);
         }
+      } catch (error: any) {
+        if (error?.name === 'AbortError' || signal.aborted) return;
+        console.error("Error fetching vendor data:", error);
+      } finally {
+        if (!signal.aborted) setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching vendor data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchVendorData();
+    return () => controller.abort();
+  }, [id, organization?.id]);
 
   const handleSaveNewBill = async (billData: BillFormData) => {
     if (!id) throw new Error("Missing vendor id");

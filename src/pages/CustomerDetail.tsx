@@ -62,79 +62,82 @@ const CustomerDetail = () => {
   const [showStatement, setShowStatement] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      fetchCustomerData();
-    }
-  }, [id]);
+    if (!id) return;
+    const controller = new AbortController();
+    const signal = controller.signal;
 
-  const fetchCustomerData = async () => {
-    try {
-      setLoading(true);
+    const fetchCustomerData = async () => {
+      try {
+        setLoading(true);
 
-      // Fetch customer
-      const { data: customerData, error: customerError } = await supabase
-        .from("customers")
-        .select("id, name, email, phone, address, company_name, notes, created_at")
-        .eq("id", id)
-        .single();
+        const { data: customerData, error: customerError } = await supabase
+          .from("customers")
+          .select("id, name, email, phone, address, company_name, notes, created_at")
+          .eq("id", id)
+          .abortSignal(signal)
+          .single();
+        if (signal.aborted) return;
+        if (customerError) throw customerError;
+        setCustomer(customerData);
 
-      if (customerError) throw customerError;
-      setCustomer(customerData);
+        const { data: invoicesData, error: invoicesError } = await supabase
+          .from("invoices")
+          .select("id, invoice_number, invoice_date, due_date, total, paid_amount, status")
+          .eq("customer_id", id)
+          .order("invoice_date", { ascending: false })
+          .abortSignal(signal);
+        if (signal.aborted) return;
+        if (invoicesError) throw invoicesError;
+        setInvoices(invoicesData || []);
 
-      // Fetch invoices
-      const { data: invoicesData, error: invoicesError } = await supabase
-        .from("invoices")
-        .select("id, invoice_number, invoice_date, due_date, total, paid_amount, status")
-        .eq("customer_id", id)
-        .order("invoice_date", { ascending: false });
+        const invoiceIds = (invoicesData || []).map((inv) => inv.id);
 
-      if (invoicesError) throw invoicesError;
-      setInvoices(invoicesData || []);
+        if (invoiceIds.length > 0) {
+          const { data: paymentsData, error: paymentsError } = await supabase
+            .from("invoice_payments")
+            .select(`
+              id,
+              invoice_id,
+              payment_date,
+              amount,
+              payment_method,
+              notes,
+              invoices!inner(invoice_number)
+            `)
+            .in("invoice_id", invoiceIds)
+            .order("payment_date", { ascending: false })
+            .abortSignal(signal);
+          if (signal.aborted) return;
+          if (paymentsError) throw paymentsError;
 
-      // Fetch payments scoped to this customer's invoices
-      const invoiceIds = (invoicesData || []).map((inv) => inv.id);
-      
-      if (invoiceIds.length > 0) {
-        const { data: paymentsData, error: paymentsError } = await supabase
-          .from("invoice_payments")
-          .select(`
-            id,
-            invoice_id,
-            payment_date,
-            amount,
-            payment_method,
-            notes,
-            invoices!inner(invoice_number)
-          `)
-          .in("invoice_id", invoiceIds)
-          .order("payment_date", { ascending: false });
-
-        if (paymentsError) throw paymentsError;
-
-        const customerPayments = (paymentsData || []).map((p: any) => ({
-          id: p.id,
-          invoice_id: p.invoice_id,
-          invoice_number: p.invoices?.invoice_number || "",
-          payment_date: p.payment_date,
-          amount: p.amount,
-          payment_method: p.payment_method,
-          notes: p.notes,
-        }));
-
-        setPayments(customerPayments);
-      } else {
-        setPayments([]);
+          const customerPayments = (paymentsData || []).map((p: any) => ({
+            id: p.id,
+            invoice_id: p.invoice_id,
+            invoice_number: p.invoices?.invoice_number || "",
+            payment_date: p.payment_date,
+            amount: p.amount,
+            payment_method: p.payment_method,
+            notes: p.notes,
+          }));
+          setPayments(customerPayments);
+        } else {
+          setPayments([]);
+        }
+      } catch (error: any) {
+        if (error?.name === 'AbortError' || signal.aborted) return;
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } finally {
+        if (!signal.aborted) setLoading(false);
       }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchCustomerData();
+    return () => controller.abort();
+  }, [id]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {

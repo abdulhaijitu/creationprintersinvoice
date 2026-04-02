@@ -162,15 +162,107 @@ const InvoiceForm = () => {
   const [costingItems, setCostingItems] = useState<CostingItem[]>([]);
 
   useEffect(() => {
-    fetchCustomers();
-    if (isEditing) {
-      fetchInvoice();
-    } else {
-      setItems([
-        { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
-      ]);
-      setCostingItems([]);
-    }
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const loadData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('id, name, default_notes, default_terms')
+          .order('name')
+          .abortSignal(signal);
+        if (!signal.aborted) {
+          if (!error) setCustomers(data || []);
+        }
+      } catch (e: any) {
+        if (e?.name === 'AbortError' || signal.aborted) return;
+        console.error('Error fetching customers:', e);
+      }
+
+      if (isEditing && !signal.aborted) {
+        setFetching(true);
+        try {
+          const { data: invoice, error } = await supabase
+            .from('invoices')
+            .select('*')
+            .eq('id', id)
+            .abortSignal(signal)
+            .single();
+          if (signal.aborted) return;
+          if (error) throw error;
+
+          setInvoiceNumber(invoice.invoice_number);
+          setFormData({
+            customer_id: invoice.customer_id || '',
+            invoice_date: invoice.invoice_date,
+            due_date: invoice.due_date || '',
+            subject: (invoice as any).subject || '',
+            notes: invoice.notes || '',
+            terms: (invoice as any).terms || '',
+            discount: Number(invoice.discount) || 0,
+            tax: Number(invoice.tax) || 0,
+          });
+
+          const { data: invoiceItems } = await supabase
+            .from('invoice_items')
+            .select('*')
+            .eq('invoice_id', id)
+            .abortSignal(signal);
+          if (signal.aborted) return;
+
+          if (invoiceItems && invoiceItems.length > 0) {
+            setItems(invoiceItems.map(item => ({
+              id: item.id,
+              description: item.description,
+              quantity: Number(item.quantity),
+              unit: item.unit || '',
+              unit_price: Number(item.unit_price),
+              total: Number(item.total),
+            })));
+          }
+
+          if (costingPermissions.canView) {
+            const { data: costingData } = await supabase
+              .from('invoice_costing_items' as any)
+              .select('*')
+              .eq('invoice_id', id)
+              .order('sort_order')
+              .abortSignal(signal);
+            if (signal.aborted) return;
+
+            if (costingData && (costingData as any[]).length > 0) {
+              setCostingItems((costingData as any[]).map((item: any) => ({
+                id: item.id,
+                invoice_item_id: item.invoice_item_id || null,
+                item_no: item.item_no || null,
+                item_type: item.item_type,
+                description: item.description || '',
+                quantity: Number(item.quantity),
+                price: Number(item.price),
+                line_total: Number(item.line_total),
+              })));
+            } else {
+              setCostingItems([]);
+            }
+          }
+        } catch (e: any) {
+          if (e?.name === 'AbortError' || signal.aborted) return;
+          console.error('Error fetching invoice:', e);
+          toast.error('Failed to load invoice');
+        } finally {
+          if (!signal.aborted) setFetching(false);
+        }
+      } else if (!isEditing && !signal.aborted) {
+        setItems([
+          { id: crypto.randomUUID(), description: '', quantity: 1, unit: '', unit_price: 0, total: 0 },
+        ]);
+        setCostingItems([]);
+      }
+    };
+
+    loadData();
+    return () => controller.abort();
   }, [id, isEditing]);
 
   useEffect(() => {

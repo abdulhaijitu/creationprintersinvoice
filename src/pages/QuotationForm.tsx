@@ -82,10 +82,78 @@ const QuotationForm = () => {
   ]);
 
   useEffect(() => {
-    fetchCustomers();
-    if (isEditing) {
-      fetchQuotation();
-    }
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const loadData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('id, name, default_notes, default_terms')
+          .order('name')
+          .abortSignal(signal);
+        if (!signal.aborted && !error) setCustomers(data || []);
+      } catch (e: any) {
+        if (e?.name === 'AbortError' || signal.aborted) return;
+        console.error('Error fetching customers:', e);
+      }
+
+      if (isEditing && !signal.aborted) {
+        setFetching(true);
+        try {
+          const { data: quotation, error } = await supabase
+            .from('quotations')
+            .select('*')
+            .eq('id', id)
+            .abortSignal(signal)
+            .single();
+          if (signal.aborted) return;
+          if (error) throw error;
+
+          setQuotationNumber(quotation.quotation_number);
+          setQuotationStatus(quotation.status);
+          setIsConverted(quotation.status === 'converted' || !!quotation.converted_to_invoice_id);
+
+          setFormData({
+            customer_id: quotation.customer_id || '',
+            quotation_date: quotation.quotation_date,
+            valid_until: quotation.valid_until || '',
+            subject: (quotation as any).subject || '',
+            notes: quotation.notes || '',
+            terms: (quotation as any).terms || '',
+            discount: Number(quotation.discount) || 0,
+            tax: Number(quotation.tax) || 0,
+          });
+
+          const { data: quotationItems } = await supabase
+            .from('quotation_items')
+            .select('*')
+            .eq('quotation_id', id)
+            .abortSignal(signal);
+          if (signal.aborted) return;
+
+          if (quotationItems && quotationItems.length > 0) {
+            setItems(quotationItems.map(item => ({
+              id: item.id,
+              description: item.description,
+              quantity: Number(item.quantity),
+              unit: item.unit || '',
+              unit_price: Number(item.unit_price),
+              total: Number(item.total),
+            })));
+          }
+        } catch (e: any) {
+          if (e?.name === 'AbortError' || signal.aborted) return;
+          console.error('Error fetching quotation:', e);
+          toast.error('Failed to load quotation');
+        } finally {
+          if (!signal.aborted) setFetching(false);
+        }
+      }
+    };
+
+    loadData();
+    return () => controller.abort();
   }, [id]);
 
   // Auto-populate terms from company settings for new quotations
