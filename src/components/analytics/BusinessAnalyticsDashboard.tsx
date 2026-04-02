@@ -11,7 +11,7 @@ import {
 import {
   DollarSign, TrendingUp, AlertCircle, Users, FileText, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 
 interface AnalyticsData {
   totalRevenue: number;
