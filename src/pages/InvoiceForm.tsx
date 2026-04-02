@@ -569,6 +569,7 @@ const InvoiceForm = () => {
           }
         }
 
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
         toast.success('Invoice created');
         navigate(`/invoices/${invoice.id}`);
       }
