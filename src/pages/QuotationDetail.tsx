@@ -164,32 +164,38 @@ const QuotationDetail = () => {
   });
 
   useEffect(() => {
-    if (id) {
-      fetchQuotation();
-    }
+    if (!id) return;
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const fetchQuotation = async () => {
+      try {
+        const [quotationRes, itemsRes] = await Promise.all([
+          supabase
+            .from('quotations')
+            .select('*, customers(*)')
+            .eq('id', id)
+            .abortSignal(signal)
+            .single(),
+          supabase.from('quotation_items').select('*').eq('quotation_id', id).abortSignal(signal),
+        ]);
+        if (signal.aborted) return;
+
+        if (quotationRes.error) throw quotationRes.error;
+        setQuotation(quotationRes.data as Quotation);
+        setItems(itemsRes.data || []);
+      } catch (error: any) {
+        if (error?.name === 'AbortError' || signal.aborted) return;
+        console.error('Error fetching quotation:', error);
+        toast.error('Failed to load quotation');
+      } finally {
+        if (!signal.aborted) setLoading(false);
+      }
+    };
+
+    fetchQuotation();
+    return () => controller.abort();
   }, [id]);
-
-  const fetchQuotation = async () => {
-    try {
-      const [quotationRes, itemsRes] = await Promise.all([
-        supabase
-          .from('quotations')
-          .select('*, customers(*)')
-          .eq('id', id)
-          .single(),
-        supabase.from('quotation_items').select('*').eq('quotation_id', id),
-      ]);
-
-      if (quotationRes.error) throw quotationRes.error;
-      setQuotation(quotationRes.data as Quotation);
-      setItems(itemsRes.data || []);
-    } catch (error) {
-      console.error('Error fetching quotation:', error);
-      toast.error('Failed to load quotation');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleStatusTransition = async (newStatus: QuotationStatus, reason?: string) => {
     if (!quotation || !user) return;

@@ -125,39 +125,62 @@ const InvoiceDetail = () => {
   });
 
   useEffect(() => {
-    if (id) {
-      fetchInvoice();
-    }
+    if (!id) return;
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const fetchInvoice = async () => {
+      try {
+        const [invoiceRes, itemsRes, paymentsRes] = await Promise.all([
+          supabase
+            .from('invoices')
+            .select('*, customers(*)')
+            .eq('id', id)
+            .abortSignal(signal)
+            .single(),
+          supabase.from('invoice_items').select('*').eq('invoice_id', id).abortSignal(signal),
+          supabase
+            .from('invoice_payments')
+            .select('*')
+            .eq('invoice_id', id)
+            .order('payment_date', { ascending: false })
+            .abortSignal(signal),
+        ]);
+        if (signal.aborted) return;
+
+        if (invoiceRes.error) throw invoiceRes.error;
+        setInvoice(invoiceRes.data);
+        setItems(itemsRes.data || []);
+        setPayments(paymentsRes.data || []);
+      } catch (error: any) {
+        if (error?.name === 'AbortError' || signal.aborted) return;
+        console.error('Error fetching invoice:', error);
+        toast.error('Failed to load invoice');
+      } finally {
+        if (!signal.aborted) setLoading(false);
+      }
+    };
+
+    fetchInvoice();
+    return () => controller.abort();
   }, [id]);
 
+  // Standalone refetch for callbacks (no abort needed)
   const fetchInvoice = async () => {
     try {
       const [invoiceRes, itemsRes, paymentsRes] = await Promise.all([
-        supabase
-          .from('invoices')
-          .select('*, customers(*)')
-          .eq('id', id)
-          .single(),
+        supabase.from('invoices').select('*, customers(*)').eq('id', id).single(),
         supabase.from('invoice_items').select('*').eq('invoice_id', id),
-        supabase
-          .from('invoice_payments')
-          .select('*')
-          .eq('invoice_id', id)
-          .order('payment_date', { ascending: false }),
+        supabase.from('invoice_payments').select('*').eq('invoice_id', id).order('payment_date', { ascending: false }),
       ]);
-
       if (invoiceRes.error) throw invoiceRes.error;
       setInvoice(invoiceRes.data);
       setItems(itemsRes.data || []);
       setPayments(paymentsRes.data || []);
     } catch (error) {
-      console.error('Error fetching invoice:', error);
-      toast.error('Failed to load invoice');
-    } finally {
-      setLoading(false);
+      console.error('Error refetching invoice:', error);
     }
   };
-
 
   // Calculate status from amounts (single source of truth)
   const getInvoiceStatus = () => {
