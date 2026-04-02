@@ -78,7 +78,7 @@ export function DatePicker({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
+          <CalendarWithJumps
             mode="single"
             selected={value}
             defaultMonth={value}
@@ -86,7 +86,8 @@ export function DatePicker({
             fromDate={fromDate}
             toDate={toDate}
             initialFocus
-            className="p-3 pointer-events-auto"
+            fromYear={2020}
+            toYear={2035}
           />
         </PopoverContent>
       </Popover>

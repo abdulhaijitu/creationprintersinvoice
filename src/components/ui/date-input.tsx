@@ -181,14 +181,15 @@ const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
+            <CalendarWithJumps
               mode="single"
               selected={calendarSelected}
               defaultMonth={calendarSelected}
               onSelect={handleCalendarSelect}
               disabled={disabledDays}
               initialFocus
-              className="pointer-events-auto"
+              fromYear={2020}
+              toYear={2035}
             />
           </PopoverContent>
         </Popover>
