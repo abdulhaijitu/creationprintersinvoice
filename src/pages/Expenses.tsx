@@ -1821,7 +1821,7 @@ const Expenses = () => {
                   paginatedExpenses.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell>
-                        {format(new Date(expense.date), "dd/MM/yyyy")}
+                        {format(parseISO(expense.date), "dd/MM/yyyy")}
                       </TableCell>
                       <TableCell className="max-w-[150px] lg:max-w-[200px] truncate">
                         {expense.description}
