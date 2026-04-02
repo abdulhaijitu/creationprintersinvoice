@@ -75,7 +75,7 @@ export function BusinessAnalyticsDashboard() {
         const overdueInvoices = invoices.filter(inv => {
           if (inv.status === 'paid') return false;
           if (!inv.due_date) return false;
-          return new Date(inv.due_date) < today;
+          return parseISO(inv.due_date) < today;
         });
         const overdueAmount = overdueInvoices.reduce(
           (sum, inv) => sum + (Number(inv.total) - Number(inv.paid_amount)), 0
