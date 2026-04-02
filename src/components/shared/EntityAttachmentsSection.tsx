@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Paperclip, Upload, Trash2, Download, FileIcon, Loader2 } from 'lucide-react';
 import { useEntityAttachments, type EntityAttachment } from '@/hooks/useEntityAttachments';
 import { cn } from '@/lib/utils';
