@@ -419,7 +419,7 @@ const InvoiceDetail = () => {
                       </p>
                       <p className="text-sm">
                         <span className="text-muted-foreground">Date:</span>{' '}
-                        {format(new Date(invoice.invoice_date), 'dd MMM yyyy')}
+                        {format(parseISO(invoice.invoice_date), 'dd MMM yyyy')}
                       </p>
                       {invoice.due_date && (
                         <p className="text-sm">
