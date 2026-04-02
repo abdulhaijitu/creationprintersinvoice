@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { formatCurrency } from '@/lib/formatters';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -46,6 +47,7 @@ interface QuotationItem {
 const QuotationForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { organization } = useOrganization();
   const { settings: companySettings } = useCompanySettings();
@@ -325,6 +327,7 @@ const QuotationForm = () => {
         const { error: itemsError } = await supabase.from('quotation_items').insert(quotationItems);
         if (itemsError) throw itemsError;
 
+        queryClient.invalidateQueries({ queryKey: ['quotations'] });
         toast.success('Quotation updated');
         navigate(`/quotations/${id}`);
       } else {
@@ -383,6 +386,7 @@ const QuotationForm = () => {
         const { error: itemsError } = await supabase.from('quotation_items').insert(quotationItems);
         if (itemsError) throw itemsError;
 
+        queryClient.invalidateQueries({ queryKey: ['quotations'] });
         toast.success('Quotation created');
         navigate(`/quotations/${quotation.id}`);
       }

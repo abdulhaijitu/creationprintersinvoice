@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -128,6 +129,7 @@ const InvoiceItemCard = ({
 const InvoiceForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { organization } = useOrganization();
   const { settings: companySettings } = useCompanySettings();
@@ -479,6 +481,7 @@ const InvoiceForm = () => {
           }
         }
 
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
         toast.success('Invoice updated');
         navigate(`/invoices/${id}`);
       } else {
@@ -566,6 +569,7 @@ const InvoiceForm = () => {
           }
         }
 
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
         toast.success('Invoice created');
         navigate(`/invoices/${invoice.id}`);
       }

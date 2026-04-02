@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { formatCurrency } from '@/lib/formatters';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -257,6 +258,7 @@ interface FormData {
 const PriceCalculationForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { organization } = useOrganization();
   const { canPerform, showCreate, showDelete } = usePermissions();
@@ -585,6 +587,7 @@ const PriceCalculationForm = () => {
           .select()
           .single();
         if (error) throw error;
+        queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
         toast.success('Calculation saved');
         navigate(`/price-calculation/${data.id}`);
       }
@@ -654,6 +657,8 @@ const PriceCalculationForm = () => {
             .eq('id', id);
         }
 
+        queryClient.invalidateQueries({ queryKey: ['quotations'] });
+        queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
         toast.success('Quotation created');
         navigate(`/quotations/${quotation.id}`);
       } else {
@@ -692,6 +697,8 @@ const PriceCalculationForm = () => {
             .eq('id', id);
         }
 
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
         toast.success('Invoice created');
         navigate(`/invoices/${invoice.id}`);
       }
