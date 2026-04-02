@@ -587,6 +587,7 @@ const PriceCalculationForm = () => {
           .select()
           .single();
         if (error) throw error;
+        queryClient.invalidateQueries({ queryKey: ['price-calculations'] });
         toast.success('Calculation saved');
         navigate(`/price-calculation/${data.id}`);
       }
