@@ -1,59 +1,31 @@
 
 
-# Edit Invoice "Saving..." স্টাক ইস্যু ফিক্স
+# সব ডেট পিকারে সাল জাম্প (Month/Year Select) যোগ
 
-## সমস্যা বিশ্লেষণ
+## পরিকল্পনা
+অ্যাপে ইতিমধ্যে `CalendarWithJumps` কম্পোনেন্ট আছে যেটাতে month ও year dropdown select আছে। এখন যেসব জায়গায় সাধারণ `Calendar` ব্যবহার হচ্ছে সেখানে `CalendarWithJumps` দিয়ে replace করতে হবে।
 
-Edit Invoice-এ Save করলে "Saving..." দেখায় এবং আটকে যায়। কোড বিশ্লেষণে কয়েকটি সমস্যা পাওয়া গেছে:
+## পরিবর্তন (4টি ফাইল)
 
-1. **Error handling অসম্পূর্ণ**: `for` loop-এর ভেতরে individual item update/delete-এ error check নেই। কোনো operation fail করলে error silently swallow হয়ে পরের operation-এ আটকে যেতে পারে।
-2. **`invoice_costing_items as any` delete**: Type cast-এর কারণে runtime error হতে পারে যা catch হচ্ছে না।
-3. **Empty `invoice_date` guard নেই**: যদি DateInput থেকে empty string আসে, DB update fail হবে।
+### 1. `src/components/ui/date-input.tsx`
+- Import `CalendarWithJumps` instead of `Calendar`
+- Line 184: `<Calendar>` → `<CalendarWithJumps fromYear={2020} toYear={2035}>`
 
-## ফিক্স — `src/pages/InvoiceForm.tsx`
+### 2. `src/components/ui/date-picker.tsx`
+- Import `CalendarWithJumps` instead of `Calendar`
+- Line 81: `<Calendar>` → `<CalendarWithJumps fromYear={2020} toYear={2035}>`
 
-### 1. Invoice date validation যোগ (line ~357)
-```typescript
-if (!formData.invoice_date) {
-  toast.error('Please select an invoice date');
-  return;
-}
-```
+### 3. `src/components/shared/TableToolbar.tsx`
+- Import `CalendarWithJumps` instead of `Calendar`
+- Line 156: `<Calendar>` → `<CalendarWithJumps fromYear={2020} toYear={2035}>`
 
-### 2. Delete loop-এ error checking (lines 414-419)
-```typescript
-if (itemsToDelete.length > 0) {
-  // Costing items delete - ignore errors (table may not exist)
-  for (const itemId of itemsToDelete) {
-    try {
-      await supabase.from('invoice_costing_items' as any).delete().eq('invoice_item_id', itemId);
-    } catch {}
-  }
-  const { error: deleteError } = await supabase.from('invoice_items').delete().in('id', itemsToDelete);
-  if (deleteError) throw deleteError;
-}
-```
+### 4. `src/components/vendor/AllBillsTab.tsx`
+- Import `CalendarWithJumps` instead of `Calendar`
+- Line 288: `<Calendar>` → `<CalendarWithJumps fromYear={2020} toYear={2035}>`
 
-### 3. Update loop-এ error checking (lines 421-429)
-```typescript
-for (const { id: itemId, item } of itemsToUpdate) {
-  const { error: updateError } = await supabase.from('invoice_items').update({
-    description: item.description,
-    quantity: item.quantity,
-    unit: item.unit || null,
-    unit_price: item.unit_price,
-    discount: 0,
-    total: item.total,
-  }).eq('id', itemId);
-  if (updateError) throw updateError;
-}
-```
+## ইতিমধ্যে ঠিক আছে
+- `AddBillDialog.tsx` ও `EditBillDialog.tsx` — আগে থেকেই `CalendarWithJumps` ব্যবহার করছে ✓
 
-### 4. Costing items save — edit path-এ missing (line 446 এর পরে)
-Create path-এ costing items save আছে (line 517-533) কিন্তু edit path-এ নেই। Edit path-এও costing items save যোগ করা হবে।
-
-## মোট পরিবর্তন: ১টি ফাইল
-- Invoice date empty validation
-- Error checking সব DB operation-এ
-- Edit path-এ costing items save logic
+## ফলাফল
+সব ডেট পিকারে month ও year dropdown select থাকবে — সরাসরি যেকোনো সালে জাম্প করা যাবে।
 
