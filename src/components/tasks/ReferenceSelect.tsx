@@ -14,7 +14,8 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { Check, ChevronsUpDown, FileText, Truck, X } from 'lucide-react';
+import { Check, ChevronsUpDown, FileText, Truck, X, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 

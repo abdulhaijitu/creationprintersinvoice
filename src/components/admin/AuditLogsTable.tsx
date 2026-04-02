@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, RefreshCw, History } from 'lucide-react';
+import { Search, RefreshCw, History, Loader2 } from 'lucide-react';
 
 interface AuditLog {
   id: string;
