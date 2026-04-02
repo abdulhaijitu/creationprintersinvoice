@@ -7,7 +7,7 @@
  * Optimized for A4 print. No UI-only elements.
  */
 
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { sanitizeHtml } from '@/lib/sanitize';
 
