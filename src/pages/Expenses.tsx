@@ -53,7 +53,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton, CardSkeleton } from "@/components/shared/TableSkeleton";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
