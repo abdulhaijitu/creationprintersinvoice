@@ -230,11 +230,10 @@ export function EditPaymentDialog({
         {/* Payment Date */}
         <div className="space-y-2">
           <Label htmlFor="payment_date">Payment Date</Label>
-          <Input
+          <DateInput
             id="payment_date"
-            type="date"
             value={formData.payment_date}
-            onChange={(e) => setFormData((prev) => ({ ...prev, payment_date: e.target.value }))}
+            onChange={(val) => setFormData((prev) => ({ ...prev, payment_date: val }))}
             max={format(new Date(), 'yyyy-MM-dd')}
           />
         </div>

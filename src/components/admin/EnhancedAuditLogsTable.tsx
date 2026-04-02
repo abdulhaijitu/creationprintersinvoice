@@ -266,10 +266,9 @@ export const EnhancedAuditLogsTable = () => {
                 placeholder="From date"
               />
 
-              <Input
-                type="date"
+              <DateInput
                 value={dateTo}
-                onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+                onChange={(val) => { setDateTo(val); setCurrentPage(1); }}
                 placeholder="To date"
               />
             </div>

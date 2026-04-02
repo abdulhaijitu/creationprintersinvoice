@@ -198,10 +198,9 @@ export const AdminNotificationLogs = () => {
             </div>
             <div>
               <Label>To Date</Label>
-              <Input
-                type="date"
+              <DateInput
                 value={filters.dateTo || ''}
-                onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                onChange={(val) => handleFilterChange('dateTo', val)}
               />
             </div>
           </div>
