@@ -836,7 +836,7 @@ const Expenses = () => {
     }
     
     const exportData = filteredExpenses.map(exp => ({
-      date: format(new Date(exp.date), 'dd/MM/yyyy'),
+      date: format(parseISO(exp.date), 'dd/MM/yyyy'),
       description: exp.description,
       category: exp.category?.name || '',
       vendor: exp.vendor?.name || '',
