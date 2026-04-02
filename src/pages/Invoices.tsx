@@ -1092,7 +1092,7 @@ const Invoices = () => {
                                 />
                               </TableCell>
                               <TableCell className="text-muted-foreground whitespace-nowrap">
-                                {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
+                                {format(parseISO(invoice.invoice_date), 'dd/MM/yyyy')}
                               </TableCell>
                               <TableCell className="font-semibold text-foreground">
                                 {invoice.invoice_number}
