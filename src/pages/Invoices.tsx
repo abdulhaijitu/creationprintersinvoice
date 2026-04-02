@@ -545,7 +545,7 @@ const Invoices = () => {
       return {
         invoice_number: inv.invoice_number,
         customer_name: inv.customers?.name || '',
-        invoice_date: format(new Date(inv.invoice_date), 'dd/MM/yyyy'),
+        invoice_date: format(parseISO(inv.invoice_date), 'dd/MM/yyyy'),
         total: inv.total,
         paid_amount: inv.paid_amount,
         due_amount: statusInfo.dueAmount,
