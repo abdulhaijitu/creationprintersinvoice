@@ -1922,7 +1922,7 @@ const Expenses = () => {
                           {formatCurrency(expense.amount)}
                         </p>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
-                          <span>{format(new Date(expense.date), 'dd/MM/yyyy')}</span>
+                          <span>{format(parseISO(expense.date), 'dd/MM/yyyy')}</span>
                           {expense.payment_method && (
                             <span className="capitalize flex items-center gap-1">
                               {getPaymentMethodIcon(expense.payment_method)}

@@ -126,7 +126,7 @@ export function BusinessAnalyticsDashboard() {
         };
 
         invoices.forEach(inv => {
-          const isOverdue = inv.status !== 'paid' && inv.due_date && new Date(inv.due_date) < today;
+          const isOverdue = inv.status !== 'paid' && inv.due_date && parseISO(inv.due_date) < today;
           const status = isOverdue ? 'overdue' : (inv.status as string);
           if (statusCounts[status]) {
             statusCounts[status].count++;

@@ -480,7 +480,7 @@ export function QuotationPDFTemplate({ data }: { data: QuotationPDFData }) {
                   <tr>
                     <td style={{ color: '#6b7280', padding: '2px 0' }}>Valid Until:</td>
                     <td style={{ fontWeight: '500', textAlign: 'right' }}>
-                      {format(new Date(data.quotation.validUntil), 'dd/MM/yyyy')}
+                      {format(parseISO(data.quotation.validUntil), 'dd/MM/yyyy')}
                     </td>
                   </tr>
                 )}

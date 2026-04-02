@@ -86,7 +86,7 @@ export const InvoiceCard = ({
 
             {/* Date */}
             <p className="text-xs text-muted-foreground">
-              {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}
+              {format(parseISO(invoice.invoice_date), 'dd/MM/yyyy')}
             </p>
 
             {/* Amount info */}

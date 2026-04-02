@@ -393,10 +393,10 @@ const CustomerDetail = () => {
                               onClick={() => navigate(`/invoices/${invoice.id}`)}
                             >
                               <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                              <TableCell>{format(new Date(invoice.invoice_date), "dd/MM/yyyy")}</TableCell>
+                              <TableCell>{format(parseISO(invoice.invoice_date), "dd/MM/yyyy")}</TableCell>
                               <TableCell>
                                 {invoice.due_date
-                                  ? format(new Date(invoice.due_date), "dd/MM/yyyy")
+                                  ? format(parseISO(invoice.due_date), "dd/MM/yyyy")
                                   : "-"}
                               </TableCell>
                               <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
