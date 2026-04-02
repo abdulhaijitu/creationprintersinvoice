@@ -225,10 +225,9 @@ export const OrgAuditLogViewer: React.FC = () => {
                 </SelectContent>
               </Select>
 
-              <Input
-                type="date"
+              <DateInput
                 value={dateFrom}
-                onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+                onChange={(val) => { setDateFrom(val); setCurrentPage(1); }}
                 placeholder="From"
               />
 
