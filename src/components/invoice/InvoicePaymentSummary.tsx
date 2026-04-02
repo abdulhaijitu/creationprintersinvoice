@@ -15,7 +15,7 @@ import {
   FileText,
   Printer
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface InvoicePaymentSummaryProps {
