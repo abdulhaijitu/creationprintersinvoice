@@ -455,6 +455,30 @@ const InvoiceForm = () => {
           if (itemsError) throw itemsError;
         }
 
+        // Save costing items in edit path
+        if (costingPermissions.canSave && costingItems.length > 0) {
+          const validCostingItems = costingItems.filter(item => item.item_type && item.invoice_item_id);
+          if (validCostingItems.length > 0) {
+            // Delete existing costing items for this invoice first
+            try {
+              await supabase.from('invoice_costing_items' as any).delete().eq('invoice_id', id);
+            } catch { /* ignore */ }
+            
+            const costingData = validCostingItems.map((item, index) => ({
+              invoice_id: id,
+              invoice_item_id: item.invoice_item_id,
+              item_no: item.item_no,
+              organization_id: organization?.id,
+              item_type: item.item_type,
+              description: item.description || null,
+              quantity: item.quantity,
+              price: item.price,
+              sort_order: index,
+            }));
+            await supabase.from('invoice_costing_items' as any).insert(costingData);
+          }
+        }
+
         toast.success('Invoice updated');
         navigate(`/invoices/${id}`);
       } else {
