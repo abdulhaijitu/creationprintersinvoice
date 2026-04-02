@@ -677,10 +677,9 @@ const VendorDetail = () => {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">To Date</Label>
-                      <Input
-                        type="date"
+                      <DateInput
                         value={format(statementToDate, "yyyy-MM-dd")}
-                        onChange={(e) => setStatementToDate(new Date(e.target.value))}
+                        onChange={(val) => setStatementToDate(new Date(val))}
                         className="h-9"
                       />
                     </div>
