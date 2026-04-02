@@ -227,56 +227,8 @@ const QuotationForm = () => {
     }
   };
 
-  const fetchQuotation = async () => {
-    setFetching(true);
-    try {
-      const { data: quotation, error } = await supabase
-        .from('quotations')
-        .select('*')
-        .eq('id', id)
-        .single();
 
-      if (error) throw error;
 
-      // All statuses are now editable - no status restriction
-      setQuotationNumber(quotation.quotation_number);
-      setQuotationStatus(quotation.status);
-      setIsConverted(quotation.status === 'converted' || !!quotation.converted_to_invoice_id);
-      
-      setFormData({
-        customer_id: quotation.customer_id || '',
-        quotation_date: quotation.quotation_date,
-        valid_until: quotation.valid_until || '',
-        subject: (quotation as any).subject || '',
-        notes: quotation.notes || '',
-        terms: (quotation as any).terms || '',
-        discount: Number(quotation.discount) || 0,
-        tax: Number(quotation.tax) || 0,
-      });
-
-      // Fetch items
-      const { data: quotationItems } = await supabase
-        .from('quotation_items')
-        .select('*')
-        .eq('quotation_id', id);
-
-      if (quotationItems && quotationItems.length > 0) {
-        setItems(quotationItems.map(item => ({
-          id: item.id,
-          description: item.description,
-          quantity: Number(item.quantity),
-          unit: item.unit || '',
-          unit_price: Number(item.unit_price),
-          total: Number(item.total),
-        })));
-      }
-    } catch (error) {
-      console.error('Error fetching quotation:', error);
-      toast.error('Failed to load quotation');
-    } finally {
-      setFetching(false);
-    }
-  };
 
   // Quotation number is now generated server-side atomically during insert
   // This prevents duplicate key errors from race conditions
