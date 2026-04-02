@@ -417,10 +417,14 @@ const InvoiceForm = () => {
         const itemsToDelete = existingItemIds.filter(existingId => !currentItemIds.includes(existingId));
         
         if (itemsToDelete.length > 0) {
+          // Delete related costing items first (ignore errors for safety)
           for (const itemId of itemsToDelete) {
-            await supabase.from('invoice_costing_items' as any).delete().eq('invoice_item_id', itemId);
+            try {
+              await supabase.from('invoice_costing_items' as any).delete().eq('invoice_item_id', itemId);
+            } catch { /* ignore costing delete errors */ }
           }
-          await supabase.from('invoice_items').delete().in('id', itemsToDelete);
+          const { error: deleteError } = await supabase.from('invoice_items').delete().in('id', itemsToDelete);
+          if (deleteError) throw deleteError;
         }
         
         for (const { id: itemId, item } of itemsToUpdate) {
