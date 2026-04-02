@@ -359,6 +359,11 @@ const InvoiceForm = () => {
       return;
     }
 
+    if (!formData.invoice_date) {
+      toast.error('Please select an invoice date');
+      return;
+    }
+
     if (items.some((item) => !item.description)) {
       toast.error('Please provide description for all items');
       return;
